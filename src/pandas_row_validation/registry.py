@@ -19,6 +19,7 @@ import importlib.util
 import inspect
 import pkgutil
 import sys
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -86,6 +87,10 @@ class Test:
 TESTS: list[Test] = []
 
 _LOADED_SUITES: set[str] = set()
+# Test files imported by path through load_test_files(), resolved and in load
+# order. Kept separate from _LOADED_SUITES because a file has no suite of its
+# own: it lands in BASE_SUITE, and only the path identifies it again.
+_LOADED_FILES: list[str] = []
 # Modules that have registered a test, so clear_registry can evict them from
 # sys.modules; without that a later import is a no-op -- Python caches modules --
 # and the registry would silently stay empty. Recorded at registration rather
@@ -339,6 +344,7 @@ def clear_registry() -> None:
     global _TOPO_ORDER
     TESTS.clear()
     _LOADED_SUITES.clear()
+    _LOADED_FILES.clear()
     # Evict the test modules too: Python caches a module after its first import,
     # so without this a later load_suites() would re-import nothing and leave
     # the registry silently empty.
@@ -418,6 +424,73 @@ def load_suites(suites: list[str], package: str) -> None:
         _import_test_modules(f"{package}.{suite}")
         _LOADED_SUITES.add(suite)
 
+    validate_registry()
+
+
+def loaded_files() -> list[str]:
+    """Test files loaded by path so far, in load order (a copy)."""
+
+    return list(_LOADED_FILES)
+
+
+def load_test_files(paths: str | list[str]) -> None:
+    """Import the named test files so their tests register themselves.
+
+    The counterpart to :func:`load_suites` for a caller that has paths rather
+    than an importable package -- a pipeline that writes test files into a run
+    directory and then validates that run cannot express them as a package, and
+    should not have to.
+
+    Every file is named explicitly -- a path to a ``.py`` file, or several of
+    them. Nothing is discovered, and nothing is imported that was not asked for,
+    so two entry points in one codebase can run different sets of tests without
+    interfering with each other.
+
+    The files need not be a package and need no ``__init__.py``. A file listed
+    twice, or already loaded, is skipped. Dependencies are validated once every
+    file in the call has been loaded, so a prerequisite may live in any of them.
+
+    A file imported this way is given a flat module name, so :func:`_infer_suite`
+    places its tests in :data:`BASE_SUITE` -- the suite that is always loaded.
+    """
+
+    given = [paths] if isinstance(paths, str) else list(paths)
+    resolved: list[str] = []
+    for path in given:
+        candidate = Path(path).resolve()
+        if not candidate.is_file():
+            raise ValueError(
+                f"No test file at {path!r}. load_test_files() names files explicitly; "
+                "nothing is discovered."
+            )
+        name = str(candidate)
+        if name not in _LOADED_FILES and name not in resolved:
+            resolved.append(name)
+
+    for name in resolved:
+        # A unique module name per load: two run directories can each hold a
+        # checks.py, and importing the second under the first's name would be a
+        # no-op that silently registered nothing.
+        module_name = f"pandas_row_validation_test_file_{Path(name).stem}_{len(_LOADED_FILES)}"
+        spec = importlib.util.spec_from_file_location(module_name, name)
+        if spec is None or spec.loader is None:
+            raise ValueError(f"Cannot import {name!r} as a Python file.")
+        module = importlib.util.module_from_spec(spec)
+        # Registered before execution so a test file that imports itself, or is
+        # pickled by a worker, finds the module rather than importing it twice.
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(module_name, None)
+            raise
+        _REGISTERING_MODULES.add(module_name)
+        _LOADED_FILES.append(name)
+
+    # The base suite is where a path-imported file's tests land, and
+    # validate_registry() names the loaded suites when a prerequisite is missing.
+    if resolved:
+        _LOADED_SUITES.add(BASE_SUITE)
     validate_registry()
 
 
