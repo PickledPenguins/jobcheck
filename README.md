@@ -108,6 +108,34 @@ root cause: AGE_PRESENT
 `only_relevant=True` drops the tests that passed; without it every test appears,
 which is the full audit view.
 
+## The whole frame at once
+
+`validate` runs the frame and hands back one object holding the outcomes, the
+frame they came from, and the rules that produced them — so the reporting views
+need no second argument.
+
+```python
+from pandas_row_validation import validate
+
+run = validate(df)                     # the same arguments as collect_outcomes
+print(f"{len(run)} rows, {len(run.failed_rows)} failed, {run.errors} errored")
+print(run.root_causes)
+```
+
+```
+3 rows, 3 failed, 0 errored
+['AGE_NEGATIVE', 'EMAIL_MISSING_AT', 'AGE_PRESENT']
+```
+
+- `run.report(key_column="id")` and `run.summary()` are the tables above.
+- `run.explain(0)` is one row's trace: `.failures`, `.root_cause`, `.records`.
+- `iter_traces(df)` yields the same traces one at a time, for a frame whose
+  outcomes will not fit in memory.
+
+Tests do not have to live in an importable package. `load_test_files(paths)`
+imports named `.py` files by path — what a pipeline that writes test files into a
+run directory needs — and their tests join the base suite.
+
 ## Documentation
 
 - [docs/writing-tests.md](docs/writing-tests.md) — the test function, statuses,
