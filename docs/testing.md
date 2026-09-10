@@ -125,11 +125,14 @@ Regenerate expected output after an intended change with
 `python3 scripts/regen_catalog.py [substring ...]`, then **read the diff** — a blind
 regeneration defeats the catalog.
 
-**Known fragility.** `tests/examples/verbosity/source-files-and-by-rule-table` prints
-absolute paths in a table whose column widths were computed before `<project>` was
-substituted, so the case only passes on a path of the same length as the one that
-generated it. Making it portable means rendering through a fixed-length root, which is a
-change to `tests/catalog.py` rather than to the case.
+**Paths are rendered through a fixed-length root.** A case like
+`verbosity/source-files-and-by-rule-table` prints absolute paths in a table whose column
+widths are computed *before* `<project>` replaces them, so a clone at a longer path would
+produce the same words with different padding and fail for no reason anybody could act
+on. `tests/catalog.py` therefore runs every case through a symlink at
+`$TMPDIR/prv-catalog-root-<8-digit uid>`, which is the same length on every machine. A
+filesystem that refuses symlinks falls back to the real root, and the one test that
+depends on the arrangement skips.
 
 ## Mutation testing
 
