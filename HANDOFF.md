@@ -11,7 +11,7 @@ Measured on 2026-09-10, Python 3.14.6, pandas 2.x, on the `claude` branch.
 
 | Gate | Result |
 |---|---|
-| `./run-tests.sh` (fast, the commit gate) | 652 passed, 28s |
+| `./run-tests.sh` (fast, the commit gate) | 704 passed, 29s |
 | `./run-tests.sh long` | 251 passed, 265s |
 | `./run-tests.sh all` | 903 passed, 288s |
 | `./run-tests.sh cov` | 100% of statements and branches, against a 95% floor |

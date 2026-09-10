@@ -102,10 +102,12 @@ Shared defaults for a file. The returned group is called like the decorator:
 The group's prerequisites are unconditional — a test's own are added to them,
 never substituted. `suite` and `default_enabled` on a test override the group's.
 
-### `load_suites(suites: list[str], package: str = "pandas_row_validation") -> None`
+### `load_suites(suites: list[str], package: str) -> None`
 
 Imports every `test_*.py` module in each named subpackage, plus the base suite
-(files directly in *package*) on every call. Each suite imports once, so repeat
+(files directly in *package*) on every call. *package* is required and is **your**
+package: this one ships no tests, so a default would name the wrong tree and the
+error for a missing suite would point at it. Each suite imports once, so repeat
 calls are no-ops. Calls `validate_registry` before returning. Raises `ValueError`
 naming the expected subpackage for an unknown suite.
 
@@ -126,6 +128,12 @@ No `__pycache__` is written beside the file.
 ### `loaded_files() -> list[str]`
 
 The resolved paths loaded that way, in load order. A copy.
+
+### `BASE_SUITE`
+
+The suite name (`"base"`) given to tests that sit directly in *package* rather
+than in a suite subpackage, and to any file loaded by path. It is loaded by every
+`load_suites` call and cannot be switched off.
 
 ### `loaded_suites() -> set[str]`, `validate_registry() -> None`, `clear_registry() -> None`
 

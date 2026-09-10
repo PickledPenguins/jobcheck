@@ -148,6 +148,8 @@ def test_the_example_code_does_not_collide_with_the_shipped_tests(
         "docs/cli.md",
         "docs/architecture.md",
         "docs/testing.md",
+        "docs/contributing.md",
+        "docs/future-work.md",
     ],
 )
 def test_every_document_the_readme_links_to_exists(name: str) -> None:
