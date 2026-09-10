@@ -97,12 +97,6 @@ two entry points it used to have, with the only copy of the lost code sitting in
   -- were killed by tests written against them. The remaining cluster is the registry's
   debug-print functions, whose tests check individual cells rather than the whole rendered
   table.
-- **One catalog case is path-length dependent.**
-  `tests/examples/verbosity/source-files-and-by-rule-table` renders absolute paths; the
-  `<project>` substitution in `tests/catalog.py` fixes the text but not the column widths,
-  which were computed from the full path. Regenerated so the suite is green here, and it
-  will fail on a clone at a path of a different length. The fix is to render through a
-  fixed-length root, in the catalog machinery.
 - **jobchain's `claude-port` branch is unmerged**, as is this one.
 
 ## Considered and deliberately not done
