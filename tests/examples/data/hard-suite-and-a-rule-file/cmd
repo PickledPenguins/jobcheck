@@ -1,0 +1,1 @@
+python3 examples/main.py --data examples/data/customers.csv -e hard_tests -o examples/rules/split_by_topic/01_age_rules.yaml --no-registry --summary

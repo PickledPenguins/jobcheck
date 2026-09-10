@@ -1,0 +1,122 @@
+Loaded suites: ['base', 'hard_tests', 'soft_tests']
+
+Loaded 3 override rule(s) from 1 file(s)
+
+== Registry ==
+code                 | layer | suite      | default_state | description                              | depends_on                      | could_be_overridden_by                 
+---------------------+-------+------------+---------------+------------------------------------------+---------------------------------+----------------------------------------
+ROW_ALL_NULL         | 0     | base       | ON            | A row with no populated field at all is  | -                               | -                                      
+                     |       |            |               | never valid input.                       |                                 |                                        
+AGE_PRESENT          | 0     | hard_tests | ON            | The presence test the rest of this file  | -                               | -                                      
+                     |       |            |               | waits for.                               |                                 |                                        
+DATES_PRESENT        | 0     | hard_tests | ON            | The presence test the ordering test      | -                               | -                                      
+                     |       |            |               | waits for.                               |                                 |                                        
+AGE_NOT_A_NUMBER     | 1     | hard_tests | ON            |                                          | AGE_PRESENT                     | -                                      
+DATES_OUT_OF_ORDER   | 1     | hard_tests | ON            | A test weighing two columns together,    | DATES_PRESENT                   | -                                      
+                     |       |            |               | which is why tests are given the whole   |                                 |                                        
+                     |       |            |               | row rather than one value.               |                                 |                                        
+AGE_NEGATIVE         | 2     | hard_tests | ON            | Ages below zero are always a data-entry  | AGE_PRESENT; AGE_NOT_A_NUMBER   | -                                      
+                     |       |            |               | or unit error.                           |                                 |                                        
+AGE_NOT_INTEGER      | 2     | hard_tests | OFF           | Off by default: only some source systems | AGE_PRESENT; AGE_NOT_A_NUMBER   | enable_legacy_integer_check;           
+                     |       |            |               | promise integer ages. Turn it on for     |                                 | disable_age_integer_check_globally     
+                     |       |            |               | those systems with an override rule.     |                                 |                                        
+AGE_TOO_HIGH         | 2     | hard_tests | ON            | Guards against sentinel values such as   | AGE_PRESENT; AGE_NOT_A_NUMBER   | -                                      
+                     |       |            |               | 999 leaking in as real ages.             |                                 |                                        
+EMAIL_PRESENT        | 0     | soft_tests | ON            | The presence test the rest of the email  | -                               | -                                      
+                     |       |            |               | tests wait for.                          |                                 |                                        
+EMAIL_MISSING_AT     | 1     | soft_tests | ON            | The most basic email shape test; the     | EMAIL_PRESENT                   | suppress_email_checks_for_test_accounts
+                     |       |            |               | domain test depends on it.               |                                 |                                        
+EMAIL_DOMAIN_INVALID | 2     | soft_tests | ON            | Only checked once EMAIL_MISSING_AT       | EMAIL_PRESENT; EMAIL_MISSING_AT | suppress_email_checks_for_test_accounts
+                     |       |            |               | passed: reporting a malformed domain on  |                                 |                                        
+                     |       |            |               | a string with no '@' is redundant noise  |                                 |                                        
+                     |       |            |               | on top of a more fundamental problem     |                                 |                                        
+                     |       |            |               | already reported.                        |                                 |                                        
+
+== Registry vs overrides ==
+code                 | layer | suite      | default_state | override_rules                          | effective_state                   
+---------------------+-------+------------+---------------+-----------------------------------------+-----------------------------------
+ROW_ALL_NULL         | 0     | base       | ON            | -                                       | DEFAULT (ON)                      
+AGE_PRESENT          | 0     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+DATES_PRESENT        | 0     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+AGE_NOT_A_NUMBER     | 1     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+DATES_OUT_OF_ORDER   | 1     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+AGE_NEGATIVE         | 2     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+AGE_NOT_INTEGER      | 2     | hard_tests | OFF           | enable_legacy_integer_check             | depends on row (default OFF unless
+                     |       |            |               | (enable);                               | a rule above matches)             
+                     |       |            |               | disable_age_integer_check_globally      |                                   
+                     |       |            |               | (disable)                               |                                   
+AGE_TOO_HIGH         | 2     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+EMAIL_PRESENT        | 0     | soft_tests | ON            | -                                       | DEFAULT (ON)                      
+EMAIL_MISSING_AT     | 1     | soft_tests | ON            | suppress_email_checks_for_test_accounts | depends on row (default ON unless 
+                     |       |            |               | (disable)                               | a rule above matches)             
+EMAIL_DOMAIN_INVALID | 2     | soft_tests | ON            | suppress_email_checks_for_test_accounts | depends on row (default ON unless 
+                     |       |            |               | (disable)                               | a rule above matches)             
+
+== Failures ==
+row  | code            | status   | layer | suite      | outcome  | message                              | comments                             | is_root_cause
+-----+-----------------+----------+-------+------------+----------+--------------------------------------+--------------------------------------+--------------
+2000 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2001 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2002 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2003 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2004 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2005 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2006 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2007 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2008 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2009 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2010 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2011 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2012 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2013 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2014 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2015 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2016 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2017 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2018 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2019 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2020 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2021 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2022 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+2023 | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                     | disabled by rule                     | False        
+     |                 |          |       |            |          | 'disable_age_integer_check_globally' | 'disable_age_integer_check_globally' |              
+
+== Summary ==
+code                 | layer | failed | errored | skipped | disabled | passed
+---------------------+-------+--------+---------+---------+----------+-------
+AGE_NEGATIVE         | 2     | 0      | 0       | 0       | 0        | 24    
+AGE_NOT_A_NUMBER     | 1     | 0      | 0       | 0       | 0        | 24    
+AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 24       | 0     
+AGE_PRESENT          | 0     | 0      | 0       | 0       | 0        | 24    
+AGE_TOO_HIGH         | 2     | 0      | 0       | 0       | 0        | 24    
+DATES_OUT_OF_ORDER   | 1     | 0      | 0       | 0       | 0        | 24    
+DATES_PRESENT        | 0     | 0      | 0       | 0       | 0        | 24    
+EMAIL_DOMAIN_INVALID | 2     | 0      | 0       | 0       | 0        | 24    
+EMAIL_MISSING_AT     | 1     | 0      | 0       | 0       | 0        | 24    
+EMAIL_PRESENT        | 0     | 0      | 0       | 0       | 0        | 24    
+ROW_ALL_NULL         | 0     | 0      | 0       | 0       | 0        | 24    
+
+Root causes: none - every row passed.

@@ -2,13 +2,17 @@
 
 Thresholds are deliberately loose -- they catch an order-of-magnitude
 regression (an accidental per-row topological sort, a per-row file read), not
-small variation between machines.
+small variation between machines. For a gate that notices a *small* regression,
+see ``tests/test_perf.py``, which compares against this machine's own baseline.
+
+Peak-memory ceilings live in ``tests/test_memory.py``: tracemalloc roughly
+triples the time it measures, so the two cannot share a run without one of them
+lying.
 """
 
 from __future__ import annotations
 
 import time
-import tracemalloc
 
 import pandas as pd
 import pytest
@@ -69,18 +73,6 @@ def test_building_a_report_over_many_rows_stays_within_the_time_ceiling(
     elapsed = time.monotonic() - start
     assert len(report) == 6000, "one line per failure, not per row"
     assert elapsed < 60.0, f"5000 rows took {elapsed:.1f}s"
-
-
-def test_memory_stays_bounded_across_many_rows(example_suites: None) -> None:
-    """Validation holds no per-row state, so peak memory must not scale with rows."""
-
-    df = frame(5000)
-    tracemalloc.start()
-    for _, row in df.iterrows():
-        reg.validate_row(row)
-    _, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
-    assert peak < 64 * 1024 * 1024, f"peak {peak / 1e6:.0f} MB"
 
 
 def test_topological_order_is_not_recomputed_per_row(fresh_registry: None) -> None:
@@ -145,21 +137,6 @@ def test_repeated_validation_does_not_leak_registry_state(example_suites: None) 
     assert [r.code for r in reg.validate_row(row)] == [
         "AGE_NEGATIVE", "DATES_PRESENT", "EMAIL_MISSING_AT"
     ]
-
-
-def test_report_memory_stays_bounded_for_a_large_frame(example_suites: None) -> None:
-    """collect_outcomes keeps an object per test per row, so this is the number that
-    decides how large a frame the report path can take. Deliberately a smaller frame
-    than the validation ceiling above: the point is the ratio, not the absolute size."""
-
-    df = frame(2000)
-    tracemalloc.start()
-    outcomes = rep.collect_outcomes(df)
-    report = rep.build_report(outcomes, df=df)
-    _, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
-    assert len(report) == 2400
-    assert peak < 128 * 1024 * 1024, f"peak {peak / 1e6:.0f} MB"
 
 
 def test_rendering_a_large_report_stays_within_the_time_ceiling(example_suites: None) -> None:

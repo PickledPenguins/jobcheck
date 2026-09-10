@@ -60,10 +60,20 @@ def test_shipped_root_rule_file_drives_a_whole_frame(example_suites: None) -> No
 
 
 def test_directory_loading_produces_the_same_first_two_rules(example_suites: None) -> None:
+    """One directory of files says what one file says -- rule for rule, not name for name.
+
+    The names deliberately differ: the split files end "_by_topic" so the two
+    sets can be loaded together, which a shared name makes impossible. What has
+    to match is what the rules *do*.
+    """
+
     from_dir = load_overrides_from_dir("examples/rules/split_by_topic")
     from_file = load_overrides("examples/rules/error_overrides.yaml")
-    assert [r.name for r in from_dir] == [r.name for r in from_file[:2]]
     assert [r.action for r in from_dir] == [r.action for r in from_file[:2]]
+    assert [r.codes for r in from_dir] == [r.codes for r in from_file[:2]]
+    assert [[(c.column, c.pattern) for c in r.criteria] for r in from_dir] == \
+        [[(c.column, c.pattern) for c in r.criteria] for r in from_file[:2]]
+    assert [r.name for r in from_dir] == [f"{r.name}_by_topic" for r in from_file[:2]]
 
 
 def test_directory_loading_leaves_the_legacy_enable_in_force(example_suites: None) -> None:

@@ -233,3 +233,95 @@ def test_main_hard_only_has_help() -> None:
     result = run_cli("examples/main_hard_only.py", "--help")
     assert result.returncode == 0
     assert "loading only the hard_tests suite" in result.stdout
+
+
+# --- reading a data file ----------------------------------------------------
+
+
+def test_data_defaults_to_the_built_in_frame() -> None:
+    assert main.parse_args([]).data is None
+
+
+def test_key_column_defaults_to_id() -> None:
+    assert main.parse_args([]).key_column == "id"
+
+
+def test_no_registry_is_off_by_default() -> None:
+    assert main.parse_args([]).no_registry is False
+
+
+def test_load_frame_returns_the_demo_frame_when_no_path_is_given() -> None:
+    frame = main.load_frame(None)
+    assert list(frame["id"])[:5] == [1.0, 2.0, 3.0, 4.0, 5.0]
+    assert len(frame) == 6
+
+
+def test_load_frame_reads_every_column_of_a_csv_as_text(tmp_path: Any) -> None:
+    # A test that judges whether a value is a number has to see what the file
+    # said; pandas inferring the column would repair "41.5" before anything
+    # looked at it.
+    path = tmp_path / "rows.csv"
+    path.write_text("id,age\n1,41.5\n2,007\n")
+    frame = main.load_frame(str(path))
+    assert list(frame["age"]) == ["41.5", "007"]
+
+
+def test_load_frame_reads_an_empty_cell_as_missing_not_as_the_word(tmp_path: Any) -> None:
+    import pandas as pd
+
+    path = tmp_path / "rows.csv"
+    path.write_text("id,age\n1,\n")
+    assert pd.isna(main.load_frame(str(path))["age"][0])
+
+
+def test_a_missing_data_file_exits_two_naming_the_path() -> None:
+    result = run_cli("examples/main.py", "--data", "no/such/file.csv")
+    assert result.returncode == 2
+    assert "no such data file: no/such/file.csv" in result.stderr
+
+
+def test_a_data_file_with_no_columns_exits_two(tmp_path: Any) -> None:
+    path = tmp_path / "blank.csv"
+    path.write_text("")
+    result = run_cli("examples/main.py", "--data", str(path))
+    assert result.returncode == 2
+    assert "holds no columns to read" in result.stderr
+
+
+def test_an_unknown_key_column_exits_two_and_lists_the_real_ones() -> None:
+    result = run_cli("examples/main.py", "--data", "examples/data/customers.csv",
+                     "--key-column", "customer_id")
+    assert result.returncode == 2
+    assert "--key-column 'customer_id' is not a column of the data" in result.stderr
+    assert "id, name, age" in result.stderr
+
+
+def test_the_key_column_chooses_what_labels_a_report_row() -> None:
+    result = run_cli("examples/main.py", "--data", "examples/data/customers.csv",
+                     "--key-column", "name", "--no-registry")
+    assert result.returncode == 0
+    assert "Alan Turing" in result.stdout
+    assert "AGE_NEGATIVE" in result.stdout
+
+
+def test_no_registry_prints_the_report_without_the_registry_tables() -> None:
+    result = run_cli("examples/main.py", "--no-registry")
+    assert result.returncode == 0
+    assert "== Registry ==" not in result.stdout
+    assert "== Registry vs overrides ==" not in result.stdout
+    assert "== Failures ==" in result.stdout
+
+
+def test_the_registry_tables_are_printed_without_the_flag() -> None:
+    result = run_cli("examples/main.py")
+    assert result.returncode == 0
+    assert "== Registry ==" in result.stdout
+
+
+def test_a_csv_row_that_is_entirely_blank_reports_the_base_suite_test() -> None:
+    # Failures in the data are a report, not an error: the run exits 0 and the
+    # reader decides. Only a broken *invocation* exits non-zero.
+    result = run_cli("examples/main.py", "--data", "examples/data/customers.csv",
+                     "--no-registry")
+    assert result.returncode == 0
+    assert "ROW_ALL_NULL" in result.stdout

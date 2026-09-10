@@ -41,12 +41,14 @@ addopts = "-q --strict-markers"
 markers = [
     "fast: unit, smoke, interface, regression, cheap pathological. Gates every commit.",
     "long: integration, load, end-to-end, catalogs. Gates every release.",
+    "perf: timing against this machine's recorded baseline. Its own gate: ./run-tests.sh perf.",
+    "memory: peak-memory ceilings, measured under tracemalloc. Its own gate: ./run-tests.sh memory.",
 ]
 
 [tool.coverage.run]
 # The library, and the example suites the tests drive: both are code this
 # repository is responsible for, and a broken example should show as a gap.
-source = ["pandas_row_validation", "example_suites"]
+source = ["pandas_row_validation", "example_suites", "main", "main_hard_only", "perf_baseline"]
 branch = true
 
 [tool.coverage.report]
@@ -67,8 +69,10 @@ explicit_package_bases = true
 
 [tool.mutmut]
 paths_to_mutate = ["src/pandas_row_validation/"]
-# The entry points and the example suites the tests load live here.
-also_copy = ["examples/"]
+# The entry points, the example suites and the example data the tests load live
+# here; scripts/ comes too because a test regenerates the data files from the
+# generator and compares, which needs the generator inside the mutants tree.
+also_copy = ["examples/", "scripts/"]
 # Excludes tests that shell out to a subprocess: mutmut's trampoline only sees
 # its own config inside the process it orchestrates, and a subprocess that just
 # runs "python examples/main.py" never loads it. Coverage of those files is
@@ -85,4 +89,17 @@ pytest_add_cli_args_test_selection = [
     # Checks that the README and its linked docs exist and match the code; the
     # mutants tree only carries the package, tests and examples, not docs/.
     "--ignore=tests/test_readme.py",
+    # Excluded for cost rather than correctness: mutmut runs the whole selection
+    # once per mutant, so a suite member that takes a minute makes the run take
+    # days. Each of these is covered by a faster test of the same behaviour --
+    # the volume and shape suites restate what the unit tests assert, the perf
+    # and memory gates measure rather than assert behaviour, and the concurrency
+    # suite spends its time in subprocesses mutmut cannot instrument anyway.
+    "--ignore=tests/test_load.py",
+    "--ignore=tests/test_scaling.py",
+    "--ignore=tests/test_perf.py",
+    "--ignore=tests/test_memory.py",
+    "--ignore=tests/test_concurrency.py",
+    "--ignore=tests/test_properties.py",
+    "--ignore=tests/test_fuzz.py",
 ]
