@@ -1,0 +1,35 @@
+# Override rules: a FLAT top-level list. No 'rules:' key.
+#
+# Precedence is "last rule wins": when two rules touch the same code and both
+# match the same row, the one listed later decides. There is no priority field.
+#
+# 'match' is regex-only, and every criterion in the list must match (AND).
+# Use 'match: all' -- never an empty list -- to apply a rule to every row.
+
+- name: "enable_legacy_integer_check"
+  description: "Turn on strict integer check for legacy-system batch rows"
+  action: enable
+  codes:
+    - AGE_NOT_INTEGER
+  match:
+    - column: source_system
+      pattern: "^LEGACY_.*"
+    - column: record_type
+      pattern: "^BATCH$"
+
+- name: "suppress_email_checks_for_test_accounts"
+  description: "Internal test accounts shouldn't trigger email format errors"
+  action: disable
+  codes:
+    - EMAIL_MISSING_AT
+    - EMAIL_DOMAIN_INVALID
+  match:
+    - column: email
+      pattern: "@internal\\.test$"
+
+- name: "disable_age_integer_check_globally"
+  description: "Example: disable AGE_NOT_INTEGER for every row, no filtering"
+  action: disable
+  codes:
+    - AGE_NOT_INTEGER
+  match: all

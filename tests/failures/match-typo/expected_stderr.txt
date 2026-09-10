@@ -1,0 +1,1 @@
+ValueError: rule 'typo' in tests/failures/match-typo/rules.yaml: 'match' must be a list of criteria or the literal 'all', got 'al'.
