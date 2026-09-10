@@ -1,4 +1,4 @@
-- name: "suppress_email_checks_for_test_accounts"
+- name: "suppress_email_checks_for_test_accounts_by_topic"
   description: "Internal test accounts shouldn't trigger email format errors"
   action: disable
   codes:

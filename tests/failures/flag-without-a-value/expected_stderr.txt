@@ -1,1 +1,1 @@
-main.py: error: argument -e/--suites: expected at least one argument
+main.py: error: argument --rules: expected at least one argument

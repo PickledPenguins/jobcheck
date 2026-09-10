@@ -1,13 +1,13 @@
 """The fixed inputs behind the golden output files.
 
-One frame, one rule file, one set of suites, chosen to exercise every column and
+One frame, one rule file, one set of check files, chosen to exercise every column and
 every outcome the report can show: a clean row, a value failure, a cascade from a
-missing field, a rule-disabled test, and a row whose key is missing. Nothing here
+missing field, a rule-disabled check, and a row whose key is missing. Nothing here
 varies between machines or runs -- no clock, no paths, no ordering that depends
 on the filesystem -- which is what lets the output be compared byte for byte.
 
 Imported by both ``tests/test_golden_output.py`` and ``scripts/regen_golden.py``,
-so the test and the regeneration can never disagree about the input.
+so the check and the regeneration can never disagree about the input.
 """
 
 from __future__ import annotations
@@ -19,7 +19,12 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
 
-SUITES = ["hard_tests", "soft_tests"]
+CHECK_FILES = [
+    "examples/checks/check_row_shape.py",
+    "examples/checks/check_age.py",
+    "examples/checks/check_dates.py",
+    "examples/checks/check_email.py",
+]
 RULE_FILE = "examples/rules/error_overrides.yaml"
 
 
@@ -44,28 +49,28 @@ def render_all() -> dict[str, str]:
     """Every golden view, keyed by filename, produced through the public API.
 
     Clears and reloads the registry, since the golden files are defined by the
-    example suites and nothing else; callers get an empty registry back.
+    example check files and nothing else; callers get an empty registry back.
     """
 
     import io
     from contextlib import redirect_stdout
 
-    from pandas_row_validation import (
+    from jobcheck import (
         build_report,
         clear_registry,
-        collect_outcomes,
+        validate,
+        load_checks,
         load_overrides,
-        load_suites,
         print_row_explanation,
         print_summary,
         render_report,
     )
 
     clear_registry()
-    load_suites(SUITES, package="example_suites")
+    load_checks([str(ROOT / path) for path in CHECK_FILES])
     overrides = load_overrides(str(ROOT / RULE_FILE))
     df = frame()
-    outcomes = collect_outcomes(df, overrides=overrides)
+    outcomes = validate(df, overrides=overrides)
     report = build_report(outcomes, df=df, key_column="id")
     with_skipped = build_report(outcomes, df=df, key_column="id", include_skipped=True)
     with_data = build_report(outcomes, df=df, key_column="id",

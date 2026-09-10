@@ -1,0 +1,25 @@
+id,name,age,email,start_date,end_date,source_system,record_type,region
+2000,Anita Borg,24,anita2000@example.com,2024-01-01,2024-12-31,MODERN,STREAM,EU
+2001,Carol Shaw,25,carol2001@example.com,2024-01-01,2024-12-31,MODERN,STREAM,US
+2002,Erna Hoover,26,erna2002@example.com,2024-01-01,2024-12-31,MODERN,STREAM,UK
+2003,Evelyn Boyd Granville,27,evelyn2003@example.com,2024-01-01,2024-12-31,MODERN,STREAM,APAC
+2004,Hedy Lamarr,28,hedy2004@example.com,2024-01-01,2024-12-31,MODERN,STREAM,EU
+2005,Ida Rhodes,29,ida2005@example.com,2024-01-01,2024-12-31,MODERN,STREAM,US
+2006,Jean Sammet,30,jean2006@example.com,2024-01-01,2024-12-31,MODERN,STREAM,UK
+2007,Joan Clarke,31,joan2007@example.com,2024-01-01,2024-12-31,MODERN,STREAM,APAC
+2008,Kathleen Booth,32,kathleen2008@example.com,2024-01-01,2024-12-31,MODERN,STREAM,EU
+2009,Lois Haibt,33,lois2009@example.com,2024-01-01,2024-12-31,MODERN,STREAM,US
+2010,Margaret Hamilton,34,margaret2010@example.com,2024-01-01,2024-12-31,MODERN,STREAM,UK
+2011,Marlyn Meltzer,35,marlyn2011@example.com,2024-01-01,2024-12-31,MODERN,STREAM,APAC
+2012,Mary Allen Wilkes,36,mary2012@example.com,2024-01-01,2024-12-31,MODERN,STREAM,EU
+2013,Milly Koss,37,milly2013@example.com,2024-01-01,2024-12-31,MODERN,STREAM,US
+2014,Ruth Teitelbaum,38,ruth2014@example.com,2024-01-01,2024-12-31,MODERN,STREAM,UK
+2015,Sister Mary Kenneth Keller,39,sister2015@example.com,2024-01-01,2024-12-31,MODERN,STREAM,APAC
+2016,Thelma Estrin,40,thelma2016@example.com,2024-01-01,2024-12-31,MODERN,STREAM,EU
+2017,Frances Spence,41,frances2017@example.com,2024-01-01,2024-12-31,MODERN,STREAM,US
+2018,Betty Holberton,42,betty2018@example.com,2024-01-01,2024-12-31,MODERN,STREAM,UK
+2019,Kathleen Antonelli,43,kathleen2019@example.com,2024-01-01,2024-12-31,MODERN,STREAM,APAC
+2020,Adele Goldstine,44,adele2020@example.com,2024-01-01,2024-12-31,MODERN,STREAM,EU
+2021,Klara Dan von Neumann,45,klara2021@example.com,2024-01-01,2024-12-31,MODERN,STREAM,US
+2022,Elizabeth Feinler,46,elizabeth2022@example.com,2024-01-01,2024-12-31,MODERN,STREAM,UK
+2023,Susan Kare,47,susan2023@example.com,2024-01-01,2024-12-31,MODERN,STREAM,APAC

@@ -1,1 +1,1 @@
-python3 examples/main.py -o tests/failures/unknown-code/rules.yaml
+python3 examples/main.py --rules tests/failures/unknown-code/rules.yaml

@@ -1,4 +1,4 @@
-"""Smoke tests: the entry points start and do their main job."""
+"""Smoke checks: the entry point starts and does its main job."""
 
 from __future__ import annotations
 
@@ -26,13 +26,8 @@ def test_a_clean_row_produces_no_report_line() -> None:
     assert "\n1   " not in failures
 
 
-def test_main_hard_only_runs_and_exits_zero() -> None:
-    result = run_cli("examples/main_hard_only.py")
-    assert result.returncode == 0, result.stderr
-
-
 def test_help_exits_zero_and_lists_the_flags() -> None:
     result = run_cli("examples/main.py", "--help")
     assert result.returncode == 0
-    for flag in ("-e", "--suites", "-o", "--overrides", "-v", "--verbose", "--report"):
+    for flag in ("--data", "--rules", "--report", "--explain", "--summary"):
         assert flag in result.stdout

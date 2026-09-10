@@ -1,0 +1,1 @@
+error: cannot read tests/failures/a-data-file-that-is-not-csv/ragged.csv: Error tokenizing data. C error: EOF inside string starting at row 2
