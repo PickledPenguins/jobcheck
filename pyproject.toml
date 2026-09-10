@@ -89,6 +89,9 @@ pytest_add_cli_args_test_selection = [
     # Checks that the README and its linked docs exist and match the code; the
     # mutants tree only carries the package, tests and examples, not docs/.
     "--ignore=tests/test_readme.py",
+    # Same reason as test_readme.py: it reads docs/, which the mutants tree does
+    # not carry, so every mutant would fail collection rather than being tested.
+    "--ignore=tests/test_docs_unit.py",
     # Excluded for cost rather than correctness: mutmut runs the whole selection
     # once per mutant, so a suite member that takes a minute makes the run take
     # days. Each of these is covered by a faster test of the same behaviour --
