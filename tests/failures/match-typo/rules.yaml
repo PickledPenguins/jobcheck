@@ -1,0 +1,4 @@
+- name: "typo"
+  action: disable
+  codes: [AGE_NEGATIVE]
+  match: al

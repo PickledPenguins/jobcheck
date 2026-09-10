@@ -1,0 +1,6 @@
+- name: "broken_pattern"
+  action: disable
+  codes: [AGE_NEGATIVE]
+  match:
+    - column: email
+      pattern: "([unclosed"

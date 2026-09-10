@@ -1,0 +1,8 @@
+# Development only, mirroring pyproject.toml's [dev] extra.
+# None of it is needed to run the framework.
+pytest>=8.0
+coverage>=7.0
+mypy>=1.0
+types-PyYAML
+hypothesis>=6.0
+mutmut>=3.0
