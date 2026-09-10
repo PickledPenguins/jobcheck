@@ -36,7 +36,12 @@ The first pass over this question concluded "nothing was lost". That was too str
 the fuller evidence is below. Read it before deciding anything about recovery.
 
 `src/jobcheck/` still exists on disk holding **only** `__pycache__`, and that bytecode is
-the whole of the record from before the rename. It is unusually informative, because a
+the whole of the record from before the rename. It is now copied into `recovery/bytecode/`
+and tracked (`.gitignore` has an exception for it), because the `*.pyc` rules meant one
+`git clean` would have destroyed the only copy. `recovery/README.md` is the entry point;
+`scripts/read_bytecode_api.py` regenerates `recovery/recovered-api.md`.
+
+The bytecode is unusually informative, because a
 `.pyc` header stores the mtime **and the byte size of the source that produced it**, and
 there are two generations of it — `cpython-312` compiled between 09-03 and 09-07, and
 `cpython-314` compiled at 09-09 23:47.
@@ -119,7 +124,7 @@ The bytecode is not a curiosity; it is the only copy. It contains every function
 their argument names, and their docstrings, for both generations. Two routes, in order of
 fidelity:
 
-1. **Decompile `src/jobcheck/__pycache__/*.cpython-312.pyc`.** The 3.12 generation is the
+1. **Decompile `recovery/bytecode/jobcheck/*.cpython-312.pyc`.** The 3.12 generation is the
    check-era source (09-03..09-07) and is far likelier to be supported by a decompiler
    than the 3.14 one. Ask before installing anything: `pycdc` builds from source, and
    `decompyle3`/`uncompyle6` support up to 3.8 only, so 3.12 needs `pycdc`.
@@ -128,9 +133,10 @@ fidelity:
    objects with `marshal` — enough to rebuild an interface and its documentation, though
    not the bodies. The signatures below were produced that way.
 
-Nothing here is urgent unless `lint`, `parallel` or `params` are wanted back. If they are
-not, delete `src/jobcheck/` and this section becomes history; if they might be, **do not
-delete it**, because it is the only copy.
+`run` and `load_checks` have since been rebuilt this way (see below). `lint`, `parallel`
+and `params` have not, deliberately -- `recovery/README.md` records the decision and the
+reason to revisit each. **Do not delete `recovery/bytecode/`** while any of the three might
+be wanted; deleting it is the decision that they never come back.
 
 ## The check-era API, as jobchain records it
 
@@ -204,11 +210,13 @@ Renamed:
 | `Check`, `CheckGroup` | `Test`, `TestGroup` |
 | `CheckResult` | `TestResult` |
 | `CheckRecord` | `TestOutcome` |
-| `load_checks(files)` | `load_suites(suites, package)` — imports suite subpackages of *your* package, rather than taking file paths |
+| `load_checks(files)` | `load_test_files(paths)`, rebuilt 2026-09-10. `load_suites(suites, package)` is the other loader: suite subpackages of *your* package, rather than file paths |
 
-Gone with no successor: `validate(df, overrides, context_builder)`, the whole-frame entry
-point. Only per-row `validate_row(row, ctx=None, overrides=None, on_error="record")` and
-`explain_row` remain, so a caller that had a DataFrame now drives the rows itself.
+Gone at the rename and rebuilt on 2026-09-10: `validate(df, overrides, context_builder)`,
+the whole-frame entry point, now in `run.py` alongside `iter_traces` and the
+`ValidationRun` type. The per-row `validate_row(row, ctx=None, overrides=None,
+on_error="record")` and `explain_row` are unchanged, and `collect_outcomes` is the
+lower-level call that returns bare lists.
 
 The vocabulary moved from "check" to "test" throughout. A name still spelled `check` in
 this repository (`check_rule_columns`) is deliberate and unrelated.
@@ -223,31 +231,38 @@ this repository (`check_rule_columns`) is deliberate and unrelated.
 ./run-tests.sh types    # mypy alone
 scripts/install-hooks.sh
 scripts/regen_catalog.py, scripts/regen_golden.py   # regenerate committed fixtures
+scripts/read_bytecode_api.py <dir>                  # read the lost interface out of recovery/bytecode/
 ```
 
 Python 3.10+ (`X | None` syntax throughout), pandas 2.1+ and PyYAML at runtime;
 `pip install -e .[dev]` for the suite, which needs pytest, coverage, mypy, hypothesis and
 mutmut. Tests are split by pytest markers (`fast`, `long`), not by directory.
 
-## jobchain depends on this project, and is currently broken against it
+## jobchain depends on this project, and the port is a rename plus rule files
 
 `~/work/ai/jobchain` runs a run's check files through this library. It was written against
-the 09-07 tree and still calls it, so every `checks:` run fails, twenty of its tests skip,
-and its documented quick start does not execute.
+the 09-07 tree and still calls it, so until it is ported every `checks:` run fails, twenty
+of its tests skip, and its documented quick start does not execute.
 
-Every name it needs has a counterpart here **except one**, and the exception is what a
-port has to solve. Checked against the current source on 2026-09-10:
+Two of the gaps were closed here on 2026-09-10 rather than in jobchain, because both were
+capabilities this tree had lost rather than names it had changed:
+
+- `load_test_files(paths)` imports `.py` files by path, the way `load_checks` did.
+  `load_suites(suites, package)` cannot: jobchain names arbitrary files in a prepared run's
+  `inputs/` directory, and a package is the wrong shape for that.
+- `validate(df, overrides, context_builder)` is back in `run.py`, returning a
+  `ValidationRun` with the `.errors`, `.position`, `.root_cause` and `.failures` jobchain
+  reads. `collect_outcomes` remains the lower-level call.
+
+What jobchain still has to change, name by name:
 
 | jobchain calls | here now | note |
 |---|---|---|
 | `clear_registry()` | `clear_registry()` | unchanged |
-| `load_checks(paths)` | **nothing** | the gap; see below |
-| `load_overrides(*files)` | `load_overrides_from_files(paths)` | or `load_overrides(path)` for one, `load_overrides_from_dir` for a directory |
-| `validate(df, overrides, context_builder)` | `collect_outcomes(df, overrides, context_builder, on_error)` | same three arguments; returns `list[list[TestOutcome]]` rather than a `ValidationRun` |
-| `run.errors` | `sum(o.outcome == ERRORED for row in outcomes for o in row)` | derive |
-| `trace.position` | the index in the returned list | derive |
-| `trace.root_cause` | `root_cause(outcomes)` | returns the code, or `None` |
-| `trace.failures` | `[o for o in outcomes if o.failed]` | `failed` is a property of `TestOutcome` |
+| `load_checks(paths)` | `load_test_files(paths)` | rename; same semantics, and no `.pyc` left beside the file |
+| `load_overrides(*files)` | `load_overrides_from_files(paths)` | one list rather than varargs; `load_overrides(path)` for one file |
+| `validate(df, overrides, context_builder)` | `validate(df, overrides, context_builder, on_error)` | unchanged, plus `on_error` |
+| `run.errors`, `trace.position`, `trace.root_cause`, `trace.failures` | same four | unchanged |
 | `failure.code/.message/.comments/.outcome` | same four names on `TestOutcome` | unchanged |
 | `render_comments(comments)` | `render_comments(comments)` | unchanged |
 | `ERRORED` | `ERRORED` (`"errored"`) | unchanged |
@@ -255,60 +270,24 @@ port has to solve. Checked against the current source on 2026-09-10:
 | `check_group(...)` | `test_group(depends_on, suite, default_enabled)` | rename, plus the new `suite` argument |
 | `CheckResult(Status.X, {...})` | `TestResult(code, comments)` | rename; same positional shape |
 | `PASS`, `Status.MISSING/MALFORMED/INVALID` | identical | `Status.ERROR` is reserved for the engine |
+| `jobcheck` | `pandas_row_validation` | the import, and `_ENGINE_NAMES` with it |
 
-**The one gap: loading a check file by path.** `load_checks` took explicit `.py` paths and
-imported each with `spec_from_file_location` / `module_from_spec` / `exec_module`, then
-called `validate_registry()`. `load_suites(suites, package)` cannot do that: it takes an
-importable package and imports subpackages of it. jobchain names arbitrary files — after a
-run is prepared, files in that run's own `inputs/` directory — so a package is the wrong
-shape for it.
+**The remaining incompatibility is the rule file format, and it is data, not code.** The
+check era took one top-level `column`/`pattern` pair per rule, matched with
+`fnmatchcase`; this tree takes a `match:` list of `{column, pattern}` criteria matched as
+regular expressions, and rejects the old keys as typos rather than ignoring them.
+Rejecting is right — ignoring would disable nothing while the caller believed a code was
+switched off — so every rule file jobchain ships or documents has to be rewritten. Glob
+`x` becomes regex `^x$`, not `x`, which matches anywhere.
 
-Nothing here needs to change for that. Registration happens at import, through the
-decorator, so the caller can do the import itself and then call the public
-`validate_registry()` to get the dependency check and the cached evaluation order that
-`load_checks` used to run at the end. A file imported by path gets a flat module name, and
-`_suite_of` maps anything with fewer than three dotted parts to `BASE_SUITE`, which is
-always loaded — so a path-imported check file lands in the base suite and runs.
+### The comparison against jobchain's record is done
 
-If a path-based loader is wanted here instead, it belongs in `registry.py` beside
-`load_suites`, and the check-era implementation can be read out of
-`src/jobcheck/__pycache__/registry.cpython-312.pyc`.
-
-### To do: compare jobchain's record of jobcheck against this tree
-
-Not done yet, and worth doing before any decision about recovery or a port. jobchain is
-the only surviving *written* description of the check-era library — bytecode aside — and it
-is a fuller one than the signatures above suggest: fifteen separate `from jobcheck import`
-sites across its tests, docs, README and example catalogue, each exercising or documenting
-behaviour rather than just naming it.
-
-What is there to compare against:
-
-| In jobchain | What it records |
-|---|---|
-| `jobchain/checks.py` | The engine call sequence, the caching around it, and what each error path was expected to raise (`ValueError`/`OSError` from `load_checks`, an arbitrary exception from a check file's own import) |
-| `tests/test_checks_unit.py` | Fifteen uses of `check_group`/`CheckResult`/`Status`, including `depends_on` layering, the crash path, cross-row `ctx.count`, `among=` populations, and a rule file switching one check off for chosen rows — each with the behaviour it asserted |
-| `tests/examples/test_complex.py` | Another fifteen, in end-to-end runs |
-| `docs/configuration.md` F.2, `docs/guide.md` G.3, `README.md` | The check-file contract as documented for users: what a check receives, what it may return, how `depends_on` reports one failure rather than three, what a cross-row `ctx` is for |
-
-Three questions that comparison would answer, none of which the bytecode alone can:
-
-1. **Does anything here behave differently from what jobchain asserts?** Its tests are
-   executable expectations of the old engine. Porting them to run against this package —
-   renaming `check_group` to `test_group` and so on — turns them into a differential test
-   between the two lineages. Any that fail for a reason other than a rename is a real
-   behavioural difference, and worth understanding before assuming this tree is the later
-   one.
-2. **Is any documented behaviour missing here?** jobchain's prose describes `depends_on`
-   root-cause reporting, the crash-into-`ERRORED` path and cross-row counting as
-   guarantees. Check each against this source rather than against memory.
-3. **Which lineage is later?** The timeline section above could not settle it. A
-   feature-by-feature comparison against an independent record might: a behaviour jobchain
-   documents that this tree cannot do is evidence the 09-07 line was ahead, and the
-   reverse is evidence for this one.
-
-Read it as evidence, not as a specification: jobchain describes what it needed, which is a
-subset, and its wording is its own.
+`tests/test_differential_jobchain.py` restates what jobchain's suite asserted of the
+check-era engine — layered dependencies reporting one failure rather than three, the
+shallowest failure as root cause, a cross-row test counting over the whole file, a
+population that is not the frame being validated, a raising test recorded as `ERRORED`
+with the exception in its detail, a rule file switching one code off for chosen rows — and
+runs it against this tree. All of it holds. The only differences found are the two above.
 
 Nothing in this repository imports jobchain, and nothing should: the dependency runs one
 way. `jobchain/checks.py:_ENGINE_NAMES` is the list of everything jobchain depends on,
