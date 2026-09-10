@@ -29,6 +29,8 @@ from .registry import (
     load_overrides_from_dir,
     load_overrides_from_files,
     load_suites,
+    load_test_files,
+    loaded_files,
     loaded_suites,
     print_override_rules,
     print_registry,
@@ -71,6 +73,7 @@ from .results import (
     render_status,
     status_name,
 )
+from .run import RowTrace, RunStats, ValidationRun, iter_traces, validate
 from .tables import format_table, is_null
 
 __all__ = [
@@ -83,6 +86,8 @@ __all__ = [
     "PASS",
     "PASSED",
     "RowContext",
+    "RowTrace",
+    "RunStats",
     "SKIPPED",
     "Status",
     "TESTS",
@@ -90,6 +95,8 @@ __all__ = [
     "TestGroup",
     "TestOutcome",
     "TestResult",
+    "ValidationRun",
+    "__version__",
     "all_statuses",
     "build_context",
     "build_report",
@@ -102,11 +109,14 @@ __all__ = [
     "format_table",
     "get_registry_table",
     "is_null",
+    "iter_traces",
     "list_rule_codes",
     "load_overrides",
     "load_overrides_from_dir",
     "load_overrides_from_files",
     "load_suites",
+    "load_test_files",
+    "loaded_files",
     "loaded_suites",
     "normalise_result",
     "print_override_rules",
@@ -127,8 +137,8 @@ __all__ = [
     "status_name",
     "summarise_outcomes",
     "test_group",
+    "validate",
     "validate_registry",
     "validate_row",
     "write_report",
-    "__version__",
 ]
