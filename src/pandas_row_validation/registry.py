@@ -479,11 +479,19 @@ def load_test_files(paths: str | list[str]) -> None:
         # Registered before execution so a test file that imports itself, or is
         # pickled by a worker, finds the module rather than importing it twice.
         sys.modules[module_name] = module
+        # No __pycache__ beside the caller's file. A test file loaded by path
+        # comes from a data directory -- a prepared run's inputs, say -- which is
+        # a record of what was read, not somewhere to write to; and the module
+        # name is unique per load, so a cached .pyc would never be reused anyway.
+        writing_bytecode = sys.dont_write_bytecode
+        sys.dont_write_bytecode = True
         try:
             spec.loader.exec_module(module)
         except Exception:
             sys.modules.pop(module_name, None)
             raise
+        finally:
+            sys.dont_write_bytecode = writing_bytecode
         _REGISTERING_MODULES.add(module_name)
         _LOADED_FILES.append(name)
 
