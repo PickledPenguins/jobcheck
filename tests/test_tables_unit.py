@@ -300,3 +300,44 @@ def test_no_rules_loaded_prints_a_message(
     table = reg.print_override_rules([])
     assert capsys.readouterr().out == "No override rules loaded.\n"
     assert table.empty
+
+
+# --- what wrapping must not do ----------------------------------------------
+#
+# Written against surviving mutants: textwrap's break_long_words and
+# break_on_hyphens were flipped and nothing noticed, though both decide whether
+# a code or a rule name comes back readable.
+
+
+def test_a_word_longer_than_the_width_overflows_rather_than_being_split() -> None:
+    """A code or rule name split across lines cannot be searched for or pasted."""
+
+    frame = pd.DataFrame([{"code": "AGE_NOT_A_NUMBER_IN_A_VERY_LONG_CODE"}])
+    rendered = tables.format_table(frame, wrap_columns={"code": 10})
+    assert "AGE_NOT_A_NUMBER_IN_A_VERY_LONG_CODE" in rendered
+    assert len(rendered.splitlines()) == 3  # header, divider, one row
+
+
+def test_a_hyphenated_phrase_is_not_broken_at_its_hyphens() -> None:
+    frame = pd.DataFrame([{"note": "cross-reference-column overflow"}])
+    rendered = tables.format_table(frame, wrap_columns={"note": 12})
+    assert "cross-reference-column" in rendered
+
+
+def test_wrapping_still_breaks_between_words() -> None:
+    """The counterpart: it is wrapping, not merely widening."""
+
+    frame = pd.DataFrame([{"note": "one two three four five six seven"}])
+    rendered = tables.format_table(frame, wrap_columns={"note": 12})
+    body = rendered.splitlines()[2:]
+    assert len(body) > 1
+    assert all(len(line.rstrip()) <= 14 for line in body)
+
+
+def test_an_empty_cell_wraps_to_one_blank_line() -> None:
+    """textwrap.wrap("") is [], and a row with no lines would lose the row."""
+
+    frame = pd.DataFrame([{"note": "", "code": "KEPT"}])
+    rendered = tables.format_table(frame, wrap_columns={"note": 10})
+    assert "KEPT" in rendered
+    assert len(rendered.splitlines()) == 3
