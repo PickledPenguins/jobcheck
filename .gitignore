@@ -12,3 +12,8 @@ mutants/
 .benchmarks
 .mutation
 reviews/
+
+# The pre-2026-09-09 bytecode under recovery/ is the only surviving copy of the
+# check-era sources, so it is tracked deliberately -- the two rules above would
+# otherwise ignore it.
+!recovery/bytecode/**/*.pyc
