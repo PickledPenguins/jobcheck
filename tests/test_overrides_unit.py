@@ -375,3 +375,23 @@ def test_codes_that_are_not_registered_are_ignored_by_resolution(fresh_registry:
         pd.Series({"age": 1}), [rule("stale", "disable", ["GONE_CODE"], None)]
     )
     assert state == {"A_CODE": True}
+
+
+def test_a_null_cell_never_matches_a_rule(fresh_registry: None) -> None:
+    """A blank cell is not the empty string, and a rule matching on it would fire
+    on every row whose column happens to be missing.
+
+    Written against a surviving mutant: ``value is None or is_null(value)``
+    became ``and``, which makes a NaN cell render as the text "nan" and match a
+    pattern meant for real values.
+    """
+
+    import pandas as pd
+
+    from pandas_row_validation import rules
+
+    row = pd.Series({"email": None, "age": float("nan"), "name": "real"})
+    assert rules.cell_text(row, "email") is None
+    assert rules.cell_text(row, "age") is None
+    assert rules.cell_text(row, "absent") is None
+    assert rules.cell_text(row, "name") == "real"
