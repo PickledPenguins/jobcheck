@@ -193,3 +193,12 @@ def test_the_process_bytecode_setting_is_restored(fresh_registry: None, tmp_path
     before = sys.dont_write_bytecode
     reg.load_test_files([write_test_file(tmp_path, "checks.py", "RESTORED")])
     assert sys.dont_write_bytecode is before
+
+
+def test_a_file_python_cannot_import_says_so(fresh_registry: None, tmp_path: Path) -> None:
+    # A path that exists but has no importer -- the likely mistake being a rule
+    # file passed where a test file was meant.
+    path = tmp_path / "rules.yaml"
+    path.write_text("- name: r\n")
+    with pytest.raises(ValueError, match="as a Python file"):
+        reg.load_test_files([str(path)])
