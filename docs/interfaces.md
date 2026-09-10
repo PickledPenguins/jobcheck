@@ -109,6 +109,24 @@ Imports every `test_*.py` module in each named subpackage, plus the base suite
 calls are no-ops. Calls `validate_registry` before returning. Raises `ValueError`
 naming the expected subpackage for an unknown suite.
 
+### `load_test_files(paths: str | list[str]) -> None`
+
+Imports the named `.py` files by path so their tests register themselves — the
+counterpart to `load_suites` for a caller whose test files are not an importable
+package, such as a pipeline that writes them into a run directory. One path or
+several; nothing is discovered. A file already loaded, or listed twice, is
+skipped. `validate_registry` runs once the whole call has been imported, so a
+prerequisite may live in any of the files. Raises `ValueError` for a path that is
+not a file, and propagates whatever a file raises while importing.
+
+Each file is given a unique module name, so two directories that each hold a
+`checks.py` both load. That name is flat, so the tests land in the base suite.
+No `__pycache__` is written beside the file.
+
+### `loaded_files() -> list[str]`
+
+The resolved paths loaded that way, in load order. A copy.
+
 ### `loaded_suites() -> set[str]`, `validate_registry() -> None`, `clear_registry() -> None`
 
 `validate_registry` checks every `depends_on` edge, detects cycles, computes
@@ -166,6 +184,33 @@ The effective on/off state of every registered code for one row: each test's
 One line per rule criterion naming a column the frame lacks — a rule that can
 never fire. Tests are not checked: they read the row themselves, so a missing
 field raises and is recorded as an `ERROR` outcome naming the column.
+
+### `validate(df, overrides=None, context_builder=build_context, on_error="record", progress=None, progress_every=1000) -> ValidationRun`
+
+Every test against every row, returned as one object rather than a list of lists
+and the frame beside it. `progress`, when given, is called as
+`progress(done, total)` every `progress_every` rows and once at the end;
+`progress_every` below 1 raises `ValueError`.
+
+`ValidationRun` holds `df`, `traces`, `overrides` and `stats`. It supports
+`len()` and iteration over its traces, and offers `records`, `errors`,
+`failed_rows`, `root_causes`, `report(key_column, data_columns, include_skipped,
+include_passed)`, `summary()` and `explain(position)` — which raises `IndexError`
+naming the frame's size rather than letting a negative position wrap round.
+`ValidationRun.from_records(df, records, overrides=None, stats=None)` builds one
+from outcomes collected elsewhere, and raises `ValueError` unless there is
+exactly one list per row.
+
+`RowTrace` is one row: `position` (the position in the frame, not the index
+label), `records`, and the derived `failures`, `root_cause` and `passed`.
+`RunStats` is `rows`, `failures`, `errors`, `seconds` and `rows_per_second`,
+which is infinity for a run too fast to time.
+
+### `iter_traces(df, ...) -> Iterator[RowTrace]`
+
+The streaming half of `validate`, taking the same arguments and holding one
+trace at a time. For a frame where one outcome per test per row will not fit in
+memory.
 
 ## Reporting
 
