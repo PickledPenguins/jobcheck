@@ -1,30 +1,30 @@
-Loaded suites: ['base', 'hard_tests', 'soft_tests']
+Loaded suites: ['base', 'hard_checks', 'soft_checks']
 
 Loaded 3 override rule(s) from 3 file(s)
 
 
 == Failures ==
-row      | code                 | status        | layer | suite      | outcome | message                                 | comments                                   | is_root_cause
----------+----------------------+---------------+-------+------------+---------+-----------------------------------------+--------------------------------------------+--------------
-1003     | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed  | Age is missing                          |                                            | True         
-1004     | AGE_NEGATIVE         | INVALID (3)   | 2     | hard_tests | failed  | Age is negative                         | minimum=0; value=-4.0                      | True         
-1005     | AGE_TOO_HIGH         | INVALID (3)   | 2     | hard_tests | failed  | Age is implausibly high (over 130)      | maximum=130; value=999.0                   | True         
-1006     | AGE_NOT_A_NUMBER     | MALFORMED (2) | 1     | hard_tests | failed  | Age is not a number                     | value=thirty                               | True         
-1007     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_tests | failed  | Email has no '@'                        | at_signs=0; value=frances-example.com      | True         
-1008     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_tests | failed  | Email domain looks malformed            | domain=localhost                           | True         
-1009     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed  | Email is missing                        |                                            | True         
-1010     | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | hard_tests | failed  | start_date is after end_date            | end_date=2024-03-01; start_date=2024-09-01 | True         
-1011     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed  | Both start_date and end_date are needed | columns=start_date                         | True         
-1012     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed  | Both start_date and end_date are needed | columns=end_date                           | True         
-1019     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_tests | failed  | Email has no '@'                        | at_signs=0; value=sheet-example.com        | True         
-1020     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_tests | failed  | Email domain looks malformed            | domain=example.com                         | True         
-1021     | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed  | Age is missing                          |                                            | True         
-1021     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed  | Both start_date and end_date are needed | columns=start_date, end_date               | False        
-1021     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed  | Email is missing                        |                                            | False        
-<no key> | ROW_ALL_NULL         | MISSING (1)   | 0     | base       | failed  | Row is entirely empty                   | columns=9                                  | True         
-<no key> | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed  | Age is missing                          |                                            | False        
-<no key> | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed  | Both start_date and end_date are needed | columns=start_date, end_date               | False        
-<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed  | Email is missing                        |                                            | False        
+row      | code                 | status        | layer | suite       | outcome | message                                 | comments                                   | is_root_cause
+---------+----------------------+---------------+-------+-------------+---------+-----------------------------------------+--------------------------------------------+--------------
+1003     | AGE_PRESENT          | MISSING (1)   | 0     | hard_checks | failed  | Age is missing                          |                                            | True         
+1004     | AGE_NEGATIVE         | INVALID (3)   | 2     | hard_checks | failed  | Age is negative                         | minimum=0; value=-4.0                      | True         
+1005     | AGE_TOO_HIGH         | INVALID (3)   | 2     | hard_checks | failed  | Age is implausibly high (over 130)      | maximum=130; value=999.0                   | True         
+1006     | AGE_NOT_A_NUMBER     | MALFORMED (2) | 1     | hard_checks | failed  | Age is not a number                     | value=thirty                               | True         
+1007     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_checks | failed  | Email has no '@'                        | at_signs=0; value=frances-example.com      | True         
+1008     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_checks | failed  | Email domain looks malformed            | domain=localhost                           | True         
+1009     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_checks | failed  | Email is missing                        |                                            | True         
+1010     | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | hard_checks | failed  | start_date is after end_date            | end_date=2024-03-01; start_date=2024-09-01 | True         
+1011     | DATES_PRESENT        | MISSING (1)   | 0     | hard_checks | failed  | Both start_date and end_date are needed | columns=start_date                         | True         
+1012     | DATES_PRESENT        | MISSING (1)   | 0     | hard_checks | failed  | Both start_date and end_date are needed | columns=end_date                           | True         
+1019     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_checks | failed  | Email has no '@'                        | at_signs=0; value=sheet-example.com        | True         
+1020     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_checks | failed  | Email domain looks malformed            | domain=example.com                         | True         
+1021     | AGE_PRESENT          | MISSING (1)   | 0     | hard_checks | failed  | Age is missing                          |                                            | True         
+1021     | DATES_PRESENT        | MISSING (1)   | 0     | hard_checks | failed  | Both start_date and end_date are needed | columns=start_date, end_date               | True         
+1021     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_checks | failed  | Email is missing                        |                                            | True         
+<no key> | ROW_ALL_NULL         | MISSING (1)   | 0     | base        | failed  | Row is entirely empty                   | columns=9                                  | True         
+<no key> | AGE_PRESENT          | MISSING (1)   | 0     | hard_checks | failed  | Age is missing                          |                                            | True         
+<no key> | DATES_PRESENT        | MISSING (1)   | 0     | hard_checks | failed  | Both start_date and end_date are needed | columns=start_date, end_date               | True         
+<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_checks | failed  | Email is missing                        |                                            | True         
 
 == Summary ==
 code                 | layer | failed | errored | skipped | disabled | passed
@@ -44,13 +44,13 @@ AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 49       | 0
 Root cause of each failing row:
 root_cause           | rows
 ---------------------+-----
-AGE_PRESENT          | 2   
-DATES_PRESENT        | 2   
+DATES_PRESENT        | 4   
+AGE_PRESENT          | 3   
+EMAIL_PRESENT        | 3   
 EMAIL_DOMAIN_INVALID | 2   
 EMAIL_MISSING_AT     | 2   
 AGE_NEGATIVE         | 1   
 AGE_NOT_A_NUMBER     | 1   
 AGE_TOO_HIGH         | 1   
 DATES_OUT_OF_ORDER   | 1   
-EMAIL_PRESENT        | 1   
 ROW_ALL_NULL         | 1   

@@ -4,13 +4,13 @@
 Two files, both deliberately messy in the ways real exports are:
 
 - ``customers.csv`` — 49 rows, written by hand-shaped rules so every example
-  test has something to say about it and most rows are fine. Small enough that
+  check has something to say about it and most rows are fine. Small enough that
   a reader can open it beside a report and check the tool's answer themselves.
 - ``customers_clean.csv`` — 24 rows with nothing wrong, for showing what a
   passing run looks like: an empty report is a result, and a reader needs to
   have seen one.
 - ``customers_large.csv`` — 2,000 rows on the same shape, generated from a fixed
-  seed, for the cases and load tests that need volume rather than readability.
+  seed, for the cases and load checks that need volume rather than readability.
 
 Deterministic: the seed is fixed and the row order is stable, so regenerating
 produces the same bytes and a diff means the generator changed.
@@ -91,7 +91,7 @@ SMALL_ROWS: list[dict[str, str]] = [
     {"id": "1018", "name": "Load Test", "age": "34", "email": "load-test@internal.test",
      "start_date": "2024-01-01", "end_date": "2024-02-01",
      "source_system": "MODERN", "record_type": "STREAM", "region": "US"},
-    # The name is a formula, and the row fails a test on purpose: a value only
+    # The name is a formula, and the row fails a check on purpose: a value only
     # reaches the report through a failing row, so an escaping example needs one.
     {"id": "1019", "name": "=SUM(A1:A9)", "age": "29", "email": "sheet-example.com",
      "start_date": "2024-03-15", "end_date": "2024-04-15",
@@ -149,7 +149,7 @@ def small_rows() -> list[dict[str, str]]:
 
 
 def clean_rows() -> list[dict[str, str]]:
-    """24 rows every example test passes, so a clean run has something to show."""
+    """24 rows every example check passes, so a clean run has something to show."""
 
     rows: list[dict[str, str]] = []
     for offset, name in enumerate(FILLER_NAMES[:24]):

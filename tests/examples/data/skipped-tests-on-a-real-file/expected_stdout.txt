@@ -1,165 +1,165 @@
-Loaded suites: ['base', 'hard_tests', 'soft_tests']
+Loaded suites: ['base', 'hard_checks', 'soft_checks']
 
 Loaded 3 override rule(s) from 1 file(s)
 
 
 == Failures ==
-row      | code                 | status        | layer | suite      | outcome  | message                                     | comments                                    | is_root_cause
----------+----------------------+---------------+-------+------------+----------+---------------------------------------------+---------------------------------------------+--------------
-1001     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1002     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1003     | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed   | Age is missing                              |                                             | True         
-1003     | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT      | prerequisite did not pass: AGE_PRESENT      | False        
-1003     | AGE_NEGATIVE         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
-         |                      |               |       |            |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
-1003     | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
-         |                      |               |       |            |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
-1003     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1004     | AGE_NEGATIVE         | INVALID (3)   | 2     | hard_tests | failed   | Age is negative                             | minimum=0; value=-4.0                       | True         
-1004     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1005     | AGE_TOO_HIGH         | INVALID (3)   | 2     | hard_tests | failed   | Age is implausibly high (over 130)          | maximum=130; value=999.0                    | True         
-1005     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1006     | AGE_NOT_A_NUMBER     | MALFORMED (2) | 1     | hard_tests | failed   | Age is not a number                         | value=thirty                                | True         
-1006     | AGE_NEGATIVE         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_NOT_A_NUMBER | prerequisite did not pass: AGE_NOT_A_NUMBER | False        
-1006     | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_NOT_A_NUMBER | prerequisite did not pass: AGE_NOT_A_NUMBER | False        
-1006     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1007     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1007     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_tests | failed   | Email has no '@'                            | at_signs=0; value=frances-example.com       | True         
-1007     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_MISSING_AT | prerequisite did not pass: EMAIL_MISSING_AT | False        
-1008     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1008     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_tests | failed   | Email domain looks malformed                | domain=localhost                            | True         
-1009     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1009     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed   | Email is missing                            |                                             | True         
-1009     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT    | prerequisite did not pass: EMAIL_PRESENT    | False        
-1009     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT,   | prerequisite did not pass: EMAIL_PRESENT,   | False        
-         |                      |               |       |            |          | EMAIL_MISSING_AT                            | EMAIL_MISSING_AT                            |              
-1010     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1010     | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | hard_tests | failed   | start_date is after end_date                | end_date=2024-03-01; start_date=2024-09-01  | True         
-1011     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1011     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed   | Both start_date and end_date are needed     | columns=start_date                          | True         
-1011     | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: DATES_PRESENT    | prerequisite did not pass: DATES_PRESENT    | False        
-1012     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1012     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed   | Both start_date and end_date are needed     | columns=end_date                            | True         
-1012     | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: DATES_PRESENT    | prerequisite did not pass: DATES_PRESENT    | False        
-1013     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1014     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1015     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1016     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1017     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1017     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'suppress_email_checks_for_test_accounts'   | 'suppress_email_checks_for_test_accounts'   |              
-1017     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'suppress_email_checks_for_test_accounts'   | 'suppress_email_checks_for_test_accounts'   |              
-1018     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1018     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'suppress_email_checks_for_test_accounts'   | 'suppress_email_checks_for_test_accounts'   |              
-1018     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'suppress_email_checks_for_test_accounts'   | 'suppress_email_checks_for_test_accounts'   |              
-1019     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1019     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_tests | failed   | Email has no '@'                            | at_signs=0; value=sheet-example.com         | True         
-1019     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_MISSING_AT | prerequisite did not pass: EMAIL_MISSING_AT | False        
-1020     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1020     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_tests | failed   | Email domain looks malformed                | domain=example.com                          | True         
-1021     | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed   | Age is missing                              |                                             | True         
-1021     | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT      | prerequisite did not pass: AGE_PRESENT      | False        
-1021     | AGE_NEGATIVE         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
-         |                      |               |       |            |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
-1021     | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
-         |                      |               |       |            |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
-1021     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1021     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed   | Both start_date and end_date are needed     | columns=start_date, end_date                | False        
-1021     | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: DATES_PRESENT    | prerequisite did not pass: DATES_PRESENT    | False        
-1021     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed   | Email is missing                            |                                             | False        
-1021     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT    | prerequisite did not pass: EMAIL_PRESENT    | False        
-1021     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT,   | prerequisite did not pass: EMAIL_PRESENT,   | False        
-         |                      |               |       |            |          | EMAIL_MISSING_AT                            | EMAIL_MISSING_AT                            |              
-<no key> | ROW_ALL_NULL         | MISSING (1)   | 0     | base       | failed   | Row is entirely empty                       | columns=9                                   | True         
-<no key> | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed   | Age is missing                              |                                             | False        
-<no key> | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT      | prerequisite did not pass: AGE_PRESENT      | False        
-<no key> | AGE_NEGATIVE         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
-         |                      |               |       |            |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
-<no key> | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
-         |                      |               |       |            |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
-<no key> | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-<no key> | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed   | Both start_date and end_date are needed     | columns=start_date, end_date                | False        
-<no key> | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: DATES_PRESENT    | prerequisite did not pass: DATES_PRESENT    | False        
-<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed   | Email is missing                            |                                             | False        
-<no key> | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT    | prerequisite did not pass: EMAIL_PRESENT    | False        
-<no key> | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT,   | prerequisite did not pass: EMAIL_PRESENT,   | False        
-         |                      |               |       |            |          | EMAIL_MISSING_AT                            | EMAIL_MISSING_AT                            |              
-<no key> | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1023     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1023     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1030     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1031     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1032     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1033     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1034     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1035     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1036     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1037     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1038     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1039     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1040     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1041     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1042     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1043     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1044     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1045     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1046     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1047     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1048     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1049     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1050     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1051     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1052     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
-1053     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                            | disabled by rule                            | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+row      | code                 | status        | layer | suite       | outcome  | message                                     | comments                                    | is_root_cause
+---------+----------------------+---------------+-------+-------------+----------+---------------------------------------------+---------------------------------------------+--------------
+1001     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1002     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1003     | AGE_PRESENT          | MISSING (1)   | 0     | hard_checks | failed   | Age is missing                              |                                             | True         
+1003     | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT      | prerequisite did not pass: AGE_PRESENT      | False        
+1003     | AGE_NEGATIVE         | PASS (0)      | 2     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
+         |                      |               |       |             |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
+1003     | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
+         |                      |               |       |             |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
+1003     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1004     | AGE_NEGATIVE         | INVALID (3)   | 2     | hard_checks | failed   | Age is negative                             | minimum=0; value=-4.0                       | True         
+1004     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1005     | AGE_TOO_HIGH         | INVALID (3)   | 2     | hard_checks | failed   | Age is implausibly high (over 130)          | maximum=130; value=999.0                    | True         
+1005     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1006     | AGE_NOT_A_NUMBER     | MALFORMED (2) | 1     | hard_checks | failed   | Age is not a number                         | value=thirty                                | True         
+1006     | AGE_NEGATIVE         | PASS (0)      | 2     | hard_checks | skipped  | prerequisite did not pass: AGE_NOT_A_NUMBER | prerequisite did not pass: AGE_NOT_A_NUMBER | False        
+1006     | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_checks | skipped  | prerequisite did not pass: AGE_NOT_A_NUMBER | prerequisite did not pass: AGE_NOT_A_NUMBER | False        
+1006     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1007     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1007     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_checks | failed   | Email has no '@'                            | at_signs=0; value=frances-example.com       | True         
+1007     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_checks | skipped  | prerequisite did not pass: EMAIL_MISSING_AT | prerequisite did not pass: EMAIL_MISSING_AT | False        
+1008     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1008     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_checks | failed   | Email domain looks malformed                | domain=localhost                            | True         
+1009     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1009     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_checks | failed   | Email is missing                            |                                             | True         
+1009     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_checks | skipped  | prerequisite did not pass: EMAIL_PRESENT    | prerequisite did not pass: EMAIL_PRESENT    | False        
+1009     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_checks | skipped  | prerequisite did not pass: EMAIL_PRESENT,   | prerequisite did not pass: EMAIL_PRESENT,   | False        
+         |                      |               |       |             |          | EMAIL_MISSING_AT                            | EMAIL_MISSING_AT                            |              
+1010     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1010     | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | hard_checks | failed   | start_date is after end_date                | end_date=2024-03-01; start_date=2024-09-01  | True         
+1011     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1011     | DATES_PRESENT        | MISSING (1)   | 0     | hard_checks | failed   | Both start_date and end_date are needed     | columns=start_date                          | True         
+1011     | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_checks | skipped  | prerequisite did not pass: DATES_PRESENT    | prerequisite did not pass: DATES_PRESENT    | False        
+1012     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1012     | DATES_PRESENT        | MISSING (1)   | 0     | hard_checks | failed   | Both start_date and end_date are needed     | columns=end_date                            | True         
+1012     | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_checks | skipped  | prerequisite did not pass: DATES_PRESENT    | prerequisite did not pass: DATES_PRESENT    | False        
+1013     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1014     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1015     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1016     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1017     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1017     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'suppress_email_checks_for_test_accounts'   | 'suppress_email_checks_for_test_accounts'   |              
+1017     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'suppress_email_checks_for_test_accounts'   | 'suppress_email_checks_for_test_accounts'   |              
+1018     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1018     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'suppress_email_checks_for_test_accounts'   | 'suppress_email_checks_for_test_accounts'   |              
+1018     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'suppress_email_checks_for_test_accounts'   | 'suppress_email_checks_for_test_accounts'   |              
+1019     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1019     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_checks | failed   | Email has no '@'                            | at_signs=0; value=sheet-example.com         | True         
+1019     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_checks | skipped  | prerequisite did not pass: EMAIL_MISSING_AT | prerequisite did not pass: EMAIL_MISSING_AT | False        
+1020     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1020     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_checks | failed   | Email domain looks malformed                | domain=example.com                          | True         
+1021     | AGE_PRESENT          | MISSING (1)   | 0     | hard_checks | failed   | Age is missing                              |                                             | True         
+1021     | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT      | prerequisite did not pass: AGE_PRESENT      | False        
+1021     | AGE_NEGATIVE         | PASS (0)      | 2     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
+         |                      |               |       |             |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
+1021     | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
+         |                      |               |       |             |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
+1021     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1021     | DATES_PRESENT        | MISSING (1)   | 0     | hard_checks | failed   | Both start_date and end_date are needed     | columns=start_date, end_date                | True         
+1021     | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_checks | skipped  | prerequisite did not pass: DATES_PRESENT    | prerequisite did not pass: DATES_PRESENT    | False        
+1021     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_checks | failed   | Email is missing                            |                                             | True         
+1021     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_checks | skipped  | prerequisite did not pass: EMAIL_PRESENT    | prerequisite did not pass: EMAIL_PRESENT    | False        
+1021     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_checks | skipped  | prerequisite did not pass: EMAIL_PRESENT,   | prerequisite did not pass: EMAIL_PRESENT,   | False        
+         |                      |               |       |             |          | EMAIL_MISSING_AT                            | EMAIL_MISSING_AT                            |              
+<no key> | ROW_ALL_NULL         | MISSING (1)   | 0     | base        | failed   | Row is entirely empty                       | columns=9                                   | True         
+<no key> | AGE_PRESENT          | MISSING (1)   | 0     | hard_checks | failed   | Age is missing                              |                                             | True         
+<no key> | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT      | prerequisite did not pass: AGE_PRESENT      | False        
+<no key> | AGE_NEGATIVE         | PASS (0)      | 2     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
+         |                      |               |       |             |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
+<no key> | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT,     | prerequisite did not pass: AGE_PRESENT,     | False        
+         |                      |               |       |             |          | AGE_NOT_A_NUMBER                            | AGE_NOT_A_NUMBER                            |              
+<no key> | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+<no key> | DATES_PRESENT        | MISSING (1)   | 0     | hard_checks | failed   | Both start_date and end_date are needed     | columns=start_date, end_date                | True         
+<no key> | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_checks | skipped  | prerequisite did not pass: DATES_PRESENT    | prerequisite did not pass: DATES_PRESENT    | False        
+<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_checks | failed   | Email is missing                            |                                             | True         
+<no key> | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_checks | skipped  | prerequisite did not pass: EMAIL_PRESENT    | prerequisite did not pass: EMAIL_PRESENT    | False        
+<no key> | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_checks | skipped  | prerequisite did not pass: EMAIL_PRESENT,   | prerequisite did not pass: EMAIL_PRESENT,   | False        
+         |                      |               |       |             |          | EMAIL_MISSING_AT                            | EMAIL_MISSING_AT                            |              
+<no key> | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1023     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1023     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1030     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1031     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1032     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1033     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1034     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1035     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1036     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1037     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1038     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1039     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1040     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1041     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1042     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1043     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1044     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1045     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1046     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1047     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1048     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1049     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1050     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1051     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1052     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              
+1053     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                            | disabled by rule                            | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'        | 'disable_age_integer_check_globally'        |              

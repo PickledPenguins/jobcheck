@@ -13,7 +13,7 @@ imports and argument parsing per case are outside it entirely.
 
 Not a gate. The assertions about time live in ``tests/test_perf.py``, which
 compares against a baseline; a profile is a description, and turning one into a
-threshold produces a flaky test and a number nobody trusts.
+threshold produces a flaky check and a number nobody trusts.
 
 Usage: scripts/profile_examples.py [--rows N] [--save PATH]
 """
@@ -82,7 +82,7 @@ def main_(argv: list[str] | None = None) -> int:
     for run_argv in RUNS:
         # Each run loads suites into the same registry; clearing between them
         # keeps the profile honest about what one run costs.
-        from pandas_row_validation import clear_registry
+        from jobcheck import clear_registry
         clear_registry()
         profiler.enable()
         run(run_argv, quiet=True)

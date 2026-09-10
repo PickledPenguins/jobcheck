@@ -19,10 +19,10 @@ from typing import Any, Callable
 import pandas as pd
 import pytest
 
-from conftest import make_test
+from conftest import make_check
 from perf_baseline import compare
-from pandas_row_validation import collect_outcomes, iter_traces, registry as reg
-from pandas_row_validation import report as rep
+from jobcheck import collect_outcomes, iter_traces, registry as reg
+from jobcheck import report as rep
 
 pytestmark = pytest.mark.perf
 
@@ -81,7 +81,7 @@ def test_summarising_has_not_got_slower(example_suites: None) -> None:
 
 def test_resolving_many_rules_has_not_got_slower(fresh_registry: None, tmp_path: Path) -> None:
     for index in range(50):
-        make_test(f"CODE_{index}")
+        make_check(f"CODE_{index}")
     rules = "\n".join(
         f"- name: rule_{index}\n  action: disable\n  codes: [CODE_{index}]\n"
         f"  match:\n    - column: email\n      pattern: '^no'"

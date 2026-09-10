@@ -11,4 +11,4 @@ layer | code                 | outcome  | status      | detail
 0     | EMAIL_PRESENT        | failed   | MISSING (1) | Email is missing                                          
 1     | EMAIL_MISSING_AT     | skipped  | PASS (0)    | prerequisite did not pass: EMAIL_PRESENT                  
 2     | EMAIL_DOMAIN_INVALID | skipped  | PASS (0)    | prerequisite did not pass: EMAIL_PRESENT, EMAIL_MISSING_AT
-root cause: AGE_PRESENT
+root causes: AGE_PRESENT, DATES_PRESENT, EMAIL_PRESENT

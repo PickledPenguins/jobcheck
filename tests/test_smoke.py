@@ -1,4 +1,4 @@
-"""Smoke tests: the entry points start and do their main job."""
+"""Smoke checks: the entry points start and do their main job."""
 
 from __future__ import annotations
 

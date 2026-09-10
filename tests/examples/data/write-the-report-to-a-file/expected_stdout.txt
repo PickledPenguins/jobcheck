@@ -1,6 +1,6 @@
-Loaded suites: ['base', 'hard_tests', 'soft_tests']
+Loaded suites: ['base', 'hard_checks', 'soft_checks']
 
 Loaded 3 override rule(s) from 1 file(s)
 
 
-wrote /tmp/pandas-row-validation-example-report.csv
+wrote /tmp/jobcheck-example-report.csv

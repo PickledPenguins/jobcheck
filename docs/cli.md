@@ -3,13 +3,13 @@
 Two demo entry points under `examples/`, both run from the project root: they import `validation` from the
 working directory and resolve file paths relative to it.
 
-- `examples/main.py` — loads the example tests, prints the registry tables and the failure report,
+- `examples/main.py` — loads the example checks, prints the registry tables and the failure report,
   and can explain one row or summarise the frame.
 - `examples/main_hard_only.py` — a second entry point choosing its own suite, to show that two
   scripts in one codebase see different registries.
 
 Neither is the product: the library does the work, and these exist to demonstrate it and to
-give the end-to-end tests something to drive. A pipeline calls
+give the end-to-end checks something to drive. A pipeline calls
 [the report functions](reporting.md) directly.
 
 Back to the [README](../README.md).
@@ -33,19 +33,19 @@ warnings and uncaught errors go to stderr.
 ### `-e`, `--suites SUITE [SUITE ...]`
 
 Optional. Suite subpackages of `examples/example_suites/` to load — the entry point
-passes `package="example_suites"`, since the library itself ships no tests. Default
-`hard_tests soft_tests`.
+passes `package="example_suites"`, since the library itself ships no checks. Default
+`hard_checks soft_checks`.
 
 Both multi-valued and repeatable: values are flattened in the order typed, so these three
 are identical.
 
 ```sh
-python3 examples/main.py -e hard_tests soft_tests
-python3 examples/main.py -e hard_tests -e soft_tests
-python3 examples/main.py -e hard_tests -o examples/rules/error_overrides.yaml -e soft_tests
+python3 examples/main.py -e hard_checks soft_checks
+python3 examples/main.py -e hard_checks -e soft_checks
+python3 examples/main.py -e hard_checks -o examples/rules/error_overrides.yaml -e soft_checks
 ```
 
-The base suite (`test_*.py` directly in `examples/example_suites/`) always loads as well and cannot be
+The base suite (`check_*.py` directly in `examples/example_suites/`) always loads as well and cannot be
 switched off from the CLI. An unrecognised name is an error naming the subpackage that was
 expected; see [configuration](configuration.md#errors) for the message.
 
@@ -70,12 +70,12 @@ Every rule is validated as it loads. A rule naming a code whose suite was not lo
 
 Optional, default `table`. Format of the failure report: bordered text with the message
 and comments wrapped, or CSV with the same columns unwrapped. Both come from
-`pandas_row_validation.render_report`; the flag only chooses which.
+`jobcheck.render_report`; the flag only chooses which.
 
 ### `--report-file PATH`
 
 Optional. Write the report to this file instead of printing it, through
-`pandas_row_validation.write_report`, and print `wrote PATH`. Combine with `--report csv` for a file
+`jobcheck.write_report`, and print `wrote PATH`. Combine with `--report csv` for a file
 another tool can read.
 
 ### `--data-columns COLUMN [COLUMN ...]`
@@ -86,29 +86,29 @@ through to `build_report(data_columns=...)`.
 
 ### `--include-skipped`
 
-Optional, off by default. Adds the tests a failure blocked, each naming the prerequisite
+Optional, off by default. Adds the checks a failure blocked, each naming the prerequisite
 that stopped it in the `comments` column. Use it when the question is "why did nothing
 fire?" rather than "what is wrong with this row?".
 
 ### `--explain ROW`
 
-Optional. Print what every test did on one row of the demo frame, by position (`0` is the
+Optional. Print what every check did on one row of the demo frame, by position (`0` is the
 first), then exit without printing the registry or the report. Each line is `passed`,
 `failed`, `disabled by <rule>`, or `skipped` with its blocking prerequisites, and the last
 line is the row's root cause. A position outside the frame exits 2.
 
 ### `--summary`
 
-Optional, off by default. After the report, print per-test counts (`failed`, `errored`,
+Optional, off by default. After the report, print per-check counts (`failed`, `errored`,
 `skipped`, `disabled`, `passed`, worst first) and a tally of what each failing row bottomed
-out at. A high `skipped` count means a fundamental test is failing often and hiding the
+out at. A high `skipped` count means a fundamental check is failing often and hiding the
 layer below it.
 
 ### `--data PATH`
 
 Optional. A CSV file to validate instead of the built-in demo frame. Every column is read
-as text (`dtype=str`), because a test that judges whether a value is a number has to see
-what the file said: letting pandas infer `age` would repair `41.5` before any test looked
+as text (`dtype=str`), because a check that judges whether a value is a number has to see
+what the file said: letting pandas infer `age` would repair `41.5` before any check looked
 at it. An empty cell is a missing value, not the string `nan`.
 
 ```sh
@@ -134,7 +134,7 @@ value, and a blank one reads as `<no key>`. A name that is not a column of the d
 
 Optional. Skips the registry and registry-vs-overrides tables (and, at `-vv`, the by-rule
 table), leaving the failure report and anything `--summary` adds. What a scheduled job
-wants: the tables describe the tests, not the data.
+wants: the tables describe the checks, not the data.
 
 ### `-v`, `--verbose`
 
@@ -156,14 +156,14 @@ Prints usage and exits 0.
 ## `examples/main_hard_only.py`
 
 Takes no options — but still parses the command line, so `--help` works and a mistyped
-flag exits 2 rather than being ignored. A second entry point that hardcodes `load_suites(["hard_tests"], package="example_suites")`, to
+flag exits 2 rather than being ignored. A second entry point that hardcodes `load_suites(["hard_checks"], package="example_suites")`, to
 show that entry points in one codebase see independent registries: no email check is
 registered, so none appears in its registry table or in any row's errors. The base suite
 still loads.
 
 It loads `examples/rules/split_by_topic` with `pattern="01_*.yaml"`. The filter is deliberate — the
-email rules in `02_email_rules.yaml` name `soft_tests` codes, which is a load-time error
-when only `hard_tests` is loaded.
+email rules in `02_email_rules.yaml` name `soft_checks` codes, which is a load-time error
+when only `hard_checks` is loaded.
 
 ```sh
 python3 examples/main_hard_only.py

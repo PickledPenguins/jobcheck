@@ -20,7 +20,8 @@ from typing import Any
 
 import pytest
 
-from pandas_row_validation import registry as reg
+from jobcheck import registry as reg
+from jobcheck import engine
 
 pytestmark = pytest.mark.fast
 
@@ -61,9 +62,9 @@ def test_the_readme_has_python_blocks_to_check() -> None:
 
 
 def is_template(source: str) -> bool:
-    """The "writing a test" block is a template, not part of the worked session."""
+    """The "writing a check" block is a template, not part of the worked session."""
 
-    return "test_group(" in source
+    return "check_group(" in source
 
 
 def session_blocks() -> list[tuple[int, str, str]]:
@@ -105,24 +106,24 @@ def test_a_later_block_only_uses_names_an_earlier_one_defined(fresh_registry: No
 
 
 def test_the_writing_a_test_block_registers_a_working_test(fresh_registry: None) -> None:
-    """The template block is checked on its own: it produces a test that runs, not
+    """The template block is checked on its own: it produces a check that runs, not
     just one that imports."""
 
     import pandas as pd
 
     source = next(source for _, source, _ in python_blocks() if is_template(source))
     namespace: dict[str, Any] = {}
-    exec(compile(source, "README.md:writing-a-test", "exec"), namespace)
+    exec(compile(source, "README.md:writing-a-check", "exec"), namespace)
 
-    registered = {test.code: test for test in reg.TESTS}
+    registered = {check.code: check for check in reg.CHECKS}
     assert "AGE_ABOVE_LIMIT" in registered
     assert registered["AGE_ABOVE_LIMIT"].depends_on == ["AGE_PRESENT"]
 
     # The group's prerequisite is real, so the whole thing validates once the
     # suite that defines it is loaded.
-    reg.load_suites(["hard_tests"], package="example_suites")
+    reg.load_suites(["hard_checks"], package="example_suites")
     row = pd.Series({"age": 200, "email": "a@b.com", "start_date": None, "end_date": None})
-    assert "AGE_ABOVE_LIMIT" in [outcome.code for outcome in reg.validate_row(row)]
+    assert "AGE_ABOVE_LIMIT" in [outcome.code for outcome in engine.validate_row(row)]
 
 
 def test_the_example_code_does_not_collide_with_the_shipped_tests(
@@ -131,8 +132,8 @@ def test_the_example_code_does_not_collide_with_the_shipped_tests(
     """A README example that duplicated a shipped code would fail on import for
     anyone who pasted it into a project with the example suites loaded."""
 
-    reg.load_suites(["hard_tests", "soft_tests"], package="example_suites")
-    shipped = {test.code for test in reg.TESTS}
+    reg.load_suites(["hard_checks", "soft_checks"], package="example_suites")
+    shipped = {check.code for check in reg.CHECKS}
     for _, source, _ in python_blocks():
         for code in re.findall(r'@\w+\(\s*"([A-Z_]+)"', source):
             assert code not in shipped, f"README defines {code}, which the suites already own"
@@ -141,7 +142,7 @@ def test_the_example_code_does_not_collide_with_the_shipped_tests(
 @pytest.mark.parametrize(
     "name",
     [
-        "docs/writing-tests.md",
+        "docs/writing-checks.md",
         "docs/reporting.md",
         "docs/configuration.md",
         "docs/interfaces.md",
@@ -169,19 +170,32 @@ def test_the_readme_shell_commands_name_files_that_exist() -> None:
 # --- the prose claims, not just the code blocks -----------------------------
 
 
+def declared_dependencies() -> list[str]:
+    """The runtime dependencies from pyproject.toml, without tomllib.
+
+    tomllib arrived in 3.11 and the declared floor is 3.10, so the suite has to
+    read this the hard way or it stops running on the version it promises.
+    """
+
+    text = (README.parent / "pyproject.toml").read_text(encoding="utf-8")
+    block = re.search(r"^dependencies = \[(.*?)\]", text, re.M | re.S)
+    assert block, "pyproject.toml has no [project] dependencies list"
+    return re.findall(r'"([^"]+)"', block.group(1))
+
+
 def readme_text() -> str:
     return README.read_text(encoding="utf-8")
 
 
 def test_the_stated_runtime_dependencies_are_the_real_ones() -> None:
-    """The README names pandas and PyYAML; requirements.txt is the contract."""
+    """The README names pandas and PyYAML; pyproject.toml is the contract.
 
-    lines = [
-        line.split("#")[0].strip()
-        for line in (README.parent / "requirements.txt").read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.strip().startswith("#")
-    ]
-    assert [line.split(">=")[0] for line in lines] == ["pandas", "PyYAML"]
+    One place, not two: a requirements.txt beside the project metadata is a
+    second list to keep in step, and it was the one that drifted.
+    """
+
+    declared = declared_dependencies()
+    assert [name.split(">=")[0] for name in declared] == ["pandas", "PyYAML"]
     text = readme_text()
     assert "pandas 2.1+" in text and "PyYAML" in text
 
@@ -190,11 +204,10 @@ def test_the_stated_pandas_floor_is_the_one_the_code_needs() -> None:
     """render_report calls DataFrame.map, which arrived in pandas 2.1; a lower floor
     would promise a version where every CSV render raises."""
 
-    from pandas_row_validation import report
+    from jobcheck import report
 
     assert "report.map(" in Path(report.__file__).read_text(encoding="utf-8")
-    requirements = (README.parent / "requirements.txt").read_text(encoding="utf-8")
-    assert "pandas>=2.1" in requirements
+    assert "pandas>=2.1" in declared_dependencies()
 
 
 def test_the_package_installs_the_way_the_readme_says() -> None:
@@ -203,22 +216,22 @@ def test_the_package_installs_the_way_the_readme_says() -> None:
 
     text = (README.parent / "pyproject.toml").read_text(encoding="utf-8")
     assert "pip install -e ." in readme_text()
-    assert 'name = "pandas-row-validation"' in text
+    assert 'name = "jobcheck"' in text
     assert 'where = ["src"]' in text
-    assert (README.parent / "src" / "pandas_row_validation" / "__init__.py").is_file()
+    assert (README.parent / "src" / "jobcheck" / "__init__.py").is_file()
 
 
 def test_the_declared_version_matches_the_package() -> None:
-    import pandas_row_validation
+    import jobcheck
 
     text = (README.parent / "pyproject.toml").read_text(encoding="utf-8")
     declared = re.search(r'^version = "([^"]+)"', text, re.M)
     assert declared is not None
-    assert declared.group(1) == pandas_row_validation.__version__
+    assert declared.group(1) == jobcheck.__version__
 
 
 def test_a_bare_bool_return_works_as_the_readme_says(fresh_registry: None) -> None:
-    from pandas_row_validation import normalise_result
+    from jobcheck import normalise_result
 
     assert "a bare `True`/`False` works too" in readme_text()
     assert normalise_result(True, "CODE").passed is True
@@ -228,10 +241,10 @@ def test_a_bare_bool_return_works_as_the_readme_says(fresh_registry: None) -> No
 def test_the_report_is_one_line_per_failure_as_claimed(fresh_registry: None) -> None:
     import pandas as pd
 
-    from pandas_row_validation import build_report, collect_outcomes, load_suites
+    from jobcheck import build_report, collect_outcomes, load_suites
 
     assert "One line per failure, not one per row." in readme_text()
-    load_suites(["hard_tests"], package="example_suites")
+    load_suites(["hard_checks"], package="example_suites")
     frame = pd.DataFrame([{"age": -5, "start_date": "2024-05-01", "end_date": "2024-03-01"}])
     report = build_report(collect_outcomes(frame), df=frame)
     assert len(report) == 2, "one row, two failures, two report lines"
@@ -242,10 +255,10 @@ def test_the_scope_limits_the_readme_states_hold(fresh_registry: None) -> None:
 
     import pandas as pd
 
-    from pandas_row_validation import collect_outcomes, load_suites
+    from jobcheck import collect_outcomes, load_suites
 
     assert "It does not fix, coerce, or drop rows." in readme_text()
-    load_suites(["hard_tests"], package="example_suites")
+    load_suites(["hard_checks"], package="example_suites")
     frame = pd.DataFrame([{"age": -5, "start_date": None, "end_date": None}])
     before = frame.copy(deep=True)
     collect_outcomes(frame)
@@ -253,13 +266,13 @@ def test_the_scope_limits_the_readme_states_hold(fresh_registry: None) -> None:
 
 
 def test_rule_files_can_only_switch_existing_codes(fresh_registry: None, tmp_path: Any) -> None:
-    """"the override rule files can only switch existing tests on or off ...
+    """"the override rule files can only switch existing checks on or off ...
     never define new ones"."""
 
-    from pandas_row_validation import load_overrides, load_suites
+    from jobcheck import load_overrides, load_suites
 
     assert "they cannot define new ones" in readme_text()
-    load_suites(["hard_tests"], package="example_suites")
+    load_suites(["hard_checks"], package="example_suites")
     path = tmp_path / "rules.yaml"
     path.write_text(
         '- name: "invent"\n  action: enable\n  codes: [BRAND_NEW_CODE]\n  match: all\n',
@@ -270,11 +283,11 @@ def test_rule_files_can_only_switch_existing_codes(fresh_registry: None, tmp_pat
 
 
 def test_the_suites_the_readme_names_exist(fresh_registry: None) -> None:
-    from pandas_row_validation import load_suites, loaded_suites
+    from jobcheck import load_suites, loaded_suites
 
-    assert 'load_suites(["hard_tests", "soft_tests"], package="example_suites")' in readme_text()
-    load_suites(["hard_tests", "soft_tests"], package="example_suites")
-    assert loaded_suites() == {"base", "hard_tests", "soft_tests"}
+    assert 'load_suites(["hard_checks", "soft_checks"], package="example_suites")' in readme_text()
+    load_suites(["hard_checks", "soft_checks"], package="example_suites")
+    assert loaded_suites() == {"base", "hard_checks", "soft_checks"}
 
 
 # --- the documented CLI is the real CLI -------------------------------------

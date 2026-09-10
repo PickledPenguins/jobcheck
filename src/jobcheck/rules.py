@@ -1,7 +1,7 @@
-"""Override rules: the YAML format that switches tests on and off per row.
+"""Override rules: the YAML format that switches checks on and off per row.
 
 The file format, its parser, and the matching it drives. Nothing here knows how a
-test is registered or evaluated -- the loaders are handed the set of codes that
+check is registered or evaluated -- the loaders are handed the set of codes that
 exist, so this module never reaches back into the registry.
 
 A rule file is a flat list of rules. Precedence is positional: for a given row,
@@ -242,3 +242,31 @@ def rule_matches(rule: OverrideRule, row: "pd.Series[Any]") -> bool:
         if text is None or not criterion.regex.search(text):
             return False
     return True
+
+
+def check_rule_columns(df: pd.DataFrame, overrides: list[OverrideRule]) -> list[str]:
+    """Warn about columns an override rule matches on that the data lacks.
+
+    A criterion naming a column that is not there never matches, so the rule
+    silently never applies -- the one rule mistake nothing else catches, since
+    the loader validates codes and patterns but has no data to compare against.
+
+    Returns one human-readable line per problem, empty when every criterion
+    column is present. It warns rather than raises: a rule file may deliberately
+    cover several data shapes, only some of which carry the column.
+
+    Checks are not checked here. They read the row themselves, so a missing field
+    raises from the check and is recorded as a :data:`Status.ERROR` outcome
+    naming the column, rather than passing silently.
+    """
+
+    present = set(df.columns)
+    warnings: list[str] = []
+    for rule in overrides:
+        for criterion in rule.criteria:
+            if criterion.column not in present:
+                warnings.append(
+                    f"rule {rule.name!r} matches on column {criterion.column!r}, which is not "
+                    "in the data: the rule will never apply"
+                )
+    return warnings

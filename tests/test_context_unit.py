@@ -1,11 +1,13 @@
-"""Unit tests: RowContext and the build_context integration stub."""
+"""Unit checks: RowContext and the build_context integration stub."""
 
 from __future__ import annotations
+
+from typing import Any
 
 import pandas as pd
 import pytest
 
-from pandas_row_validation import RowContext, build_context
+from jobcheck import RowContext, build_context
 
 pytestmark = pytest.mark.fast
 
@@ -21,23 +23,35 @@ def test_row_context_instances_do_not_share_their_dicts() -> None:
     assert RowContext().flags == {}
 
 
-def test_build_context_flags_a_legacy_source_system() -> None:
-    context = build_context(pd.Series({"source_system": "LEGACY_A"}))
-    assert context.flags == {"legacy": True}
+def test_build_context_returns_an_empty_context() -> None:
+    """The default builder invents nothing: the adopter fills the context."""
+
+    ctx = build_context(pd.Series({"source_system": "LEGACY_A", "age": 30}))
+    assert (ctx.flags, ctx.paths, ctx.state, ctx.extra) == ({}, {}, {}, {})
 
 
-def test_build_context_does_not_flag_other_source_systems() -> None:
-    assert build_context(pd.Series({"source_system": "MODERN"})).flags == {"legacy": False}
+def test_build_context_reads_nothing_out_of_the_row() -> None:
+    """Two different rows produce contexts that are equal and independent."""
+
+    first = build_context(pd.Series({"a": 1}))
+    second = build_context(pd.Series({"b": 2}))
+    assert first == second == RowContext()
+    first.flags["mine"] = True
+    assert second.flags == {}
 
 
-def test_build_context_handles_a_null_source_system() -> None:
-    assert build_context(pd.Series({"source_system": None})).flags == {"legacy": False}
+def test_a_caller_supplied_builder_is_what_reaches_the_checks(fresh_registry: None) -> None:
+    """The documented replacement path, exercised rather than described."""
 
+    from jobcheck import PASS, CheckResult, Status, collect_outcomes
+    from jobcheck import registry as reg
 
-def test_build_context_without_the_column_sets_no_flag() -> None:
-    assert build_context(pd.Series({"age": 30})).flags == {}
+    @reg.register_check(code="NEEDS_FLAG", message="the context said no")
+    def check(row: "pd.Series[Any]", ctx: RowContext | None) -> CheckResult:
+        return PASS if ctx and ctx.flags.get("allowed") else CheckResult(Status.INVALID, {})
 
-
-def test_build_context_leaves_the_other_buckets_empty() -> None:
-    context = build_context(pd.Series({"source_system": "LEGACY_A"}))
-    assert (context.paths, context.state, context.extra) == ({}, {}, {})
+    frame = pd.DataFrame([{"allow": True}, {"allow": False}])
+    outcomes = collect_outcomes(
+        frame, context_builder=lambda row: RowContext(flags={"allowed": bool(row["allow"])})
+    )
+    assert [o[0].failed for o in outcomes] == [False, True]

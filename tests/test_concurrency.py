@@ -27,7 +27,7 @@ import pandas as pd
 import pytest
 
 from conftest import PROJECT_ROOT
-from pandas_row_validation import collect_outcomes, root_cause, validate, validate_row
+from jobcheck import collect_outcomes, root_cause, validate, validate_row
 
 pytestmark = pytest.mark.long
 
@@ -68,7 +68,7 @@ def test_threads_do_not_disturb_each_others_root_causes(example_suites: None) ->
         concurrent = list(pool.map(lambda row: root_cause(validate_row(row)), rows))
 
     assert concurrent == expected
-    # Not all None: a test that only proves two empty lists are equal proves
+    # Not all None: a check that only proves two empty lists are equal proves
     # nothing about the engine.
     assert any(cause is not None for cause in expected)
 
@@ -84,14 +84,14 @@ def test_whole_frames_validated_on_threads_agree_with_one_thread(example_suites:
 
 
 def test_validation_does_not_mutate_the_registry_under_threads(example_suites: None) -> None:
-    from pandas_row_validation import registry as reg
+    from jobcheck import registry as reg
 
-    before = [(test.code, test.layer, test.default_enabled) for test in reg.TESTS]
+    before = [(check.code, check.layer, check.default_enabled) for check in reg.CHECKS]
     df = frame(100)
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         list(pool.map(lambda _: collect_outcomes(df), range(WORKERS)))
 
-    assert [(t.code, t.layer, t.default_enabled) for t in reg.TESTS] == before
+    assert [(t.code, t.layer, t.default_enabled) for t in reg.CHECKS] == before
 
 
 # --- separate processes -----------------------------------------------------
@@ -100,23 +100,23 @@ CHILD = textwrap.dedent(
     """
     import sys
     sys.path.insert(0, {src!r})
-    from pandas_row_validation import load_test_files, loaded_files, TESTS
+    from jobcheck import load_checks, loaded_files, CHECKS
 
-    load_test_files([{path!r}])
-    print(",".join(sorted(t.code for t in TESTS)))
+    load_checks([{path!r}])
+    print(",".join(sorted(t.code for t in CHECKS)))
     print(len(loaded_files()))
     """
 )
 
 TEST_FILE = textwrap.dedent(
     """
-    from pandas_row_validation import PASS, Status, TestResult, test_group
+    from jobcheck import PASS, Status, CheckResult, check_group
 
-    g = test_group()
+    g = check_group()
 
     @g("{code}", "{code} failed")
     def rule(row):
-        return PASS if row.get("value") == 1 else TestResult(Status.INVALID, {{}})
+        return PASS if row.get("value") == 1 else CheckResult(Status.INVALID, {{}})
     """
 )
 
@@ -127,7 +127,7 @@ def run_child(source: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_two_processes_loading_the_same_file_do_not_share_a_registry(tmp_path: Path) -> None:
-    """Each process registers the file itself; neither sees the other's tests."""
+    """Each process registers the file itself; neither sees the other's checks."""
 
     src = str(Path(PROJECT_ROOT) / "src")
     left = tmp_path / "left.py"

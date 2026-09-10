@@ -5,7 +5,7 @@ outcomes for a frame, building the long-format failure table, rendering it as
 text or CSV, and writing it to a file. There is no command line: a pipeline
 calls these functions and decides where the output goes.
 
-The report is **long format**: one row per failed test per data row. That is the
+The report is **long format**: one row per failed check per data row. That is the
 diagnostic unit, it is the only shape that survives being written as CSV, and it
 sorts and filters cleanly downstream.
 """
@@ -17,8 +17,9 @@ from typing import Any, Callable, Iterable, Mapping
 import pandas as pd
 
 from .context import RowContext, build_context
-from .registry import OverrideRule, explain_row, root_cause
-from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, TestOutcome, render_status
+from .engine import explain_row, root_causes
+from .rules import OverrideRule
+from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, render_status
 from .tables import format_table
 
 REPORT_COLUMNS = ["row", "code", "status", "layer", "suite", "outcome", "message", "comments",
@@ -27,7 +28,7 @@ REPORT_COLUMNS = ["row", "code", "status", "layer", "suite", "outcome", "message
 # A spreadsheet treats a cell starting with one of these as a formula, so a value
 # taken from the data and written into a CSV can execute when someone opens the
 # report. Escaping happens on the way out, not on the way in, so the outcomes and
-# the table view keep the value the test actually saw.
+# the table view keep the value the check actually saw.
 FORMULA_PREFIXES = ("=", "+", "@", "\t", "\r")
 
 ContextBuilder = Callable[["pd.Series[Any]"], RowContext | None]
@@ -38,15 +39,15 @@ def collect_outcomes(
     overrides: list[OverrideRule] | None = None,
     context_builder: ContextBuilder = build_context,
     on_error: str = "record",
-) -> list[list[TestOutcome]]:
-    """Run every test against every row and keep all the outcomes.
+) -> list[list[CheckOutcome]]:
+    """Run every check against every row and keep all the outcomes.
 
-    Keeps the tests that did not run as well as the ones that did, because that
+    Keeps the checks that did not run as well as the ones that did, because that
     is what the explanation and summary views are built from. For a frame large
     enough that the extra objects matter, use
-    :func:`pandas_row_validation.validate_row` per row instead and skip the report.
+    :func:`jobcheck.validate_row` per row instead and skip the report.
 
-    ``on_error`` is passed through to :func:`pandas_row_validation.explain_row`.
+    ``on_error`` is passed through to :func:`jobcheck.explain_row`.
     """
 
     return [
@@ -56,10 +57,10 @@ def collect_outcomes(
 
 
 def render_comments(comments: Mapping[str, Any]) -> str:
-    """Render a test's comments as ``key=value; key=value``, sorted by key.
+    """Render a check's comments as ``key=value; key=value``, sorted by key.
 
     Sorted so the same failure renders identically every run, which is what lets
-    reports be diffed and byte-compared in tests.
+    reports be diffed and byte-compared in checks.
     """
 
     return "; ".join(f"{key}={comments[key]}" for key in sorted(comments))
@@ -95,8 +96,18 @@ def _label_value(value: Any) -> str:
     return str(value)
 
 
+KEY_SEPARATOR = "|"
+
+
 def _row_labels(df: pd.DataFrame, key_column: str | list[str] | None) -> list[str]:
-    """One label per row: the key column(s) if given, else the frame's index."""
+    """One label per row: the key column(s) if given, else the frame's index.
+
+    Several key columns are joined with ``|``. A value carrying that separator
+    is refused rather than joined, because ``("a|b", "c")`` and ``("a", "b|c")``
+    would otherwise render the same label and two different rows would be
+    indistinguishable in the report -- which is the one thing a key column
+    exists to prevent.
+    """
 
     if key_column is None:
         return [_label_value(label) for label in df.index]
@@ -108,7 +119,22 @@ def _row_labels(df: pd.DataFrame, key_column: str | list[str] | None) -> list[st
             f"key_column {missing} is not in the data. Available columns: "
             f"{', '.join(str(c) for c in df.columns)}."
         )
-    return ["|".join(_label_value(row[column]) for column in columns) for _, row in df.iterrows()]
+    if len(columns) == 1:
+        return [_label_value(value) for value in df[columns[0]]]
+
+    labels: list[str] = []
+    for position, (_, row) in enumerate(df.iterrows()):
+        parts = [_label_value(row[column]) for column in columns]
+        carrying = [column for column, part in zip(columns, parts) if KEY_SEPARATOR in part]
+        if carrying:
+            raise ValueError(
+                f"Row {position}: key column(s) {carrying} hold the {KEY_SEPARATOR!r} "
+                "that joins a multi-column key, so two different rows could produce "
+                "the same label. Use a single key column, or a column whose values do "
+                f"not contain {KEY_SEPARATOR!r}."
+            )
+        labels.append(KEY_SEPARATOR.join(parts))
+    return labels
 
 
 def _check_data_columns(df: pd.DataFrame | None, data_columns: list[str]) -> None:
@@ -152,7 +178,7 @@ def _check_data_columns(df: pd.DataFrame | None, data_columns: list[str]) -> Non
 
 
 def build_report(
-    outcomes_per_row: list[list[TestOutcome]],
+    outcomes_per_row: list[list[CheckOutcome]],
     df: pd.DataFrame | None = None,
     key_column: str | list[str] | None = None,
     data_columns: list[str] | None = None,
@@ -162,9 +188,12 @@ def build_report(
     """Build the long-format report: one row per failure.
 
     Columns are ``row``, ``code``, ``status`` (``INVALID (3)``), ``layer``,
-    ``suite``, ``outcome``, ``message``, ``comments``, ``is_root_cause``. Rows
-    keep evaluation order within each data row, so the root cause is the first
-    line for that row.
+    ``suite``, ``outcome``, ``message``, ``comments``, ``is_root_cause``. Lines
+    keep evaluation order within each data row; the root cause is the line (or
+    lines) flagged by ``is_root_cause``, which is not necessarily the first --
+    an independent chain registered earlier can be printed above a shallower
+    failure. ``is_root_cause`` is True for **every** failure at the shallowest
+    failing layer, since two failures at the same depth are two root causes.
 
     ``key_column`` names the column (or columns) that identify a data row, which
     is what makes a report readable once the frame has been filtered; without it
@@ -173,10 +202,10 @@ def build_report(
     ``data_columns`` copies further columns from the frame into the report, in the
     order given, immediately after ``row``. They carry the context a reader needs
     to judge a failure without going back to the source file -- the source system,
-    the batch, the field the test was reading. A name that is not in the frame,
+    the batch, the field the check was reading. A name that is not in the frame,
     named twice, or colliding with one of the report's own columns is refused
     rather than quietly dropped or overwritten.
-    ``include_skipped`` adds the tests a failure blocked, each naming its
+    ``include_skipped`` adds the checks a failure blocked, each naming its
     blocking prerequisite -- useful when the question is "why did nothing fire?"
     rather than "what is wrong with this row?". ``include_passed`` adds
     everything else, which turns the report into a full audit trail.
@@ -211,7 +240,7 @@ def build_report(
 
     rows: list[dict[str, Any]] = []
     for label, outcomes, context in zip(labels, outcomes_per_row, extra):
-        cause = root_cause(outcomes)
+        causes = set(root_causes(outcomes))
         for outcome in outcomes:
             if outcome.outcome not in wanted:
                 continue
@@ -226,7 +255,7 @@ def build_report(
                     "outcome": outcome.outcome,
                     "message": outcome.message or outcome.detail,
                     "comments": render_comments(outcome.comments) or outcome.detail,
-                    "is_root_cause": outcome.code == cause,
+                    "is_root_cause": outcome.code in causes,
                 }
             )
     columns = ["row", *data_columns, *REPORT_COLUMNS[1:]]
@@ -305,10 +334,10 @@ def print_report(report: pd.DataFrame, fmt: str = "table", wrap: int = 48) -> No
     print(render_report(report, fmt=fmt, wrap=wrap))
 
 
-def row_explanation(outcomes: list[TestOutcome], only_relevant: bool = False) -> pd.DataFrame:
-    """One row per test, in evaluation order: what it did and why.
+def row_explanation(outcomes: list[CheckOutcome], only_relevant: bool = False) -> pd.DataFrame:
+    """One row per check, in evaluation order: what it did and why.
 
-    ``only_relevant`` drops the tests that simply passed, which is usually what
+    ``only_relevant`` drops the checks that simply passed, which is usually what
     you want when hunting one bad row.
     """
 
@@ -331,27 +360,30 @@ def row_explanation(outcomes: list[TestOutcome], only_relevant: bool = False) ->
     )
 
 
-def print_row_explanation(outcomes: list[TestOutcome], only_relevant: bool = False) -> pd.DataFrame:
-    """Print what every test did on one row, then the row's root cause.
+def print_row_explanation(outcomes: list[CheckOutcome], only_relevant: bool = False) -> pd.DataFrame:
+    """Print what every check did on one row, then the row's root cause(s).
 
-    Reading order is evaluation order, so the first ``failed`` line is the root
-    cause and every ``skipped`` line below it names the prerequisite that
-    blocked it.
+    Reading order is evaluation order, and every ``skipped`` line names the
+    prerequisite that blocked it. The root cause is not always the first failing
+    line: two chains that do not touch can both fail, and the deeper one may be
+    evaluated first, so it is named explicitly at the end. Where two failures sit
+    at the same depth, both are named.
     """
 
     table = row_explanation(outcomes, only_relevant=only_relevant)
     print(format_table(table, wrap_columns={"detail": 60}))
-    cause = root_cause(outcomes)
-    print(f"root cause: {cause}" if cause else "root cause: none - the row passed")
+    causes = root_causes(outcomes)
+    label = "root cause" if len(causes) == 1 else "root causes"
+    print(f"{label}: {', '.join(causes)}" if causes else "root cause: none - the row passed")
     return table
 
 
-def summarise_outcomes(outcomes_per_row: Iterable[list[TestOutcome]]) -> pd.DataFrame:
-    """Count what happened to each test across many rows.
+def summarise_outcomes(outcomes_per_row: Iterable[list[CheckOutcome]]) -> pd.DataFrame:
+    """Count what happened to each check across many rows.
 
-    ``skipped`` is the column that matters when tuning layered tests: a high
-    count means a fundamental test is failing often and hiding everything below
-    it. ``errored`` is kept separate from ``failed`` so a broken test can never
+    ``skipped`` is the column that matters when tuning layered checks: a high
+    count means a fundamental check is failing often and hiding everything below
+    it. ``errored`` is kept separate from ``failed`` so a broken check can never
     be mistaken for bad data.
     """
 
@@ -387,13 +419,17 @@ def summarise_outcomes(outcomes_per_row: Iterable[list[TestOutcome]]) -> pd.Data
     )
 
 
-def root_cause_counts(outcomes_per_row: Iterable[list[TestOutcome]]) -> pd.DataFrame:
-    """How many rows bottomed out at each code, worst first."""
+def root_cause_counts(outcomes_per_row: Iterable[list[CheckOutcome]]) -> pd.DataFrame:
+    """How many rows bottomed out at each code, worst first.
+
+    A row failing two chains at the same depth counts once against each: the
+    question this answers is "how many rows would this code explain", and both
+    codes explain that row.
+    """
 
     causes: dict[str, int] = {}
     for outcomes in outcomes_per_row:
-        cause = root_cause(outcomes)
-        if cause is not None:
+        for cause in root_causes(outcomes):
             causes[cause] = causes.get(cause, 0) + 1
     ranked = sorted(causes.items(), key=lambda item: (-item[1], item[0]))
     return pd.DataFrame(
@@ -402,12 +438,12 @@ def root_cause_counts(outcomes_per_row: Iterable[list[TestOutcome]]) -> pd.DataF
     )
 
 
-def print_summary(outcomes_per_row: list[list[TestOutcome]]) -> pd.DataFrame:
-    """Print the per-test summary, worst first, and the root-cause tally."""
+def print_summary(outcomes_per_row: list[list[CheckOutcome]]) -> pd.DataFrame:
+    """Print the per-check summary, worst first, and the root-cause tally."""
 
     table = summarise_outcomes(outcomes_per_row)
     if table.empty:
-        print("No tests ran.")
+        print("No checks ran.")
         return table
     print(format_table(table))
 

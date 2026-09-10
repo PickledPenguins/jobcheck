@@ -4,7 +4,7 @@ Real pipelines carry per-row state that is not tabular data: feature flags,
 computed filesystem paths, pipeline bookkeeping.  Putting that into extra
 DataFrame columns causes dtype churn (object columns holding dicts), bloats
 exports, and mixes computation context into a data table.  It is kept in a
-separate :class:`RowContext` object instead, handed to every test function.
+separate :class:`RowContext` object instead, handed to every check function.
 """
 
 from __future__ import annotations
@@ -31,17 +31,21 @@ class RowContext:
 
 
 def build_context(row: "pd.Series[Any]") -> RowContext:
-    """Build the :class:`RowContext` for one row.
+    """The default context builder: an **empty** context, for every row.
 
-    This is the integration point for the person adopting the framework: it is
-    a deliberate stub.  Replace the body with whatever logic already produces
-    per-row metadata in the surrounding pipeline (path resolution, lookups
-    against other systems, flags derived from upstream state).  It is called
-    once per row, so keep it cheap or memoise inside it.
+    Deliberately empty. What belongs in a row's context is the adopting
+    pipeline's business -- resolved paths, feature flags, a lookup against
+    another system, the whole file for a cross-row check -- and this library
+    cannot guess any of it. Inventing a field here would put a value in every
+    caller's context that most of them never asked for.
+
+    Supply your own instead, as ``context_builder=``: any callable taking the
+    row and returning a :class:`RowContext` (or a subclass of it, which is how
+    a cross-row check gets the whole file). It is called once per row, so keep
+    it cheap, or build one object outside the loop and hand the same one back::
+
+        shared = FileContext(counts=counts_for(df))
+        collect_outcomes(df, context_builder=lambda row: shared)
     """
 
-    flags: dict[str, Any] = {}
-    if "source_system" in row.index:
-        source = row["source_system"]
-        flags["legacy"] = isinstance(source, str) and source.startswith("LEGACY_")
-    return RowContext(flags=flags)
+    return RowContext()

@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from pandas_row_validation import (
+from jobcheck import (
     build_context,
     build_report,
     collect_outcomes,
@@ -21,7 +21,7 @@ from pandas_row_validation import (
     validate_row,
     write_report,
 )
-from pandas_row_validation import registry as reg
+from jobcheck import registry as reg
 
 pytestmark = pytest.mark.long
 
@@ -53,7 +53,7 @@ def test_shipped_root_rule_file_drives_a_whole_frame(example_suites: None) -> No
     df = validated(load_overrides("examples/rules/error_overrides.yaml"))
     assert codes(df) == [
         [],
-        [],  # internal.test suppresses the email tests; the global rule keeps
+        [],  # internal.test suppresses the email checks; the global rule keeps
              # AGE_NOT_INTEGER off despite the legacy enable listed before it
         ["AGE_NEGATIVE", "DATES_OUT_OF_ORDER", "EMAIL_MISSING_AT"],
     ]
@@ -117,9 +117,10 @@ def test_a_written_report_reads_back_as_a_frame(example_suites: None, tmp_path: 
     assert list(written.columns) == list(report.columns)
     assert list(written["row"]) == [3, 3, 3]
     assert list(written["code"]) == ["AGE_NEGATIVE", "DATES_OUT_OF_ORDER", "EMAIL_MISSING_AT"]
-    # Rows keep evaluation order; the flag marks the shallowest failure, which is
-    # DATES_OUT_OF_ORDER at layer 1 rather than AGE_NEGATIVE at layer 2.
-    assert list(written["is_root_cause"]) == [False, True, False]
+    # Lines keep evaluation order; the flag marks every failure at the shallowest
+    # failing layer. Here that is DATES_OUT_OF_ORDER and EMAIL_MISSING_AT, both at
+    # layer 1, with AGE_NEGATIVE at layer 2 below them.
+    assert list(written["is_root_cause"]) == [False, True, True]
 
 
 def test_a_table_report_renders_the_comments_a_reader_needs(example_suites: None) -> None:
@@ -159,9 +160,9 @@ def test_a_new_suite_added_at_runtime_is_discovered(fresh_registry: None, tmp_pa
     suite.mkdir(parents=True)
     (package / "__init__.py").write_text("", encoding="utf-8")
     (suite / "__init__.py").write_text("", encoding="utf-8")
-    (suite / "test_added.py").write_text(
-        "from pandas_row_validation.registry import register_test\n\n\n"
-        '@register_test(code="ADDED_AT_RUNTIME", message="added")\n'
+    (suite / "check_added.py").write_text(
+        "from jobcheck.registry import register_check\n\n\n"
+        '@register_check(code="ADDED_AT_RUNTIME", message="added")\n'
         "def check(row):\n"
         "    return row['age'] != 99\n",
         encoding="utf-8",
@@ -176,12 +177,12 @@ def test_a_new_suite_added_at_runtime_is_discovered(fresh_registry: None, tmp_pa
             del sys.modules[name]
 
     assert [r.code for r in results] == ["ADDED_AT_RUNTIME"]
-    assert next(t for t in reg.TESTS if t.code == "ADDED_AT_RUNTIME").suite == "extra_tests"
+    assert next(t for t in reg.CHECKS if t.code == "ADDED_AT_RUNTIME").suite == "extra_tests"
 
 
 def test_source_file_of_a_shipped_check_exists_on_disk(example_suites: None) -> None:
-    for test in reg.TESTS:
-        assert os.path.isfile(test.source_file), test.code
+    for check in reg.CHECKS:
+        assert os.path.isfile(check.source_file), check.code
 
 
 def test_a_written_report_round_trips_through_a_spreadsheet_reader(
@@ -213,17 +214,18 @@ def test_explaining_a_row_agrees_with_the_report(example_suites: None) -> None:
     """The two views are the same data: the report's first line for a row is the
     row's root cause, and the explanation says the same."""
 
-    from pandas_row_validation import explain_row, root_cause
+    from jobcheck import explain_row, root_causes
 
     outcomes = collect_outcomes(DEMO)
     report = build_report(outcomes, df=DEMO, key_column="id")
     for position, row_outcomes in enumerate(outcomes):
-        cause = root_cause(row_outcomes)
-        if cause is None:
+        causes = root_causes(row_outcomes)
+        if not causes:
             continue
         lines = report[report["row"] == str(DEMO.iloc[position]["id"])]
         flagged = lines[lines["is_root_cause"]]
-        assert list(flagged["code"]) == [cause]
+        # Every root cause is flagged, and nothing else is.
+        assert sorted(flagged["code"]) == sorted(causes)
         assert root_cause(explain_row(DEMO.iloc[position])) is not None
 
 

@@ -1,7 +1,7 @@
 """Scaling: how cost grows as one dimension grows, not how fast it is once.
 
 A fixed ceiling ("20,000 rows in under 60s") catches a tenfold regression on the
-machine that wrote it and nothing on a faster one. These tests assert the
+machine that wrote it and nothing on a faster one. These checks assert the
 *shape* instead -- doubling the rows should roughly double the work, not
 quadruple it -- which is machine-independent and is what an accidental per-row
 sort, per-row file read or per-row registry rebuild actually breaks.
@@ -20,9 +20,9 @@ from typing import Any, Callable
 import pandas as pd
 import pytest
 
-from conftest import make_test
-from pandas_row_validation import collect_outcomes, iter_traces, registry as reg
-from pandas_row_validation import report as rep
+from conftest import make_check
+from jobcheck import collect_outcomes, iter_traces, registry as reg
+from jobcheck import report as rep
 
 pytestmark = pytest.mark.long
 
@@ -58,16 +58,16 @@ def test_validating_twice_the_rows_costs_about_twice_as_much(example_suites: Non
 def test_twice_the_tests_costs_about_twice_as_much(fresh_registry: None) -> None:
     df = frame(500)
     for index in range(50):
-        make_test(f"CODE_{index}")
+        make_check(f"CODE_{index}")
     small = seconds(lambda: collect_outcomes(df))
     for index in range(50, 200):
-        make_test(f"CODE_{index}")
+        make_check(f"CODE_{index}")
     large = seconds(lambda: collect_outcomes(df))
     ratio = large / small
-    # Four times the tests: linear is 4. A per-row topological sort over a
+    # Four times the checks: linear is 4. A per-row topological sort over a
     # growing registry would show here as well above that.
-    assert ratio < 8, f"4x the tests cost {ratio:.1f}x the time"
-    assert len(reg.TESTS) == 200
+    assert ratio < 8, f"4x the checks cost {ratio:.1f}x the time"
+    assert len(reg.CHECKS) == 200
 
 
 def test_a_deep_dependency_chain_does_not_cost_more_than_a_flat_one(
@@ -77,13 +77,13 @@ def test_a_deep_dependency_chain_does_not_cost_more_than_a_flat_one(
 
     df = frame(500)
     for index in range(100):
-        make_test(f"FLAT_{index}")
+        make_check(f"FLAT_{index}")
     flat = seconds(lambda: collect_outcomes(df))
 
     reg.clear_registry()
-    make_test("DEEP_0")
+    make_check("DEEP_0")
     for index in range(1, 100):
-        make_test(f"DEEP_{index}", depends_on=[f"DEEP_{index - 1}"])
+        make_check(f"DEEP_{index}", depends_on=[f"DEEP_{index - 1}"])
     deep = seconds(lambda: collect_outcomes(df))
 
     assert deep / flat < 5, f"a 100-deep chain cost {deep / flat:.1f}x a flat registry"
@@ -113,7 +113,7 @@ def test_streaming_holds_less_than_collecting_on_the_same_frame(
 ) -> None:
     """iter_traces' whole reason to exist, measured rather than asserted in a docstring.
 
-    collect_outcomes keeps one outcome per test per row; iter_traces keeps one
+    collect_outcomes keeps one outcome per check per row; iter_traces keeps one
     row's worth at a time. On 6,000 rows the difference is the thing that decides
     whether a large frame can be reported on at all.
     """

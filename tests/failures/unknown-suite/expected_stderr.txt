@@ -1,1 +1,1 @@
-ValueError: Unknown suite 'nope_tests': expected a subpackage 'example_suites.nope_tests' (directory example_suites/nope_tests/ containing an __init__.py). Pass package= to point this at your own tests.
+ValueError: Unknown suite 'nope_tests': expected a subpackage 'example_suites.nope_tests' (directory example_suites/nope_tests/ containing an __init__.py). Pass package= to point this at your own checks.

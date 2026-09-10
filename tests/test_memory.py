@@ -15,9 +15,10 @@ import tracemalloc
 
 import pytest
 
-from pandas_row_validation import iter_traces, registry as reg
-from pandas_row_validation import report as rep
+from jobcheck import iter_traces, registry as reg
+from jobcheck import report as rep
 from test_load import frame
+from jobcheck import engine
 
 pytestmark = pytest.mark.memory
 
@@ -28,14 +29,14 @@ def test_memory_stays_bounded_across_many_rows(example_suites: None) -> None:
     df = frame(5000)
     tracemalloc.start()
     for _, row in df.iterrows():
-        reg.validate_row(row)
+        engine.validate_row(row)
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     assert peak < 64 * 1024 * 1024, f"peak {peak / 1e6:.0f} MB"
 
 
 def test_report_memory_stays_bounded_for_a_large_frame(example_suites: None) -> None:
-    """collect_outcomes keeps an object per test per row, so this is the number that
+    """collect_outcomes keeps an object per check per row, so this is the number that
     decides how large a frame the report path can take. Deliberately a smaller frame
     than the validation ceiling above: the point is the ratio, not the absolute size."""
 

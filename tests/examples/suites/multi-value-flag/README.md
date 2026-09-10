@@ -3,5 +3,5 @@
 Same result as the default run: the default is exactly these two suites.
 
 Level:    simple
-Input:    `python3 examples/main.py -e hard_tests soft_tests`
-Expected: base, hard_tests and soft_tests loaded; exit 0
+Input:    `python3 examples/main.py -e hard_checks soft_checks`
+Expected: base, hard_checks and soft_checks loaded; exit 0

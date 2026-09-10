@@ -6,7 +6,7 @@ The bytecode of the sources this repository lost, and the interface read out of 
 
 The `.git` directory was removed by mistake on 2026-09-09 and the repository was
 re-initialised, so the history before that date is gone. The project was also
-renamed in the same evening — package `jobcheck` to `pandas_row_validation`, the
+renamed in the same evening — package `jobcheck` to `jobcheck`, the
 "check" vocabulary to "test" — and that rename is not in the log either.
 
 Four modules and eleven test modules that existed before the accident exist
@@ -39,7 +39,7 @@ the body again.
 
 | Module | Source was | Decision |
 |---|---|---|
-| `run` | 10,756 B | **Rebuilt** as `src/pandas_row_validation/run.py`. It was the whole-frame entry point (`validate`, `iter_traces`, `ValidationRun`, `RowTrace`, `RunStats`) and the library had no successor to it. |
+| `run` | 10,756 B | **Rebuilt** as `src/jobcheck/run.py`. It was the whole-frame entry point (`validate`, `iter_traces`, `ValidationRun`, `RowTrace`, `RunStats`) and the library had no successor to it. |
 | `registry.load_checks` | part of `registry` | **Rebuilt** as `load_test_files`, for the caller that has paths rather than an importable package. |
 | `lint` | 14,326 B | **Kept as bytecode, not rebuilt.** Warnings about rule files that parse but can never fire, fire everywhere, or were superseded — deliberately separate from the loader, which raises. Worth rebuilding when someone wants rule-file linting; nothing calls it today. Its test module was 37,624 B, so it was real, finished work. |
 | `parallel` | 15,072 B | **Kept as bytecode, not rebuilt.** Ran a frame's rows across worker processes, rebuilding the registry in each worker because the engine's closures cannot be pickled. Rebuild it when a frame is big enough to need it, and measure first: the docstring records that threads lost to processes on 4,000 rows of the example suite. |
