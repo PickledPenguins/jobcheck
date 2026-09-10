@@ -10,8 +10,9 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import make_test, one_row_report
-from pandas_row_validation import registry as reg
+from conftest import make_check, one_row_report
+from jobcheck import registry as reg
+from jobcheck import engine
 
 pytestmark = pytest.mark.fast
 
@@ -24,7 +25,7 @@ def write(tmp_path: Path, name: str, text: str) -> str:
 
 @pytest.fixture
 def one_code(fresh_registry: None) -> None:
-    make_test("A_CODE")
+    make_check("A_CODE")
 
 
 def test_yaml_cannot_construct_arbitrary_python_objects(one_code: None, tmp_path: Path) -> None:
@@ -44,49 +45,29 @@ def test_a_rule_pattern_is_never_evaluated_as_code(one_code: None, tmp_path: Pat
     )
     rules = reg.load_overrides(path)
     assert rules[0].criteria[0].pattern == "__import__('os').system('x')"
-    assert reg.resolve_enabled_state(pd.Series({"email": "harmless"}), rules)["A_CODE"] is True
+    assert engine.resolve_enabled_state(pd.Series({"email": "harmless"}), rules)["A_CODE"] is True
 
 
 def test_loading_rules_writes_nothing_to_disk(one_code: None, tmp_path: Path) -> None:
     write(tmp_path, "r.yaml", '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n')
     before = sorted(p.name for p in tmp_path.iterdir())
-    reg.load_overrides_from_dir(str(tmp_path))
+    reg.load_overrides([str(tmp_path / "r.yaml")])
     assert sorted(p.name for p in tmp_path.iterdir()) == before
 
 
-def test_validation_never_mutates_the_dataframe_it_reads(example_suites: None) -> None:
+def test_validation_never_mutates_the_dataframe_it_reads(example_checks: None) -> None:
     df = pd.DataFrame([{"age": -1, "email": "a@b.com"}])
     snapshot = df.copy(deep=True)
-    df.apply(lambda row: reg.validate_row(row), axis=1)
+    df.apply(lambda row: engine.validate_row(row), axis=1)
     assert df.equals(snapshot)
 
 
-def test_a_suite_name_cannot_escape_the_package_via_dots(fresh_registry: None) -> None:
-    """A dotted name is not resolved as a path; it fails as an unknown suite,
-    before anything is imported."""
+def test_a_check_file_name_is_a_path_never_a_module_name(fresh_registry: None) -> None:
+    """load_checks imports files, so a module name is a missing file, not an import."""
 
-    with pytest.raises(ValueError, match="Unknown suite"):
-        reg.load_suites(["..os"], package="example_suites")
-    assert reg.TESTS == []
-
-
-def test_a_suite_name_cannot_import_an_unrelated_top_level_module(fresh_registry: None) -> None:
-    """'os' is resolved against the given package, never as a top-level import,
-    and the failure leaves the registry untouched."""
-
-    with pytest.raises(ValueError, match="Unknown suite 'os'"):
-        reg.load_suites(["os"], package="example_suites")
-    assert reg.loaded_suites() == set()
-    assert reg.TESTS == []
-
-
-def test_load_overrides_from_dir_does_not_recurse_into_subdirectories(
-    one_code: None, tmp_path: Path
-) -> None:
-    nested = tmp_path / "nested"
-    nested.mkdir()
-    write(nested, "hidden.yaml", '- name: "n"\n  action: disable\n  codes: [A_CODE]\n  match: all\n')
-    assert reg.load_overrides_from_dir(str(tmp_path)) == []
+    with pytest.raises(ValueError, match="No check file at"):
+        reg.load_checks(["os"])
+    assert reg.CHECKS == []
 
 
 def test_a_catastrophic_regex_is_bounded_by_the_value_length(one_code: None, tmp_path: Path) -> None:
@@ -102,7 +83,7 @@ def test_a_catastrophic_regex_is_bounded_by_the_value_length(one_code: None, tmp
     )
     row = pd.Series({"email": "a" * 22 + "!"})
     start = time.monotonic()
-    reg.resolve_enabled_state(row, [rule])
+    engine.resolve_enabled_state(row, [rule])
     assert time.monotonic() - start < 5.0
 
 
@@ -117,7 +98,7 @@ def test_an_ndarray_cell_does_not_break_rule_matching(one_code: None) -> None:
         criteria=[reg.MatchCriterion("data", "x", re.compile("x"))], match_all=False,
     )
     row = pd.Series({"data": numpy.array([1, 2])})
-    assert reg.resolve_enabled_state(row, [rule])["A_CODE"] is True
+    assert engine.resolve_enabled_state(row, [rule])["A_CODE"] is True
 
 
 # --- reports opened in a spreadsheet ---------------------------------------
@@ -137,7 +118,7 @@ def test_a_formula_cell_is_neutralised_in_csv(fresh_registry: None, message: str
     """A report is meant to be opened in a spreadsheet, and comments carry values
     that came from the data, so a formula in a cell would execute on open."""
 
-    from pandas_row_validation import render_report
+    from jobcheck import render_report
 
     csv = render_report(one_row_report({}, message=message), fmt="csv")
     assert f",'{message}," in csv or f",'{message}\n" in csv or f"'{message}" in csv
@@ -145,7 +126,7 @@ def test_a_formula_cell_is_neutralised_in_csv(fresh_registry: None, message: str
 
 
 def test_a_negative_number_keeps_its_minus_sign(fresh_registry: None) -> None:
-    from pandas_row_validation import escape_for_spreadsheet
+    from jobcheck import escape_for_spreadsheet
 
     assert escape_for_spreadsheet("-5") == "-5"
     assert escape_for_spreadsheet("-5.25") == "-5.25"
@@ -159,29 +140,29 @@ def test_a_formula_inside_a_comment_value_cannot_start_the_cell(
     lands mid-cell, where a spreadsheet reads it as text. The cell is left as it
     is rather than being escaped for a danger it does not have."""
 
-    from pandas_row_validation import render_report
+    from jobcheck import render_report
 
     csv = render_report(one_row_report({"value": "=1+1"}), fmt="csv")
     assert ",value==1+1," in csv
 
 
 def test_a_formula_in_the_row_key_is_neutralised(fresh_registry: None) -> None:
-    from pandas_row_validation import build_report, collect_outcomes, render_report
-    from pandas_row_validation.results import Status, TestResult
+    from jobcheck import build_report, validate, render_report
+    from jobcheck.results import Status, CheckResult
 
-    @reg.register_test(code="CELL", message="m")
-    def check(row: "pd.Series[Any]") -> TestResult:
-        return TestResult(Status.INVALID)
+    @reg.register_check(code="CELL", message="m")
+    def check(row: "pd.Series[Any]") -> CheckResult:
+        return CheckResult(Status.INVALID)
 
     frame = pd.DataFrame([{"id": "=DANGER()"}])
-    report = build_report(collect_outcomes(frame), df=frame, key_column="id")
+    report = build_report(validate(frame), df=frame, key_column="id")
     assert render_report(report, fmt="csv").splitlines()[1].startswith("'=DANGER()")
 
 
 def test_the_table_view_is_left_alone(fresh_registry: None) -> None:
-    """Text output cannot execute, so the value is shown as the test saw it."""
+    """Text output cannot execute, so the value is shown as the check saw it."""
 
-    from pandas_row_validation import render_report
+    from jobcheck import render_report
 
     text = render_report(one_row_report({}, message="=1+1"))
     assert "=1+1" in text
@@ -189,14 +170,14 @@ def test_the_table_view_is_left_alone(fresh_registry: None) -> None:
 
 
 def test_escaping_can_be_switched_off_for_a_machine_reader(fresh_registry: None) -> None:
-    from pandas_row_validation import render_report
+    from jobcheck import render_report
 
     csv = render_report(one_row_report({}, message="=1+1"), fmt="csv", escape_formulas=False)
     assert ",=1+1," in csv
 
 
 def test_a_written_report_is_escaped_too(fresh_registry: None, tmp_path: Path) -> None:
-    from pandas_row_validation import write_report
+    from jobcheck import write_report
 
     path = tmp_path / "report.csv"
     write_report(one_row_report({}, message="=1+1"), str(path))
@@ -206,7 +187,7 @@ def test_a_written_report_is_escaped_too(fresh_registry: None, tmp_path: Path) -
 def test_comments_are_never_evaluated(fresh_registry: None) -> None:
     """Comments are data all the way through: nothing formats or evals them."""
 
-    from pandas_row_validation import render_comments
+    from jobcheck import render_comments
 
     rendered = render_comments({"expr": "__import__('os').system('x')"})
     assert rendered == "expr=__import__('os').system('x')"

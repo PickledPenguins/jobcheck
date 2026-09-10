@@ -1,1 +1,1 @@
-python3 examples/main.py -o tests/failures/missing-match/rules.yaml
+python3 examples/main.py --rules tests/failures/missing-match/rules.yaml

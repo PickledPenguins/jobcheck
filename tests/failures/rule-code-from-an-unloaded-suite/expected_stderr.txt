@@ -1,1 +1,0 @@
-ValueError: rule 'suppress_email_checks_for_test_accounts' in examples/rules/error_overrides.yaml: unknown code 'EMAIL_MISSING_AT'. Load the suite that defines it before loading overrides, or fix the code.

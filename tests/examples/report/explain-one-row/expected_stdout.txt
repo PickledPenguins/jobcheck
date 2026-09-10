@@ -1,19 +1,17 @@
-Loaded suites: ['base', 'hard_tests', 'soft_tests']
-
 Loaded 3 override rule(s) from 1 file(s)
 
 == Row 4 ==
-layer | code                 | outcome  | status      | detail                                                    
-------+----------------------+----------+-------------+-----------------------------------------------------------
-0     | ROW_ALL_NULL         | passed   | PASS (0)    | -                                                         
-0     | AGE_PRESENT          | failed   | MISSING (1) | Age is missing                                            
-1     | AGE_NOT_A_NUMBER     | skipped  | PASS (0)    | prerequisite did not pass: AGE_PRESENT                    
-2     | AGE_NEGATIVE         | skipped  | PASS (0)    | prerequisite did not pass: AGE_PRESENT, AGE_NOT_A_NUMBER  
-2     | AGE_TOO_HIGH         | skipped  | PASS (0)    | prerequisite did not pass: AGE_PRESENT, AGE_NOT_A_NUMBER  
-2     | AGE_NOT_INTEGER      | disabled | PASS (0)    | disabled by rule 'disable_age_integer_check_globally'     
-0     | DATES_PRESENT        | failed   | MISSING (1) | columns=start_date, end_date                              
-1     | DATES_OUT_OF_ORDER   | skipped  | PASS (0)    | prerequisite did not pass: DATES_PRESENT                  
-0     | EMAIL_PRESENT        | failed   | MISSING (1) | Email is missing                                          
-1     | EMAIL_MISSING_AT     | skipped  | PASS (0)    | prerequisite did not pass: EMAIL_PRESENT                  
-2     | EMAIL_DOMAIN_INVALID | skipped  | PASS (0)    | prerequisite did not pass: EMAIL_PRESENT, EMAIL_MISSING_AT
-root cause: AGE_PRESENT
+layer | code                 | outcome  | status      | detail                                               
+------+----------------------+----------+-------------+------------------------------------------------------
+0     | ROW_ALL_NULL         | passed   | PASS (0)    | -                                                    
+0     | AGE_PRESENT          | failed   | MISSING (1) | Age is missing                                       
+1     | AGE_NOT_A_NUMBER     | skipped  | PASS (0)    | prerequisite did not pass: AGE_PRESENT               
+2     | AGE_NEGATIVE         | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER          
+2     | AGE_TOO_HIGH         | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER          
+2     | AGE_NOT_INTEGER      | disabled | PASS (0)    | disabled by rule 'disable_age_integer_check_globally'
+0     | DATES_PRESENT        | failed   | MISSING (1) | columns=start_date, end_date                         
+1     | DATES_OUT_OF_ORDER   | skipped  | PASS (0)    | prerequisite did not pass: DATES_PRESENT             
+0     | EMAIL_PRESENT        | failed   | MISSING (1) | Email is missing                                     
+1     | EMAIL_MISSING_AT     | skipped  | PASS (0)    | prerequisite did not pass: EMAIL_PRESENT             
+2     | EMAIL_DOMAIN_INVALID | skipped  | PASS (0)    | prerequisite did not pass: EMAIL_MISSING_AT          
+root causes: AGE_PRESENT, DATES_PRESENT, EMAIL_PRESENT

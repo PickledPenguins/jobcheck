@@ -1,1 +1,1 @@
-python3 examples/main.py -o tests/failures/empty-match-list/rules.yaml
+python3 examples/main.py --rules tests/failures/empty-match-list/rules.yaml

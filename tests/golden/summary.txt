@@ -13,8 +13,11 @@ AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 4        | 0
 ROW_ALL_NULL         | 0     | 0      | 0       | 0       | 0        | 4     
 
 Root cause of each failing row:
-root_cause         | rows
--------------------+-----
-AGE_PRESENT        | 1   
-AGE_TOO_HIGH       | 1   
-DATES_OUT_OF_ORDER | 1   
+root_cause           | rows
+---------------------+-----
+AGE_PRESENT          | 1   
+AGE_TOO_HIGH         | 1   
+DATES_OUT_OF_ORDER   | 1   
+DATES_PRESENT        | 1   
+EMAIL_DOMAIN_INVALID | 1   
+EMAIL_PRESENT        | 1   

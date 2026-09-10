@@ -1,0 +1,50 @@
+id,name,age,email,start_date,end_date,source_system,record_type,region
+1001,Ada Lovelace,36,ada@example.com,2024-01-05,2024-06-30,MODERN,STREAM,EU
+1002,Grace Hopper,45,grace@example.com,2024-02-01,2024-08-01,MODERN,STREAM,US
+1003,Katherine Johnson,,kj@example.com,2024-01-15,2024-07-15,MODERN,STREAM,US
+1004,Alan Turing,-4,alan@example.com,2024-03-01,2024-04-01,MODERN,STREAM,EU
+1005,Jean Bartik,999,jean@example.com,2024-01-01,2024-12-31,MODERN,BATCH,US
+1006,Mary Jackson,thirty,mary@example.com,2024-02-10,2024-03-10,MODERN,STREAM,US
+1007,Frances Allen,52,frances-example.com,2024-04-01,2024-09-01,MODERN,STREAM,US
+1008,Barbara Liskov,61,barbara@localhost,2024-01-20,2024-02-20,MODERN,STREAM,US
+1009,Sophie Wilson,48,,2024-05-01,2024-05-31,MODERN,STREAM,UK
+1010,Karen Spärck Jones,58,karen@example.com,2024-09-01,2024-03-01,MODERN,STREAM,UK
+1011,Radia Perlman,57,radia@example.com,,2024-08-01,MODERN,STREAM,US
+1012,Shafi Goldwasser,60,shafi@example.com,2024-02-14,,MODERN,STREAM,IL
+1013,Éva Tardos,62,eva@example.com,2024-03-03,2024-10-03,LEGACY_A,BATCH,HU
+1014,Xiaoyun Wang,58.5,xiaoyun@example.com,2024-01-08,2024-11-08,LEGACY_A,BATCH,CN
+1015,Fan Chung,74.0,fan@example.com,2024-06-01,2024-07-01,LEGACY_B,BATCH,US
+1016,"Sun Microsystems, Inc.",41,ops@example.com,2024-02-02,2024-03-02,LEGACY_B,STREAM,US
+1017,QA Account,33,qa@internal.test,2024-01-01,2024-02-01,MODERN,STREAM,US
+1018,Load Test,34,load-test@internal.test,2024-01-01,2024-02-01,MODERN,STREAM,US
+1019,=SUM(A1:A9),29,sheet-example.com,2024-03-15,2024-04-15,MODERN,STREAM,EU
+1020,  Padded Name  , 44 , spaced@example.com ,2024-01-11,2024-02-11,MODERN,STREAM,EU
+1021,,,,,,,,
+,,,,,,,,
+,No Id At All,38,noid@example.com,2024-02-01,2024-03-01,MODERN,STREAM,EU
+1023,Duplicate Id,31,dup@example.com,2024-01-02,2024-02-02,MODERN,STREAM,EU
+1023,Duplicate Id Again,31,dup2@example.com,2024-01-02,2024-02-02,MODERN,STREAM,EU
+1030,Anita Borg,28,anita1030@example.com,2024-01-01,2024-10-10,LEGACY_A,BATCH,EU
+1031,Carol Shaw,31,carol1031@example.com,2024-02-02,2024-11-11,MODERN,STREAM,US
+1032,Erna Hoover,34,erna1032@example.com,2024-03-03,2024-10-12,MODERN,STREAM,UK
+1033,Evelyn Boyd Granville,37,evelyn1033@example.com,2024-04-04,2024-11-13,MODERN,STREAM,APAC
+1034,Hedy Lamarr,40,hedy1034@example.com,2024-05-05,2024-10-14,MODERN,STREAM,EU
+1035,Ida Rhodes,43,ida1035@example.com,2024-06-06,2024-11-15,MODERN,STREAM,US
+1036,Jean Sammet,46,jean1036@example.com,2024-07-07,2024-10-16,MODERN,STREAM,UK
+1037,Joan Clarke,49,joan1037@example.com,2024-08-08,2024-11-17,MODERN,STREAM,APAC
+1038,Kathleen Booth,52,kathleen1038@example.com,2024-09-01,2024-10-18,LEGACY_A,BATCH,EU
+1039,Lois Haibt,55,lois1039@example.com,2024-01-02,2024-11-10,MODERN,STREAM,US
+1040,Margaret Hamilton,58,margaret1040@example.com,2024-02-03,2024-10-11,MODERN,STREAM,UK
+1041,Marlyn Meltzer,61,marlyn1041@example.com,2024-03-04,2024-11-12,MODERN,STREAM,APAC
+1042,Mary Allen Wilkes,64,mary1042@example.com,2024-04-05,2024-10-13,MODERN,STREAM,EU
+1043,Milly Koss,67,milly1043@example.com,2024-05-06,2024-11-14,MODERN,STREAM,US
+1044,Ruth Teitelbaum,70,ruth1044@example.com,2024-06-07,2024-10-15,MODERN,STREAM,UK
+1045,Sister Mary Kenneth Keller,28,sister1045@example.com,2024-07-08,2024-11-16,MODERN,STREAM,APAC
+1046,Thelma Estrin,31,thelma1046@example.com,2024-08-01,2024-10-17,LEGACY_A,BATCH,EU
+1047,Frances Spence,34,frances1047@example.com,2024-09-02,2024-11-18,MODERN,STREAM,US
+1048,Betty Holberton,37,betty1048@example.com,2024-01-03,2024-10-10,MODERN,STREAM,UK
+1049,Kathleen Antonelli,40,kathleen1049@example.com,2024-02-04,2024-11-11,MODERN,STREAM,APAC
+1050,Adele Goldstine,43,adele1050@example.com,2024-03-05,2024-10-12,MODERN,STREAM,EU
+1051,Klara Dan von Neumann,46,klara1051@example.com,2024-04-06,2024-11-13,MODERN,STREAM,US
+1052,Elizabeth Feinler,49,elizabeth1052@example.com,2024-05-07,2024-10-14,MODERN,STREAM,UK
+1053,Susan Kare,52,susan1053@example.com,2024-06-08,2024-11-15,MODERN,STREAM,APAC

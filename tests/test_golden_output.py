@@ -16,12 +16,12 @@ from pathlib import Path
 
 import pytest
 
-from golden_fixture import GOLDEN_DIR, frame, read_golden, render_all
-from pandas_row_validation import (
+from golden_fixture import CHECK_FILES, GOLDEN_DIR, ROOT, frame, read_golden, render_all
+from jobcheck import (
     build_report,
-    collect_outcomes,
+    validate,
+    load_checks,
     load_overrides,
-    load_suites,
     write_report,
 )
 
@@ -71,10 +71,10 @@ def test_a_written_file_is_byte_for_byte_the_golden_csv(
     """Pins the file on disk, not just the string: encoding, line endings, and the
     trailing newline all come from write_report rather than the caller."""
 
-    load_suites(["hard_tests", "soft_tests"], package="example_suites")
+    load_checks([str(ROOT / path) for path in CHECK_FILES])
     overrides = load_overrides("examples/rules/error_overrides.yaml")
     df = frame()
-    report = build_report(collect_outcomes(df, overrides=overrides), df=df, key_column="id")
+    report = build_report(validate(df, overrides=overrides), df=df, key_column="id")
 
     path = tmp_path / "report.csv"
     write_report(report, str(path))
@@ -87,10 +87,10 @@ def test_a_written_file_is_byte_for_byte_the_golden_csv(
 def test_the_golden_csv_parses_back_into_the_same_frame(fresh_registry: None) -> None:
     import pandas as pd
 
-    load_suites(["hard_tests", "soft_tests"], package="example_suites")
+    load_checks([str(ROOT / path) for path in CHECK_FILES])
     overrides = load_overrides("examples/rules/error_overrides.yaml")
     df = frame()
-    report = build_report(collect_outcomes(df, overrides=overrides), df=df, key_column="id")
+    report = build_report(validate(df, overrides=overrides), df=df, key_column="id")
 
     reparsed = pd.read_csv(pd.io.common.StringIO(read_golden("report.csv")), dtype=str)
     assert list(reparsed.columns) == list(report.columns)

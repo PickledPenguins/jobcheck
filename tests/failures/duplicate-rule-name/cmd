@@ -1,1 +1,1 @@
-python3 examples/main.py -o tests/failures/duplicate-rule-name/a.yaml tests/failures/duplicate-rule-name/b.yaml
+python3 examples/main.py --rules tests/failures/duplicate-rule-name/a.yaml tests/failures/duplicate-rule-name/b.yaml

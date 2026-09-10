@@ -21,16 +21,16 @@ import pandas as pd
 import pytest
 import yaml
 
-from conftest import make_test
-from pandas_row_validation import (
+from conftest import make_check
+from jobcheck import (
     build_report,
-    collect_outcomes,
+    validate,
     load_overrides,
     registry as reg,
     render_report,
     root_cause,
 )
-from pandas_row_validation.results import ERRORED, FAILED, PASSED
+from jobcheck.results import ERRORED, FAILED, PASSED
 
 pytestmark = pytest.mark.long
 
@@ -84,8 +84,8 @@ def test_the_rule_parser_either_loads_or_raises_valueerror(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     rng = random.Random(SEED)
-    make_test("A_CODE")
-    make_test("B_CODE")
+    make_check("A_CODE")
+    make_check("B_CODE")
     accepted = rejected = 0
 
     for case in range(CASES):
@@ -116,23 +116,23 @@ def random_frame(rng: random.Random) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def test_the_engine_holds_its_invariants_on_generated_frames(example_suites: None) -> None:
+def test_the_engine_holds_its_invariants_on_generated_frames(example_checks: None) -> None:
     """The three properties the whole design rests on, over input nobody chose:
-    a test runs only when every prerequisite passed, the first failure is the
-    lowest-layer failure, and no test appears twice in a row's outcomes."""
+    a check runs only when every prerequisite passed, the first failure is the
+    lowest-layer failure, and no check appears twice in a row's outcomes."""
 
     rng = random.Random(SEED)
     for case in range(CASES):
         frame = random_frame(rng)
-        outcomes_per_row = collect_outcomes(frame)
+        outcomes_per_row = validate(frame)
         for outcomes in outcomes_per_row:
             by_code = {outcome.code: outcome for outcome in outcomes}
             assert len(by_code) == len(outcomes), f"seed {SEED} case {case}: duplicate outcome"
 
             for outcome in outcomes:
                 if outcome.outcome in (PASSED, FAILED, ERRORED):
-                    test = next(t for t in reg.TESTS if t.code == outcome.code)
-                    for prerequisite in test.depends_on:
+                    check = next(t for t in reg.CHECKS if t.code == outcome.code)
+                    for prerequisite in check.depends_on:
                         assert by_code[prerequisite].outcome == PASSED, (
                             f"seed {SEED} case {case}: {outcome.code} ran with "
                             f"{prerequisite} not passing"
@@ -151,7 +151,7 @@ def test_the_engine_holds_its_invariants_on_generated_frames(example_suites: Non
 
 
 def test_rendering_survives_whatever_a_test_puts_in_its_comments(
-    example_suites: None,
+    example_checks: None,
 ) -> None:
     """Comments carry data, and data is hostile: the renderer must not raise, and
     the table must stay rectangular."""
@@ -160,9 +160,9 @@ def test_rendering_survives_whatever_a_test_puts_in_its_comments(
     for case in range(100):
         reg.clear_registry()
         comments = {random_name(rng) or "k": random_scalar(rng) for _ in range(rng.randint(0, 4))}
-        make_test("GENERATED", passes=False, comments=comments)
+        make_check("GENERATED", passes=False, comments=comments)
         frame = random_frame(rng)
-        report = build_report(collect_outcomes(frame), df=frame)
+        report = build_report(validate(frame), df=frame)
 
         text = render_report(report)
         widths = {len(line) for line in text.splitlines()}

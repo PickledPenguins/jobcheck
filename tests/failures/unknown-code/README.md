@@ -1,4 +1,6 @@
-# Code misspelled in a rule
+# A rule naming a code that does not exist
 
-Input:    `python3 examples/main.py -o tests/failures/unknown-code/rules.yaml`
-Expected: stderr `unknown code 'AGE_NEGATIV'. Load the suite that defines it before loading overrides, or fix the code.`; exit 1
+One mistake, one message.
+
+Input:    a rule file naming `NO_SUCH_CODE`
+Expected: exit 1: a rule that can never apply is an error, not a no-op
