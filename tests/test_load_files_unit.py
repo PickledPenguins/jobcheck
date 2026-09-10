@@ -178,3 +178,18 @@ def test_path_loaded_tests_run(fresh_registry: None, tmp_path: Path) -> None:
     reg.load_test_files([write_test_file(tmp_path, "checks.py", "RUNS")])
     failures = validate_row(pd.Series({"value": 2}))
     assert [f.code for f in failures] == ["RUNS"]
+
+
+def test_no_bytecode_is_left_beside_a_loaded_file(fresh_registry: None, tmp_path: Path) -> None:
+    # The file comes from a caller's data directory, which is a record of what
+    # was read rather than somewhere this library may write to.
+    reg.load_test_files([write_test_file(tmp_path, "checks.py", "NO_PYC")])
+    assert not (tmp_path / "__pycache__").exists()
+
+
+def test_the_process_bytecode_setting_is_restored(fresh_registry: None, tmp_path: Path) -> None:
+    import sys
+
+    before = sys.dont_write_bytecode
+    reg.load_test_files([write_test_file(tmp_path, "checks.py", "RESTORED")])
+    assert sys.dont_write_bytecode is before
