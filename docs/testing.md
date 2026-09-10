@@ -16,8 +16,8 @@ pip install -e ".[dev]"
 | Command | Runs | Time |
 |---|---|---|
 | `./run-tests.sh fast` | 652 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 28s |
-| `./run-tests.sh long` | 250 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 265s |
-| `./run-tests.sh all` | 902 tests, then mypy and the profile | 286s |
+| `./run-tests.sh long` | 251 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 265s |
+| `./run-tests.sh all` | 903 tests, then mypy and the profile | 288s |
 | `./run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches | 40s |
 | `./run-tests.sh perf` | timing against this machine's baseline; its own gate | 85s |
 | `./run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 40s |
