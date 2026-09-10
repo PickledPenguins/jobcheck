@@ -84,3 +84,25 @@ def test_the_failure_catalog_covers_the_common_mistakes() -> None:
     """Each of these is a message a user will meet; the count keeps them coming."""
 
     assert len(case_dirs("failures")) >= 15
+
+
+def test_cases_run_through_a_root_of_a_fixed_length() -> None:
+    """The catalog must not depend on where the repository was cloned.
+
+    A table's column widths are computed from the absolute path *before*
+    `<project>` replaces it, so without a fixed-length root the expected output
+    only matches on a clone whose path is the same length as the one that
+    generated it -- which is a failure nobody can act on. Proved by comparison:
+    the stable root is the same length everywhere, the real one is not.
+    """
+
+    from catalog import STABLE_ROOT, stable_root
+
+    root = stable_root()
+    if root == ROOT:  # pragma: no cover - filesystem without symlinks
+        pytest.skip("this filesystem refuses symlinks")
+    assert root == STABLE_ROOT
+    assert root.readlink() == ROOT
+    # The name is fixed-width: a different user id is the same number of
+    # characters, so two accounts on one machine still agree.
+    assert len(STABLE_ROOT.name) == len("prv-catalog-root-") + 8
