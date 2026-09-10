@@ -12,7 +12,9 @@ the tables render it, and `validate_row` walks it once per row in a precomputed 
 ```
 entry point
   |
-  +-- load_suites([...])    -> imports src/pandas_row_validation/test_*.py and src/pandas_row_validation/<suite>/test_*.py
+  +-- load_suites([...], package="your_package")
+  |                          -> imports your_package/test_*.py and your_package/<suite>/test_*.py
+  +-- load_test_files([...]) -> imports named .py files by path, into the base suite
   |                             -> @register_test / a group appends to TESTS
   |                             -> validate_registry(): depends_on, cycles, layers, topo order
   |

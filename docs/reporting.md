@@ -13,7 +13,7 @@ Back to the [README](../README.md). The value types are in
 ```python
 from pandas_row_validation import build_report, collect_outcomes, load_suites, print_report
 
-load_suites(["hard_tests", "soft_tests"])
+load_suites(["hard_tests", "soft_tests"], package="example_suites")
 outcomes = collect_outcomes(df, overrides=overrides)
 report = build_report(outcomes, df=df, key_column="id")
 print_report(report)                       # or render_report / write_report

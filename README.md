@@ -152,3 +152,7 @@ run directory needs — and their tests join the base suite.
   decisions, and how to extend.
 - [docs/testing.md](docs/testing.md) — the suites, the gates, coverage, mutation,
   the performance baseline, and the 66-case example and failure catalogs.
+- [docs/contributing.md](docs/contributing.md) — where a change goes, and which
+  test enforces which rule.
+- [docs/future-work.md](docs/future-work.md) — known gaps, and what was
+  considered and deliberately not done.

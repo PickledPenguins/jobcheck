@@ -32,7 +32,9 @@ warnings and uncaught errors go to stderr.
 
 ### `-e`, `--suites SUITE [SUITE ...]`
 
-Optional. Flavor subpackages of `src/pandas_row_validation/` to load. Default `hard_tests soft_tests`.
+Optional. Suite subpackages of `examples/example_suites/` to load — the entry point
+passes `package="example_suites"`, since the library itself ships no tests. Default
+`hard_tests soft_tests`.
 
 Both multi-valued and repeatable: values are flattened in the order typed, so these three
 are identical.
@@ -43,7 +45,7 @@ python3 examples/main.py -e hard_tests -e soft_tests
 python3 examples/main.py -e hard_tests -o examples/rules/error_overrides.yaml -e soft_tests
 ```
 
-The base suite (`test_*.py` directly in `src/pandas_row_validation/`) always loads as well and cannot be
+The base suite (`test_*.py` directly in `examples/example_suites/`) always loads as well and cannot be
 switched off from the CLI. An unrecognised name is an error naming the subpackage that was
 expected; see [configuration](configuration.md#errors) for the message.
 
@@ -154,7 +156,7 @@ Prints usage and exits 0.
 ## `examples/main_hard_only.py`
 
 Takes no options — but still parses the command line, so `--help` works and a mistyped
-flag exits 2 rather than being ignored. A second entry point that hardcodes `load_suites(["hard_tests"])`, to
+flag exits 2 rather than being ignored. A second entry point that hardcodes `load_suites(["hard_tests"], package="example_suites")`, to
 show that entry points in one codebase see independent registries: no email check is
 registered, so none appears in its registry table or in any row's errors. The base suite
 still loads.
