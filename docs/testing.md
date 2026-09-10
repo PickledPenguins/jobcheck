@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./run-tests.sh fast` | 639 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 28s |
+| `./run-tests.sh fast` | 652 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 28s |
 | `./run-tests.sh long` | 250 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 265s |
-| `./run-tests.sh all` | 889 tests, then mypy and the profile | 288s |
+| `./run-tests.sh all` | 902 tests, then mypy and the profile | 286s |
 | `./run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches | 40s |
 | `./run-tests.sh perf` | timing against this machine's baseline; its own gate | 85s |
 | `./run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 40s |
@@ -160,23 +160,35 @@ in `[tool.mutmut]`:
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
 
-Measured on 2026-09-10: **1,603 mutants, 1,396 killed, 207 survived, 0 timeouts** — 87%,
-before the message tests below. What the survivors were:
+Measured on 2026-09-10, after the tests written against the first run:
+**1,602 mutants, 1,450 killed, 152 survived, 0 timeouts — 90.5%.**
 
-- **Every survivor in `run.py` was a real gap**, and all are now killed by the "what the
-  arguments actually do" section of `tests/test_run_unit.py`: `on_error` never reaching
-  `explain_row`, `progress` and `progress_every` dropped on the way to `iter_traces`,
-  `seconds` recorded as `None`, and the overrides list not carried onto the run.
-- **Four in `load_test_files`** were real and are killed by
-  `tests/test_load_files_unit.py`: the module not registered in `sys.modules`, the
-  bytecode setting not restored to its exact value, and the loaded module not evicted by
-  `clear_registry` for a file that registers no tests. One — `sys.modules.pop(name)`
-  losing its `None` default — is **equivalent**: the key is always present at that point.
-- **The rest are message wording**, in two groups. The error messages are now pinned word
-  for word by `tests/test_error_messages_unit.py`, which is what closes them; writing it
-  found a real defect (see below). The print functions' own formatting is pinned by the
-  catalog and the golden files, neither of which mutmut can run — the catalog shells out,
-  and the golden comparison is excluded with it.
+The first run scored 87%, and every survivor was read. What they were:
+
+- **Real gaps, now killed.** Every survivor in `run.py` (`on_error` never reaching
+  `explain_row`, `progress` and `progress_every` dropped, `seconds` computed as
+  `perf_counter() + started`, the overrides list not carried onto the run), four in
+  `load_test_files` (the module missing from `sys.modules`, the bytecode flag not
+  restored exactly, a file registering no tests never evicted), `collect_outcomes`
+  ignoring its `context_builder`, `format_table` breaking long words and hyphens,
+  `row_explanation` losing its columns on an empty frame, and `cell_text` treating a
+  null cell as text.
+- **21 default-argument mutants: unkillable here, and not a gap.** mutmut's trampoline
+  keeps the *original* function's defaults and forwards the caller's arguments, so a
+  mutated default in the mutant body is never evaluated. Verified by hand on
+  `collect_outcomes(on_error="XXrecordXX")`, which behaves exactly like the original.
+- **Environment-equivalent mutants.** `write_report`'s `encoding="utf-8"` and
+  `newline=""` can be dropped without effect on a UTF-8 Linux box: the platform default
+  is the same. They would matter on Windows, and the tests that pin them
+  (`test_a_written_report_is_utf_8`, `..._uses_unix_line_endings`) exist for that reason
+  even though mutmut cannot show it here.
+- **Equivalent mutants.** `break_long_words=None` for `False`, `wrap=wrap` dropped where
+  the callee's default is the same 48, `itertuples(index=None)` for `index=False`.
+- **46 string-wording mutants in the print functions.** Those outputs are pinned by the
+  example catalog and the golden files, neither of which mutmut can run -- the catalog
+  shells out to a subprocess that never loads the instrumentation. The library's *error*
+  messages are a different matter and are pinned word for word by
+  `tests/test_error_messages_unit.py`.
 
 Writing the message tests found a defect the suite had never noticed:
 `register_test(depends_on="AGE_PRESENT")` did `list(depends_on or [])` before the guard

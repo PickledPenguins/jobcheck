@@ -8,7 +8,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import make_test
+from conftest import make_test, one_row_report
 from pandas_row_validation import registry as reg
 from pandas_row_validation import report as rep
 from pandas_row_validation.results import Status, TestResult
@@ -413,3 +413,102 @@ def test_print_summary_with_no_rows_says_nothing_ran(
     table = rep.print_summary([])
     assert capsys.readouterr().out == "No tests ran.\n"
     assert table.empty
+
+
+def test_collect_outcomes_hands_each_row_the_context_its_builder_returned(
+    fresh_registry: None,
+) -> None:
+    """The context_builder is the adopter's one hook, so its result has to arrive.
+
+    Written against a surviving mutant: passing ``ctx=None`` instead of
+    ``context_builder(row)`` broke nothing any test asserted.
+    """
+
+    from pandas_row_validation import FAILED, PASS, PASSED, RowContext
+
+    @reg.register_test(code="NEEDS_CTX", message="the context said no")
+    def check(row: "pd.Series[Any]", ctx: "RowContext | None") -> TestResult:
+        if ctx is None:
+            return TestResult(Status.INVALID, {"ctx": "missing"})
+        return PASS if ctx.flags.get("allowed") else TestResult(Status.INVALID, ctx.flags)
+
+    frame = pd.DataFrame([{"id": 1, "allow": True}, {"id": 2, "allow": False}])
+    outcomes = rep.collect_outcomes(
+        frame, context_builder=lambda row: RowContext(flags={"allowed": bool(row["allow"])})
+    )
+    assert [o[0].outcome for o in outcomes] == [PASSED, FAILED]
+    assert outcomes[1][0].comments == {"allowed": False}
+
+
+# --- what lands on disk -----------------------------------------------------
+#
+# Written against surviving mutants: the encoding and the newline handling of
+# write_report were both dropped without a test noticing, and each decides
+# whether the file another tool reads is the file this one meant to write.
+
+
+def test_a_written_report_is_utf_8(fresh_registry: None, tmp_path: Path) -> None:
+    report = one_row_report(comments={"value": "Karen Spärck Jones"})
+    path = tmp_path / "report.csv"
+    rep.write_report(report, str(path))
+    raw = path.read_bytes()
+    assert "Spärck".encode("utf-8") in raw
+    assert raw.decode("utf-8")
+
+
+def test_a_written_report_uses_unix_line_endings(fresh_registry: None,
+                                                 tmp_path: Path) -> None:
+    """csv writes \\r\\n unless the handle is opened with newline=""."""
+
+    report = one_row_report()
+    path = tmp_path / "report.csv"
+    rep.write_report(report, str(path))
+    raw = path.read_bytes()
+    assert b"\r\n" not in raw
+    assert raw.endswith(b"\n")
+
+
+def formula_report(fresh: None) -> pd.DataFrame:
+    """A report whose data column holds a value a spreadsheet would execute."""
+
+    make_test("CELL", passes=False)
+    frame = pd.DataFrame([{"id": 1, "name": "=SUM(A1:A9)"}])
+    return rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="id",
+                            data_columns=["name"])
+
+
+def test_a_written_report_escapes_formulas_by_default(fresh_registry: None,
+                                                      tmp_path: Path) -> None:
+    path = tmp_path / "report.csv"
+    rep.write_report(formula_report(fresh_registry), str(path))
+    assert "'=SUM(A1:A9)" in path.read_text(encoding="utf-8")
+
+
+def test_escaping_can_be_turned_off_for_a_machine_reader(fresh_registry: None,
+                                                         tmp_path: Path) -> None:
+    path = tmp_path / "report.csv"
+    rep.write_report(formula_report(fresh_registry), str(path), escape_formulas=False)
+    text = path.read_text(encoding="utf-8")
+    assert "=SUM(A1:A9)" in text
+    assert "'=SUM" not in text
+
+
+def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> None:
+    """A caller building a frame from several explanations needs the shape even
+    when one row explained nothing."""
+
+    assert list(rep.row_explanation([]).columns) == [
+        "layer", "code", "outcome", "status", "detail"]
+
+
+def test_printing_a_report_wraps_the_message_column(fresh_registry: None,
+                                                    capsys: Any) -> None:
+    """print_report passes its wrap width down; without it a long message runs
+    the table off the screen."""
+
+    report = one_row_report(message="a message far longer than the wrap width "
+                                    "chosen for the report table by default")
+    rep.print_report(report)
+    out = capsys.readouterr().out
+    assert max(len(line) for line in out.splitlines()) < 200
+    assert len(out.splitlines()) > 3

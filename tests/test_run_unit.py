@@ -300,3 +300,26 @@ def test_the_run_copies_the_overrides_list_it_was_given(fresh_registry: None) ->
     run = validate(FRAME, overrides=given)
     given.append("invented")
     assert run.overrides == []
+
+
+def test_the_recorded_duration_is_the_time_the_run_actually_took(
+    fresh_registry: None,
+) -> None:
+    """Bounded above as well as below.
+
+    Written against a surviving mutant that computed ``perf_counter() + started``
+    rather than ``- started``: the result is still a positive float, so an
+    assertion that it is non-negative says nothing.
+    """
+
+    import time
+
+    make_test("PASSES")
+    before = time.perf_counter()
+    run = validate(FRAME)
+    wall_clock = time.perf_counter() - before
+
+    stats = run.stats
+    assert stats is not None
+    assert 0.0 <= stats.seconds <= wall_clock + 0.01
+    assert stats.rows_per_second >= len(FRAME) / (wall_clock + 0.01)
