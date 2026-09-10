@@ -1,10 +1,10 @@
-"""The example tests: two suites plus an always-on base test.
+"""The example checks: two suites plus an always-on base check.
 
 Deliberately *outside* the package. They demonstrate the framework and drive the
-tests; they are not part of what installs, so nothing here can end up registered
+checks; they are not part of what installs, so nothing here can end up registered
 in someone else's registry.
 
 Load them the way an adopter loads their own::
 
-    load_suites(["hard_tests", "soft_tests"], package="example_suites")
+    load_suites(["hard_checks", "soft_checks"], package="example_suites")
 """

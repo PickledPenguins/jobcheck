@@ -1,27 +1,27 @@
-row      | code                 | status        | layer | suite      | outcome  | message                                   | comments                                   | is_root_cause
----------+----------------------+---------------+-------+------------+----------+-------------------------------------------+--------------------------------------------+--------------
-101      | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                          | disabled by rule                           | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'      | 'disable_age_integer_check_globally'       |              
-102      | AGE_NEGATIVE         | INVALID (3)   | 2     | hard_tests | failed   | Age is negative                           | minimum=0; value=-5.0                      | False        
-102      | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                          | disabled by rule                           | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'      | 'disable_age_integer_check_globally'       |              
-102      | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | hard_tests | failed   | start_date is after end_date              | end_date=2024-03-01; start_date=2024-05-01 | True         
-102      | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_tests | failed   | Email domain looks malformed              | domain=example                             | False        
-103      | AGE_TOO_HIGH         | INVALID (3)   | 2     | hard_tests | failed   | Age is implausibly high (over 130)        | maximum=130; value=200.0                   | True         
-103      | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                          | disabled by rule                           | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'      | 'disable_age_integer_check_globally'       |              
-103      | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_tests | failed   | Email domain looks malformed              | domain=nodomain                            | False        
-<no key> | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed   | Age is missing                            |                                            | True         
-<no key> | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT    | prerequisite did not pass: AGE_PRESENT     | False        
-<no key> | AGE_NEGATIVE         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,   | prerequisite did not pass: AGE_PRESENT,    | False        
-         |                      |               |       |            |          | AGE_NOT_A_NUMBER                          | AGE_NOT_A_NUMBER                           |              
-<no key> | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,   | prerequisite did not pass: AGE_PRESENT,    | False        
-         |                      |               |       |            |          | AGE_NOT_A_NUMBER                          | AGE_NOT_A_NUMBER                           |              
-<no key> | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by rule                          | disabled by rule                           | False        
-         |                      |               |       |            |          | 'disable_age_integer_check_globally'      | 'disable_age_integer_check_globally'       |              
-<no key> | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed   | Both start_date and end_date are needed   | columns=start_date, end_date               | False        
-<no key> | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: DATES_PRESENT  | prerequisite did not pass: DATES_PRESENT   | False        
-<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed   | Email is missing                          |                                            | False        
-<no key> | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT  | prerequisite did not pass: EMAIL_PRESENT   | False        
-<no key> | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT, | prerequisite did not pass: EMAIL_PRESENT,  | False        
-         |                      |               |       |            |          | EMAIL_MISSING_AT                          | EMAIL_MISSING_AT                           |              
+row      | code                 | status        | layer | suite       | outcome  | message                                   | comments                                   | is_root_cause
+---------+----------------------+---------------+-------+-------------+----------+-------------------------------------------+--------------------------------------------+--------------
+101      | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                          | disabled by rule                           | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'      | 'disable_age_integer_check_globally'       |              
+102      | AGE_NEGATIVE         | INVALID (3)   | 2     | hard_checks | failed   | Age is negative                           | minimum=0; value=-5.0                      | False        
+102      | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                          | disabled by rule                           | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'      | 'disable_age_integer_check_globally'       |              
+102      | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | hard_checks | failed   | start_date is after end_date              | end_date=2024-03-01; start_date=2024-05-01 | True         
+102      | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_checks | failed   | Email domain looks malformed              | domain=example                             | False        
+103      | AGE_TOO_HIGH         | INVALID (3)   | 2     | hard_checks | failed   | Age is implausibly high (over 130)        | maximum=130; value=200.0                   | True         
+103      | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                          | disabled by rule                           | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'      | 'disable_age_integer_check_globally'       |              
+103      | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_checks | failed   | Email domain looks malformed              | domain=nodomain                            | True         
+<no key> | AGE_PRESENT          | MISSING (1)   | 0     | hard_checks | failed   | Age is missing                            |                                            | True         
+<no key> | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT    | prerequisite did not pass: AGE_PRESENT     | False        
+<no key> | AGE_NEGATIVE         | PASS (0)      | 2     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT,   | prerequisite did not pass: AGE_PRESENT,    | False        
+         |                      |               |       |             |          | AGE_NOT_A_NUMBER                          | AGE_NOT_A_NUMBER                           |              
+<no key> | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_checks | skipped  | prerequisite did not pass: AGE_PRESENT,   | prerequisite did not pass: AGE_PRESENT,    | False        
+         |                      |               |       |             |          | AGE_NOT_A_NUMBER                          | AGE_NOT_A_NUMBER                           |              
+<no key> | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_checks | disabled | disabled by rule                          | disabled by rule                           | False        
+         |                      |               |       |             |          | 'disable_age_integer_check_globally'      | 'disable_age_integer_check_globally'       |              
+<no key> | DATES_PRESENT        | MISSING (1)   | 0     | hard_checks | failed   | Both start_date and end_date are needed   | columns=start_date, end_date               | True         
+<no key> | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_checks | skipped  | prerequisite did not pass: DATES_PRESENT  | prerequisite did not pass: DATES_PRESENT   | False        
+<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_checks | failed   | Email is missing                          |                                            | True         
+<no key> | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_checks | skipped  | prerequisite did not pass: EMAIL_PRESENT  | prerequisite did not pass: EMAIL_PRESENT   | False        
+<no key> | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_checks | skipped  | prerequisite did not pass: EMAIL_PRESENT, | prerequisite did not pass: EMAIL_PRESENT,  | False        
+         |                      |               |       |             |          | EMAIL_MISSING_AT                          | EMAIL_MISSING_AT                           |              

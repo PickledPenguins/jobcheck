@@ -1,4 +1,4 @@
-"""Interface tests: the public surface other code depends on.
+"""Interface checks: the public surface other code depends on.
 
 These are the checks that fail when an export is forgotten, a default changes, or
 a permanent identifier moves -- the kind of break that is invisible until someone
@@ -14,11 +14,13 @@ from typing import Any
 
 import pytest
 
-import pandas_row_validation as validation
-from pandas_row_validation import registry as reg
-from pandas_row_validation import report as rep
-from pandas_row_validation import results as res
-from pandas_row_validation import rules, tables
+import jobcheck as validation
+from jobcheck import registry as reg
+from jobcheck import engine
+from jobcheck import registry_tables
+from jobcheck import report as rep
+from jobcheck import results as res
+from jobcheck import rules, tables
 
 pytestmark = pytest.mark.fast
 
@@ -68,7 +70,7 @@ def test_the_rule_parser_does_not_import_the_registry() -> None:
     ]
     imports = [line for line in code if line.startswith(("import ", "from "))]
     assert not any("registry" in line for line in imports), imports
-    assert not any("TESTS" in line for line in code)
+    assert not any("CHECKS" in line for line in code)
 
 
 def test_every_public_function_is_exported() -> None:
@@ -114,7 +116,7 @@ def test_report_columns_are_stable() -> None:
 
 
 def test_registry_table_columns_are_stable(example_suites: None) -> None:
-    assert list(reg.get_registry_table().columns) == [
+    assert list(registry_tables.get_registry_table().columns) == [
         "code", "layer", "suite", "default_state", "description", "depends_on"
     ]
 
@@ -130,16 +132,16 @@ def defaults(fn: Any) -> dict[str, Any]:
 @pytest.mark.parametrize(
     "fn, expected",
     [
-        pytest.param(reg.register_test,
+        pytest.param(reg.register_check,
                      {"default_enabled": True, "description": "", "depends_on": None,
-                      "suite": None}, id="register_test"),
-        pytest.param(reg.test_group,
+                      "suite": None}, id="register_check"),
+        pytest.param(reg.check_group,
                      {"depends_on": None, "suite": None, "default_enabled": True},
-                     id="test_group"),
+                     id="check_group"),
         pytest.param(reg.load_suites, {}, id="load_suites"),
-        pytest.param(reg.explain_row,
+        pytest.param(engine.explain_row,
                      {"ctx": None, "overrides": None, "on_error": "record"}, id="explain_row"),
-        pytest.param(reg.validate_row,
+        pytest.param(engine.validate_row,
                      {"ctx": None, "overrides": None, "on_error": "record"}, id="validate_row"),
         pytest.param(reg.load_overrides_from_dir, {"pattern": "*.yaml"}, id="load_overrides_from_dir"),
         pytest.param(rules.load_overrides_from_dir, {"pattern": "*.yaml"},
@@ -162,28 +164,28 @@ def test_public_defaults(fn: Any, expected: dict[str, Any]) -> None:
 
 
 def test_load_suites_requires_the_package_to_load_from() -> None:
-    """This package ships no tests, so a default would name the wrong tree."""
+    """This package ships no checks, so a default would name the wrong tree."""
 
     with pytest.raises(TypeError, match="package"):
-        reg.load_suites(["hard_tests"])  # type: ignore[call-arg]
+        reg.load_suites(["hard_checks"])  # type: ignore[call-arg]
 
 
 def test_validate_row_returns_outcomes_not_a_separate_result_type(fresh_registry: None) -> None:
-    from conftest import make_test
+    from conftest import make_check
 
-    make_test("FAILS", passes=False)
-    results = reg.validate_row(_row())
-    assert all(isinstance(result, res.TestOutcome) for result in results)
+    make_check("FAILS", passes=False)
+    results = engine.validate_row(_row())
+    assert all(isinstance(result, res.CheckOutcome) for result in results)
     assert (results[0].code, results[0].message) == ("FAILS", "FAILS failed")
 
 
 def test_root_cause_accepts_either_functions_output(fresh_registry: None) -> None:
-    from conftest import make_test
+    from conftest import make_check
 
-    make_test("FAILS", passes=False)
+    make_check("FAILS", passes=False)
     row = _row()
-    assert reg.root_cause(reg.validate_row(row)) == "FAILS"
-    assert reg.root_cause(reg.explain_row(row)) == "FAILS"
+    assert engine.root_cause(engine.validate_row(row)) == "FAILS"
+    assert engine.root_cause(engine.explain_row(row)) == "FAILS"
 
 
 def test_pass_is_a_shared_singleton() -> None:

@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from golden_fixture import GOLDEN_DIR, frame, read_golden, render_all
-from pandas_row_validation import (
+from jobcheck import (
     build_report,
     collect_outcomes,
     load_overrides,
@@ -71,7 +71,7 @@ def test_a_written_file_is_byte_for_byte_the_golden_csv(
     """Pins the file on disk, not just the string: encoding, line endings, and the
     trailing newline all come from write_report rather than the caller."""
 
-    load_suites(["hard_tests", "soft_tests"], package="example_suites")
+    load_suites(["hard_checks", "soft_checks"], package="example_suites")
     overrides = load_overrides("examples/rules/error_overrides.yaml")
     df = frame()
     report = build_report(collect_outcomes(df, overrides=overrides), df=df, key_column="id")
@@ -87,7 +87,7 @@ def test_a_written_file_is_byte_for_byte_the_golden_csv(
 def test_the_golden_csv_parses_back_into_the_same_frame(fresh_registry: None) -> None:
     import pandas as pd
 
-    load_suites(["hard_tests", "soft_tests"], package="example_suites")
+    load_suites(["hard_checks", "soft_checks"], package="example_suites")
     overrides = load_overrides("examples/rules/error_overrides.yaml")
     df = frame()
     report = build_report(collect_outcomes(df, overrides=overrides), df=df, key_column="id")

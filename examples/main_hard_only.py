@@ -1,7 +1,7 @@
 """Second entry point loading only one flavor.
 
 Run this alongside ``examples/main.py`` to see that entry points are independent: the
-soft_tests tests never register here, so no email check appears in the
+soft_checks checks never register here, so no email check appears in the
 registry or in any row's errors. The base flavor still loads, as it always does.
 """
 
@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import pandas as pd
 
-from pandas_row_validation import (
+from jobcheck import (
     build_context,
     load_overrides_from_dir,
     load_suites,
@@ -27,17 +27,17 @@ from pandas_row_validation import (
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Load only the hard_tests suite, then validate a two-row frame.
+    """Load only the hard_checks suite, then validate a two-row frame.
 
     It takes no options, but still parses the command line so that ``--help``
     works and a mistyped flag is rejected rather than silently ignored.
     """
 
     argparse.ArgumentParser(
-        description="Demo entry point loading only the hard_tests suite. Takes no options."
+        description="Demo entry point loading only the hard_checks suite. Takes no options."
     ).parse_args(argv)
 
-    load_suites(["hard_tests"], package="example_suites")
+    load_suites(["hard_checks"], package="example_suites")
     print(f"Loaded suites: {sorted(loaded_suites())}\n")
 
     # Only 01_age_rules.yaml applies here: the email rules in 02_*.yaml name
@@ -45,7 +45,7 @@ def main(argv: list[str] | None = None) -> None:
     # load-time error, so this directory is filtered by pattern.
     overrides = load_overrides_from_dir("examples/rules/split_by_topic", pattern="01_*.yaml")
 
-    print("== Registry (hard_tests only) ==")
+    print("== Registry (hard_checks only) ==")
     print_registry(overrides=overrides, debug=1)
 
     df = pd.DataFrame(

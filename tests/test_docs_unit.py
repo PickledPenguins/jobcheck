@@ -6,7 +6,7 @@ cannot simply be executed: instead every call they show is bound against the rea
 signature, which is what catches an argument that became required, a keyword that
 was renamed, and a function that no longer exists.
 
-The drift this was written for: `load_suites(["hard_tests"])` appeared in three
+The drift this was written for: `load_suites(["hard_checks"])` appeared in three
 documents for as long as `package=` had a default, and went on appearing after it
 became required, where it raises TypeError for anyone who copies it.
 """
@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-import pandas_row_validation as prv
+import jobcheck as prv
 
 pytestmark = pytest.mark.fast
 
@@ -154,7 +154,7 @@ def test_every_document_says_how_to_get_back(path: Path) -> None:
 def test_the_shipped_rule_keys_are_all_documented() -> None:
     """Configuration is the document that owns the rule-file format."""
 
-    from pandas_row_validation import rules
+    from jobcheck import rules
 
     configuration = (ROOT / "docs" / "configuration.md").read_text(encoding="utf-8")
     for key in rules.RULE_KEYS:
@@ -162,8 +162,8 @@ def test_the_shipped_rule_keys_are_all_documented() -> None:
     # The two actions are literals in the parser rather than a constant, so they
     # are named here as well: a third one added without a document is the drift
     # this catches.
-    source = (ROOT / "src" / "pandas_row_validation" / "rules.py").read_text(encoding="utf-8")
-    assert 'action not in ("enable", "disable")' in source, "the actions moved; update the doc test"
+    source = (ROOT / "src" / "jobcheck" / "rules.py").read_text(encoding="utf-8")
+    assert 'action not in ("enable", "disable")' in source, "the actions moved; update the doc check"
     for action in ("enable", "disable"):
         assert action in configuration, action
 
@@ -172,9 +172,9 @@ def test_the_status_vocabulary_is_documented() -> None:
     """Status values are permanent identifiers; a new one nobody documents is a
     value that turns up in someone's report with no explanation."""
 
-    from pandas_row_validation.results import Status
+    from jobcheck.results import Status
 
-    writing = (ROOT / "docs" / "writing-tests.md").read_text(encoding="utf-8")
+    writing = (ROOT / "docs" / "writing-checks.md").read_text(encoding="utf-8")
     for status in Status:
         assert status.name in writing, status.name
 
@@ -182,5 +182,5 @@ def test_the_status_vocabulary_is_documented() -> None:
 @pytest.mark.parametrize("outcome", ["passed", "failed", "errored", "skipped", "disabled"])
 def test_every_outcome_name_is_documented(outcome: str) -> None:
     reporting = (ROOT / "docs" / "reporting.md").read_text(encoding="utf-8")
-    writing = (ROOT / "docs" / "writing-tests.md").read_text(encoding="utf-8")
+    writing = (ROOT / "docs" / "writing-checks.md").read_text(encoding="utf-8")
     assert outcome in reporting or outcome in writing

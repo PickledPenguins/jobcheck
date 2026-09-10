@@ -1,7 +1,7 @@
 """Fault injection: what the filesystem does to a run that assumed it worked.
 
 Every loader here reads a path somebody else controls, and every report here is
-written to one. The parser's own error paths are covered by the unit tests; what
+written to one. The parser's own error paths are covered by the unit checks; what
 is covered here is the layer underneath them -- a file that cannot be read, a
 directory where a file was expected, a symlink pointing nowhere, a device that
 fails on write -- where the failure arrives as an ``OSError`` rather than as a
@@ -22,14 +22,14 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import make_test
-from pandas_row_validation import (
+from conftest import make_check
+from jobcheck import (
     build_report,
     collect_outcomes,
     load_overrides,
     load_overrides_from_dir,
     load_overrides_from_files,
-    load_test_files,
+    load_checks,
     registry as reg,
     write_report,
 )
@@ -39,15 +39,15 @@ pytestmark = pytest.mark.long
 RULE = ("- name: r\n  action: disable\n  codes: [A_CODE]\n  match: all\n")
 
 TEST_FILE = (
-    "from pandas_row_validation import PASS, test_group\n"
-    "g = test_group()\n"
+    "from jobcheck import PASS, check_group\n"
+    "g = check_group()\n"
     "@g('FROM_FILE', 'from file')\n"
     "def rule(row):\n"
     "    return PASS\n"
 )
 
 unwritable_as_root = pytest.mark.skipif(
-    os.geteuid() == 0, reason="root ignores the permission bits these tests set"
+    os.geteuid() == 0, reason="root ignores the permission bits these checks set"
 )
 
 
@@ -64,7 +64,7 @@ def unreadable(path: Path) -> Path:
 @unwritable_as_root
 def test_an_unreadable_rule_file_raises_permission_error(fresh_registry: None,
                                                          tmp_path: Path) -> None:
-    make_test("A_CODE")
+    make_check("A_CODE")
     path = tmp_path / "rules.yaml"
     path.write_text(RULE)
     unreadable(path)
@@ -74,7 +74,7 @@ def test_an_unreadable_rule_file_raises_permission_error(fresh_registry: None,
 
 
 def test_a_rule_path_that_is_a_directory_raises(fresh_registry: None, tmp_path: Path) -> None:
-    make_test("A_CODE")
+    make_check("A_CODE")
     with pytest.raises(IsADirectoryError):
         load_overrides(str(tmp_path))
 
@@ -83,7 +83,7 @@ def test_a_rule_symlink_pointing_nowhere_raises_file_not_found(fresh_registry: N
                                                                tmp_path: Path) -> None:
     link = tmp_path / "rules.yaml"
     link.symlink_to(tmp_path / "gone.yaml")
-    make_test("A_CODE")
+    make_check("A_CODE")
     with pytest.raises(FileNotFoundError):
         load_overrides(str(link))
 
@@ -93,7 +93,7 @@ def test_one_unreadable_file_in_a_directory_stops_the_whole_load(fresh_registry:
                                                                  tmp_path: Path) -> None:
     """Half a directory of rules is not a smaller set of rules; it is the wrong set."""
 
-    make_test("A_CODE")
+    make_check("A_CODE")
     (tmp_path / "01.yaml").write_text(RULE)
     (tmp_path / "02.yaml").write_text(RULE.replace("name: r", "name: s"))
     unreadable(tmp_path / "02.yaml")
@@ -102,7 +102,7 @@ def test_one_unreadable_file_in_a_directory_stops_the_whole_load(fresh_registry:
 
 
 def test_a_missing_file_in_a_list_names_that_file(fresh_registry: None, tmp_path: Path) -> None:
-    make_test("A_CODE")
+    make_check("A_CODE")
     good = tmp_path / "01.yaml"
     good.write_text(RULE)
     with pytest.raises(FileNotFoundError) as raised:
@@ -120,7 +120,7 @@ def test_a_rule_file_holding_nul_bytes_is_rejected(fresh_registry: None, tmp_pat
 
     import yaml
 
-    make_test("A_CODE")
+    make_check("A_CODE")
     path = tmp_path / "rules.yaml"
     path.write_bytes(b"- name: r\n  action: disable\n  codes: [A_CODE]\n\x00\x00")
     with pytest.raises(yaml.YAMLError) as raised:
@@ -129,7 +129,7 @@ def test_a_rule_file_holding_nul_bytes_is_rejected(fresh_registry: None, tmp_pat
     assert str(path) in str(raised.value)
 
 
-# --- reading test files -----------------------------------------------------
+# --- reading check files -----------------------------------------------------
 
 
 @unwritable_as_root
@@ -139,16 +139,16 @@ def test_an_unreadable_test_file_raises_and_registers_nothing(fresh_registry: No
     path.write_text(TEST_FILE)
     unreadable(path)
     with pytest.raises(PermissionError):
-        load_test_files([str(path)])
-    assert reg.TESTS == []
+        load_checks([str(path)])
+    assert reg.CHECKS == []
 
 
 def test_a_test_file_symlink_pointing_nowhere_is_reported_as_missing(fresh_registry: None,
                                                                      tmp_path: Path) -> None:
     link = tmp_path / "checks.py"
     link.symlink_to(tmp_path / "gone.py")
-    with pytest.raises(ValueError, match="No test file at"):
-        load_test_files([str(link)])
+    with pytest.raises(ValueError, match="No check file at"):
+        load_checks([str(link)])
 
 
 def test_a_test_file_holding_a_syntax_error_propagates_it(fresh_registry: None,
@@ -156,8 +156,8 @@ def test_a_test_file_holding_a_syntax_error_propagates_it(fresh_registry: None,
     path = tmp_path / "checks.py"
     path.write_text("def rule(row:\n")
     with pytest.raises(SyntaxError):
-        load_test_files([str(path)])
-    assert reg.TESTS == []
+        load_checks([str(path)])
+    assert reg.CHECKS == []
 
 
 def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
@@ -173,8 +173,8 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
     broken = tmp_path / "broken.py"
     broken.write_text("raise RuntimeError('boom')\n")
     with pytest.raises(RuntimeError):
-        load_test_files([str(good), str(broken)])
-    assert [t.code for t in reg.TESTS] == ["FROM_FILE"]
+        load_checks([str(good), str(broken)])
+    assert [t.code for t in reg.CHECKS] == ["FROM_FILE"]
     assert reg.loaded_files() == [str(good.resolve())]
 
 
@@ -182,7 +182,7 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
 
 
 def report_of(fresh: None) -> pd.DataFrame:
-    make_test("FAILS", passes=False)
+    make_check("FAILS", passes=False)
     frame = pd.DataFrame([{"id": 1}])
     return build_report(collect_outcomes(frame), df=frame, key_column="id")
 

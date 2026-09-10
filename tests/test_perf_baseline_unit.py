@@ -1,4 +1,4 @@
-"""Unit tests for the performance baseline's own logic.
+"""Unit checks for the performance baseline's own logic.
 
 The gate is only as good as the arithmetic under it, and that arithmetic never
 runs in the fast suite -- so it is tested here directly, with the clock and the

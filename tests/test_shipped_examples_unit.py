@@ -2,10 +2,10 @@
 
 `examples/` is what an adopter copies: the suites, the rule files and the data.
 A rule file that cannot be loaded beside another, a rule naming a code no suite
-defines, or a data file that stopped exercising the tests it was built for are
+defines, or a data file that stopped exercising the checks it was built for are
 all defects in the documentation as delivered.
 
-The duplicate-name test is a regression test: the four shipped rule files could
+The duplicate-name check is a regression check: the four shipped rule files could
 not be loaded in one call until 2026-09-10, because two pairs of them shared a
 rule name and names are unique across a load.
 """
@@ -19,7 +19,7 @@ import pytest
 import yaml
 
 from conftest import PROJECT_ROOT
-from pandas_row_validation import (
+from jobcheck import (
     check_rule_columns,
     collect_outcomes,
     load_overrides_from_files,
@@ -73,7 +73,7 @@ def test_every_shipped_rule_name_is_unique_in_its_own_right() -> None:
 def test_every_shipped_rule_names_a_code_the_example_suites_define(
     example_suites: None,
 ) -> None:
-    known = {test.code for test in reg.TESTS}
+    known = {check.code for check in reg.CHECKS}
     for path in rule_files():
         for rule in yaml.safe_load(path.read_text(encoding="utf-8")) or []:
             for code in rule["codes"]:

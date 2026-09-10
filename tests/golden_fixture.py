@@ -2,12 +2,12 @@
 
 One frame, one rule file, one set of suites, chosen to exercise every column and
 every outcome the report can show: a clean row, a value failure, a cascade from a
-missing field, a rule-disabled test, and a row whose key is missing. Nothing here
+missing field, a rule-disabled check, and a row whose key is missing. Nothing here
 varies between machines or runs -- no clock, no paths, no ordering that depends
 on the filesystem -- which is what lets the output be compared byte for byte.
 
 Imported by both ``tests/test_golden_output.py`` and ``scripts/regen_golden.py``,
-so the test and the regeneration can never disagree about the input.
+so the check and the regeneration can never disagree about the input.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
 
-SUITES = ["hard_tests", "soft_tests"]
+SUITES = ["hard_checks", "soft_checks"]
 RULE_FILE = "examples/rules/error_overrides.yaml"
 
 
@@ -50,7 +50,7 @@ def render_all() -> dict[str, str]:
     import io
     from contextlib import redirect_stdout
 
-    from pandas_row_validation import (
+    from jobcheck import (
         build_report,
         clear_registry,
         collect_outcomes,

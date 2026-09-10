@@ -1,4 +1,4 @@
-"""Unit tests: the whole-frame entry point and the run object it returns.
+"""Unit checks: the whole-frame entry point and the run object it returns.
 
 ``validate`` is the call a pipeline makes when it has a DataFrame rather than a
 row, so what is pinned here is the trace shape (position, records, failures,
@@ -13,8 +13,8 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import make_test
-from pandas_row_validation import (
+from conftest import make_check
+from jobcheck import (
     ERRORED,
     RowTrace,
     RunStats,
@@ -30,75 +30,75 @@ FRAME = pd.DataFrame([{"value": 1}, {"value": 2}, {"value": 3}])
 
 
 def fail_on_even() -> None:
-    """One registered test that fails the middle row of FRAME and no other."""
+    """One registered check that fails the middle row of FRAME and no other."""
 
-    from pandas_row_validation import PASS, Status, TestResult
-    from pandas_row_validation import registry as reg
+    from jobcheck import PASS, Status, CheckResult
+    from jobcheck import registry as reg
 
-    @reg.register_test(code="EVEN", message="value is even")
-    def check(row: "pd.Series[Any]") -> TestResult:
-        return PASS if row["value"] % 2 else TestResult(Status.INVALID, {"value": row["value"]})
+    @reg.register_check(code="EVEN", message="value is even")
+    def check(row: "pd.Series[Any]") -> CheckResult:
+        return PASS if row["value"] % 2 else CheckResult(Status.INVALID, {"value": row["value"]})
 
 
 def test_validate_returns_one_trace_per_row(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     run = validate(FRAME)
     assert len(run) == 3
 
 
 def test_traces_are_in_frame_order_with_positions(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     assert [trace.position for trace in validate(FRAME)] == [0, 1, 2]
 
 
 def test_positions_are_frame_positions_not_index_labels(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     frame = FRAME.set_index(pd.Index([10, 20, 30]))
     assert [trace.position for trace in validate(frame)] == [0, 1, 2]
 
 
 def test_a_row_that_passed_has_no_failures_and_no_root_cause(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     trace = validate(FRAME).explain(0)
     assert (trace.passed, trace.failures, trace.root_cause) == (True, [], None)
 
 
 def test_a_failing_row_reports_its_root_cause(fresh_registry: None) -> None:
-    make_test("FUNDAMENTAL", passes=False)
-    make_test("DEPENDENT", passes=False, depends_on=["FUNDAMENTAL"])
+    make_check("FUNDAMENTAL", passes=False)
+    make_check("DEPENDENT", passes=False, depends_on=["FUNDAMENTAL"])
     trace = validate(FRAME).explain(0)
     assert trace.root_cause == "FUNDAMENTAL"
 
 
 def test_failures_keep_evaluation_order(fresh_registry: None) -> None:
-    make_test("FIRST", passes=False)
-    make_test("SECOND", passes=False)
+    make_check("FIRST", passes=False)
+    make_check("SECOND", passes=False)
     trace = validate(FRAME).explain(0)
     assert [failure.code for failure in trace.failures] == ["FIRST", "SECOND"]
 
 
 def test_records_keep_the_tests_that_did_not_run(fresh_registry: None) -> None:
-    make_test("FUNDAMENTAL", passes=False)
-    make_test("BLOCKED", depends_on=["FUNDAMENTAL"])
+    make_check("FUNDAMENTAL", passes=False)
+    make_check("BLOCKED", depends_on=["FUNDAMENTAL"])
     trace = validate(FRAME).explain(0)
     assert [record.code for record in trace.records] == ["FUNDAMENTAL", "BLOCKED"]
 
 
 def test_stats_count_rows_failures_and_errors_separately(fresh_registry: None) -> None:
-    make_test("FAILS", passes=False)
-    make_test("RAISES", raises=RuntimeError("boom"))
+    make_check("FAILS", passes=False)
+    make_check("RAISES", raises=RuntimeError("boom"))
     stats = validate(FRAME).stats
     assert stats is not None
     assert (stats.rows, stats.failures, stats.errors) == (3, 3, 3)
 
 
 def test_errors_is_the_count_of_tests_that_raised(fresh_registry: None) -> None:
-    make_test("RAISES", raises=RuntimeError("boom"))
+    make_check("RAISES", raises=RuntimeError("boom"))
     assert validate(FRAME).errors == 3
 
 
 def test_errors_is_counted_when_a_run_was_not_timed(fresh_registry: None) -> None:
-    make_test("RAISES", raises=RuntimeError("boom"))
+    make_check("RAISES", raises=RuntimeError("boom"))
     run = ValidationRun.from_records(FRAME, collect_outcomes(FRAME))
     assert run.errors == 3
     assert all(record.outcome == ERRORED
@@ -154,18 +154,18 @@ def test_explain_rejects_a_negative_position_rather_than_wrapping(fresh_registry
 
 
 def test_overrides_are_kept_on_the_run(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     assert validate(FRAME, overrides=[]).overrides == []
 
 
 def test_an_empty_frame_produces_an_empty_run(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     run = validate(pd.DataFrame(columns=["value"]))
     assert (len(run), run.root_causes, run.failed_rows) == (0, [], [])
 
 
 def test_from_records_rejects_a_length_mismatch(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     with pytest.raises(ValueError, match="from_records"):
         ValidationRun.from_records(FRAME, collect_outcomes(FRAME)[:2])
 
@@ -177,7 +177,7 @@ def test_from_records_numbers_rows_in_frame_order(fresh_registry: None) -> None:
 
 
 def test_from_records_copies_the_overrides_list(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     overrides: list[Any] = []
     run = ValidationRun.from_records(FRAME, collect_outcomes(FRAME), overrides=overrides)
     overrides.append("invented")
@@ -191,7 +191,7 @@ def test_iter_traces_yields_the_same_traces_as_validate(fresh_registry: None) ->
 
 
 def test_iter_traces_reports_progress_every_n_rows_and_at_the_end(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     seen: list[tuple[int, int]] = []
     list(iter_traces(FRAME, progress=lambda done, total: seen.append((done, total)),
                      progress_every=2))
@@ -199,7 +199,7 @@ def test_iter_traces_reports_progress_every_n_rows_and_at_the_end(fresh_registry
 
 
 def test_progress_fires_once_for_an_empty_frame(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     seen: list[tuple[int, int]] = []
     list(iter_traces(pd.DataFrame(columns=["value"]),
                      progress=lambda done, total: seen.append((done, total))))
@@ -207,7 +207,7 @@ def test_progress_fires_once_for_an_empty_frame(fresh_registry: None) -> None:
 
 
 def test_progress_every_below_one_is_rejected(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     with pytest.raises(ValueError, match="progress_every must be at least 1"):
         list(iter_traces(FRAME, progress_every=0))
 
@@ -227,51 +227,51 @@ def test_a_trace_defaults_to_no_records() -> None:
 # --- what the arguments actually do -----------------------------------------
 #
 # Each of these was written against a surviving mutant: a change to run.py that
-# no test noticed. Dropping `on_error` on the way to explain_row, dropping
+# no check noticed. Dropping `on_error` on the way to explain_row, dropping
 # `progress`, and recording `seconds=None` all passed the suite before these.
 
 
 def test_on_error_raise_propagates_a_tests_exception(fresh_registry: None) -> None:
-    make_test("RAISES", raises=RuntimeError("boom"))
+    make_check("RAISES", raises=RuntimeError("boom"))
     with pytest.raises(RuntimeError, match="boom"):
         validate(FRAME, on_error="raise")
 
 
 def test_on_error_defaults_to_recording_the_exception(fresh_registry: None) -> None:
-    make_test("RAISES", raises=RuntimeError("boom"))
+    make_check("RAISES", raises=RuntimeError("boom"))
     trace = validate(FRAME).explain(0)
     assert [record.outcome for record in trace.records] == [ERRORED]
     assert "RuntimeError" in trace.records[0].detail
 
 
 def test_iter_traces_passes_on_error_through(fresh_registry: None) -> None:
-    make_test("RAISES", raises=RuntimeError("boom"))
+    make_check("RAISES", raises=RuntimeError("boom"))
     with pytest.raises(RuntimeError, match="boom"):
         list(iter_traces(FRAME, on_error="raise"))
 
 
 def test_validate_reports_progress_through_to_the_callback(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     seen: list[tuple[int, int]] = []
     validate(FRAME, progress=lambda done, total: seen.append((done, total)), progress_every=1)
     assert seen == [(1, 3), (2, 3), (3, 3)]
 
 
 def test_validate_passes_progress_every_through(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     seen: list[tuple[int, int]] = []
     validate(FRAME, progress=lambda done, total: seen.append((done, total)), progress_every=2)
     assert seen == [(2, 3), (3, 3)]
 
 
 def test_validate_rejects_a_progress_interval_below_one(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     with pytest.raises(ValueError, match="progress_every must be at least 1"):
         validate(FRAME, progress_every=0)
 
 
 def test_stats_record_the_time_the_run_took(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     stats = validate(FRAME).stats
     assert stats is not None
     assert isinstance(stats.seconds, float)
@@ -280,13 +280,13 @@ def test_stats_record_the_time_the_run_took(fresh_registry: None) -> None:
 
 
 def test_the_overrides_given_are_the_ones_the_run_carries(fresh_registry: None) -> None:
-    make_test("SWITCHABLE", passes=False)
-    from pandas_row_validation import MatchCriterion, OverrideRule
+    make_check("SWITCHABLE", passes=False)
+    from jobcheck import MatchCriterion, OverrideRule
 
     rule = OverrideRule(name="off", action="disable", codes=["SWITCHABLE"],
                         criteria=[MatchCriterion(column="value", pattern="^2$",
                                                  regex=re.compile("^2$"))],
-                        match_all=False, source_file="<test>")
+                        match_all=False, source_file="<check>")
     run = validate(FRAME, overrides=[rule])
     assert [override.name for override in run.overrides] == ["off"]
     # And they were applied, not merely stored.
@@ -295,7 +295,7 @@ def test_the_overrides_given_are_the_ones_the_run_carries(fresh_registry: None) 
 
 
 def test_the_run_copies_the_overrides_list_it_was_given(fresh_registry: None) -> None:
-    make_test("PASSES")
+    make_check("PASSES")
     given: list[Any] = []
     run = validate(FRAME, overrides=given)
     given.append("invented")
@@ -314,7 +314,7 @@ def test_the_recorded_duration_is_the_time_the_run_actually_took(
 
     import time
 
-    make_test("PASSES")
+    make_check("PASSES")
     before = time.perf_counter()
     run = validate(FRAME)
     wall_clock = time.perf_counter() - before

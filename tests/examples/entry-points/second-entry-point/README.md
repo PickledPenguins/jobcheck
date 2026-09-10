@@ -1,6 +1,6 @@
 # A second entry point choosing its own suites
 
-`main_hard_only.py` hardcodes `load_suites(["hard_tests"])`, so no email check
+`main_hard_only.py` hardcodes `load_suites(["hard_checks"])`, so no email check
 is registered at all. The base suite still loads.
 
 Level:    simple

@@ -33,7 +33,7 @@ def in_the_project_root(monkeypatch: Any) -> None:
 def run(capsys: Any, *argv: str) -> str:
     """Run the entry point and return stdout, discarding stderr.
 
-    Tests that care about stderr call ``main.main`` themselves: one
+    Checks that care about stderr call ``main.main`` themselves: one
     ``readouterr()`` consumes both streams, so a second call sees nothing.
     """
 
@@ -131,7 +131,7 @@ def test_an_unreadable_data_file_exits_two_with_the_reason(fresh_registry: None,
     import os
 
     if os.geteuid() == 0:
-        pytest.skip("root ignores the permission bits this test sets")
+        pytest.skip("root ignores the permission bits this check sets")
     locked = tmp_path / "locked.csv"
     locked.write_text("id\n1\n")
     locked.chmod(0)
@@ -231,5 +231,5 @@ def test_the_second_entry_point_loads_only_its_own_suite(fresh_registry: None,
                                                          capsys: Any) -> None:
     main_hard_only.main([])
     out = capsys.readouterr().out
-    assert "hard_tests" in out
+    assert "hard_checks" in out
     assert "EMAIL_" not in out

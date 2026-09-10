@@ -1,4 +1,4 @@
-"""Tests on the ``email`` column, including a dependent test."""
+"""Checks on the ``email`` column, including a dependent check."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from typing import Any
 
 import pandas as pd
 
-from pandas_row_validation.registry import register_test, test_group
-from pandas_row_validation.results import PASS, Status, TestResult
+from jobcheck.registry import register_check, check_group
+from jobcheck.results import PASS, Status, CheckResult
 
 _DOMAIN = re.compile(r"^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$")
 
@@ -24,35 +24,35 @@ def _text(row: "pd.Series[Any]", column: str = "email") -> str | None:
     return str(value)
 
 
-@register_test(
+@register_check(
     code="EMAIL_PRESENT",
     message="Email is missing",
-    description="The presence test the rest of the email tests wait for.",
+    description="The presence check the rest of the email checks wait for.",
 )
-def email_present(row: "pd.Series[Any]") -> TestResult:
+def email_present(row: "pd.Series[Any]") -> CheckResult:
     """Pass when the row carries an email at all."""
 
     text = _text(row)
     if text is None or not text.strip():
-        return TestResult(Status.MISSING)
+        return CheckResult(Status.MISSING)
     return PASS
 
 
-email = test_group(depends_on=["EMAIL_PRESENT"])
+email = check_group(depends_on=["EMAIL_PRESENT"])
 
 
 @email(
     "EMAIL_MISSING_AT",
     "Email has no '@'",
-    description="The most basic email shape test; the domain test depends on it.",
+    description="The most basic email shape check; the domain check depends on it.",
 )
-def email_missing_at(row: "pd.Series[Any]") -> TestResult:
+def email_missing_at(row: "pd.Series[Any]") -> CheckResult:
     """Pass when the email contains exactly one '@'."""
 
     text = _text(row) or ""
     count = text.count("@")
     if count != 1:
-        return TestResult(Status.MALFORMED, {"at_signs": count, "value": text})
+        return CheckResult(Status.MALFORMED, {"at_signs": count, "value": text})
     return PASS
 
 
@@ -64,10 +64,10 @@ def email_missing_at(row: "pd.Series[Any]") -> TestResult:
     "domain on a string with no '@' is redundant noise on top of a more "
     "fundamental problem already reported.",
 )
-def email_domain(row: "pd.Series[Any]") -> TestResult:
+def email_domain(row: "pd.Series[Any]") -> CheckResult:
     """Pass when the part after '@' looks like a dotted hostname."""
 
     domain = (_text(row) or "").split("@", 1)[1]
     if not _DOMAIN.match(domain):
-        return TestResult(Status.MALFORMED, {"domain": domain})
+        return CheckResult(Status.MALFORMED, {"domain": domain})
     return PASS

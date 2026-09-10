@@ -1,4 +1,4 @@
-"""Always-on tests.
+"""Always-on checks.
 
 This file sits directly in the ``validation`` package rather than in a suite
 subpackage, so it belongs to the base suite and is loaded by every
@@ -11,18 +11,18 @@ from typing import Any
 
 import pandas as pd
 
-from pandas_row_validation.results import PASS, Status, TestResult
-from pandas_row_validation.registry import register_test
+from jobcheck.results import PASS, Status, CheckResult
+from jobcheck.registry import register_check
 
 
-@register_test(
+@register_check(
     code="ROW_ALL_NULL",
     message="Row is entirely empty",
     description="A row with no populated field at all is never valid input.",
 )
-def row_not_all_null(row: "pd.Series[Any]") -> TestResult:
+def row_not_all_null(row: "pd.Series[Any]") -> CheckResult:
     """Pass when at least one field in the row holds a value."""
 
     if row.notna().any():
         return PASS
-    return TestResult(Status.MISSING, {"columns": len(row.index)})
+    return CheckResult(Status.MISSING, {"columns": len(row.index)})

@@ -1,6 +1,6 @@
 """What a validation run produced, as one object rather than four loose values.
 
-Running the tests over a frame yields an outcome per test per row. Everything
+Running the checks over a frame yields an outcome per check per row. Everything
 downstream -- the failure table, the summary, a single row's explanation --
 needs those outcomes *and* the frame they came from, because a report that
 identifies rows by frame index is unreadable the moment the frame has been
@@ -12,7 +12,7 @@ function, made the caller responsible for keeping the two in step.
 
 This module is the whole-frame entry point: :func:`validate` for a frame whose
 outcomes fit in memory, :func:`iter_traces` for one that streams.
-:func:`pandas_row_validation.collect_outcomes` remains the lower-level call that
+:func:`jobcheck.collect_outcomes` remains the lower-level call that
 returns the bare lists.
 """
 
@@ -26,9 +26,10 @@ from typing import Any
 import pandas as pd
 
 from .context import RowContext, build_context
-from .registry import OverrideRule, explain_row, root_cause
+from .engine import explain_row, root_cause, root_causes
+from .rules import OverrideRule
 from .report import build_report, summarise_outcomes
-from .results import ERRORED, FAILED, TestOutcome
+from .results import ERRORED, FAILED, CheckOutcome
 
 ContextBuilder = Callable[["pd.Series[Any]"], RowContext | None]
 
@@ -41,9 +42,9 @@ DEFAULT_PROGRESS_EVERY = 1000
 class RunStats:
     """What a run did, as numbers a person or a dashboard can read.
 
-    ``failures`` counts the outcomes whose outcome is *failed* only; a test that
+    ``failures`` counts the outcomes whose outcome is *failed* only; a check that
     raised is counted in ``errors`` instead, so the two never double-count and a
-    broken test is never read as bad data.
+    broken check is never read as bad data.
     """
 
     rows: int
@@ -60,21 +61,21 @@ class RunStats:
 
 @dataclass
 class RowTrace:
-    """What every test did on one row, in evaluation order.
+    """What every check did on one row, in evaluation order.
 
-    A trace, not a list of failures: it keeps the tests that were disabled or
+    A trace, not a list of failures: it keeps the checks that were disabled or
     blocked by a prerequisite as well as the ones that ran, because "why did
-    nothing fire?" is answered by the tests that did not run.
+    nothing fire?" is answered by the checks that did not run.
 
     ``position`` is the row's position in the frame -- 0 for the first row --
     not its index label, so a filtered frame still explains itself.
     """
 
     position: int
-    records: list[TestOutcome] = field(default_factory=list)
+    records: list[CheckOutcome] = field(default_factory=list)
 
     @property
-    def failures(self) -> list[TestOutcome]:
+    def failures(self) -> list[CheckOutcome]:
         """The failing outcomes, in evaluation order: the first is the root cause."""
 
         return [record for record in self.records if record.failed]
@@ -110,13 +111,13 @@ class ValidationRun:
     def from_records(
         cls,
         df: pd.DataFrame,
-        records: list[list[TestOutcome]],
+        records: list[list[CheckOutcome]],
         overrides: list[OverrideRule] | None = None,
         stats: RunStats | None = None,
     ) -> "ValidationRun":
         """Build a run from outcomes collected elsewhere.
 
-        :func:`pandas_row_validation.collect_outcomes` produces the outcomes a
+        :func:`jobcheck.collect_outcomes` produces the outcomes a
         frame's rows yielded without producing the run that owns them, and every
         reporting view here takes a run. This is the join: positions come from
         the order of *records*, which is frame order.
@@ -145,14 +146,14 @@ class ValidationRun:
         return iter(self.traces)
 
     @property
-    def records(self) -> list[list[TestOutcome]]:
+    def records(self) -> list[list[CheckOutcome]]:
         """The raw outcomes, one list per row, for a caller that wants them."""
 
         return [trace.records for trace in self.traces]
 
     @property
     def errors(self) -> int:
-        """How many tests raised across the whole run.
+        """How many checks raised across the whole run.
 
         Taken from :attr:`stats` when the run was timed, and counted otherwise,
         so a run assembled by :meth:`from_records` still answers the question.
@@ -194,7 +195,7 @@ class ValidationRun:
         )
 
     def summary(self) -> pd.DataFrame:
-        """Per-test counts, worst first. See :func:`report.summarise_outcomes`."""
+        """Per-check counts, worst first. See :func:`report.summarise_outcomes`."""
 
         return summarise_outcomes(self.records)
 
@@ -224,10 +225,10 @@ def iter_traces(
     """Yield one :class:`RowTrace` at a time, holding no more than one at once.
 
     The streaming half of :func:`validate`, for a frame whose outcomes will not
-    fit in memory: a run keeps one outcome per test per row, so two hundred
-    tests over a million rows is two hundred million objects. Consume these one
+    fit in memory: a run keeps one outcome per check per row, so two hundred
+    checks over a million rows is two hundred million objects. Consume these one
     at a time -- writing failures out as they appear -- and peak memory becomes
-    proportional to the *failures* rather than to tests times rows.
+    proportional to the *failures* rather than to checks times rows.
     """
 
     if progress_every < 1:
@@ -255,18 +256,18 @@ def validate(
     progress: Callable[[int, int], None] | None = None,
     progress_every: int = DEFAULT_PROGRESS_EVERY,
 ) -> ValidationRun:
-    """Run every test against every row of *df*.
+    """Run every check against every row of *df*.
 
-    The entry point for validating a frame. Keeps the tests that did not run as
+    The entry point for validating a frame. Keeps the checks that did not run as
     well as the ones that did, because that is what the explanation and summary
     views are built from.
 
     Two ways to spend less memory than this does. For a gate that only needs to
-    know which rows are bad, :func:`pandas_row_validation.validate_row` per row
+    know which rows are bad, :func:`jobcheck.validate_row` per row
     returns the failures and allocates nothing for the rest. For a report over a
     frame too large to hold every outcome, stream :func:`iter_traces`.
 
-    ``on_error`` is passed through to :func:`pandas_row_validation.explain_row`.
+    ``on_error`` is passed through to :func:`jobcheck.explain_row`.
 
     *progress*, when given, is called as ``progress(done, total)`` every
     *progress_every* rows and once at the end. Called every N rows rather than
