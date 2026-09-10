@@ -13,7 +13,7 @@ Measured on 2026-09-10, Python 3.14.6, pandas 2.x, on the `claude` branch.
 |---|---|
 | `./run-tests.sh` (fast, the commit gate) | 704 passed, 29s |
 | `./run-tests.sh long` | 251 passed, 265s |
-| `./run-tests.sh all` | 903 passed, 288s |
+| `./run-tests.sh all` | 955 passed, 290s |
 | `./run-tests.sh cov` | 100% of statements and branches, against a 95% floor |
 | `./run-tests.sh perf` | 6 timings against this machine's baseline, 85s |
 | `./run-tests.sh memory` | 3 peak-memory ceilings, 40s |
