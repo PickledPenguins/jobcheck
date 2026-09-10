@@ -49,16 +49,20 @@ the package by accident from the working directory. The demos add `src/` to
 
 | File | Responsibility |
 |---|---|
-| `src/pandas_row_validation/registry.py` | The engine: registration, suite import, dependency validation, ordering and layers, per-row evaluation, registry tables. |
+| `src/pandas_row_validation/registry.py` | The engine: registration, suite and file import, dependency validation, ordering and layers, per-row evaluation, registry tables. |
+| `src/pandas_row_validation/run.py` | The whole-frame entry point: `validate`, the streaming `iter_traces`, and the `ValidationRun`/`RowTrace`/`RunStats` types it returns. |
+| `src/pandas_row_validation/report.py` | Collecting outcomes for a frame, the long-format failure table, summaries, explanations, and rendering them as text or CSV. |
+| `src/pandas_row_validation/results.py` | What a test returns and what the engine records: statuses, `TestResult`, `TestOutcome`. |
+| `src/pandas_row_validation/rules.py` | The override rule file format and its parser. Knows nothing about the registry. |
+| `src/pandas_row_validation/tables.py` | Table rendering and null handling, shared by every view. |
 | `src/pandas_row_validation/context.py` | The per-row metadata type and its builder — the one adopter-supplied hook. |
-| `src/pandas_row_validation/__init__.py` | Re-exports the public surface. Registers no tests. |
-| `src/pandas_row_validation/test_row_shape.py` | Base-suite example check. |
-| `src/pandas_row_validation/hard_tests/`, `src/pandas_row_validation/soft_tests/` | Example suites; `__init__.py` is a marker only. |
+| `src/pandas_row_validation/__init__.py` | Re-exports the public surface. Registers no tests, and ships none. |
 | `examples/example_suites/` | The example tests. Outside the package on purpose: nothing of ours should register in an adopter's registry. |
 | `examples/main.py` | Demo entry point and end-to-end driver: registry tables, the report, explanations, summaries. |
 | `examples/main_hard_only.py` | Second entry point proving suite selection is per-entry-point. |
 | `tests/` | pytest suites, split `fast`/`long` by marker, plus the example and failure catalogs. |
-| `run-tests.sh`, `scripts/` | Suite entry points, the pre-commit hook installer, and the catalog regenerator. |
+| `run-tests.sh`, `scripts/` | Suite entry points, the pre-commit hook installer, the catalog regenerator, and the bytecode interface reader. |
+| `recovery/` | The pre-2026-09-09 bytecode, tracked deliberately, and the interface read out of it. See `recovery/README.md`. |
 
 ## Decisions
 
