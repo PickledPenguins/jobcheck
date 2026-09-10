@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./run-tests.sh fast` | 603 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety — then mypy | 24s |
+| `./run-tests.sh fast` | 639 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 28s |
 | `./run-tests.sh long` | 250 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 265s |
-| `./run-tests.sh all` | 853 tests, then mypy and the profile | 290s |
+| `./run-tests.sh all` | 889 tests, then mypy and the profile | 288s |
 | `./run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches | 40s |
 | `./run-tests.sh perf` | timing against this machine's baseline; its own gate | 85s |
 | `./run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 40s |
@@ -69,6 +69,7 @@ Fast:
 | `tests/test_main_unit.py` | Both entry points driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artefact: every rule file loads alone and together, every rule names a real code and a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
 | `tests/test_differential_jobchain.py` | What jobchain's own suite asserted of the pre-rename engine, restated against this one — layering, root cause, cross-row context, crashes, rule-driven disabling. |
+| `tests/test_error_messages_unit.py` | Every message the library raises, compared word for word rather than by keyword: registration, loading, per-row evaluation, reporting and the whole-frame entry point. |
 | `tests/test_perf_baseline_unit.py` | The baseline arithmetic itself: recording, comparing, the tolerance floor and cap, and discarding a baseline from another machine. |
 | `tests/test_readme.py` | The README executed, plus the prose claims and the two-way CLI documentation contract: every flag has a section in `docs/cli.md`, and every documented flag exists. |
 | `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
@@ -157,13 +158,31 @@ in `[tool.mutmut]`:
   neither of which survives being copied into `mutants/`.
 
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
-no test noticed. The last measured run found survivors clustered in the registry's
-debug-print functions, whose tests check individual cells rather than pinning the whole
-rendered table, and in `run.py` — where every survivor was a real gap and has since been
-killed by `tests/test_run_unit.py`'s "what the arguments actually do" section:
-`on_error` never reaching `explain_row`, `progress` and `progress_every` dropped on the
-way to `iter_traces`, `seconds` recorded as `None`, and the overrides list not being
-carried onto the run.
+no test noticed.
+
+Measured on 2026-09-10: **1,603 mutants, 1,396 killed, 207 survived, 0 timeouts** — 87%,
+before the message tests below. What the survivors were:
+
+- **Every survivor in `run.py` was a real gap**, and all are now killed by the "what the
+  arguments actually do" section of `tests/test_run_unit.py`: `on_error` never reaching
+  `explain_row`, `progress` and `progress_every` dropped on the way to `iter_traces`,
+  `seconds` recorded as `None`, and the overrides list not carried onto the run.
+- **Four in `load_test_files`** were real and are killed by
+  `tests/test_load_files_unit.py`: the module not registered in `sys.modules`, the
+  bytecode setting not restored to its exact value, and the loaded module not evicted by
+  `clear_registry` for a file that registers no tests. One — `sys.modules.pop(name)`
+  losing its `None` default — is **equivalent**: the key is always present at that point.
+- **The rest are message wording**, in two groups. The error messages are now pinned word
+  for word by `tests/test_error_messages_unit.py`, which is what closes them; writing it
+  found a real defect (see below). The print functions' own formatting is pinned by the
+  catalog and the golden files, neither of which mutmut can run — the catalog shells out,
+  and the golden comparison is excluded with it.
+
+Writing the message tests found a defect the suite had never noticed:
+`register_test(depends_on="AGE_PRESENT")` did `list(depends_on or [])` before the guard
+could see it, so a mistyped bare string became `['A', 'G', 'E', ...]` and the failure
+arrived much later as a missing prerequisite called `'A'`. Fixed, with the message test as
+its regression test.
 
 ## Performance and profiling
 
