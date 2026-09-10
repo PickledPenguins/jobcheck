@@ -34,6 +34,7 @@ def fresh_registry() -> Iterator[None]:
     saved_tests = list(reg.TESTS)
     saved_suites = set(reg._LOADED_SUITES)
     saved_modules = set(reg._REGISTERING_MODULES)
+    saved_files = list(reg._LOADED_FILES)
     saved_order = reg._TOPO_ORDER
     saved_statuses = dict(res._EXTRA_STATUSES)
 
@@ -46,6 +47,7 @@ def fresh_registry() -> Iterator[None]:
     reg.TESTS.extend(saved_tests)
     reg._LOADED_SUITES.update(saved_suites)
     reg._REGISTERING_MODULES.update(saved_modules)
+    reg._LOADED_FILES.extend(saved_files)
     reg._TOPO_ORDER = saved_order
     res._EXTRA_STATUSES.update(saved_statuses)
 
