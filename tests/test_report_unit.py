@@ -1,4 +1,4 @@
-"""Unit tests: the report library — collection, the failure table, rendering."""
+"""Unit checks: the report library — collection, the failure table, rendering."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import make_test, one_row_report
-from pandas_row_validation import registry as reg
-from pandas_row_validation import report as rep
-from pandas_row_validation.results import Status, TestResult
+from conftest import make_check, one_row_report
+from jobcheck import registry as reg
+from jobcheck import report as rep
+from jobcheck.results import Status, CheckResult
 
 pytestmark = pytest.mark.fast
 
@@ -26,23 +26,23 @@ FRAME = pd.DataFrame(
 
 @pytest.fixture
 def two_layers(fresh_registry: None) -> None:
-    """A root test that fails on some rows, and a dependent that it blocks."""
+    """A root check that fails on some rows, and a dependent that it blocks."""
 
-    @reg.register_test(code="AGE_PRESENT", message="Age is missing")
+    @reg.register_check(code="AGE_PRESENT", message="Age is missing")
     def age_present(row: "pd.Series[Any]") -> Any:
         return True if row["age"] is not None and not pd.isna(row["age"]) else Status.MISSING
 
-    @reg.register_test(code="AGE_IN_RANGE", message="Age is out of range",
+    @reg.register_check(code="AGE_IN_RANGE", message="Age is out of range",
                        depends_on=["AGE_PRESENT"])
     def age_in_range(row: "pd.Series[Any]") -> Any:
         if row["age"] > 130:
-            return TestResult(Status.INVALID, {"maximum": 130, "actual": row["age"]})
+            return CheckResult(Status.INVALID, {"maximum": 130, "actual": row["age"]})
         if row["age"] < 0:
-            return TestResult(Status.INVALID, {"minimum": 0, "actual": row["age"]})
+            return CheckResult(Status.INVALID, {"minimum": 0, "actual": row["age"]})
         return True
 
 
-def outcomes(df: pd.DataFrame = FRAME) -> list[list[reg.TestOutcome]]:
+def outcomes(df: pd.DataFrame = FRAME) -> list[list[reg.CheckOutcome]]:
     return rep.collect_outcomes(df)
 
 
@@ -63,7 +63,7 @@ def test_collect_outcomes_passes_overrides_through(two_layers: None) -> None:
 
 
 def test_collect_outcomes_can_be_made_fatal_on_a_raising_test(fresh_registry: None) -> None:
-    make_test("BOOM", raises=RuntimeError("boom"))
+    make_check("BOOM", raises=RuntimeError("boom"))
     with pytest.raises(RuntimeError, match="boom"):
         rep.collect_outcomes(FRAME, on_error="raise")
 
@@ -94,11 +94,22 @@ def test_the_report_carries_status_layer_suite_and_comments(two_layers: None) ->
     assert row["message"] == "Age is out of range"
 
 
-def test_only_the_first_failure_of_a_row_is_the_root_cause(fresh_registry: None) -> None:
-    make_test("FIRST", passes=False)
-    make_test("SECOND", passes=False)
+def test_two_failures_at_the_same_layer_are_both_root_causes(fresh_registry: None) -> None:
+    """Neither is upstream of the other, so naming one of them would be arbitrary."""
+
+    make_check("FIRST", passes=False)
+    make_check("SECOND", passes=False)
     report = rep.build_report(outcomes(pd.DataFrame([{"age": 1}])))
-    assert list(report["is_root_cause"]) == [True, False]
+    assert list(report["is_root_cause"]) == [True, True]
+
+
+def test_a_failure_below_another_is_not_a_root_cause(fresh_registry: None) -> None:
+    make_check("PARENT")
+    make_check("FIRST", passes=False)
+    make_check("CHILD", passes=False, depends_on=["PARENT"])
+    report = rep.build_report(outcomes(pd.DataFrame([{"age": 1}])))
+    flagged = dict(zip(report["code"], report["is_root_cause"]))
+    assert flagged == {"FIRST": True, "CHILD": False}
 
 
 def test_rows_without_a_key_column_are_labelled_by_index(two_layers: None) -> None:
@@ -258,7 +269,7 @@ def test_include_passed_turns_the_report_into_an_audit_trail(two_layers: None) -
 
 
 def test_an_errored_test_appears_in_the_report(fresh_registry: None) -> None:
-    make_test("BOOM", raises=RuntimeError("boom"))
+    make_check("BOOM", raises=RuntimeError("boom"))
     report = rep.build_report(outcomes(pd.DataFrame([{"age": 1}])))
     assert list(report["outcome"]) == ["errored"]
     assert list(report["status"]) == ["ERROR (9)"]
@@ -376,13 +387,13 @@ def test_root_cause_counts_is_importable_from_the_package() -> None:
     """Regression: it was documented as part of the reporting surface but never
     re-exported, so importing it raised."""
 
-    from pandas_row_validation import root_cause_counts
+    from jobcheck import root_cause_counts
 
     assert root_cause_counts is rep.root_cause_counts
 
 
 def test_root_cause_counts_rank_by_rows(fresh_registry: None) -> None:
-    make_test("COMMON", passes=False)
+    make_check("COMMON", passes=False)
     frame = pd.DataFrame([{"age": 1}, {"age": 2}])
     assert rep.root_cause_counts(rep.collect_outcomes(frame)).to_dict("records") == [
         {"root_cause": "COMMON", "rows": 2}
@@ -411,7 +422,7 @@ def test_print_summary_with_no_rows_says_nothing_ran(
     fresh_registry: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
     table = rep.print_summary([])
-    assert capsys.readouterr().out == "No tests ran.\n"
+    assert capsys.readouterr().out == "No checks ran.\n"
     assert table.empty
 
 
@@ -421,16 +432,16 @@ def test_collect_outcomes_hands_each_row_the_context_its_builder_returned(
     """The context_builder is the adopter's one hook, so its result has to arrive.
 
     Written against a surviving mutant: passing ``ctx=None`` instead of
-    ``context_builder(row)`` broke nothing any test asserted.
+    ``context_builder(row)`` broke nothing any check asserted.
     """
 
-    from pandas_row_validation import FAILED, PASS, PASSED, RowContext
+    from jobcheck import FAILED, PASS, PASSED, RowContext
 
-    @reg.register_test(code="NEEDS_CTX", message="the context said no")
-    def check(row: "pd.Series[Any]", ctx: "RowContext | None") -> TestResult:
+    @reg.register_check(code="NEEDS_CTX", message="the context said no")
+    def check(row: "pd.Series[Any]", ctx: "RowContext | None") -> CheckResult:
         if ctx is None:
-            return TestResult(Status.INVALID, {"ctx": "missing"})
-        return PASS if ctx.flags.get("allowed") else TestResult(Status.INVALID, ctx.flags)
+            return CheckResult(Status.INVALID, {"ctx": "missing"})
+        return PASS if ctx.flags.get("allowed") else CheckResult(Status.INVALID, ctx.flags)
 
     frame = pd.DataFrame([{"id": 1, "allow": True}, {"id": 2, "allow": False}])
     outcomes = rep.collect_outcomes(
@@ -443,7 +454,7 @@ def test_collect_outcomes_hands_each_row_the_context_its_builder_returned(
 # --- what lands on disk -----------------------------------------------------
 #
 # Written against surviving mutants: the encoding and the newline handling of
-# write_report were both dropped without a test noticing, and each decides
+# write_report were both dropped without a check noticing, and each decides
 # whether the file another tool reads is the file this one meant to write.
 
 
@@ -471,7 +482,7 @@ def test_a_written_report_uses_unix_line_endings(fresh_registry: None,
 def formula_report(fresh: None) -> pd.DataFrame:
     """A report whose data column holds a value a spreadsheet would execute."""
 
-    make_test("CELL", passes=False)
+    make_check("CELL", passes=False)
     frame = pd.DataFrame([{"id": 1, "name": "=SUM(A1:A9)"}])
     return rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="id",
                             data_columns=["name"])
@@ -512,3 +523,75 @@ def test_printing_a_report_wraps_the_message_column(fresh_registry: None,
     out = capsys.readouterr().out
     assert max(len(line) for line in out.splitlines()) < 200
     assert len(out.splitlines()) > 3
+
+
+# --- root causes, and keys that identify a row ------------------------------
+
+
+def two_independent_failures(fresh: None) -> list[list[Any]]:
+    """A row failing two chains: one deep, one shallow, deep registered first."""
+
+    make_check("P")
+    make_check("Q", depends_on=["P"])
+    make_check("DEEP", passes=False, depends_on=["Q"])
+    make_check("SHALLOW_A", passes=False)
+    make_check("SHALLOW_B", passes=False)
+    return rep.collect_outcomes(pd.DataFrame([{"id": 1}]))
+
+
+def test_every_failure_at_the_shallowest_layer_is_a_root_cause(fresh_registry: None) -> None:
+    """Two failures at the same depth are two root causes, not a race between them."""
+
+    outcomes = two_independent_failures(fresh_registry)
+    report = rep.build_report(outcomes)
+    flagged = set(report.loc[report["is_root_cause"], "code"])
+    assert flagged == {"SHALLOW_A", "SHALLOW_B"}
+
+
+def test_a_deeper_failure_is_not_a_root_cause(fresh_registry: None) -> None:
+    outcomes = two_independent_failures(fresh_registry)
+    report = rep.build_report(outcomes)
+    assert not report.loc[report["code"] == "DEEP", "is_root_cause"].any()
+
+
+def test_the_root_cause_is_not_always_the_first_line(fresh_registry: None) -> None:
+    """The claim the docstring used to make, pinned as false so it stays fixed."""
+
+    outcomes = two_independent_failures(fresh_registry)
+    report = rep.build_report(outcomes)
+    assert report.iloc[0]["code"] == "DEEP"
+    assert report.iloc[0]["is_root_cause"] is False or not report.iloc[0]["is_root_cause"]
+
+
+def test_a_key_column_holding_the_separator_is_refused(fresh_registry: None) -> None:
+    """('a|b','c') and ('a','b|c') would both render `a|b|c`, hiding a row."""
+
+    make_check("FAILS", passes=False)
+    frame = pd.DataFrame([{"k1": "a|b", "k2": "c"}])
+    with pytest.raises(ValueError, match=r"hold the '\|' that joins a multi-column key"):
+        rep.build_report(rep.collect_outcomes(frame), df=frame, key_column=["k1", "k2"])
+
+
+def test_the_offending_row_and_column_are_named(fresh_registry: None) -> None:
+    make_check("FAILS", passes=False)
+    frame = pd.DataFrame([{"k1": "fine", "k2": "ok"}, {"k1": "fine", "k2": "b|c"}])
+    with pytest.raises(ValueError) as raised:
+        rep.build_report(rep.collect_outcomes(frame), df=frame, key_column=["k1", "k2"])
+    assert "Row 1" in str(raised.value)
+    assert "['k2']" in str(raised.value)
+
+
+def test_a_single_key_column_may_hold_the_separator(fresh_registry: None) -> None:
+    """Nothing is joined, so nothing is ambiguous."""
+
+    make_check("FAILS", passes=False)
+    frame = pd.DataFrame([{"k1": "a|b"}])
+    report = rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="k1")
+    assert list(report["row"]) == ["a|b"]
+
+
+def test_multi_column_keys_join_with_a_pipe(fresh_registry: None) -> None:
+    make_check("FAILS", passes=False)
+    frame = pd.DataFrame([{"k1": "a", "k2": "c"}])
+    report = rep.build_report(rep.collect_outcomes(frame), df=frame, key_column=["k1", "k2"])
+    assert list(report["row"]) == ["a|c"]

@@ -1,4 +1,4 @@
-Loaded suites: ['base', 'hard_tests', 'soft_tests']
+Loaded suites: ['base', 'hard_checks', 'soft_checks']
 
 Loaded 2 override rule(s) from 2 file(s)
 

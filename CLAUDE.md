@@ -5,14 +5,18 @@ repository.
 
 ## What this is
 
-`pandas-row-validation`: validating rows of a pandas DataFrame with many small,
+`jobcheck`: validating rows of a pandas DataFrame with many small,
 independently named tests that depend on each other, so a blank field produces one error
 rather than one from every test that reads it. The README is the reference manual and
 `docs/` holds the rest; read `docs/interfaces.md` before changing a public name.
 
-The directory is still called `~/work/ai/jobcheck`, and the remote — if one is ever added —
-will not be. The project was named **jobcheck** until 2026-09-09 and renamed in one pass
-that evening. Everything below exists because that rename is not visible in `git log`.
+The project is called **jobcheck**, and the package is `src/jobcheck/`. It was renamed to
+`pandas-row-validation` on 2026-09-09 — package, distribution and vocabulary together —
+and renamed back on 2026-09-10 at the owner's instruction, because the "test" vocabulary
+that came with it (`test_group`, `TestResult`, `test_*.py` suite files) is collected by
+pytest inside an adopter's project and turns the registry's duplicate-code guard into a
+mysterious test failure. Everything below exists because neither rename is visible in
+`git log`.
 
 ## The git history starts on 2026-09-09, and that is an accident
 
@@ -49,7 +53,7 @@ there are two generations of it — `cpython-312` compiled between 09-03 and 09-
 Reading those headers gives the size of every source file at two points in time, which can
 be compared with what is on disk now:
 
-| Module | 09-03..09-07 | now (`pandas_row_validation`) |
+| Module | 09-03..09-07 | now (`jobcheck`) |
 |---|---|---|
 | `context` | 1,382 | 1,837 |
 | `registry` | 16,799 | 34,613 (absorbed `engine` and `registry_tables`) |
@@ -90,7 +94,7 @@ plainly later work (the `tables` and `report` tests, the extensible-status machi
 `results`, `load_overrides_from_dir`/`from_files`, `MatchCriterion`), and parts of what is
 gone was plainly real (a 37 KB test module for `lint` is not a sketch). The docstrings
 match closely enough to be the same document lineage — `check_group`'s "Defaults for a
-file of checks: prerequisites and default on/off state" is `test_group`'s "Defaults for a
+file of checks: prerequisites and default on/off state" is `check_group`'s "Defaults for a
 file of tests: prerequisites, suite, and default state" — so this is one project, but the
 tree here at 23:54 is not simply the tree at 23:27 with names changed.
 
@@ -104,7 +108,7 @@ tree here at 23:54 is not simply the tree at 23:27 with names changed.
   size stays exactly what it was on 09-07. Sizes unchanged with mtimes reset is what a
   copy or a restore looks like, not an edit. This is the likely moment of the `.git`
   accident and whatever recovery followed it.
-- **09-09 23:54** — `src/pandas_row_validation/*.py` and the current `tests/` appear,
+- **09-09 23:54** — `src/jobcheck/*.py` and the current `tests/` appear,
   27 minutes later, in the **test/suite** vocabulary.
 
 Chris's own recollection is of renaming **test → check**, which fits everything above if
@@ -205,12 +209,12 @@ Renamed:
 
 | Was | Is |
 |---|---|
-| `jobcheck` (package) | `pandas_row_validation`, distribution `pandas-row-validation` |
-| `check_group` | `test_group` |
-| `Check`, `CheckGroup` | `Test`, `TestGroup` |
-| `CheckResult` | `TestResult` |
-| `CheckRecord` | `TestOutcome` |
-| `load_checks(files)` | `load_test_files(paths)`, rebuilt 2026-09-10. `load_suites(suites, package)` is the other loader: suite subpackages of *your* package, rather than file paths |
+| `jobcheck` (package) | `jobcheck`, distribution `jobcheck` |
+| `check_group` | `check_group` |
+| `Check`, `CheckGroup` | `Test`, `CheckGroup` |
+| `CheckResult` | `CheckResult` |
+| `CheckRecord` | `CheckOutcome` |
+| `load_checks(files)` | `load_checks(paths)`, rebuilt 2026-09-10. `load_suites(suites, package)` is the other loader: suite subpackages of *your* package, rather than file paths |
 
 Gone at the rename and rebuilt on 2026-09-10: `validate(df, overrides, context_builder)`,
 the whole-frame entry point, now in `run.py` alongside `iter_traces` and the
@@ -256,7 +260,7 @@ of its tests skip, and its documented quick start does not execute.
 Two of the gaps were closed here on 2026-09-10 rather than in jobchain, because both were
 capabilities this tree had lost rather than names it had changed:
 
-- `load_test_files(paths)` imports `.py` files by path, the way `load_checks` did.
+- `load_checks(paths)` imports `.py` files by path, the way `load_checks` did.
   `load_suites(suites, package)` cannot: jobchain names arbitrary files in a prepared run's
   `inputs/` directory, and a package is the wrong shape for that.
 - `validate(df, overrides, context_builder)` is back in `run.py`, returning a
@@ -268,18 +272,18 @@ What jobchain still has to change, name by name:
 | jobchain calls | here now | note |
 |---|---|---|
 | `clear_registry()` | `clear_registry()` | unchanged |
-| `load_checks(paths)` | `load_test_files(paths)` | rename; same semantics, and no `.pyc` left beside the file |
+| `load_checks(paths)` | `load_checks(paths)` | rename; same semantics, and no `.pyc` left beside the file |
 | `load_overrides(*files)` | `load_overrides_from_files(paths)` | one list rather than varargs; `load_overrides(path)` for one file |
 | `validate(df, overrides, context_builder)` | `validate(df, overrides, context_builder, on_error)` | unchanged, plus `on_error` |
 | `run.errors`, `trace.position`, `trace.root_cause`, `trace.failures` | same four | unchanged |
-| `failure.code/.message/.comments/.outcome` | same four names on `TestOutcome` | unchanged |
+| `failure.code/.message/.comments/.outcome` | same four names on `CheckOutcome` | unchanged |
 | `render_comments(comments)` | `render_comments(comments)` | unchanged |
 | `ERRORED` | `ERRORED` (`"errored"`) | unchanged |
 | `RowContext`, subclassed | `RowContext`, subclassed | unchanged; fields are `flags`, `paths`, `state`, `extra` |
-| `check_group(...)` | `test_group(depends_on, suite, default_enabled)` | rename, plus the new `suite` argument |
-| `CheckResult(Status.X, {...})` | `TestResult(code, comments)` | rename; same positional shape |
+| `check_group(...)` | `check_group(depends_on, suite, default_enabled)` | rename, plus the new `suite` argument |
+| `CheckResult(Status.X, {...})` | `CheckResult(code, comments)` | rename; same positional shape |
 | `PASS`, `Status.MISSING/MALFORMED/INVALID` | identical | `Status.ERROR` is reserved for the engine |
-| `jobcheck` | `pandas_row_validation` | the import, and `_ENGINE_NAMES` with it |
+| `jobcheck` | `jobcheck` | the import, and `_ENGINE_NAMES` with it |
 
 **The remaining incompatibility is the rule file format, and it is data, not code.** The
 check era took one top-level `column`/`pattern` pair per rule, matched with

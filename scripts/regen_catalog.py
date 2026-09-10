@@ -31,7 +31,7 @@ def main(argv: list[str]) -> int:
             if kind == "examples":
                 stdout_file.write_text(result.stdout, encoding="utf-8")
                 # An example only carries an expected_stderr.txt when it actually
-                # writes to stderr; the test requires stderr to be empty otherwise.
+                # writes to stderr; the check requires stderr to be empty otherwise.
                 if result.stderr:
                     stderr_file.write_text(result.stderr, encoding="utf-8")
                 elif stderr_file.exists():

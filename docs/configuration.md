@@ -8,8 +8,8 @@ Override rules let a non-developer enable a normally-off code, or disable a norm
 code, **for specific rows**, without touching Python. They cannot define new checks,
 change a message, or alter what a check does.
 
-Back to the [README](../README.md). Tests themselves are written in
-[Python](writing-tests.md); the Python loaders are in
+Back to the [README](../README.md). Checks themselves are written in
+[Python](writing-checks.md); the Python loaders are in
 [interfaces.md](interfaces.md#loading-override-rules).
 
 ## File shape
@@ -31,14 +31,14 @@ write code.
       pattern: "^BATCH$"
 
 - name: "suppress_email_checks_for_test_accounts"
-  description: "Internal test accounts shouldn't trigger email format errors"
+  description: "Internal check accounts shouldn't trigger email format errors"
   action: disable
   codes:
     - EMAIL_MISSING_AT
     - EMAIL_DOMAIN_INVALID
   match:
     - column: email
-      pattern: "@internal\\.test$"
+      pattern: "@internal\\.check$"
 
 - name: "disable_age_integer_check_globally"
   description: "Example: disable AGE_NOT_INTEGER for every row, no filtering"
@@ -90,7 +90,7 @@ Two shapes are rejected rather than treated as match-everything:
 
 ## Precedence: last rule wins
 
-For a given row, the state of a code starts at the test's `default_enabled`, then every
+For a given row, the state of a code starts at the check's `default_enabled`, then every
 matching rule is applied in load order. The **last** matching rule decides. There is no
 priority field, so ordering is entirely positional — which makes load order part of the
 configuration:
@@ -128,7 +128,7 @@ the file it came from.
 | misspelled key | `unknown key(s) codez. Allowed: action, codes, description, match, name.` |
 
 An "unknown code" that you know exists usually means its suite was not loaded by this
-entry point — see [writing-tests.md](writing-tests.md#troubleshooting).
+entry point — see [writing-checks.md](writing-checks.md#troubleshooting).
 
 ## Secrets
 

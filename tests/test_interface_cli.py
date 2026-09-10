@@ -1,4 +1,4 @@
-"""Interface tests: the CLI contract — flags, defaults, exit codes, routing."""
+"""Interface checks: the CLI contract — flags, defaults, exit codes, routing."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ pytestmark = pytest.mark.fast
 
 def test_defaults_when_no_flags_are_given() -> None:
     args = main.parse_args([])
-    assert args.suites == ["hard_tests", "soft_tests"]
+    assert args.suites == ["hard_checks", "soft_checks"]
     assert args.overrides == ["examples/rules/error_overrides.yaml"]
     assert args.verbose == 0
 
@@ -25,14 +25,14 @@ def test_defaults_when_no_flags_are_given() -> None:
 @pytest.mark.parametrize(
     "argv",
     [
-        pytest.param(["-e", "hard_tests", "soft_tests"], id="multi-value"),
-        pytest.param(["-e", "hard_tests", "-e", "soft_tests"], id="repeated"),
-        pytest.param(["-e", "hard_tests", "-o", "x.yaml", "-e", "soft_tests"], id="interleaved"),
-        pytest.param(["--suites", "hard_tests", "--suites", "soft_tests"], id="long-form"),
+        pytest.param(["-e", "hard_checks", "soft_checks"], id="multi-value"),
+        pytest.param(["-e", "hard_checks", "-e", "soft_checks"], id="repeated"),
+        pytest.param(["-e", "hard_checks", "-o", "x.yaml", "-e", "soft_checks"], id="interleaved"),
+        pytest.param(["--suites", "hard_checks", "--suites", "soft_checks"], id="long-form"),
     ],
 )
 def test_suites_flatten_in_the_order_given(argv: list[str]) -> None:
-    assert main.parse_args(argv).suites == ["hard_tests", "soft_tests"]
+    assert main.parse_args(argv).suites == ["hard_checks", "soft_checks"]
 
 
 @pytest.mark.parametrize(
@@ -40,7 +40,7 @@ def test_suites_flatten_in_the_order_given(argv: list[str]) -> None:
     [
         pytest.param(["-o", "a.yaml", "b.yaml"], id="multi-value"),
         pytest.param(["-o", "a.yaml", "-o", "b.yaml"], id="repeated"),
-        pytest.param(["--overrides", "a.yaml", "-e", "hard_tests", "--overrides", "b.yaml"],
+        pytest.param(["--overrides", "a.yaml", "-e", "hard_checks", "--overrides", "b.yaml"],
                      id="interleaved"),
     ],
 )
@@ -63,7 +63,7 @@ def test_verbose_counts(argv: list[str], expected: int) -> None:
 
 
 def test_passing_a_suite_replaces_the_default_rather_than_extending_it() -> None:
-    assert main.parse_args(["-e", "hard_tests"]).suites == ["hard_tests"]
+    assert main.parse_args(["-e", "hard_checks"]).suites == ["hard_checks"]
 
 
 # --- exit codes -------------------------------------------------------------
@@ -120,7 +120,11 @@ def test_explain_prints_one_row_and_its_root_cause() -> None:
     out = run_cli("examples/main.py", "--explain", "5").stdout
     assert "== Row 5 ==" in out
     assert "prerequisite did not pass: AGE_PRESENT" in out
-    assert out.strip().endswith("root cause: ROW_ALL_NULL")
+    # Row 5 is entirely empty, so every layer-0 check fails and all of them are
+    # root causes -- none is upstream of another.
+    last = out.strip().splitlines()[-1]
+    assert last.startswith("root causes: ")
+    assert "ROW_ALL_NULL" in last
 
 
 def test_explain_outside_the_frame_exits_two() -> None:
@@ -166,7 +170,7 @@ def test_missing_override_file_exits_one() -> None:
 
 def test_results_go_to_stdout_and_nothing_to_stderr() -> None:
     result = run_cli("examples/main.py")
-    assert result.stdout.startswith("Loaded suites: ['base', 'hard_tests', 'soft_tests']")
+    assert result.stdout.startswith("Loaded suites: ['base', 'hard_checks', 'soft_checks']")
     assert result.stderr == ""
 
 
@@ -199,7 +203,7 @@ def test_debug_two_adds_source_files_and_the_by_rule_table() -> None:
 
 
 def test_suite_selection_changes_which_codes_are_registered() -> None:
-    result = run_cli("examples/main.py", "-e", "hard_tests",
+    result = run_cli("examples/main.py", "-e", "hard_checks",
                      "-o", "examples/rules/split_by_topic/01_age_rules.yaml")
     assert result.returncode == 0, result.stderr
     assert "AGE_NEGATIVE" in result.stdout
@@ -207,17 +211,17 @@ def test_suite_selection_changes_which_codes_are_registered() -> None:
 
 
 def test_narrowing_suites_without_narrowing_rules_exits_one() -> None:
-    """The default rule file names soft_tests codes, so loading only hard_tests
+    """The default rule file names soft_checks codes, so loading only hard_checks
     is a load-time error rather than a silent skip."""
 
-    result = run_cli("examples/main.py", "-e", "hard_tests")
+    result = run_cli("examples/main.py", "-e", "hard_checks")
     assert result.returncode == 1
     assert "unknown code 'EMAIL_MISSING_AT'" in result.stderr
 
 
 def test_main_hard_only_registers_no_email_checks() -> None:
     out = run_cli("examples/main_hard_only.py").stdout
-    assert out.startswith("Loaded suites: ['base', 'hard_tests']")
+    assert out.startswith("Loaded suites: ['base', 'hard_checks']")
     assert "EMAIL" not in out
 
 
@@ -232,7 +236,7 @@ def test_main_hard_only_rejects_an_unknown_flag() -> None:
 def test_main_hard_only_has_help() -> None:
     result = run_cli("examples/main_hard_only.py", "--help")
     assert result.returncode == 0
-    assert "loading only the hard_tests suite" in result.stdout
+    assert "loading only the hard_checks suite" in result.stdout
 
 
 # --- reading a data file ----------------------------------------------------
@@ -257,7 +261,7 @@ def test_load_frame_returns_the_demo_frame_when_no_path_is_given() -> None:
 
 
 def test_load_frame_reads_every_column_of_a_csv_as_text(tmp_path: Any) -> None:
-    # A test that judges whether a value is a number has to see what the file
+    # A check that judges whether a value is a number has to see what the file
     # said; pandas inferring the column would repair "41.5" before anything
     # looked at it.
     path = tmp_path / "rows.csv"

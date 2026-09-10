@@ -1,4 +1,4 @@
-"""Tests on the ``age`` column."""
+"""Checks on the ``age`` column."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from typing import Any
 
 import pandas as pd
 
-from pandas_row_validation.registry import register_test, test_group
-from pandas_row_validation.results import PASS, Status, TestResult
+from jobcheck.registry import register_check, check_group
+from jobcheck.results import PASS, Status, CheckResult
 
 
 def _number(value: Any) -> float | None:
@@ -21,33 +21,33 @@ def _number(value: Any) -> float | None:
         return None
 
 
-@register_test(
+@register_check(
     code="AGE_PRESENT",
     message="Age is missing",
-    description="The presence test the rest of this file waits for.",
+    description="The presence check the rest of this file waits for.",
 )
-def age_present(row: "pd.Series[Any]") -> TestResult:
+def age_present(row: "pd.Series[Any]") -> CheckResult:
     """Pass when the row carries an age at all."""
 
     if "age" not in row.index:
-        return TestResult(Status.MISSING, {"reason": "no age column"})
+        return CheckResult(Status.MISSING, {"reason": "no age column"})
     value = row["age"]
     if value is None or (pd.api.types.is_scalar(value) and pd.isna(value)):
-        return TestResult(Status.MISSING)
+        return CheckResult(Status.MISSING)
     return PASS
 
 
-age = test_group(depends_on=["AGE_PRESENT"])
+age = check_group(depends_on=["AGE_PRESENT"])
 """Everything below waits for an age to be there: one complaint about a blank
-field instead of one from every test that reads it."""
+field instead of one from every check that reads it."""
 
 
 @age("AGE_NOT_A_NUMBER", "Age is not a number")
-def age_is_a_number(row: "pd.Series[Any]") -> TestResult:
+def age_is_a_number(row: "pd.Series[Any]") -> CheckResult:
     """Pass when the age can be read as a number."""
 
     if _number(row["age"]) is None:
-        return TestResult(Status.MALFORMED, {"value": row["age"]})
+        return CheckResult(Status.MALFORMED, {"value": row["age"]})
     return PASS
 
 
@@ -57,12 +57,12 @@ def age_is_a_number(row: "pd.Series[Any]") -> TestResult:
     depends_on=["AGE_NOT_A_NUMBER"],
     description="Ages below zero are always a data-entry or unit error.",
 )
-def age_negative(row: "pd.Series[Any]") -> TestResult:
+def age_negative(row: "pd.Series[Any]") -> CheckResult:
     """Pass unless the age is below zero."""
 
     value = _number(row["age"])
     if value is not None and value < 0:
-        return TestResult(Status.INVALID, {"value": value, "minimum": 0})
+        return CheckResult(Status.INVALID, {"value": value, "minimum": 0})
     return PASS
 
 
@@ -72,12 +72,12 @@ def age_negative(row: "pd.Series[Any]") -> TestResult:
     depends_on=["AGE_NOT_A_NUMBER"],
     description="Guards against sentinel values such as 999 leaking in as real ages.",
 )
-def age_too_high(row: "pd.Series[Any]") -> TestResult:
+def age_too_high(row: "pd.Series[Any]") -> CheckResult:
     """Pass unless the age exceeds 130."""
 
     value = _number(row["age"])
     if value is not None and value > 130:
-        return TestResult(Status.INVALID, {"value": value, "maximum": 130})
+        return CheckResult(Status.INVALID, {"value": value, "maximum": 130})
     return PASS
 
 
@@ -89,10 +89,10 @@ def age_too_high(row: "pd.Series[Any]") -> TestResult:
     description="Off by default: only some source systems promise integer ages. "
     "Turn it on for those systems with an override rule.",
 )
-def age_not_integer(row: "pd.Series[Any]") -> TestResult:
+def age_not_integer(row: "pd.Series[Any]") -> CheckResult:
     """Pass unless the age has a fractional part."""
 
     value = _number(row["age"])
     if value is not None and not value.is_integer():
-        return TestResult(Status.INVALID, {"value": value})
+        return CheckResult(Status.INVALID, {"value": value})
     return PASS

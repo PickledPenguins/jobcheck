@@ -1,1 +1,1 @@
-python3 examples/main.py --data examples/data/customers.csv --report csv --report-file /tmp/pandas-row-validation-example-report.csv --no-registry
+python3 examples/main.py --data examples/data/customers.csv --report csv --report-file /tmp/jobcheck-example-report.csv --no-registry

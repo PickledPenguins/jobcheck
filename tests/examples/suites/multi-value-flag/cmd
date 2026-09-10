@@ -1,1 +1,1 @@
-python3 examples/main.py -e hard_tests soft_tests
+python3 examples/main.py -e hard_checks soft_checks

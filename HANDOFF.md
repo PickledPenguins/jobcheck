@@ -11,9 +11,9 @@ Measured on 2026-09-10, Python 3.14.6, pandas 2.x, on the `claude` branch.
 
 | Gate | Result |
 |---|---|
-| `./run-tests.sh` (fast, the commit gate) | 704 passed, 29s |
+| `./run-tests.sh` (fast, the commit gate) | 717 passed, 28s |
 | `./run-tests.sh long` | 251 passed, 265s |
-| `./run-tests.sh all` | 955 passed, 290s |
+| `./run-tests.sh all` | 968 passed, 286s |
 | `./run-tests.sh cov` | 100% of statements and branches, against a 95% floor |
 | `./run-tests.sh perf` | 6 timings against this machine's baseline, 85s |
 | `./run-tests.sh memory` | 3 peak-memory ceilings, 40s |
@@ -37,7 +37,7 @@ two entry points it used to have, with the only copy of the lost code sitting in
   `scripts/read_bytecode_api.py` reads names, parameters and docstrings out of a `.pyc`
   with `marshal` and generates `recovery/recovered-api.md` and
   `recovery/recovered-tests-api.md`.
-- **`load_test_files(paths)`** in `registry.py`, rebuilt from the check-era `load_checks`.
+- **`load_checks(paths)`** in `registry.py`, rebuilt from the check-era `load_checks`.
   Files named explicitly, nothing discovered, repeats skipped, dependencies validated at
   the end of the call, a unique module name per file, no `__pycache__` written beside the
   caller's file. `loaded_files()` reports them; `clear_registry()` forgets them.
@@ -77,6 +77,34 @@ two entry points it used to have, with the only copy of the lost code sitting in
 - **Coverage now includes the entry points** (`examples/main.py`,
   `examples/main_hard_only.py`) and the baseline helper, and is 100% of statements and
   branches against the 95% floor.
+
+### 2026-09-10, later: renamed back to jobcheck, vocabulary reverted, registry split
+
+At the owner's instruction, and all of it in one pass:
+
+- **`pandas_row_validation` is `jobcheck` again**, package, distribution and every
+  reference. The bytecode-only `src/jobcheck/` that used to sit in the way was deleted;
+  `recovery/bytecode/jobcheck/` and the tarball outside the repository hold that copy.
+- **The vocabulary went back to "check"** — `check_group`, `CheckResult`, `CheckOutcome`,
+  `register_check`, `load_checks`, `CHECKS`, and suite files named `check_*.py`. The
+  reason is concrete rather than cosmetic: a file named `test_*.py` inside an adopter's
+  package is collected by pytest, which imports it a second time under its own rules and
+  reports the registry's duplicate-code guard as a test failure.
+- **`RowContext` is empty by default.** `build_context` reads nothing out of the row; the
+  adopter supplies a builder, and handing every row the same object is how a cross-row
+  check stays cheap.
+- **Every failure at the shallowest layer is a root cause**, not just the first evaluated.
+  `root_causes()` is new; `root_cause()` returns one of them for a caller that wants a
+  single label.
+- **A multi-column key holding `|` raises** rather than rendering two different rows as
+  the same label.
+- **A check blocked only by disabled prerequisites says `prerequisite disabled:`**, so a
+  chain switched off at its root no longer reads as a chain that failed.
+- **`registry.py` split three ways**: `registry.py` (what checks exist), `engine.py` (what
+  happens to a row), `registry_tables.py` (how both are displayed). 1,021 lines became
+  629 + 235 + 183.
+- **`requirements.txt` and `requirements-dev.txt` are gone**; `pyproject.toml` is the one
+  dependency list, and the test that checked the old files now reads it.
 
 ## Not addressed — the real to-do list
 
@@ -118,7 +146,7 @@ two entry points it used to have, with the only copy of the lost code sitting in
 ## Decisions worth knowing before changing things
 
 - **A path-loaded test file lands in `BASE_SUITE`.** `_infer_suite` maps a module name with
-  fewer than three dotted parts there, and `load_test_files` gives each file a flat name.
+  fewer than three dotted parts there, and `load_checks` gives each file a flat name.
   That is deliberate: the base suite is always loaded, so a file named by path always runs.
 - **`validate` is a layer over `explain_row`, not a second engine.** `collect_outcomes`
   and `iter_traces` call the same per-row function; there is one implementation of the

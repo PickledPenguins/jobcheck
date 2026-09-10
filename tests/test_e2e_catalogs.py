@@ -66,7 +66,7 @@ def test_the_catalog_has_enough_of_each_level() -> None:
 
     A reader looking for something close to their own case should find it, which
     needs breadth at every level -- and the complex cases are the ones no unit
-    test replaces, because nothing there is under test on its own.
+    check replaces, because nothing there is under check on its own.
     """
 
     counts = {"simple": 0, "moderate": 0, "complex": 0}

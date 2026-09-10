@@ -5,7 +5,7 @@ the old system? One suite, the rule that only fires on `LEGACY_*` + `BATCH`,
 full verbosity, and the three columns that decide it shown beside each failure.
 
 Level:    complex
-Input:    `examples/data/customers.csv`, `hard_tests`, the legacy rule, verbosity 2
+Input:    `examples/data/customers.csv`, `hard_checks`, the legacy rule, verbosity 2
 Expected: `AGE_NOT_INTEGER` on the legacy batch rows only, with the columns that
           selected them; exit 0
 

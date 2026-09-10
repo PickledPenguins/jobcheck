@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./run-tests.sh fast` | 704 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 28s |
+| `./run-tests.sh fast` | 717 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 28s |
 | `./run-tests.sh long` | 251 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 265s |
-| `./run-tests.sh all` | 955 tests, then mypy and the profile | 290s |
+| `./run-tests.sh all` | 968 tests, then mypy and the profile | 286s |
 | `./run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches | 40s |
 | `./run-tests.sh perf` | timing against this machine's baseline; its own gate | 85s |
 | `./run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 40s |
@@ -59,12 +59,12 @@ Fast:
 | File | Covers |
 |---|---|
 | `tests/test_registry_unit.py` | Registration and its duplicate guard, suite inference, suite loading and its no-ops, `clear_registry`, dependency validation, cycle detection, topological order and its cache. |
-| `tests/test_load_files_unit.py` | `load_test_files`: files named by path, repeats and reloads skipped, unique module names, the base suite, prerequisites across files in one call, what a broken file leaves behind, and that no `__pycache__` appears beside the caller's file. |
+| `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads skipped, unique module names, the base suite, prerequisites across files in one call, what a broken file leaves behind, and that no `__pycache__` appears beside the caller's file. |
 | `tests/test_run_unit.py` | The whole-frame entry point: trace shape and positions, root causes, `RunStats`, `ValidationRun`'s views and `from_records`, `iter_traces`, progress reporting, and `on_error` reaching `explain_row`. |
 | `tests/test_overrides_unit.py` | Every rule-file rejection (19 parametrised cases asserting the exact message), the three loaders and their ordering, duplicate names, matching semantics, last-rule-wins precedence. |
-| `tests/test_results_unit.py` | The status vocabulary, registering project statuses, `TestResult` truthiness and validation, and normalising whatever a test returned. |
+| `tests/test_results_unit.py` | The status vocabulary, registering project statuses, `CheckResult` truthiness and validation, and normalising whatever a test returned. |
 | `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `check_rule_columns`, root cause, layers, and the shipped tests at their boundaries. |
-| `tests/test_groups_unit.py` | `test_group` defaults, prerequisites unioned with a test's own, suite and default-state overrides, and the registration guards. |
+| `tests/test_groups_unit.py` | `check_group` defaults, prerequisites unioned with a test's own, suite and default-state overrides, and the registration guards. |
 | `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys, `include_skipped`/`include_passed`, table and CSV rendering, writing files, explanations and summaries. |
 | `tests/test_main_unit.py` | Both entry points driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artefact: every rule file loads alone and together, every rule names a real code and a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
@@ -172,7 +172,7 @@ The first run scored 87%, and every survivor was read. What they were:
 - **Real gaps, now killed.** Every survivor in `run.py` (`on_error` never reaching
   `explain_row`, `progress` and `progress_every` dropped, `seconds` computed as
   `perf_counter() + started`, the overrides list not carried onto the run), four in
-  `load_test_files` (the module missing from `sys.modules`, the bytecode flag not
+  `load_checks` (the module missing from `sys.modules`, the bytecode flag not
   restored exactly, a file registering no tests never evicted), `collect_outcomes`
   ignoring its `context_builder`, `format_table` breaking long words and hyphens,
   `row_explanation` losing its columns on an empty frame, and `cell_text` treating a
@@ -195,7 +195,7 @@ The first run scored 87%, and every survivor was read. What they were:
   `tests/test_error_messages_unit.py`.
 
 Writing the message tests found a defect the suite had never noticed:
-`register_test(depends_on="AGE_PRESENT")` did `list(depends_on or [])` before the guard
+`register_check(depends_on="AGE_PRESENT")` did `list(depends_on or [])` before the guard
 could see it, so a mistyped bare string became `['A', 'G', 'E', ...]` and the failure
 arrived much later as a missing prerequisite called `'A'`. Fixed, with the message test as
 its regression test.

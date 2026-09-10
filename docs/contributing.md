@@ -8,14 +8,17 @@ Changing this project itself: where a change goes, and what enforces what.
 
 | Change | Where |
 |---|---|
-| A new test for row data | Your own package, not this one. This library ships no tests — see [writing-tests.md](writing-tests.md). |
-| Engine behaviour: registration, ordering, per-row evaluation | `src/pandas_row_validation/registry.py` |
-| The whole-frame entry point and what it returns | `src/pandas_row_validation/run.py` |
-| Anything about the report: columns, formats, files | `src/pandas_row_validation/report.py` |
-| The rule-file format and its parser | `src/pandas_row_validation/rules.py` — it never reaches into the registry; the codes that exist are handed to it |
-| What a test may return, and the status vocabulary | `src/pandas_row_validation/results.py` |
-| Table rendering and null handling | `src/pandas_row_validation/tables.py` |
+| A new test for row data | Your own package, not this one. This library ships no tests — see [writing-checks.md](writing-checks.md). |
+| What checks exist: registration, groups, suites, loading, the dependency graph | `src/jobcheck/registry.py` |
+| What happens to a row: on/off state, evaluation order, outcomes, root causes | `src/jobcheck/engine.py` |
+| How the registry and the rules are displayed | `src/jobcheck/registry_tables.py` |
+| The whole-frame entry point and what it returns | `src/jobcheck/run.py` |
+| Anything about the report: columns, formats, files | `src/jobcheck/report.py` |
+| The rule-file format and its parser | `src/jobcheck/rules.py` — it never reaches into the registry; the codes that exist are handed to it |
+| What a test may return, and the status vocabulary | `src/jobcheck/results.py` |
+| Table rendering and null handling | `src/jobcheck/tables.py` |
 | A demo of any of the above | `examples/`, never the package |
+| A dependency | `pyproject.toml` only — there is no requirements.txt to keep in step |
 
 Layout rules the tests enforce: unit files mirror the module they cover
 (`tests/test_<module>_unit.py`), generated artifacts stay out of the project root, and the

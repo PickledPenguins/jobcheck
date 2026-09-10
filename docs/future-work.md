@@ -19,8 +19,8 @@ rebuild it; none is rebuilt because nothing calls them today. `lint` is the one 
 obvious value — warnings about rule files that parse but can never fire, fire everywhere,
 or were superseded.
 
-**F.2 — Eleven test modules from the same era are also unrebuilt.**
-`recovery/recovered-tests-api.md` lists what each asserted, by name and docstring. The
+**F.2 — Eleven check modules from the same era are also unrebuilt.**
+`recovery/recovered-checks-api.md` lists what each asserted, by name and docstring. The
 current suite covers most of the same surface; `test_error_messages` and `test_rules_unit`
 are the two whose subjects are now covered from a different angle rather than directly.
 
@@ -38,8 +38,8 @@ the summary and the explanation all need them; `iter_traces` keeps one row's wor
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
 
-**A `load_checks` alias for `load_test_files`.** Rejected 2026-09-10. The vocabulary here
-is "test"; an alias in the old vocabulary would outlive its reason, and the one caller
+**A `load_checks` alias for `load_checks`.** Rejected 2026-09-10. The vocabulary here
+is "check"; an alias in the old vocabulary would outlive its reason, and the one caller
 that needed it (jobchain) was ported in the same pass.
 
 **Inferring a report's format from the file extension.** Rejected: `--report` decides the
@@ -62,7 +62,7 @@ machine is either so loose it catches nothing or so tight it fails on a slower o
 with the tolerance derived from that machine's own measured spread.
 
 **Gating on the profile.** Rejected: a profile is a description. Turning one into a
-threshold produces a flaky test and a number nobody trusts; the timing gate is the
+threshold produces a flaky check and a number nobody trusts; the timing gate is the
 assertion, and the profile says where the time went once it fires.
 
 **Chasing the remaining mutation survivors to 100%.** Rejected with the evidence in

@@ -1,4 +1,4 @@
-"""Cross-column date tests."""
+"""Cross-column date checks."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from typing import Any
 
 import pandas as pd
 
-from pandas_row_validation.registry import register_test, test_group
-from pandas_row_validation.results import PASS, Status, TestResult
+from jobcheck.registry import register_check, check_group
+from jobcheck.results import PASS, Status, CheckResult
 
 
 def _date(row: "pd.Series[Any]", column: str) -> pd.Timestamp | None:
@@ -22,34 +22,34 @@ def _date(row: "pd.Series[Any]", column: str) -> pd.Timestamp | None:
     return None if pd.isna(parsed) else pd.Timestamp(parsed)
 
 
-@register_test(
+@register_check(
     code="DATES_PRESENT",
     message="Both start_date and end_date are needed",
-    description="The presence test the ordering test waits for.",
+    description="The presence check the ordering check waits for.",
 )
-def dates_present(row: "pd.Series[Any]") -> TestResult:
+def dates_present(row: "pd.Series[Any]") -> CheckResult:
     """Pass when both dates are readable."""
 
     missing = [column for column in ("start_date", "end_date") if _date(row, column) is None]
     if missing:
-        return TestResult(Status.MISSING, {"columns": ", ".join(missing)})
+        return CheckResult(Status.MISSING, {"columns": ", ".join(missing)})
     return PASS
 
 
-dates = test_group(depends_on=["DATES_PRESENT"])
+dates = check_group(depends_on=["DATES_PRESENT"])
 
 
 @dates(
     "DATES_OUT_OF_ORDER",
     "start_date is after end_date",
-    description="A test weighing two columns together, which is why tests are given "
+    description="A check weighing two columns together, which is why checks are given "
     "the whole row rather than one value.",
 )
-def dates_in_order(row: "pd.Series[Any]") -> TestResult:
+def dates_in_order(row: "pd.Series[Any]") -> CheckResult:
     """Pass when start_date is not later than end_date."""
 
     start = _date(row, "start_date")
     end = _date(row, "end_date")
     if start is not None and end is not None and start > end:
-        return TestResult(Status.INVALID, {"start_date": start.date(), "end_date": end.date()})
+        return CheckResult(Status.INVALID, {"start_date": start.date(), "end_date": end.date()})
     return PASS

@@ -1,8 +1,8 @@
-"""Demonstration entry point: load tests, validate a frame, print a report.
+"""Demonstration entry point: load checks, validate a frame, print a report.
 
 The library does the work; this script only chooses what to load and where the
 output goes, so the flags are thin pass-throughs to
-:mod:`pandas_row_validation.report`. It is also what the end-to-end tests drive.
+:mod:`jobcheck.report`. It is also what the end-to-end checks drive.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import pandas as pd
 
-from pandas_row_validation import (
+from jobcheck import (
     OverrideRule,
     build_report,
     check_rule_columns,
@@ -34,9 +34,9 @@ from pandas_row_validation import (
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """The command line, built separately so the documentation test can read it.
+    """The command line, built separately so the documentation check can read it.
 
-    Every option here has a section in ``docs/cli.md``, and a test compares the
+    Every option here has a section in ``docs/cli.md``, and a check compares the
     two lists both ways: an undocumented flag and a documented flag that no
     longer exists are both failures.
 
@@ -46,9 +46,9 @@ def build_parser() -> argparse.ArgumentParser:
     :func:`parse_args` flattens in the order the user typed.
     """
 
-    parser = argparse.ArgumentParser(description="Validate rows of a DataFrame with pluggable tests.")
+    parser = argparse.ArgumentParser(description="Validate rows of a DataFrame with pluggable checks.")
     parser.add_argument("-e", "--suites", nargs="+", action="append", default=None,
-                        help="Suites of tests to load (repeatable, several values allowed).")
+                        help="Suites of checks to load (repeatable, several values allowed).")
     parser.add_argument("-o", "--overrides", nargs="+", action="append", default=None,
                         help="Override YAML files (repeatable, need not share a directory).")
     parser.add_argument("--report", choices=("table", "csv"), default="table",
@@ -59,11 +59,11 @@ def build_parser() -> argparse.ArgumentParser:
                         metavar="COLUMN",
                         help="Columns from the frame to show next to the row key (repeatable).")
     parser.add_argument("--include-skipped", action="store_true",
-                        help="Include the tests a failure blocked, each naming its prerequisite.")
+                        help="Include the checks a failure blocked, each naming its prerequisite.")
     parser.add_argument("--explain", type=int, metavar="ROW",
-                        help="Print what every test did on one row, by position, and exit.")
+                        help="Print what every check did on one row, by position, and exit.")
     parser.add_argument("--summary", action="store_true",
-                        help="Print per-test counts and the root cause of each failing row.")
+                        help="Print per-check counts and the root cause of each failing row.")
     parser.add_argument("--data", metavar="PATH",
                         help="CSV file to validate (default: the built-in demo frame).")
     parser.add_argument("--key-column", metavar="COLUMN", default="id",
@@ -83,7 +83,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     suite_groups: list[list[str]] | None = args.suites
     override_groups: list[list[str]] | None = args.overrides
-    args.suites = [s for group in (suite_groups or [["hard_tests", "soft_tests"]]) for s in group]
+    args.suites = [s for group in (suite_groups or [["hard_checks", "soft_checks"]]) for s in group]
     args.overrides = [p for group in (override_groups or [["examples/rules/error_overrides.yaml"]]) for p in group]
     data_groups: list[list[str]] | None = args.data_columns
     args.data_columns = [c for group in (data_groups or []) for c in group]
@@ -93,7 +93,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def load_frame(path: str | None) -> pd.DataFrame:
     """The frame to validate: a CSV if one was named, else the demo frame.
 
-    Every column is read as text, because a test that judges whether a value is
+    Every column is read as text, because a check that judges whether a value is
     a number has to see what the file actually said -- pandas inferring ``age``
     to float would silently repair ``"41.5"`` and hide the rows this tool exists
     to find. Empty cells stay empty rather than becoming ``NaN`` strings.
@@ -123,7 +123,7 @@ def load_frame(path: str | None) -> pd.DataFrame:
 
 
 def demo_frame() -> pd.DataFrame:
-    """A small DataFrame exercising every example test."""
+    """A small DataFrame exercising every example check."""
 
     return pd.DataFrame(
         [
