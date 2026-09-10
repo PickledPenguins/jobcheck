@@ -1,0 +1,195 @@
+Loaded suites: ['base', 'hard_tests', 'soft_tests']
+
+Loaded 2 override rule(s) from 2 file(s)
+
+== Registry ==
+code                 | layer | suite      | default_state | description                              | depends_on                      | source_file                                                                     | could_be_overridden_by                          
+---------------------+-------+------------+---------------+------------------------------------------+---------------------------------+---------------------------------------------------------------------------------+-------------------------------------------------
+ROW_ALL_NULL         | 0     | base       | ON            | A row with no populated field at all is  | -                               | <project>/examples/example_suites/test_row_shape.py        | -                                               
+                     |       |            |               | never valid input.                       |                                 |                                                                                 |                                                 
+AGE_PRESENT          | 0     | hard_tests | ON            | The presence test the rest of this file  | -                               | <project>/examples/example_suites/hard_tests/test_age.py   | -                                               
+                     |       |            |               | waits for.                               |                                 |                                                                                 |                                                 
+DATES_PRESENT        | 0     | hard_tests | ON            | The presence test the ordering test      | -                               | <project>/examples/example_suites/hard_tests/test_dates.py | -                                               
+                     |       |            |               | waits for.                               |                                 |                                                                                 |                                                 
+AGE_NOT_A_NUMBER     | 1     | hard_tests | ON            |                                          | AGE_PRESENT                     | <project>/examples/example_suites/hard_tests/test_age.py   | -                                               
+DATES_OUT_OF_ORDER   | 1     | hard_tests | ON            | A test weighing two columns together,    | DATES_PRESENT                   | <project>/examples/example_suites/hard_tests/test_dates.py | -                                               
+                     |       |            |               | which is why tests are given the whole   |                                 |                                                                                 |                                                 
+                     |       |            |               | row rather than one value.               |                                 |                                                                                 |                                                 
+AGE_NEGATIVE         | 2     | hard_tests | ON            | Ages below zero are always a data-entry  | AGE_PRESENT; AGE_NOT_A_NUMBER   | <project>/examples/example_suites/hard_tests/test_age.py   | -                                               
+                     |       |            |               | or unit error.                           |                                 |                                                                                 |                                                 
+AGE_NOT_INTEGER      | 2     | hard_tests | OFF           | Off by default: only some source systems | AGE_PRESENT; AGE_NOT_A_NUMBER   | <project>/examples/example_suites/hard_tests/test_age.py   | enable_legacy_integer_check_by_topic            
+                     |       |            |               | promise integer ages. Turn it on for     |                                 |                                                                                 |                                                 
+                     |       |            |               | those systems with an override rule.     |                                 |                                                                                 |                                                 
+AGE_TOO_HIGH         | 2     | hard_tests | ON            | Guards against sentinel values such as   | AGE_PRESENT; AGE_NOT_A_NUMBER   | <project>/examples/example_suites/hard_tests/test_age.py   | -                                               
+                     |       |            |               | 999 leaking in as real ages.             |                                 |                                                                                 |                                                 
+EMAIL_PRESENT        | 0     | soft_tests | ON            | The presence test the rest of the email  | -                               | <project>/examples/example_suites/soft_tests/test_email.py | -                                               
+                     |       |            |               | tests wait for.                          |                                 |                                                                                 |                                                 
+EMAIL_MISSING_AT     | 1     | soft_tests | ON            | The most basic email shape test; the     | EMAIL_PRESENT                   | <project>/examples/example_suites/soft_tests/test_email.py | suppress_email_checks_for_test_accounts_by_topic
+                     |       |            |               | domain test depends on it.               |                                 |                                                                                 |                                                 
+EMAIL_DOMAIN_INVALID | 2     | soft_tests | ON            | Only checked once EMAIL_MISSING_AT       | EMAIL_PRESENT; EMAIL_MISSING_AT | <project>/examples/example_suites/soft_tests/test_email.py | suppress_email_checks_for_test_accounts_by_topic
+                     |       |            |               | passed: reporting a malformed domain on  |                                 |                                                                                 |                                                 
+                     |       |            |               | a string with no '@' is redundant noise  |                                 |                                                                                 |                                                 
+                     |       |            |               | on top of a more fundamental problem     |                                 |                                                                                 |                                                 
+                     |       |            |               | already reported.                        |                                 |                                                                                 |                                                 
+
+== Registry vs overrides ==
+code                 | layer | suite      | default_state | override_rules                                   | effective_state                    | source_file                                                                    
+---------------------+-------+------------+---------------+--------------------------------------------------+------------------------------------+--------------------------------------------------------------------------------
+ROW_ALL_NULL         | 0     | base       | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/test_row_shape.py       
+AGE_PRESENT          | 0     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_age.py  
+DATES_PRESENT        | 0     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_dates.py
+AGE_NOT_A_NUMBER     | 1     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_age.py  
+DATES_OUT_OF_ORDER   | 1     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_dates.py
+AGE_NEGATIVE         | 2     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_age.py  
+AGE_NOT_INTEGER      | 2     | hard_tests | OFF           | enable_legacy_integer_check_by_topic             | depends on row (default OFF unless | <project>/examples/example_suites/hard_tests/test_age.py  
+                     |       |            |               | (enable)                                         | a rule above matches)              |                                                                                
+AGE_TOO_HIGH         | 2     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_age.py  
+EMAIL_PRESENT        | 0     | soft_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/soft_tests/test_email.py
+EMAIL_MISSING_AT     | 1     | soft_tests | ON            | suppress_email_checks_for_test_accounts_by_topic | depends on row (default ON unless  | <project>/examples/example_suites/soft_tests/test_email.py
+                     |       |            |               | (disable)                                        | a rule above matches)              |                                                                                
+EMAIL_DOMAIN_INVALID | 2     | soft_tests | ON            | suppress_email_checks_for_test_accounts_by_topic | depends on row (default ON unless  | <project>/examples/example_suites/soft_tests/test_email.py
+                     |       |            |               | (disable)                                        | a rule above matches)              |                                                                                
+
+== Override rules (by rule) ==
+name                                             | action  | codes_hit_count | match                        | source_file                                      
+-------------------------------------------------+---------+-----------------+------------------------------+--------------------------------------------------
+enable_legacy_integer_check_by_topic             | enable  | 1               | source_system~=/^LEGACY_.*/; | examples/rules/split_by_topic/01_age_rules.yaml  
+                                                 |         |                 | record_type~=/^BATCH$/       |                                                  
+suppress_email_checks_for_test_accounts_by_topic | disable | 2               | email~=/@internal\.test$/    | examples/rules/split_by_topic/02_email_rules.yaml
+
+== Failures ==
+row      | name                       | region | code                 | status        | layer | suite      | outcome  | message                                            | comments                                           | is_root_cause
+---------+----------------------------+--------+----------------------+---------------+-------+------------+----------+----------------------------------------------------+----------------------------------------------------+--------------
+1001     | Ada Lovelace               | EU     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1002     | Grace Hopper               | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1003     | Katherine Johnson          | US     | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed   | Age is missing                                     |                                                    | True         
+1003     | Katherine Johnson          | US     | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT             | prerequisite did not pass: AGE_PRESENT             | False        
+1003     | Katherine Johnson          | US     | AGE_NEGATIVE         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,            | prerequisite did not pass: AGE_PRESENT,            | False        
+         |                            |        |                      |               |       |            |          | AGE_NOT_A_NUMBER                                   | AGE_NOT_A_NUMBER                                   |              
+1003     | Katherine Johnson          | US     | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,            | prerequisite did not pass: AGE_PRESENT,            | False        
+         |                            |        |                      |               |       |            |          | AGE_NOT_A_NUMBER                                   | AGE_NOT_A_NUMBER                                   |              
+1003     | Katherine Johnson          | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1004     | Alan Turing                | EU     | AGE_NEGATIVE         | INVALID (3)   | 2     | hard_tests | failed   | Age is negative                                    | minimum=0; value=-4.0                              | True         
+1004     | Alan Turing                | EU     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1005     | Jean Bartik                | US     | AGE_TOO_HIGH         | INVALID (3)   | 2     | hard_tests | failed   | Age is implausibly high (over 130)                 | maximum=130; value=999.0                           | True         
+1005     | Jean Bartik                | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1006     | Mary Jackson               | US     | AGE_NOT_A_NUMBER     | MALFORMED (2) | 1     | hard_tests | failed   | Age is not a number                                | value=thirty                                       | True         
+1006     | Mary Jackson               | US     | AGE_NEGATIVE         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_NOT_A_NUMBER        | prerequisite did not pass: AGE_NOT_A_NUMBER        | False        
+1006     | Mary Jackson               | US     | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_NOT_A_NUMBER        | prerequisite did not pass: AGE_NOT_A_NUMBER        | False        
+1006     | Mary Jackson               | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1007     | Frances Allen              | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1007     | Frances Allen              | US     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_tests | failed   | Email has no '@'                                   | at_signs=0; value=frances-example.com              | True         
+1007     | Frances Allen              | US     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_MISSING_AT        | prerequisite did not pass: EMAIL_MISSING_AT        | False        
+1008     | Barbara Liskov             | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1008     | Barbara Liskov             | US     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_tests | failed   | Email domain looks malformed                       | domain=localhost                                   | True         
+1009     | Sophie Wilson              | UK     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1009     | Sophie Wilson              | UK     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed   | Email is missing                                   |                                                    | True         
+1009     | Sophie Wilson              | UK     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT           | prerequisite did not pass: EMAIL_PRESENT           | False        
+1009     | Sophie Wilson              | UK     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT,          | prerequisite did not pass: EMAIL_PRESENT,          | False        
+         |                            |        |                      |               |       |            |          | EMAIL_MISSING_AT                                   | EMAIL_MISSING_AT                                   |              
+1010     | Karen Spärck Jones         | UK     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1010     | Karen Spärck Jones         | UK     | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | hard_tests | failed   | start_date is after end_date                       | end_date=2024-03-01; start_date=2024-09-01         | True         
+1011     | Radia Perlman              | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1011     | Radia Perlman              | US     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed   | Both start_date and end_date are needed            | columns=start_date                                 | True         
+1011     | Radia Perlman              | US     | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: DATES_PRESENT           | prerequisite did not pass: DATES_PRESENT           | False        
+1012     | Shafi Goldwasser           | IL     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1012     | Shafi Goldwasser           | IL     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed   | Both start_date and end_date are needed            | columns=end_date                                   | True         
+1012     | Shafi Goldwasser           | IL     | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: DATES_PRESENT           | prerequisite did not pass: DATES_PRESENT           | False        
+1014     | Xiaoyun Wang               | CN     | AGE_NOT_INTEGER      | INVALID (3)   | 2     | hard_tests | failed   | Age is not a whole number                          | value=58.5                                         | True         
+1016     | Sun Microsystems, Inc.     | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1017     | QA Account                 | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1017     | QA Account                 | US     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+         |                            |        |                      |               |       |            |          | 'suppress_email_checks_for_test_accounts_by_topic' | 'suppress_email_checks_for_test_accounts_by_topic' |              
+1017     | QA Account                 | US     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+         |                            |        |                      |               |       |            |          | 'suppress_email_checks_for_test_accounts_by_topic' | 'suppress_email_checks_for_test_accounts_by_topic' |              
+1018     | Load Test                  | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1018     | Load Test                  | US     | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+         |                            |        |                      |               |       |            |          | 'suppress_email_checks_for_test_accounts_by_topic' | 'suppress_email_checks_for_test_accounts_by_topic' |              
+1018     | Load Test                  | US     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+         |                            |        |                      |               |       |            |          | 'suppress_email_checks_for_test_accounts_by_topic' | 'suppress_email_checks_for_test_accounts_by_topic' |              
+1019     | =SUM(A1:A9)                | EU     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1019     | =SUM(A1:A9)                | EU     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_tests | failed   | Email has no '@'                                   | at_signs=0; value=sheet-example.com                | True         
+1019     | =SUM(A1:A9)                | EU     | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_MISSING_AT        | prerequisite did not pass: EMAIL_MISSING_AT        | False        
+1020     |   Padded Name              | EU     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1020     |   Padded Name              | EU     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_tests | failed   | Email domain looks malformed                       | domain=example.com                                 | True         
+1021     |                            |        | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed   | Age is missing                                     |                                                    | True         
+1021     |                            |        | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT             | prerequisite did not pass: AGE_PRESENT             | False        
+1021     |                            |        | AGE_NEGATIVE         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,            | prerequisite did not pass: AGE_PRESENT,            | False        
+         |                            |        |                      |               |       |            |          | AGE_NOT_A_NUMBER                                   | AGE_NOT_A_NUMBER                                   |              
+1021     |                            |        | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,            | prerequisite did not pass: AGE_PRESENT,            | False        
+         |                            |        |                      |               |       |            |          | AGE_NOT_A_NUMBER                                   | AGE_NOT_A_NUMBER                                   |              
+1021     |                            |        | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1021     |                            |        | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed   | Both start_date and end_date are needed            | columns=start_date, end_date                       | False        
+1021     |                            |        | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: DATES_PRESENT           | prerequisite did not pass: DATES_PRESENT           | False        
+1021     |                            |        | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed   | Email is missing                                   |                                                    | False        
+1021     |                            |        | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT           | prerequisite did not pass: EMAIL_PRESENT           | False        
+1021     |                            |        | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT,          | prerequisite did not pass: EMAIL_PRESENT,          | False        
+         |                            |        |                      |               |       |            |          | EMAIL_MISSING_AT                                   | EMAIL_MISSING_AT                                   |              
+<no key> |                            |        | ROW_ALL_NULL         | MISSING (1)   | 0     | base       | failed   | Row is entirely empty                              | columns=9                                          | True         
+<no key> |                            |        | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed   | Age is missing                                     |                                                    | False        
+<no key> |                            |        | AGE_NOT_A_NUMBER     | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT             | prerequisite did not pass: AGE_PRESENT             | False        
+<no key> |                            |        | AGE_NEGATIVE         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,            | prerequisite did not pass: AGE_PRESENT,            | False        
+         |                            |        |                      |               |       |            |          | AGE_NOT_A_NUMBER                                   | AGE_NOT_A_NUMBER                                   |              
+<no key> |                            |        | AGE_TOO_HIGH         | PASS (0)      | 2     | hard_tests | skipped  | prerequisite did not pass: AGE_PRESENT,            | prerequisite did not pass: AGE_PRESENT,            | False        
+         |                            |        |                      |               |       |            |          | AGE_NOT_A_NUMBER                                   | AGE_NOT_A_NUMBER                                   |              
+<no key> |                            |        | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+<no key> |                            |        | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed   | Both start_date and end_date are needed            | columns=start_date, end_date                       | False        
+<no key> |                            |        | DATES_OUT_OF_ORDER   | PASS (0)      | 1     | hard_tests | skipped  | prerequisite did not pass: DATES_PRESENT           | prerequisite did not pass: DATES_PRESENT           | False        
+<no key> |                            |        | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed   | Email is missing                                   |                                                    | False        
+<no key> |                            |        | EMAIL_MISSING_AT     | PASS (0)      | 1     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT           | prerequisite did not pass: EMAIL_PRESENT           | False        
+<no key> |                            |        | EMAIL_DOMAIN_INVALID | PASS (0)      | 2     | soft_tests | skipped  | prerequisite did not pass: EMAIL_PRESENT,          | prerequisite did not pass: EMAIL_PRESENT,          | False        
+         |                            |        |                      |               |       |            |          | EMAIL_MISSING_AT                                   | EMAIL_MISSING_AT                                   |              
+<no key> | No Id At All               | EU     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1023     | Duplicate Id               | EU     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1023     | Duplicate Id Again         | EU     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1031     | Carol Shaw                 | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1032     | Erna Hoover                | UK     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1033     | Evelyn Boyd Granville      | APAC   | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1034     | Hedy Lamarr                | EU     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1035     | Ida Rhodes                 | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1036     | Jean Sammet                | UK     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1037     | Joan Clarke                | APAC   | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1039     | Lois Haibt                 | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1040     | Margaret Hamilton          | UK     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1041     | Marlyn Meltzer             | APAC   | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1042     | Mary Allen Wilkes          | EU     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1043     | Milly Koss                 | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1044     | Ruth Teitelbaum            | UK     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1045     | Sister Mary Kenneth Keller | APAC   | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1047     | Frances Spence             | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1048     | Betty Holberton            | UK     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1049     | Kathleen Antonelli         | APAC   | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1050     | Adele Goldstine            | EU     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1051     | Klara Dan von Neumann      | US     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1052     | Elizabeth Feinler          | UK     | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+1053     | Susan Kare                 | APAC   | AGE_NOT_INTEGER      | PASS (0)      | 2     | hard_tests | disabled | disabled by off by default                         | disabled by off by default                         | False        
+
+== Summary ==
+code                 | layer | failed | errored | skipped | disabled | passed
+---------------------+-------+--------+---------+---------+----------+-------
+DATES_PRESENT        | 0     | 4      | 0       | 0       | 0        | 45    
+AGE_PRESENT          | 0     | 3      | 0       | 0       | 0        | 46    
+EMAIL_PRESENT        | 0     | 3      | 0       | 0       | 0        | 46    
+EMAIL_DOMAIN_INVALID | 2     | 2      | 0       | 5       | 2        | 40    
+EMAIL_MISSING_AT     | 1     | 2      | 0       | 3       | 2        | 42    
+AGE_NEGATIVE         | 2     | 1      | 0       | 4       | 0        | 44    
+AGE_TOO_HIGH         | 2     | 1      | 0       | 4       | 0        | 44    
+DATES_OUT_OF_ORDER   | 1     | 1      | 0       | 4       | 0        | 44    
+AGE_NOT_A_NUMBER     | 1     | 1      | 0       | 3       | 0        | 45    
+AGE_NOT_INTEGER      | 2     | 1      | 0       | 0       | 43       | 5     
+ROW_ALL_NULL         | 0     | 1      | 0       | 0       | 0        | 48    
+
+Root cause of each failing row:
+root_cause           | rows
+---------------------+-----
+AGE_PRESENT          | 2   
+DATES_PRESENT        | 2   
+EMAIL_DOMAIN_INVALID | 2   
+EMAIL_MISSING_AT     | 2   
+AGE_NEGATIVE         | 1   
+AGE_NOT_A_NUMBER     | 1   
+AGE_NOT_INTEGER      | 1   
+AGE_TOO_HIGH         | 1   
+DATES_OUT_OF_ORDER   | 1   
+EMAIL_PRESENT        | 1   
+ROW_ALL_NULL         | 1   

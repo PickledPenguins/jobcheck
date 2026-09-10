@@ -1,0 +1,127 @@
+Loaded suites: ['base', 'hard_tests', 'soft_tests']
+
+Loaded 2 override rule(s) from 2 file(s)
+
+== Registry ==
+code                 | layer | suite      | default_state | description                              | depends_on                      | source_file                                                                     | could_be_overridden_by                          
+---------------------+-------+------------+---------------+------------------------------------------+---------------------------------+---------------------------------------------------------------------------------+-------------------------------------------------
+ROW_ALL_NULL         | 0     | base       | ON            | A row with no populated field at all is  | -                               | <project>/examples/example_suites/test_row_shape.py        | -                                               
+                     |       |            |               | never valid input.                       |                                 |                                                                                 |                                                 
+AGE_PRESENT          | 0     | hard_tests | ON            | The presence test the rest of this file  | -                               | <project>/examples/example_suites/hard_tests/test_age.py   | -                                               
+                     |       |            |               | waits for.                               |                                 |                                                                                 |                                                 
+DATES_PRESENT        | 0     | hard_tests | ON            | The presence test the ordering test      | -                               | <project>/examples/example_suites/hard_tests/test_dates.py | -                                               
+                     |       |            |               | waits for.                               |                                 |                                                                                 |                                                 
+AGE_NOT_A_NUMBER     | 1     | hard_tests | ON            |                                          | AGE_PRESENT                     | <project>/examples/example_suites/hard_tests/test_age.py   | -                                               
+DATES_OUT_OF_ORDER   | 1     | hard_tests | ON            | A test weighing two columns together,    | DATES_PRESENT                   | <project>/examples/example_suites/hard_tests/test_dates.py | -                                               
+                     |       |            |               | which is why tests are given the whole   |                                 |                                                                                 |                                                 
+                     |       |            |               | row rather than one value.               |                                 |                                                                                 |                                                 
+AGE_NEGATIVE         | 2     | hard_tests | ON            | Ages below zero are always a data-entry  | AGE_PRESENT; AGE_NOT_A_NUMBER   | <project>/examples/example_suites/hard_tests/test_age.py   | -                                               
+                     |       |            |               | or unit error.                           |                                 |                                                                                 |                                                 
+AGE_NOT_INTEGER      | 2     | hard_tests | OFF           | Off by default: only some source systems | AGE_PRESENT; AGE_NOT_A_NUMBER   | <project>/examples/example_suites/hard_tests/test_age.py   | enable_legacy_integer_check_by_topic;           
+                     |       |            |               | promise integer ages. Turn it on for     |                                 |                                                                                 | disable_age_integer_check_from_another_directory
+                     |       |            |               | those systems with an override rule.     |                                 |                                                                                 |                                                 
+AGE_TOO_HIGH         | 2     | hard_tests | ON            | Guards against sentinel values such as   | AGE_PRESENT; AGE_NOT_A_NUMBER   | <project>/examples/example_suites/hard_tests/test_age.py   | -                                               
+                     |       |            |               | 999 leaking in as real ages.             |                                 |                                                                                 |                                                 
+EMAIL_PRESENT        | 0     | soft_tests | ON            | The presence test the rest of the email  | -                               | <project>/examples/example_suites/soft_tests/test_email.py | -                                               
+                     |       |            |               | tests wait for.                          |                                 |                                                                                 |                                                 
+EMAIL_MISSING_AT     | 1     | soft_tests | ON            | The most basic email shape test; the     | EMAIL_PRESENT                   | <project>/examples/example_suites/soft_tests/test_email.py | -                                               
+                     |       |            |               | domain test depends on it.               |                                 |                                                                                 |                                                 
+EMAIL_DOMAIN_INVALID | 2     | soft_tests | ON            | Only checked once EMAIL_MISSING_AT       | EMAIL_PRESENT; EMAIL_MISSING_AT | <project>/examples/example_suites/soft_tests/test_email.py | -                                               
+                     |       |            |               | passed: reporting a malformed domain on  |                                 |                                                                                 |                                                 
+                     |       |            |               | a string with no '@' is redundant noise  |                                 |                                                                                 |                                                 
+                     |       |            |               | on top of a more fundamental problem     |                                 |                                                                                 |                                                 
+                     |       |            |               | already reported.                        |                                 |                                                                                 |                                                 
+
+== Registry vs overrides ==
+code                 | layer | suite      | default_state | override_rules                                   | effective_state                    | source_file                                                                    
+---------------------+-------+------------+---------------+--------------------------------------------------+------------------------------------+--------------------------------------------------------------------------------
+ROW_ALL_NULL         | 0     | base       | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/test_row_shape.py       
+AGE_PRESENT          | 0     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_age.py  
+DATES_PRESENT        | 0     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_dates.py
+AGE_NOT_A_NUMBER     | 1     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_age.py  
+DATES_OUT_OF_ORDER   | 1     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_dates.py
+AGE_NEGATIVE         | 2     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_age.py  
+AGE_NOT_INTEGER      | 2     | hard_tests | OFF           | enable_legacy_integer_check_by_topic             | depends on row (default OFF unless | <project>/examples/example_suites/hard_tests/test_age.py  
+                     |       |            |               | (enable);                                        | a rule above matches)              |                                                                                
+                     |       |            |               | disable_age_integer_check_from_another_directory |                                    |                                                                                
+                     |       |            |               | (disable)                                        |                                    |                                                                                
+AGE_TOO_HIGH         | 2     | hard_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/hard_tests/test_age.py  
+EMAIL_PRESENT        | 0     | soft_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/soft_tests/test_email.py
+EMAIL_MISSING_AT     | 1     | soft_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/soft_tests/test_email.py
+EMAIL_DOMAIN_INVALID | 2     | soft_tests | ON            | -                                                | DEFAULT (ON)                       | <project>/examples/example_suites/soft_tests/test_email.py
+
+== Override rules (by rule) ==
+name                                             | action  | codes_hit_count | match                        | source_file                                               
+-------------------------------------------------+---------+-----------------+------------------------------+-----------------------------------------------------------
+enable_legacy_integer_check_by_topic             | enable  | 1               | source_system~=/^LEGACY_.*/; | examples/rules/split_by_topic/01_age_rules.yaml           
+                                                 |         |                 | record_type~=/^BATCH$/       |                                                           
+disable_age_integer_check_from_another_directory | disable | 1               | all                          | examples/rules/from_another_directory/global_age_rule.yaml
+
+== Failures ==
+row  | name                       | age | region | code            | status   | layer | suite      | outcome  | message                                            | comments                                           | is_root_cause
+-----+----------------------------+-----+--------+-----------------+----------+-------+------------+----------+----------------------------------------------------+----------------------------------------------------+--------------
+2000 | Anita Borg                 | 24  | EU     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2001 | Carol Shaw                 | 25  | US     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2002 | Erna Hoover                | 26  | UK     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2003 | Evelyn Boyd Granville      | 27  | APAC   | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2004 | Hedy Lamarr                | 28  | EU     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2005 | Ida Rhodes                 | 29  | US     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2006 | Jean Sammet                | 30  | UK     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2007 | Joan Clarke                | 31  | APAC   | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2008 | Kathleen Booth             | 32  | EU     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2009 | Lois Haibt                 | 33  | US     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2010 | Margaret Hamilton          | 34  | UK     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2011 | Marlyn Meltzer             | 35  | APAC   | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2012 | Mary Allen Wilkes          | 36  | EU     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2013 | Milly Koss                 | 37  | US     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2014 | Ruth Teitelbaum            | 38  | UK     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2015 | Sister Mary Kenneth Keller | 39  | APAC   | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2016 | Thelma Estrin              | 40  | EU     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2017 | Frances Spence             | 41  | US     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2018 | Betty Holberton            | 42  | UK     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2019 | Kathleen Antonelli         | 43  | APAC   | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2020 | Adele Goldstine            | 44  | EU     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2021 | Klara Dan von Neumann      | 45  | US     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2022 | Elizabeth Feinler          | 46  | UK     | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+2023 | Susan Kare                 | 47  | APAC   | AGE_NOT_INTEGER | PASS (0) | 2     | hard_tests | disabled | disabled by rule                                   | disabled by rule                                   | False        
+     |                            |     |        |                 |          |       |            |          | 'disable_age_integer_check_from_another_directory' | 'disable_age_integer_check_from_another_directory' |              
+
+== Summary ==
+code                 | layer | failed | errored | skipped | disabled | passed
+---------------------+-------+--------+---------+---------+----------+-------
+AGE_NEGATIVE         | 2     | 0      | 0       | 0       | 0        | 24    
+AGE_NOT_A_NUMBER     | 1     | 0      | 0       | 0       | 0        | 24    
+AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 24       | 0     
+AGE_PRESENT          | 0     | 0      | 0       | 0       | 0        | 24    
+AGE_TOO_HIGH         | 2     | 0      | 0       | 0       | 0        | 24    
+DATES_OUT_OF_ORDER   | 1     | 0      | 0       | 0       | 0        | 24    
+DATES_PRESENT        | 0     | 0      | 0       | 0       | 0        | 24    
+EMAIL_DOMAIN_INVALID | 2     | 0      | 0       | 0       | 0        | 24    
+EMAIL_MISSING_AT     | 1     | 0      | 0       | 0       | 0        | 24    
+EMAIL_PRESENT        | 0     | 0      | 0       | 0       | 0        | 24    
+ROW_ALL_NULL         | 0     | 0      | 0       | 0       | 0        | 24    
+
+Root causes: none - every row passed.

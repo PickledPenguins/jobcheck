@@ -1,0 +1,1 @@
+error: examples/data is a directory; name the CSV file inside it

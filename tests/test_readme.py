@@ -273,3 +273,34 @@ def test_the_suites_the_readme_names_exist(fresh_registry: None) -> None:
     assert 'load_suites(["hard_tests", "soft_tests"], package="example_suites")' in readme_text()
     load_suites(["hard_tests", "soft_tests"], package="example_suites")
     assert loaded_suites() == {"base", "hard_tests", "soft_tests"}
+
+
+# --- the documented CLI is the real CLI -------------------------------------
+
+
+def test_every_option_of_the_entry_point_is_documented() -> None:
+    """docs/cli.md is the reference manual for the entry point, so a flag added
+    without a section there is a flag nobody will find."""
+
+    import main
+
+    document = (README.parent / "docs" / "cli.md").read_text(encoding="utf-8")
+    parser = main.build_parser()
+    for action in parser._actions:  # the public API for this is the option strings
+        for option in action.option_strings:
+            assert f"`{option}" in document, f"{option} is not documented in docs/cli.md"
+
+
+def test_no_option_is_documented_that_does_not_exist() -> None:
+    """The other direction: a flag removed from the entry point leaves its section
+    behind, and a reader tries it."""
+
+    import re
+
+    import main
+
+    document = (README.parent / "docs" / "cli.md").read_text(encoding="utf-8")
+    real = {option for action in main.build_parser()._actions
+            for option in action.option_strings}
+    documented = set(re.findall(r"^### `(--?[a-z-]+)", document, re.M))
+    assert documented <= real, f"documented but not real: {sorted(documented - real)}"
