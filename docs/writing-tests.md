@@ -126,24 +126,47 @@ without a group.
 
 ## Suites: which tests an entry point loads
 
-A suite is a subpackage of `src/pandas_row_validation/` holding `test_*.py` files. That is the
+**Your tests live in your package, not in this one.** This package ships no tests
+at all, which is why `package=` is required rather than defaulted: a default
+would name this library, and the error for a missing suite would then point at
+the wrong tree entirely.
+
+A suite is a subpackage of *your* package holding `test_*.py` files. That is the
 entire wiring — an `__init__.py` and the files.
 
 ```python
-load_suites(["hard_tests", "soft_tests"])
+load_suites(["hard_tests", "soft_tests"], package="example_suites")
 loaded_suites()          # {'base', 'hard_tests', 'soft_tests'}
 ```
 
-Importing `validation` registers nothing, so each entry point states what it
-wants and two scripts in one codebase can run different sets. Repeat and
+Importing `pandas_row_validation` registers nothing, so each entry point states
+what it wants and two scripts in one codebase can run different sets. Repeat and
 overlapping calls import each suite once.
 
-`test_*.py` files placed directly in `src/pandas_row_validation/` are the **base** suite and
-load on every call, whatever was asked for: the tests that must run no matter
-which optional sets were chosen.
+`test_*.py` files placed directly in your package are the **base** suite
+(`BASE_SUITE`, the string `"base"`) and load on every call, whatever was asked
+for: the tests that must run no matter which optional sets were chosen.
 
-To add one: `mkdir src/pandas_row_validation/warning_tests`, an `__init__.py`, then
-`load_suites(["warning_tests"])`.
+To add a suite: `mkdir my_checks/warning_tests`, an `__init__.py`, then
+`load_suites(["warning_tests"], package="my_checks")`.
+
+`examples/example_suites/` is the worked example of that layout — a package
+outside the library, with `hard_tests/` and `soft_tests/` subpackages and a
+`test_row_shape.py` in the base suite.
+
+### Test files named by path
+
+A pipeline that writes test files into a run directory has paths rather than an
+importable package, and `load_test_files` takes those:
+
+```python
+load_test_files(["runs/2026-09-10/inputs/checks.py"])
+```
+
+Files are named explicitly and nothing is discovered; a file listed twice or
+already loaded is skipped; prerequisites may live in any file of one call. Each
+file gets a flat module name, so its tests land in the base suite, which is
+always loaded. No `__pycache__` is written beside the caller's file.
 
 ## Layering: one problem, one error
 
@@ -206,10 +229,11 @@ fill it with whatever produces per-row metadata in your pipeline, and take
 import pandas as pd
 from pandas_row_validation import (
     build_context, build_report, check_rule_columns, collect_outcomes,
-    load_overrides_from_dir, load_suites, root_cause, validate_row, write_report,
+    load_overrides_from_dir, load_suites, root_cause, validate, validate_row,
+    write_report,
 )
 
-load_suites(["hard_tests", "soft_tests"])
+load_suites(["hard_tests", "soft_tests"], package="example_suites")
 overrides = load_overrides_from_dir("examples/rules/split_by_topic")
 for warning in check_rule_columns(df, overrides):
     print(f"warning: {warning}")
@@ -217,6 +241,11 @@ for warning in check_rule_columns(df, overrides):
 # Full report, when you want to look at the failures:
 outcomes = collect_outcomes(df, overrides=overrides)
 write_report(build_report(outcomes, df=df, key_column="id"), "report.csv")
+
+# Or as one object that carries the frame and the rules with the outcomes:
+run = validate(df, overrides=overrides)
+write_report(run.report(key_column="id"), "report.csv")
+print(run.stats.rows, run.errors, len(run.failed_rows))
 
 # Or just the failures per row, when you only need to gate:
 df["errors"] = df.apply(
