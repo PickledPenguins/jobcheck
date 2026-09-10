@@ -1,0 +1,4 @@
+# Runtime dependencies, mirroring pyproject.toml for anyone who installs
+# with pip -r rather than pip install .
+pandas>=2.1   # DataFrame.map, used when rendering a CSV report
+PyYAML>=6.0

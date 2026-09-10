@@ -1,0 +1,20 @@
+code                 | layer | failed | errored | skipped | disabled | passed
+---------------------+-------+--------+---------+---------+----------+-------
+EMAIL_DOMAIN_INVALID | 2     | 2      | 0       | 1       | 0        | 1     
+AGE_NEGATIVE         | 2     | 1      | 0       | 1       | 0        | 2     
+AGE_TOO_HIGH         | 2     | 1      | 0       | 1       | 0        | 2     
+DATES_OUT_OF_ORDER   | 1     | 1      | 0       | 1       | 0        | 2     
+AGE_PRESENT          | 0     | 1      | 0       | 0       | 0        | 3     
+DATES_PRESENT        | 0     | 1      | 0       | 0       | 0        | 3     
+EMAIL_PRESENT        | 0     | 1      | 0       | 0       | 0        | 3     
+AGE_NOT_A_NUMBER     | 1     | 0      | 0       | 1       | 0        | 3     
+EMAIL_MISSING_AT     | 1     | 0      | 0       | 1       | 0        | 3     
+AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 4        | 0     
+ROW_ALL_NULL         | 0     | 0      | 0       | 0       | 0        | 4     
+
+Root cause of each failing row:
+root_cause         | rows
+-------------------+-----
+AGE_PRESENT        | 1   
+AGE_TOO_HIGH       | 1   
+DATES_OUT_OF_ORDER | 1   

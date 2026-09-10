@@ -1,0 +1,1 @@
+python3 examples/main.py -o tests/failures/invalid-regex/rules.yaml

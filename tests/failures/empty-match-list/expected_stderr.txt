@@ -1,0 +1,1 @@
+ValueError: rule 'empty_match' in tests/failures/empty-match-list/rules.yaml: 'match' is an empty list. Use 'match: all' if you really mean every row.

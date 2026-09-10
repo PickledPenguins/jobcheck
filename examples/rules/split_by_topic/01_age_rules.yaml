@@ -1,0 +1,13 @@
+# Loaded first by load_overrides_from_dir (alphabetical filename order),
+# so anything in 02_*.yaml touching the same code wins over this file.
+
+- name: "enable_legacy_integer_check"
+  description: "Turn on strict integer check for legacy-system batch rows"
+  action: enable
+  codes:
+    - AGE_NOT_INTEGER
+  match:
+    - column: source_system
+      pattern: "^LEGACY_.*"
+    - column: record_type
+      pattern: "^BATCH$"

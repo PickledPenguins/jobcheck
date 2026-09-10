@@ -1,0 +1,1 @@
+ValueError: rule 'no_match_key' in tests/failures/missing-match/rules.yaml: missing 'match'. Use 'match: all' to apply the rule to every row.

@@ -1,0 +1,1 @@
+ValueError: Duplicate override rule name 'same_name': defined in tests/failures/duplicate-rule-name/a.yaml and again in tests/failures/duplicate-rule-name/b.yaml.
