@@ -249,8 +249,13 @@ def register_test(
     """
 
     def decorator(fn: TestFn) -> TestFn:
+        # depends_on is passed through unchanged: list("CODE") would turn a
+        # mistyped bare string into its characters before _register could reject
+        # it, and the prerequisite check downstream would then complain about a
+        # test called 'C'. _register copies the list once it is known to be one.
         return _register(
-            fn, code, message, default_enabled, description, list(depends_on or []), suite
+            fn, code, message, default_enabled, description,
+            [] if depends_on is None else depends_on, suite
         )
 
     return decorator

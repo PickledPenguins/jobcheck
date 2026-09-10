@@ -11,9 +11,9 @@ Measured on 2026-09-10, Python 3.14.6, pandas 2.x, on the `claude` branch.
 
 | Gate | Result |
 |---|---|
-| `./run-tests.sh` (fast, the commit gate) | 603 passed, 24s |
+| `./run-tests.sh` (fast, the commit gate) | 639 passed, 28s |
 | `./run-tests.sh long` | 250 passed, 265s |
-| `./run-tests.sh all` | 853 passed, 288s |
+| `./run-tests.sh all` | 889 passed, 288s |
 | `./run-tests.sh cov` | 100% of statements and branches, against a 95% floor |
 | `./run-tests.sh perf` | 6 timings against this machine's baseline, 85s |
 | `./run-tests.sh memory` | 3 peak-memory ceilings, 40s |
@@ -86,7 +86,13 @@ two entry points it used to have, with the only copy of the lost code sitting in
 - **The eleven lost test modules have not been rebuilt.** `recovery/recovered-tests-api.md`
   lists what each asserted, by name and docstring. `test_error_messages` (10,991 B) and
   `test_rules_unit` (7,997 B) cover surfaces that still exist here.
-- **The mutation baseline is measured but not clean.** `mutmut` needs an incantation here
+- **Mutation: 1,603 mutants, 1,396 killed, 207 survived, 0 timeouts (87%)** before the
+  message tests landed; every survivor in `run.py` and `load_test_files` was a real gap
+  and is now killed, one is provably equivalent, and the rest are message wording -- now
+  pinned by `tests/test_error_messages_unit.py` for the errors, and by the catalog and
+  golden files (which mutmut cannot run) for the print functions. Rerun to get the number
+  after those tests.
+- **The mutation runner needs an incantation here.** `mutmut` needs an incantation here
   (pandas imported before it starts, or its stats collection dies on a multiprocessing
   context); `docs/testing.md` has it. The survivors that mattered -- every one in `run.py`
   -- were killed by tests written against them. The remaining cluster is the registry's
