@@ -202,3 +202,83 @@ def test_a_file_python_cannot_import_says_so(fresh_registry: None, tmp_path: Pat
     path.write_text("- name: r\n")
     with pytest.raises(ValueError, match="as a Python file"):
         reg.load_test_files([str(path)])
+
+
+def test_the_loaded_module_is_registered_under_its_generated_name(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """A test file that imports itself, or is pickled by a worker, has to find it.
+
+    Written against a surviving mutant: replacing the module object in
+    ``sys.modules`` with ``None`` broke nothing any test asserted.
+    """
+
+    import sys
+
+    reg.load_test_files([write_test_file(tmp_path, "checks.py", "IN_SYS_MODULES")])
+    names = [name for name in sys.modules
+             if name.startswith("pandas_row_validation_test_file_")]
+    assert len(names) == 1
+    module = sys.modules[names[0]]
+    assert module is not None
+    assert module.__file__ == str((tmp_path / "checks.py").resolve())
+
+
+def test_clear_registry_evicts_the_module_it_registered(fresh_registry: None,
+                                                        tmp_path: Path) -> None:
+    """Otherwise a later load is a no-op -- Python caches modules -- and the
+    registry stays silently empty. Written against a mutant that recorded
+    ``None`` as the registering module's name."""
+
+    import sys
+
+    reg.load_test_files([write_test_file(tmp_path, "checks.py", "EVICTED")])
+    name = next(n for n in sys.modules if n.startswith("pandas_row_validation_test_file_"))
+    reg.clear_registry()
+    assert name not in sys.modules
+
+
+def test_the_bytecode_setting_is_restored_to_its_exact_value(fresh_registry: None,
+                                                             tmp_path: Path) -> None:
+    """`is False`, not merely falsy: a mutant setting it to None passed a
+    truthiness check while leaving the interpreter in a state nobody chose."""
+
+    import sys
+
+    assert sys.dont_write_bytecode is False
+    reg.load_test_files([write_test_file(tmp_path, "checks.py", "EXACT")])
+    assert sys.dont_write_bytecode is False
+
+
+def test_the_bytecode_setting_is_restored_when_a_file_raises(fresh_registry: None,
+                                                             tmp_path: Path) -> None:
+    import sys
+
+    path = tmp_path / "broken.py"
+    path.write_text("raise RuntimeError('boom')\n")
+    with pytest.raises(RuntimeError):
+        reg.load_test_files([str(path)])
+    assert sys.dont_write_bytecode is False
+
+
+def test_a_file_that_registers_nothing_can_still_be_loaded_again(fresh_registry: None,
+                                                                 tmp_path: Path) -> None:
+    """The eviction has to cover the file itself, not only the tests it defines.
+
+    A test file registers its module name as a side effect of the decorator, so
+    a file with no tests in it is the only case where load_test_files' own
+    bookkeeping is what makes a reload work. Written against a mutant that
+    recorded ``None`` there and passed everything else.
+    """
+
+    import sys
+
+    path = tmp_path / "empty_checks.py"
+    path.write_text("VALUE = 1\n")
+    reg.load_test_files([str(path)])
+    name = next(n for n in sys.modules if n.startswith("pandas_row_validation_test_file_"))
+    assert sys.modules[name].VALUE == 1
+
+    reg.clear_registry()
+    assert name not in sys.modules
+    assert reg.loaded_files() == []
