@@ -225,14 +225,23 @@ this repository (`check_rule_columns`) is deliberate and unrelated.
 
 ```sh
 ./run-tests.sh          # fast: unit, smoke, interface, regression, cheap pathological, plus mypy
-./run-tests.sh long     # integration, load, end-to-end catalogs
-./run-tests.sh all      # both, plus mypy
+./run-tests.sh long     # integration, load, concurrency, faults, scaling, catalogs, then the profile
+./run-tests.sh all      # both, plus mypy and the profile
 ./run-tests.sh cov      # the fast suite with coverage, gated at 95%
+./run-tests.sh perf     # timing against this machine's baseline (its own gate)
+./run-tests.sh memory   # peak-memory ceilings (its own gate)
+./run-tests.sh profile  # where the example runs spend their time
 ./run-tests.sh types    # mypy alone
 scripts/install-hooks.sh
 scripts/regen_catalog.py, scripts/regen_golden.py   # regenerate committed fixtures
+scripts/make_example_data.py                        # regenerate examples/data/*.csv
+scripts/profile_examples.py                         # the profile, alone
 scripts/read_bytecode_api.py <dir>                  # read the lost interface out of recovery/bytecode/
 ```
+
+The long suite needs `hypothesis` and refuses to run without it rather than skipping the
+property tests quietly; `PYTHON=/path/to/python` picks the interpreter, and the conda
+`pytesting` environment is the one here that has `hypothesis` and `mutmut`.
 
 Python 3.10+ (`X | None` syntax throughout), pandas 2.1+ and PyYAML at runtime;
 `pip install -e .[dev]` for the suite, which needs pytest, coverage, mypy, hypothesis and

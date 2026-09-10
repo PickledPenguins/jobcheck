@@ -146,7 +146,9 @@ run directory needs — and their tests join the base suite.
   tests on or off for specific rows.
 - [docs/interfaces.md](docs/interfaces.md) — the Python API: every exported name,
   signature, return shape, and error raised.
-- [docs/cli.md](docs/cli.md) — the demo entry points and their flags.
+- [docs/cli.md](docs/cli.md) — the demo entry points and their flags, including
+  `--data` for validating a CSV file of your own.
 - [docs/architecture.md](docs/architecture.md) — module responsibilities, design
   decisions, and how to extend.
-- [docs/testing.md](docs/testing.md) — the suites, the gates, coverage.
+- [docs/testing.md](docs/testing.md) — the suites, the gates, coverage, mutation,
+  the performance baseline, and the 66-case example and failure catalogs.

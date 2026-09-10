@@ -33,13 +33,17 @@ from pandas_row_validation import (
 )
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse the CLI.
+def build_parser() -> argparse.ArgumentParser:
+    """The command line, built separately so the documentation test can read it.
 
-    ``-e`` and ``-o`` are both ``nargs="+"`` *and* ``action="append"``, so they
-    accept several values per occurrence and several occurrences, which argparse
-    then hands back as a list of lists; the flattening below preserves the order
-    the user typed, so ``-e a b -o x.yaml -e c`` yields ``["a", "b", "c"]``.
+    Every option here has a section in ``docs/cli.md``, and a test compares the
+    two lists both ways: an undocumented flag and a documented flag that no
+    longer exists are both failures.
+
+    ``-e``, ``-o`` and ``--data-columns`` are each ``nargs="+"`` *and*
+    ``action="append"``, so they accept several values per occurrence and several
+    occurrences; argparse hands those back as a list of lists, which
+    :func:`parse_args` flattens in the order the user typed.
     """
 
     parser = argparse.ArgumentParser(description="Validate rows of a DataFrame with pluggable tests.")
@@ -60,8 +64,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="Print what every test did on one row, by position, and exit.")
     parser.add_argument("--summary", action="store_true",
                         help="Print per-test counts and the root cause of each failing row.")
+    parser.add_argument("--data", metavar="PATH",
+                        help="CSV file to validate (default: the built-in demo frame).")
+    parser.add_argument("--key-column", metavar="COLUMN", default="id",
+                        help="Column identifying a row in the report (default id).")
+    parser.add_argument("--no-registry", action="store_true",
+                        help="Skip the registry tables and print only the report.")
     parser.add_argument("-v", "--verbose", action="count", default=0,
                         help="-v adds cross-reference columns, -vv adds source files and the by-rule table.")
+    return parser
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse the CLI, flattening the repeatable flags into plain lists."""
+
+    parser = build_parser()
     args = parser.parse_args(argv)
 
     suite_groups: list[list[str]] | None = args.suites
@@ -71,6 +88,38 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     data_groups: list[list[str]] | None = args.data_columns
     args.data_columns = [c for group in (data_groups or []) for c in group]
     return args
+
+
+def load_frame(path: str | None) -> pd.DataFrame:
+    """The frame to validate: a CSV if one was named, else the demo frame.
+
+    Every column is read as text, because a test that judges whether a value is
+    a number has to see what the file actually said -- pandas inferring ``age``
+    to float would silently repair ``"41.5"`` and hide the rows this tool exists
+    to find. Empty cells stay empty rather than becoming ``NaN`` strings.
+    """
+
+    if path is None:
+        return demo_frame()
+    try:
+        return pd.read_csv(path, dtype=str, keep_default_na=True, na_values=[""])
+    except FileNotFoundError:
+        print(f"error: no such data file: {path}", file=sys.stderr)
+        raise SystemExit(2) from None
+    except pd.errors.EmptyDataError:
+        print(f"error: {path} holds no columns to read", file=sys.stderr)
+        raise SystemExit(2) from None
+    except IsADirectoryError:
+        print(f"error: {path} is a directory; name the CSV file inside it", file=sys.stderr)
+        raise SystemExit(2) from None
+    except OSError as exc:
+        # Permission denied, a broken symlink, a device that will not read: the
+        # reason belongs in the message, since the user cannot see errno.
+        print(f"error: cannot read {path}: {exc.strerror or exc}", file=sys.stderr)
+        raise SystemExit(2) from None
+    except pd.errors.ParserError as exc:
+        print(f"error: {path} is not readable as CSV: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
 
 
 def demo_frame() -> pd.DataFrame:
@@ -105,7 +154,11 @@ def main(argv: list[str] | None = None) -> None:
     overrides: list[OverrideRule] = load_overrides_from_files(args.overrides)
     print(f"Loaded {len(overrides)} override rule(s) from {len(args.overrides)} file(s)\n")
 
-    df = demo_frame()
+    df = load_frame(args.data)
+    if args.key_column not in df.columns:
+        print(f"error: --key-column {args.key_column!r} is not a column of the data; "
+              f"available: {', '.join(str(c) for c in df.columns)}", file=sys.stderr)
+        raise SystemExit(2)
     for warning in check_rule_columns(df, overrides):
         print(f"warning: {warning}", file=sys.stderr)
 
@@ -120,20 +173,27 @@ def main(argv: list[str] | None = None) -> None:
         print_row_explanation(outcomes[args.explain])
         return
 
-    print("== Registry ==")
-    print_registry(overrides=overrides, debug=args.verbose)
+    if not args.no_registry:
+        print("== Registry ==")
+        print_registry(overrides=overrides, debug=args.verbose)
 
-    print("\n== Registry vs overrides ==")
-    print_registry_with_overrides(overrides, debug=args.verbose)
+        print("\n== Registry vs overrides ==")
+        print_registry_with_overrides(overrides, debug=args.verbose)
 
-    if args.verbose >= 2:
-        print("\n== Override rules (by rule) ==")
-        print_override_rules(overrides, debug=args.verbose)
+        if args.verbose >= 2:
+            print("\n== Override rules (by rule) ==")
+            print_override_rules(overrides, debug=args.verbose)
 
-    report = build_report(outcomes, df=df, key_column="id", data_columns=args.data_columns,
+    report = build_report(outcomes, df=df, key_column=args.key_column,
+                          data_columns=args.data_columns,
                           include_skipped=args.include_skipped)
     if args.report_file:
-        write_report(report, args.report_file, fmt=args.report)
+        try:
+            write_report(report, args.report_file, fmt=args.report)
+        except OSError as exc:
+            print(f"error: cannot write {args.report_file}: {exc.strerror or exc}",
+                  file=sys.stderr)
+            raise SystemExit(2) from None
         print(f"\nwrote {args.report_file}")
     else:
         print("\n== Failures ==")

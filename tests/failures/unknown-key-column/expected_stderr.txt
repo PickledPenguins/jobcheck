@@ -1,0 +1,1 @@
+error: --key-column 'customer_id' is not a column of the data; available: id, name, age, email, start_date, end_date, source_system, record_type, region

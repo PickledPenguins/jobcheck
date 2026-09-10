@@ -17,3 +17,7 @@ reviews/
 # check-era sources, so it is tracked deliberately -- the two rules above would
 # otherwise ignore it.
 !recovery/bytecode/**/*.pyc
+
+# The performance baseline is measured on the machine that runs the suite, so it
+# is never shared: a number from another machine gates nothing.
+.perf-baseline.json

@@ -7,6 +7,7 @@ root cause), the counts, and the reporting views the run exposes.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pandas as pd
@@ -221,3 +222,81 @@ def test_rows_per_second_divides_rows_by_seconds() -> None:
 
 def test_a_trace_defaults_to_no_records() -> None:
     assert RowTrace(position=0).records == []
+
+
+# --- what the arguments actually do -----------------------------------------
+#
+# Each of these was written against a surviving mutant: a change to run.py that
+# no test noticed. Dropping `on_error` on the way to explain_row, dropping
+# `progress`, and recording `seconds=None` all passed the suite before these.
+
+
+def test_on_error_raise_propagates_a_tests_exception(fresh_registry: None) -> None:
+    make_test("RAISES", raises=RuntimeError("boom"))
+    with pytest.raises(RuntimeError, match="boom"):
+        validate(FRAME, on_error="raise")
+
+
+def test_on_error_defaults_to_recording_the_exception(fresh_registry: None) -> None:
+    make_test("RAISES", raises=RuntimeError("boom"))
+    trace = validate(FRAME).explain(0)
+    assert [record.outcome for record in trace.records] == [ERRORED]
+    assert "RuntimeError" in trace.records[0].detail
+
+
+def test_iter_traces_passes_on_error_through(fresh_registry: None) -> None:
+    make_test("RAISES", raises=RuntimeError("boom"))
+    with pytest.raises(RuntimeError, match="boom"):
+        list(iter_traces(FRAME, on_error="raise"))
+
+
+def test_validate_reports_progress_through_to_the_callback(fresh_registry: None) -> None:
+    make_test("PASSES")
+    seen: list[tuple[int, int]] = []
+    validate(FRAME, progress=lambda done, total: seen.append((done, total)), progress_every=1)
+    assert seen == [(1, 3), (2, 3), (3, 3)]
+
+
+def test_validate_passes_progress_every_through(fresh_registry: None) -> None:
+    make_test("PASSES")
+    seen: list[tuple[int, int]] = []
+    validate(FRAME, progress=lambda done, total: seen.append((done, total)), progress_every=2)
+    assert seen == [(2, 3), (3, 3)]
+
+
+def test_validate_rejects_a_progress_interval_below_one(fresh_registry: None) -> None:
+    make_test("PASSES")
+    with pytest.raises(ValueError, match="progress_every must be at least 1"):
+        validate(FRAME, progress_every=0)
+
+
+def test_stats_record_the_time_the_run_took(fresh_registry: None) -> None:
+    make_test("PASSES")
+    stats = validate(FRAME).stats
+    assert stats is not None
+    assert isinstance(stats.seconds, float)
+    assert stats.seconds >= 0.0
+    assert stats.rows_per_second > 0.0
+
+
+def test_the_overrides_given_are_the_ones_the_run_carries(fresh_registry: None) -> None:
+    make_test("SWITCHABLE", passes=False)
+    from pandas_row_validation import MatchCriterion, OverrideRule
+
+    rule = OverrideRule(name="off", action="disable", codes=["SWITCHABLE"],
+                        criteria=[MatchCriterion(column="value", pattern="^2$",
+                                                 regex=re.compile("^2$"))],
+                        match_all=False, source_file="<test>")
+    run = validate(FRAME, overrides=[rule])
+    assert [override.name for override in run.overrides] == ["off"]
+    # And they were applied, not merely stored.
+    assert run.explain(1).failures == []
+    assert [failure.code for failure in run.explain(0).failures] == ["SWITCHABLE"]
+
+
+def test_the_run_copies_the_overrides_list_it_was_given(fresh_registry: None) -> None:
+    make_test("PASSES")
+    given: list[Any] = []
+    run = validate(FRAME, overrides=given)
+    given.append("invented")
+    assert run.overrides == []

@@ -1,0 +1,1 @@
+python3 examples/main.py --data examples/data/customers_clean.csv --no-registry --report-file no/such/directory/report.csv

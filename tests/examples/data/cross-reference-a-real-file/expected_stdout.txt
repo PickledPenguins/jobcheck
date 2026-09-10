@@ -1,0 +1,105 @@
+Loaded suites: ['base', 'hard_tests', 'soft_tests']
+
+Loaded 3 override rule(s) from 1 file(s)
+
+== Registry ==
+code                 | layer | suite      | default_state | description                              | depends_on                      | could_be_overridden_by                 
+---------------------+-------+------------+---------------+------------------------------------------+---------------------------------+----------------------------------------
+ROW_ALL_NULL         | 0     | base       | ON            | A row with no populated field at all is  | -                               | -                                      
+                     |       |            |               | never valid input.                       |                                 |                                        
+AGE_PRESENT          | 0     | hard_tests | ON            | The presence test the rest of this file  | -                               | -                                      
+                     |       |            |               | waits for.                               |                                 |                                        
+DATES_PRESENT        | 0     | hard_tests | ON            | The presence test the ordering test      | -                               | -                                      
+                     |       |            |               | waits for.                               |                                 |                                        
+AGE_NOT_A_NUMBER     | 1     | hard_tests | ON            |                                          | AGE_PRESENT                     | -                                      
+DATES_OUT_OF_ORDER   | 1     | hard_tests | ON            | A test weighing two columns together,    | DATES_PRESENT                   | -                                      
+                     |       |            |               | which is why tests are given the whole   |                                 |                                        
+                     |       |            |               | row rather than one value.               |                                 |                                        
+AGE_NEGATIVE         | 2     | hard_tests | ON            | Ages below zero are always a data-entry  | AGE_PRESENT; AGE_NOT_A_NUMBER   | -                                      
+                     |       |            |               | or unit error.                           |                                 |                                        
+AGE_NOT_INTEGER      | 2     | hard_tests | OFF           | Off by default: only some source systems | AGE_PRESENT; AGE_NOT_A_NUMBER   | enable_legacy_integer_check;           
+                     |       |            |               | promise integer ages. Turn it on for     |                                 | disable_age_integer_check_globally     
+                     |       |            |               | those systems with an override rule.     |                                 |                                        
+AGE_TOO_HIGH         | 2     | hard_tests | ON            | Guards against sentinel values such as   | AGE_PRESENT; AGE_NOT_A_NUMBER   | -                                      
+                     |       |            |               | 999 leaking in as real ages.             |                                 |                                        
+EMAIL_PRESENT        | 0     | soft_tests | ON            | The presence test the rest of the email  | -                               | -                                      
+                     |       |            |               | tests wait for.                          |                                 |                                        
+EMAIL_MISSING_AT     | 1     | soft_tests | ON            | The most basic email shape test; the     | EMAIL_PRESENT                   | suppress_email_checks_for_test_accounts
+                     |       |            |               | domain test depends on it.               |                                 |                                        
+EMAIL_DOMAIN_INVALID | 2     | soft_tests | ON            | Only checked once EMAIL_MISSING_AT       | EMAIL_PRESENT; EMAIL_MISSING_AT | suppress_email_checks_for_test_accounts
+                     |       |            |               | passed: reporting a malformed domain on  |                                 |                                        
+                     |       |            |               | a string with no '@' is redundant noise  |                                 |                                        
+                     |       |            |               | on top of a more fundamental problem     |                                 |                                        
+                     |       |            |               | already reported.                        |                                 |                                        
+
+== Registry vs overrides ==
+code                 | layer | suite      | default_state | override_rules                          | effective_state                   
+---------------------+-------+------------+---------------+-----------------------------------------+-----------------------------------
+ROW_ALL_NULL         | 0     | base       | ON            | -                                       | DEFAULT (ON)                      
+AGE_PRESENT          | 0     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+DATES_PRESENT        | 0     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+AGE_NOT_A_NUMBER     | 1     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+DATES_OUT_OF_ORDER   | 1     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+AGE_NEGATIVE         | 2     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+AGE_NOT_INTEGER      | 2     | hard_tests | OFF           | enable_legacy_integer_check             | depends on row (default OFF unless
+                     |       |            |               | (enable);                               | a rule above matches)             
+                     |       |            |               | disable_age_integer_check_globally      |                                   
+                     |       |            |               | (disable)                               |                                   
+AGE_TOO_HIGH         | 2     | hard_tests | ON            | -                                       | DEFAULT (ON)                      
+EMAIL_PRESENT        | 0     | soft_tests | ON            | -                                       | DEFAULT (ON)                      
+EMAIL_MISSING_AT     | 1     | soft_tests | ON            | suppress_email_checks_for_test_accounts | depends on row (default ON unless 
+                     |       |            |               | (disable)                               | a rule above matches)             
+EMAIL_DOMAIN_INVALID | 2     | soft_tests | ON            | suppress_email_checks_for_test_accounts | depends on row (default ON unless 
+                     |       |            |               | (disable)                               | a rule above matches)             
+
+== Failures ==
+row      | code                 | status        | layer | suite      | outcome | message                                 | comments                                   | is_root_cause
+---------+----------------------+---------------+-------+------------+---------+-----------------------------------------+--------------------------------------------+--------------
+1003     | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed  | Age is missing                          |                                            | True         
+1004     | AGE_NEGATIVE         | INVALID (3)   | 2     | hard_tests | failed  | Age is negative                         | minimum=0; value=-4.0                      | True         
+1005     | AGE_TOO_HIGH         | INVALID (3)   | 2     | hard_tests | failed  | Age is implausibly high (over 130)      | maximum=130; value=999.0                   | True         
+1006     | AGE_NOT_A_NUMBER     | MALFORMED (2) | 1     | hard_tests | failed  | Age is not a number                     | value=thirty                               | True         
+1007     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_tests | failed  | Email has no '@'                        | at_signs=0; value=frances-example.com      | True         
+1008     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_tests | failed  | Email domain looks malformed            | domain=localhost                           | True         
+1009     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed  | Email is missing                        |                                            | True         
+1010     | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | hard_tests | failed  | start_date is after end_date            | end_date=2024-03-01; start_date=2024-09-01 | True         
+1011     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed  | Both start_date and end_date are needed | columns=start_date                         | True         
+1012     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed  | Both start_date and end_date are needed | columns=end_date                           | True         
+1019     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | soft_tests | failed  | Email has no '@'                        | at_signs=0; value=sheet-example.com        | True         
+1020     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_tests | failed  | Email domain looks malformed            | domain=example.com                         | True         
+1021     | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed  | Age is missing                          |                                            | True         
+1021     | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed  | Both start_date and end_date are needed | columns=start_date, end_date               | False        
+1021     | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed  | Email is missing                        |                                            | False        
+<no key> | ROW_ALL_NULL         | MISSING (1)   | 0     | base       | failed  | Row is entirely empty                   | columns=9                                  | True         
+<no key> | AGE_PRESENT          | MISSING (1)   | 0     | hard_tests | failed  | Age is missing                          |                                            | False        
+<no key> | DATES_PRESENT        | MISSING (1)   | 0     | hard_tests | failed  | Both start_date and end_date are needed | columns=start_date, end_date               | False        
+<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_tests | failed  | Email is missing                        |                                            | False        
+
+== Summary ==
+code                 | layer | failed | errored | skipped | disabled | passed
+---------------------+-------+--------+---------+---------+----------+-------
+DATES_PRESENT        | 0     | 4      | 0       | 0       | 0        | 45    
+AGE_PRESENT          | 0     | 3      | 0       | 0       | 0        | 46    
+EMAIL_PRESENT        | 0     | 3      | 0       | 0       | 0        | 46    
+EMAIL_DOMAIN_INVALID | 2     | 2      | 0       | 5       | 2        | 40    
+EMAIL_MISSING_AT     | 1     | 2      | 0       | 3       | 2        | 42    
+AGE_NEGATIVE         | 2     | 1      | 0       | 4       | 0        | 44    
+AGE_TOO_HIGH         | 2     | 1      | 0       | 4       | 0        | 44    
+DATES_OUT_OF_ORDER   | 1     | 1      | 0       | 4       | 0        | 44    
+AGE_NOT_A_NUMBER     | 1     | 1      | 0       | 3       | 0        | 45    
+ROW_ALL_NULL         | 0     | 1      | 0       | 0       | 0        | 48    
+AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 49       | 0     
+
+Root cause of each failing row:
+root_cause           | rows
+---------------------+-----
+AGE_PRESENT          | 2   
+DATES_PRESENT        | 2   
+EMAIL_DOMAIN_INVALID | 2   
+EMAIL_MISSING_AT     | 2   
+AGE_NEGATIVE         | 1   
+AGE_NOT_A_NUMBER     | 1   
+AGE_TOO_HIGH         | 1   
+DATES_OUT_OF_ORDER   | 1   
+EMAIL_PRESENT        | 1   
+ROW_ALL_NULL         | 1   
