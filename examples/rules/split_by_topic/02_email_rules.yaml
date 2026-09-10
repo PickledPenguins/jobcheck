@@ -1,0 +1,9 @@
+- name: "suppress_email_checks_for_test_accounts"
+  description: "Internal test accounts shouldn't trigger email format errors"
+  action: disable
+  codes:
+    - EMAIL_MISSING_AT
+    - EMAIL_DOMAIN_INVALID
+  match:
+    - column: email
+      pattern: "@internal\\.test$"

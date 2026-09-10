@@ -1,0 +1,4 @@
+- name: "same_name"
+  action: disable
+  codes: [AGE_NEGATIVE]
+  match: all

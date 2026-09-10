@@ -1,0 +1,151 @@
+# CLI reference
+
+Two demo entry points under `examples/`, both run from the project root: they import `validation` from the
+working directory and resolve file paths relative to it.
+
+- `examples/main.py` — loads the example tests, prints the registry tables and the failure report,
+  and can explain one row or summarise the frame.
+- `examples/main_hard_only.py` — a second entry point choosing its own suite, to show that two
+  scripts in one codebase see different registries.
+
+Neither is the product: the library does the work, and these exist to demonstrate it and to
+give the end-to-end tests something to drive. A pipeline calls
+[the report functions](reporting.md) directly.
+
+Back to the [README](../README.md).
+
+## `examples/main.py`
+
+Loads the requested suites and override files, validates a built-in demo DataFrame, and
+prints the registry tables followed by the failure report.
+
+```
+usage: main.py [-h] [-e FLAVORS [FLAVORS ...]] [-o OVERRIDES [OVERRIDES ...]] [-v]
+```
+
+No positional arguments. Nothing is read from stdin. Results go to stdout; column
+warnings and uncaught errors go to stderr.
+
+### `-e`, `--suites SUITE [SUITE ...]`
+
+Optional. Flavor subpackages of `src/pandas_row_validation/` to load. Default `hard_tests soft_tests`.
+
+Both multi-valued and repeatable: values are flattened in the order typed, so these three
+are identical.
+
+```sh
+python3 examples/main.py -e hard_tests soft_tests
+python3 examples/main.py -e hard_tests -e soft_tests
+python3 examples/main.py -e hard_tests -o examples/rules/error_overrides.yaml -e soft_tests
+```
+
+The base suite (`test_*.py` directly in `src/pandas_row_validation/`) always loads as well and cannot be
+switched off from the CLI. An unrecognised name is an error naming the subpackage that was
+expected; see [configuration](configuration.md#errors) for the message.
+
+### `-o`, `--overrides FILE [FILE ...]`
+
+Optional. Override YAML files, loaded through `load_overrides_from_files`. Default
+`examples/rules/error_overrides.yaml`.
+
+Same multi-valued-and-repeatable flattening as `-e`. Files need not share a directory, and
+**the order given is the precedence order** — later files win over earlier ones for the
+same code.
+
+```sh
+python3 examples/main.py -o examples/rules/split_by_topic/01_age_rules.yaml examples/rules/split_by_topic/02_email_rules.yaml \
+                -o examples/rules/from_another_directory/global_age_rule.yaml
+```
+
+Every rule is validated as it loads. A rule naming a code whose suite was not loaded with
+`-e` is an error, not a silent skip.
+
+### `--report {table,csv}`
+
+Optional, default `table`. Format of the failure report: bordered text with the message
+and comments wrapped, or CSV with the same columns unwrapped. Both come from
+`pandas_row_validation.render_report`; the flag only chooses which.
+
+### `--report-file PATH`
+
+Optional. Write the report to this file instead of printing it, through
+`pandas_row_validation.write_report`, and print `wrote PATH`. Combine with `--report csv` for a file
+another tool can read.
+
+### `--data-columns COLUMN [COLUMN ...]`
+
+Optional, repeatable and multi-valued like `-e` and `-o`. Columns from the demo
+frame to show immediately after the row key, in the order given. Passes straight
+through to `build_report(data_columns=...)`.
+
+### `--include-skipped`
+
+Optional, off by default. Adds the tests a failure blocked, each naming the prerequisite
+that stopped it in the `comments` column. Use it when the question is "why did nothing
+fire?" rather than "what is wrong with this row?".
+
+### `--explain ROW`
+
+Optional. Print what every test did on one row of the demo frame, by position (`0` is the
+first), then exit without printing the registry or the report. Each line is `passed`,
+`failed`, `disabled by <rule>`, or `skipped` with its blocking prerequisites, and the last
+line is the row's root cause. A position outside the frame exits 2.
+
+### `--summary`
+
+Optional, off by default. After the report, print per-test counts (`failed`, `errored`,
+`skipped`, `disabled`, `passed`, worst first) and a tally of what each failing row bottomed
+out at. A high `skipped` count means a fundamental test is failing often and hiding the
+layer below it.
+
+### `-v`, `--verbose`
+
+Optional, repeatable counter (`action="count"`), default `0`. Feeds the `debug` parameter
+of the print functions.
+
+| Level | Flag | Adds |
+|---|---|---|
+| 0 | *(absent)* | Registry and registry-vs-overrides tables, base columns only. |
+| 1 | `-v` | A `could_be_overridden_by` column on the registry table: rules that *reference* each code. Whether a rule fires is per-row and is not claimed here. |
+| 2 | `-vv` | `source_file` columns on both tables, plus a third table listing the override rules by rule. |
+
+Levels above 2 behave as 2.
+
+### `-h`, `--help`
+
+Prints usage and exits 0.
+
+## `examples/main_hard_only.py`
+
+Takes no options — but still parses the command line, so `--help` works and a mistyped
+flag exits 2 rather than being ignored. A second entry point that hardcodes `load_suites(["hard_tests"])`, to
+show that entry points in one codebase see independent registries: no email check is
+registered, so none appears in its registry table or in any row's errors. The base suite
+still loads.
+
+It loads `examples/rules/split_by_topic` with `pattern="01_*.yaml"`. The filter is deliberate — the
+email rules in `02_email_rules.yaml` name `soft_tests` codes, which is a load-time error
+when only `hard_tests` is loaded.
+
+```sh
+python3 examples/main_hard_only.py
+```
+
+```
+row id=1: AGE_NOT_INTEGER
+row id=2: OK
+```
+
+Row 1 is `LEGACY_A`/`BATCH`, so `01_age_rules.yaml` enables the off-by-default
+`AGE_NOT_INTEGER` for it; row 2 does not match, so the check stays off.
+
+## Exit codes
+
+`--explain` outside the frame exits 2 deliberately; the rest are the interpreter's and
+argparse's.
+
+| Code | Meaning |
+|---|---|
+| 0 | Ran to completion. Rows failing validation still exit 0 — failures are data, printed per row, not a process error. |
+| 1 | An uncaught exception, with traceback. In practice a load-time `ValueError` (unknown suite, bad rule file, dependency problem) or `FileNotFoundError` for a missing override path. |
+| 2 | argparse rejected the command line (unknown flag, missing value), or `--explain` named a row outside the frame. |

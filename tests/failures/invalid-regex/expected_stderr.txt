@@ -1,0 +1,1 @@
+ValueError: rule 'broken_pattern' in tests/failures/invalid-regex/rules.yaml: invalid regex '([unclosed' for column 'email': unterminated character set at position 1

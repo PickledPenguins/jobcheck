@@ -1,0 +1,1 @@
+ValueError: rule 'typo_in_code' in tests/failures/unknown-code/rules.yaml: unknown code 'AGE_NEGATIV'. Load the suite that defines it before loading overrides, or fix the code.

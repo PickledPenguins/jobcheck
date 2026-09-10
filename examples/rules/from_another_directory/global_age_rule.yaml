@@ -1,0 +1,9 @@
+# Deliberately in a different directory: load_overrides_from_files takes paths
+# from anywhere, and precedence follows the order the paths are given.
+
+- name: "disable_age_integer_check_globally"
+  description: "Example: disable AGE_NOT_INTEGER for every row, no filtering"
+  action: disable
+  codes:
+    - AGE_NOT_INTEGER
+  match: all
