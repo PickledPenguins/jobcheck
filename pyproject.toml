@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jobcheck"
-version = "0.1.0"
+version = "0.2.0"
 description = "Validate rows of a pandas DataFrame with many small, dependent, named tests."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -46,9 +46,9 @@ markers = [
 ]
 
 [tool.coverage.run]
-# The library, and the example suites the tests drive: both are code this
+# The library, and the example checks the tests drive: both are code this
 # repository is responsible for, and a broken example should show as a gap.
-source = ["jobcheck", "example_suites", "main", "main_hard_only", "perf_baseline"]
+source = ["jobcheck", "main", "perf_baseline", "examples/checks"]
 branch = true
 
 [tool.coverage.report]

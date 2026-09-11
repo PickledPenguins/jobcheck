@@ -1,1 +1,0 @@
-python3 examples/main.py --data-columns source_system record_type --report table

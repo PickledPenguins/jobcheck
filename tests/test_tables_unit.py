@@ -113,29 +113,28 @@ def test_non_string_cells_are_stringified() -> None:
 # --- get_registry_table -----------------------------------------------------
 
 
-def test_registry_table_has_the_base_columns(example_suites: None) -> None:
+def test_registry_table_has_the_base_columns(example_checks: None) -> None:
     assert list(registry_tables.get_registry_table().columns) == [
-        "code", "layer", "suite", "default_state", "description", "depends_on",
+        "code", "layer", "default_state", "description", "depends_on",
     ]
 
 
-def test_registry_table_adds_source_file_at_debug_two(example_suites: None) -> None:
+def test_registry_table_adds_source_file_at_debug_two(example_checks: None) -> None:
     assert "source_file" in registry_tables.get_registry_table(debug=2).columns
     assert "source_file" not in registry_tables.get_registry_table(debug=1).columns
 
 
-def test_registry_table_is_sorted_by_suite_then_layer_then_code(example_suites: None) -> None:
+def test_registry_table_is_sorted_by_layer_then_code(example_checks: None) -> None:
     table = registry_tables.get_registry_table()
     assert list(table["code"]) == [
-        "ROW_ALL_NULL",
-        "AGE_PRESENT", "DATES_PRESENT", "AGE_NOT_A_NUMBER", "DATES_OUT_OF_ORDER",
-        "AGE_NEGATIVE", "AGE_NOT_INTEGER", "AGE_TOO_HIGH",
-        "EMAIL_PRESENT", "EMAIL_MISSING_AT", "EMAIL_DOMAIN_INVALID",
+        "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT", "ROW_ALL_NULL",
+        "AGE_NOT_A_NUMBER", "DATES_OUT_OF_ORDER", "EMAIL_MISSING_AT",
+        "AGE_NEGATIVE", "AGE_NOT_INTEGER", "AGE_TOO_HIGH", "EMAIL_DOMAIN_INVALID",
     ]
-    assert list(table["layer"]) == [0, 0, 0, 1, 1, 2, 2, 2, 0, 1, 2]
+    assert list(table["layer"]) == [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2]
 
 
-def test_registry_table_renders_default_state_as_on_or_off(example_suites: None) -> None:
+def test_registry_table_renders_default_state_as_on_or_off(example_checks: None) -> None:
     table = registry_tables.get_registry_table().set_index("code")
     assert table.loc["AGE_NEGATIVE", "default_state"] == "ON"
     assert table.loc["AGE_NOT_INTEGER", "default_state"] == "OFF"
@@ -156,7 +155,7 @@ def test_registry_table_of_an_empty_registry_has_columns_and_no_rows(fresh_regis
     table = registry_tables.get_registry_table()
     assert table.empty
     assert list(table.columns) == [
-        "code", "layer", "suite", "default_state", "description", "depends_on",
+        "code", "layer", "default_state", "description", "depends_on",
     ]
 
 
@@ -164,13 +163,13 @@ def test_registry_table_of_an_empty_registry_has_columns_and_no_rows(fresh_regis
 
 
 def test_print_registry_prints_the_table_and_returns_it(
-    example_suites: None, capsys: pytest.CaptureFixture[str]
+    example_checks: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
     table = registry_tables.print_registry()
     out = capsys.readouterr().out
     assert "AGE_NEGATIVE" in out
     assert "code" in out.splitlines()[0]
-    assert list(table["code"])[0] == "ROW_ALL_NULL"
+    assert list(table["code"])[0] == "AGE_PRESENT"
 
 
 def test_print_registry_on_an_empty_registry_says_so(
@@ -213,7 +212,7 @@ def test_print_registry_without_overrides_still_renders_at_debug_one(fresh_regis
 def test_registry_with_overrides_has_its_columns(fresh_registry: None) -> None:
     make_check("A_CODE")
     assert list(registry_tables.print_registry_with_overrides([]).columns) == [
-        "code", "layer", "suite", "default_state", "override_rules", "effective_state",
+        "code", "layer", "default_state", "override_rules", "effective_state",
     ]
 
 
@@ -245,7 +244,7 @@ def test_override_rules_column_names_each_rule_with_its_action(fresh_registry: N
     assert table.loc["A_CODE", "override_rules"] == "on (enable); off (disable)"
 
 
-def test_registry_with_overrides_adds_source_file_at_debug_two(example_suites: None) -> None:
+def test_registry_with_overrides_adds_source_file_at_debug_two(example_checks: None) -> None:
     table = registry_tables.print_registry_with_overrides([], debug=2).set_index("code")
     assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
 

@@ -1,9 +1,9 @@
-"""Turning outcomes into a report: collection, the failure table, and rendering.
+"""Turning outcomes into a report: the failure table, the summary, and rendering.
 
-Everything a caller needs to produce and save a report lives here -- collecting
-outcomes for a frame, building the long-format failure table, rendering it as
-text or CSV, and writing it to a file. There is no command line: a pipeline
-calls these functions and decides where the output goes.
+Everything a caller needs to produce and save a report lives here -- building
+the long-format failure table from what :func:`jobcheck.validate` returned,
+rendering it as text or CSV, and writing it to a file. There is no command
+line: a pipeline calls these functions and decides where the output goes.
 
 The report is **long format**: one row per failed check per data row. That is the
 diagnostic unit, it is the only shape that survives being written as CSV, and it
@@ -12,17 +12,16 @@ sorts and filters cleanly downstream.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any, Iterable, Mapping
 
 import pandas as pd
 
-from .context import RowContext, build_context
-from .engine import explain_row, root_causes
+from .engine import root_causes
 from .rules import OverrideRule
 from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, render_status
 from .tables import format_table
 
-REPORT_COLUMNS = ["row", "code", "status", "layer", "suite", "outcome", "message", "comments",
+REPORT_COLUMNS = ["row", "code", "status", "layer", "outcome", "message", "comments",
                   "is_root_cause"]
 
 # A spreadsheet treats a cell starting with one of these as a formula, so a value
@@ -30,31 +29,6 @@ REPORT_COLUMNS = ["row", "code", "status", "layer", "suite", "outcome", "message
 # report. Escaping happens on the way out, not on the way in, so the outcomes and
 # the table view keep the value the check actually saw.
 FORMULA_PREFIXES = ("=", "+", "@", "\t", "\r")
-
-ContextBuilder = Callable[["pd.Series[Any]"], RowContext | None]
-
-
-def collect_outcomes(
-    df: pd.DataFrame,
-    overrides: list[OverrideRule] | None = None,
-    context_builder: ContextBuilder = build_context,
-    on_error: str = "record",
-) -> list[list[CheckOutcome]]:
-    """Run every check against every row and keep all the outcomes.
-
-    Keeps the checks that did not run as well as the ones that did, because that
-    is what the explanation and summary views are built from. For a frame large
-    enough that the extra objects matter, use
-    :func:`jobcheck.validate_row` per row instead and skip the report.
-
-    ``on_error`` is passed through to :func:`jobcheck.explain_row`.
-    """
-
-    return [
-        explain_row(row, ctx=context_builder(row), overrides=overrides, on_error=on_error)
-        for _, row in df.iterrows()
-    ]
-
 
 def render_comments(comments: Mapping[str, Any]) -> str:
     """Render a check's comments as ``key=value; key=value``, sorted by key.
@@ -145,35 +119,21 @@ def _check_data_columns(df: pd.DataFrame | None, data_columns: list[str]) -> Non
     if df is None:
         raise ValueError("data_columns names columns in the frame; pass df as well.")
 
-    missing = [column for column in data_columns if column not in df.columns]
-    if missing:
+    # A name that is not there, or is there twice, would pair values with the
+    # wrong headings -- wrong data in a report, reported silently -- and a name
+    # the report already uses would overwrite the report's own column.
+    unusable = sorted(
+        {column for column in data_columns
+         if int((df.columns == column).sum()) != 1
+         or data_columns.count(column) > 1
+         or column in REPORT_COLUMNS}
+    )
+    if unusable:
         raise ValueError(
-            f"data_columns {missing} is not in the data. Available columns: "
+            f"data_columns {unusable} cannot be used. Each name must appear exactly once "
+            f"in the frame, once in data_columns, and not be one of the report's own "
+            f"columns {REPORT_COLUMNS}. Frame columns: "
             f"{', '.join(str(c) for c in df.columns)}."
-        )
-    repeated = sorted({column for column in data_columns if data_columns.count(column) > 1})
-    if repeated:
-        raise ValueError(f"data_columns names {repeated} more than once.")
-
-    # A duplicated label makes df[data_columns] return more values than names, and
-    # the values would then be paired with the wrong headings -- wrong data in a
-    # report, reported silently. The per-row engine refuses duplicate labels for
-    # the same reason.
-    ambiguous = sorted({
-        column for column in data_columns
-        if int((df.columns == column).sum()) > 1
-    })
-    if ambiguous:
-        raise ValueError(
-            f"data_columns {ambiguous} appears more than once in the frame, so the report "
-            "cannot tell which column you meant. Rename or drop the duplicates first."
-        )
-    clashing = sorted(set(data_columns) & set(REPORT_COLUMNS))
-    if clashing:
-        raise ValueError(
-            f"data_columns {clashing} would collide with the report's own column(s) of the "
-            "same name. Rename the column in the frame first, e.g. "
-            "df.rename(columns={'code': 'source_code'})."
         )
 
 
@@ -188,7 +148,7 @@ def build_report(
     """Build the long-format report: one row per failure.
 
     Columns are ``row``, ``code``, ``status`` (``INVALID (3)``), ``layer``,
-    ``suite``, ``outcome``, ``message``, ``comments``, ``is_root_cause``. Lines
+    ``outcome``, ``message``, ``comments``, ``is_root_cause``. Lines
     keep evaluation order within each data row; the root cause is the line (or
     lines) flagged by ``is_root_cause``, which is not necessarily the first --
     an independent chain registered earlier can be printed above a shallower
@@ -251,7 +211,6 @@ def build_report(
                     "code": outcome.code,
                     "status": render_status(outcome.status),
                     "layer": outcome.layer,
-                    "suite": outcome.suite,
                     "outcome": outcome.outcome,
                     "message": outcome.message or outcome.detail,
                     "comments": render_comments(outcome.comments) or outcome.detail,

@@ -251,47 +251,38 @@ Python 3.10+ (`X | None` syntax throughout), pandas 2.1+ and PyYAML at runtime;
 `pip install -e .[dev]` for the suite, which needs pytest, coverage, mypy, hypothesis and
 mutmut. Tests are split by pytest markers (`fast`, `long`), not by directory.
 
-## jobchain depends on this project, and the port is a rename plus rule files
+## The simplification, 2026-09-10, on branch `simplify`
 
-`~/work/ai/jobchain` runs a run's check files through this library. It was written against
-the 09-07 tree and still calls it, so until it is ported every `checks:` run fails, twenty
-of its tests skip, and its documented quick start does not execute.
+The owner asked for a version a junior developer can read. The analysis and the
+decisions are in `HANDOFF.md`; what actually changed:
 
-Two of the gaps were closed here on 2026-09-10 rather than in jobchain, because both were
-capabilities this tree had lost rather than names it had changed:
+| Dropped | Replaced by |
+|---|---|
+| `run.py` entirely — `ValidationRun`, `RowTrace`, `RunStats`, `iter_traces` | `validate(df, ...) -> list[list[CheckOutcome]]`, now in `engine.py` beside `explain_row`. `collect_outcomes` is gone: `validate` is the one whole-frame call. |
+| `check_group` / `CheckGroup` | `register_check(depends_on=[...])` per check. A file's shared prerequisite is now stated on each check that has it. |
+| Suites — `load_suites`, `loaded_suites`, `_infer_suite`, `_import_test_modules`, `BASE_SUITE`, and the `suite` field on `Check`, `CheckOutcome`, the report and the registry tables | `load_checks(paths)`, the one loading mechanism. |
+| Extensible statuses — `register_status`, `all_statuses`, `status_name`, `clear_extra_statuses` | The fixed five-member `Status` enum. `render_status` reads it directly. |
+| `load_overrides(path)`, `load_overrides_from_dir`, `load_overrides_from_files`, `rules.combine` | One `load_overrides(paths)`, shaped like `load_checks`: a list, in precedence order. |
+| `examples/main_hard_only.py`, and eight of the demo's twelve flags | `examples/main.py` with `--data`, `--rules`, `--report`, `--explain`, `--summary`. |
+| `examples/example_suites/` | `examples/checks/`, four flat files named in `main.py`'s `CHECK_FILES`. |
 
-- `load_checks(paths)` imports `.py` files by path, the way `load_checks` did.
-  `load_suites(suites, package)` cannot: jobchain names arbitrary files in a prepared run's
-  `inputs/` directory, and a package is the wrong shape for that.
-- `validate(df, overrides, context_builder)` is back in `run.py`, returning a
-  `ValidationRun` with the `.errors`, `.position`, `.root_cause` and `.failures` jobchain
-  reads. `collect_outcomes` remains the lower-level call.
+Kept deliberately, against the first proposal: the summary views
+(`summarise_outcomes`, `print_summary`, `root_cause_counts`) and all four registry
+tables. `escape_for_spreadsheet` stays — dropping it reintroduces CSV injection.
 
-What jobchain still has to change, name by name:
+Two behaviour changes fell out of it, both visible in `tests/golden/`:
 
-| jobchain calls | here now | note |
-|---|---|---|
-| `clear_registry()` | `clear_registry()` | unchanged |
-| `load_checks(paths)` | `load_checks(paths)` | rename; same semantics, and no `.pyc` left beside the file |
-| `load_overrides(*files)` | `load_overrides_from_files(paths)` | one list rather than varargs; `load_overrides(path)` for one file |
-| `validate(df, overrides, context_builder)` | `validate(df, overrides, context_builder, on_error)` | unchanged, plus `on_error` |
-| `run.errors`, `trace.position`, `trace.root_cause`, `trace.failures` | same four | unchanged |
-| `failure.code/.message/.comments/.outcome` | same four names on `CheckOutcome` | unchanged |
-| `render_comments(comments)` | `render_comments(comments)` | unchanged |
-| `ERRORED` | `ERRORED` (`"errored"`) | unchanged |
-| `RowContext`, subclassed | `RowContext`, subclassed | unchanged; fields are `flags`, `paths`, `state`, `extra` |
-| `check_group(...)` | `check_group(depends_on, suite, default_enabled)` | rename, plus the new `suite` argument |
-| `CheckResult(Status.X, {...})` | `CheckResult(code, comments)` | rename; same positional shape |
-| `PASS`, `Status.MISSING/MALFORMED/INVALID` | identical | `Status.ERROR` is reserved for the engine |
-| `jobcheck` | `jobcheck` | the import, and `_ENGINE_NAMES` with it |
+- a `skipped` line now names only the prerequisite it directly waited for, not
+  every transitive one, because the group's unconditional prerequisites are gone.
+- the registry table sorts by layer then code, having no suite to sort by first.
 
-**The remaining incompatibility is the rule file format, and it is data, not code.** The
-check era took one top-level `column`/`pattern` pair per rule, matched with
-`fnmatchcase`; this tree takes a `match:` list of `{column, pattern}` criteria matched as
-regular expressions, and rejects the old keys as typos rather than ignoring them.
-Rejecting is right — ignoring would disable nothing while the caller believed a code was
-switched off — so every rule file jobchain ships or documents has to be rewritten. Glob
-`x` becomes regex `^x$`, not `x`, which matches anywhere.
+**jobchain is ported to this on its own branch `simplify-port`** (`~/work/ai/jobchain`).
+It calls `RowContext`, `clear_registry`, `load_checks`, `load_overrides`, `validate`,
+`root_causes`, `render_comments` and `ERRORED` — the list in
+`jobchain/checks.py:_ENGINE_NAMES`. `validate` handing back lists rather than a run
+object means jobchain counts errored outcomes itself and reads root causes with
+`root_causes(row)`, which also fixed a small thing: every failure at the shallowest
+layer is now flagged, not just one.
 
 ### The comparison against jobchain's record is done
 

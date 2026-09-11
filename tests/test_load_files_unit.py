@@ -1,4 +1,4 @@
-"""Unit checks: loading check files by path, the counterpart to load_suites.
+"""Unit checks: loading check files by path, the only way checks are loaded.
 
 The behaviour a pipeline depends on is that a file written into a run directory
 can be loaded without being importable as a package, that loading it twice does
@@ -16,12 +16,9 @@ from jobcheck import registry as reg
 pytestmark = pytest.mark.fast
 
 FILE_WITH_ONE_TEST = '''
-from jobcheck import PASS, Status, CheckResult, check_group
+from jobcheck import PASS, Status, CheckResult, register_check
 
-g = check_group()
-
-
-@g("{code}", "{code} failed")
+@register_check("{code}", "{code} failed")
 def rule(row):
     return PASS if row.get("value") == 1 else CheckResult(Status.INVALID, {{"value": row.get("value")}})
 '''
@@ -43,12 +40,6 @@ def test_loads_a_file_by_path(fresh_registry: None, tmp_path: Path) -> None:
 def test_accepts_a_bare_string_as_one_path(fresh_registry: None, tmp_path: Path) -> None:
     reg.load_checks(write_test_file(tmp_path, "checks.py", "SINGLE"))
     assert [t.code for t in reg.CHECKS] == ["SINGLE"]
-
-
-def test_a_path_loaded_file_lands_in_the_base_suite(fresh_registry: None, tmp_path: Path) -> None:
-    reg.load_checks([write_test_file(tmp_path, "checks.py", "BASED")])
-    assert reg.CHECKS[0].suite == reg.BASE_SUITE
-    assert reg.BASE_SUITE in reg.loaded_suites()
 
 
 def test_loaded_files_records_resolved_paths_in_order(fresh_registry: None, tmp_path: Path) -> None:
@@ -120,7 +111,7 @@ def test_a_file_that_raises_on_import_leaves_no_module_behind(
     path.write_text("raise RuntimeError('boom')\n")
     with pytest.raises(RuntimeError):
         reg.load_checks([str(path)])
-    assert not [name for name in sys.modules if name.startswith("jobcheck_test_file_")]
+    assert not [name for name in sys.modules if name.startswith("jobcheck_check_file_")]
 
 
 def test_a_prerequisite_may_live_in_another_file_of_the_same_call(
@@ -130,9 +121,8 @@ def test_a_prerequisite_may_live_in_another_file_of_the_same_call(
     base.write_text(FILE_WITH_ONE_TEST.format(code="BASE"))
     dependent = tmp_path / "dependent.py"
     dependent.write_text(
-        "from jobcheck import PASS, check_group\n"
-        "g = check_group(depends_on=['BASE'])\n"
-        "@g('DEPENDENT', 'DEPENDENT failed')\n"
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('DEPENDENT', 'DEPENDENT failed', depends_on=['BASE'])\n"
         "def rule(row):\n"
         "    return PASS\n"
     )
@@ -145,9 +135,8 @@ def test_a_dangling_prerequisite_raises_at_the_end_of_the_call(
 ) -> None:
     path = tmp_path / "dependent.py"
     path.write_text(
-        "from jobcheck import PASS, check_group\n"
-        "g = check_group(depends_on=['ABSENT'])\n"
-        "@g('DEPENDENT', 'DEPENDENT failed')\n"
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('DEPENDENT', 'DEPENDENT failed', depends_on=['ABSENT'])\n"
         "def rule(row):\n"
         "    return PASS\n"
     )
@@ -217,7 +206,7 @@ def test_the_loaded_module_is_registered_under_its_generated_name(
 
     reg.load_checks([write_test_file(tmp_path, "checks.py", "IN_SYS_MODULES")])
     names = [name for name in sys.modules
-             if name.startswith("jobcheck_test_file_")]
+             if name.startswith("jobcheck_check_file_")]
     assert len(names) == 1
     module = sys.modules[names[0]]
     assert module is not None
@@ -233,7 +222,7 @@ def test_clear_registry_evicts_the_module_it_registered(fresh_registry: None,
     import sys
 
     reg.load_checks([write_test_file(tmp_path, "checks.py", "EVICTED")])
-    name = next(n for n in sys.modules if n.startswith("jobcheck_test_file_"))
+    name = next(n for n in sys.modules if n.startswith("jobcheck_check_file_"))
     reg.clear_registry()
     assert name not in sys.modules
 
@@ -276,7 +265,7 @@ def test_a_file_that_registers_nothing_can_still_be_loaded_again(fresh_registry:
     path = tmp_path / "empty_checks.py"
     path.write_text("VALUE = 1\n")
     reg.load_checks([str(path)])
-    name = next(n for n in sys.modules if n.startswith("jobcheck_test_file_"))
+    name = next(n for n in sys.modules if n.startswith("jobcheck_check_file_"))
     assert sys.modules[name].VALUE == 1
 
     reg.clear_registry()

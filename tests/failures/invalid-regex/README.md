@@ -1,4 +1,6 @@
-# Pattern is not a valid regular expression
+# A pattern that is not a regex
 
-Input:    `python3 examples/main.py -o tests/failures/invalid-regex/rules.yaml`
-Expected: stderr `invalid regex '([unclosed' for column 'email': unterminated character set at position 1`; exit 1
+One mistake, one message.
+
+Input:    an unbalanced bracket
+Expected: exit 1 naming the pattern and the column

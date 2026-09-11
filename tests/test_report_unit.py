@@ -10,7 +10,9 @@ import pytest
 
 from conftest import make_check, one_row_report
 from jobcheck import registry as reg
+from jobcheck import results as res
 from jobcheck import report as rep
+from jobcheck import validate
 from jobcheck.results import Status, CheckResult
 
 pytestmark = pytest.mark.fast
@@ -42,30 +44,30 @@ def two_layers(fresh_registry: None) -> None:
         return True
 
 
-def outcomes(df: pd.DataFrame = FRAME) -> list[list[reg.CheckOutcome]]:
-    return rep.collect_outcomes(df)
+def outcomes(df: pd.DataFrame = FRAME) -> list[list[res.CheckOutcome]]:
+    return validate(df)
 
 
 # --- collection -------------------------------------------------------------
 
 
-def test_collect_outcomes_returns_one_list_per_row(two_layers: None) -> None:
+def test_validate_returns_one_list_per_row(two_layers: None) -> None:
     collected = outcomes()
     assert len(collected) == len(FRAME)
     assert [o.code for o in collected[0]] == ["AGE_PRESENT", "AGE_IN_RANGE"]
 
 
-def test_collect_outcomes_passes_overrides_through(two_layers: None) -> None:
+def test_validate_passes_overrides_through(two_layers: None) -> None:
     rule = reg.OverrideRule(name="off", action="disable", codes=["AGE_IN_RANGE"],
                             criteria=[], match_all=True)
-    collected = rep.collect_outcomes(FRAME, overrides=[rule])
+    collected = validate(FRAME, overrides=[rule])
     assert {o.outcome for row in collected for o in row if o.code == "AGE_IN_RANGE"} == {"disabled"}
 
 
-def test_collect_outcomes_can_be_made_fatal_on_a_raising_test(fresh_registry: None) -> None:
+def test_validate_can_be_made_fatal_on_a_raising_check(fresh_registry: None) -> None:
     make_check("BOOM", raises=RuntimeError("boom"))
     with pytest.raises(RuntimeError, match="boom"):
-        rep.collect_outcomes(FRAME, on_error="raise")
+        validate(FRAME, on_error="raise")
 
 
 # --- building the report ----------------------------------------------------
@@ -84,12 +86,11 @@ def test_a_clean_frame_produces_an_empty_report_with_columns(two_layers: None) -
     assert list(report.columns) == rep.REPORT_COLUMNS
 
 
-def test_the_report_carries_status_layer_suite_and_comments(two_layers: None) -> None:
+def test_the_report_carries_status_layer_and_comments(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id").set_index("row")
     row = report.loc["102"]
     assert row["status"] == "INVALID (3)"
     assert row["layer"] == 1
-    assert row["suite"] == "base"
     assert row["comments"] == "actual=-5.0; minimum=0"
     assert row["message"] == "Age is out of range"
 
@@ -119,7 +120,7 @@ def test_rows_without_a_key_column_are_labelled_by_index(two_layers: None) -> No
 
 def test_a_missing_key_value_is_labelled_rather_than_rendered_as_nan(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": None, "age": -5}])
-    report = rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="id")
+    report = rep.build_report(validate(frame), df=frame, key_column="id")
     assert list(report["row"]) == ["<no key>"]
 
 
@@ -129,7 +130,7 @@ def test_without_a_frame_rows_are_numbered_by_position(two_layers: None) -> None
 
 def test_a_composite_key_joins_its_parts(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": 101, "batch": "B1", "age": -5}])
-    report = rep.build_report(rep.collect_outcomes(frame), df=frame, key_column=["batch", "id"])
+    report = rep.build_report(validate(frame), df=frame, key_column=["batch", "id"])
     assert list(report["row"]) == ["B1|101"]
 
 
@@ -137,7 +138,7 @@ def test_a_whole_float_key_loses_its_decimal(two_layers: None) -> None:
     """An integer id column pandas widened to float still reads as 102, not 102.0."""
 
     frame = pd.DataFrame([{"id": 102.0, "age": -5}])
-    report = rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="id")
+    report = rep.build_report(validate(frame), df=frame, key_column="id")
     assert list(report["row"]) == ["102"]
 
 
@@ -166,14 +167,14 @@ def test_data_columns_sit_between_the_row_key_and_the_code(two_layers: None) -> 
 
 def test_data_columns_keep_the_order_they_were_given(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": 1, "age": -5, "batch": "B1", "region": "EU"}])
-    report = rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="id",
+    report = rep.build_report(validate(frame), df=frame, key_column="id",
                               data_columns=["region", "batch"])
     assert list(report.columns)[:3] == ["row", "region", "batch"]
 
 
 def test_a_data_column_repeats_on_every_failure_of_its_row(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": 1, "age": -5, "batch": "B1"}])
-    report = rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="id",
+    report = rep.build_report(validate(frame), df=frame, key_column="id",
                               data_columns=["batch"])
     assert list(report["batch"]) == ["B1"]
 
@@ -182,7 +183,7 @@ def test_data_column_values_render_like_the_row_key(two_layers: None) -> None:
     """Whole floats lose the .0; a missing value is blank rather than nan."""
 
     frame = pd.DataFrame([{"id": 1, "age": -5, "batch": 7.0, "region": None}])
-    report = rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="id",
+    report = rep.build_report(validate(frame), df=frame, key_column="id",
                               data_columns=["batch", "region"])
     assert list(report["batch"]) == ["7"]
     assert list(report["region"]) == [""]
@@ -204,7 +205,7 @@ def test_an_empty_data_columns_list_changes_nothing(two_layers: None) -> None:
 
 
 def test_an_unknown_data_column_is_rejected(two_layers: None) -> None:
-    with pytest.raises(ValueError, match=r"data_columns \['nope'\] is not in the data"):
+    with pytest.raises(ValueError, match=r"data_columns \['nope'\] cannot be used"):
         rep.build_report(outcomes(), df=FRAME, data_columns=["nope"])
 
 
@@ -214,7 +215,7 @@ def test_data_columns_without_a_frame_are_rejected(two_layers: None) -> None:
 
 
 def test_a_repeated_data_column_is_rejected(two_layers: None) -> None:
-    with pytest.raises(ValueError, match=r"names \['age'\] more than once"):
+    with pytest.raises(ValueError, match=r"data_columns \['age'\] cannot be used"):
         rep.build_report(outcomes(), df=FRAME, data_columns=["age", "age"])
 
 
@@ -224,8 +225,8 @@ def test_a_duplicated_frame_column_is_rejected_rather_than_misread(two_layers: N
     position -- the second 'batch' value printed under the 'age' heading."""
 
     frame = pd.DataFrame([[1, "A", "B", -5]], columns=["id", "batch", "batch", "age"])
-    outs = rep.collect_outcomes(pd.DataFrame([{"id": 1, "age": -5}]))
-    with pytest.raises(ValueError, match=r"data_columns \['batch'\] appears more than once"):
+    outs = validate(pd.DataFrame([{"id": 1, "age": -5}]))
+    with pytest.raises(ValueError, match=r"data_columns \['batch'\] cannot be used"):
         rep.build_report(outs, df=frame, key_column="id", data_columns=["batch", "age"])
 
 
@@ -233,7 +234,7 @@ def test_a_duplicate_elsewhere_in_the_frame_does_not_block_other_columns(
     two_layers: None,
 ) -> None:
     frame = pd.DataFrame([[1, "A", "B", -5]], columns=["id", "batch", "batch", "age"])
-    outs = rep.collect_outcomes(pd.DataFrame([{"id": 1, "age": -5}]))
+    outs = validate(pd.DataFrame([{"id": 1, "age": -5}]))
     report = rep.build_report(outs, df=frame, key_column="id", data_columns=["age"])
     assert list(report["age"]) == ["-5"]
 
@@ -242,8 +243,8 @@ def test_a_data_column_colliding_with_a_report_column_is_rejected(two_layers: No
     """Silently overwriting the report's own column would hide the failure."""
 
     frame = pd.DataFrame([{"id": 1, "age": -5, "code": "SOURCE-1"}])
-    with pytest.raises(ValueError, match="would collide with the report's own column"):
-        rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="id",
+    with pytest.raises(ValueError, match=r"data_columns \['code'\] cannot be used"):
+        rep.build_report(validate(frame), df=frame, key_column="id",
                          data_columns=["code"])
 
 
@@ -395,7 +396,7 @@ def test_root_cause_counts_is_importable_from_the_package() -> None:
 def test_root_cause_counts_rank_by_rows(fresh_registry: None) -> None:
     make_check("COMMON", passes=False)
     frame = pd.DataFrame([{"age": 1}, {"age": 2}])
-    assert rep.root_cause_counts(rep.collect_outcomes(frame)).to_dict("records") == [
+    assert rep.root_cause_counts(validate(frame)).to_dict("records") == [
         {"root_cause": "COMMON", "rows": 2}
     ]
 
@@ -426,7 +427,7 @@ def test_print_summary_with_no_rows_says_nothing_ran(
     assert table.empty
 
 
-def test_collect_outcomes_hands_each_row_the_context_its_builder_returned(
+def test_validate_hands_each_row_the_context_its_builder_returned(
     fresh_registry: None,
 ) -> None:
     """The context_builder is the adopter's one hook, so its result has to arrive.
@@ -444,7 +445,7 @@ def test_collect_outcomes_hands_each_row_the_context_its_builder_returned(
         return PASS if ctx.flags.get("allowed") else CheckResult(Status.INVALID, ctx.flags)
 
     frame = pd.DataFrame([{"id": 1, "allow": True}, {"id": 2, "allow": False}])
-    outcomes = rep.collect_outcomes(
+    outcomes = validate(
         frame, context_builder=lambda row: RowContext(flags={"allowed": bool(row["allow"])})
     )
     assert [o[0].outcome for o in outcomes] == [PASSED, FAILED]
@@ -484,7 +485,7 @@ def formula_report(fresh: None) -> pd.DataFrame:
 
     make_check("CELL", passes=False)
     frame = pd.DataFrame([{"id": 1, "name": "=SUM(A1:A9)"}])
-    return rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="id",
+    return rep.build_report(validate(frame), df=frame, key_column="id",
                             data_columns=["name"])
 
 
@@ -536,7 +537,7 @@ def two_independent_failures(fresh: None) -> list[list[Any]]:
     make_check("DEEP", passes=False, depends_on=["Q"])
     make_check("SHALLOW_A", passes=False)
     make_check("SHALLOW_B", passes=False)
-    return rep.collect_outcomes(pd.DataFrame([{"id": 1}]))
+    return validate(pd.DataFrame([{"id": 1}]))
 
 
 def test_every_failure_at_the_shallowest_layer_is_a_root_cause(fresh_registry: None) -> None:
@@ -569,14 +570,14 @@ def test_a_key_column_holding_the_separator_is_refused(fresh_registry: None) -> 
     make_check("FAILS", passes=False)
     frame = pd.DataFrame([{"k1": "a|b", "k2": "c"}])
     with pytest.raises(ValueError, match=r"hold the '\|' that joins a multi-column key"):
-        rep.build_report(rep.collect_outcomes(frame), df=frame, key_column=["k1", "k2"])
+        rep.build_report(validate(frame), df=frame, key_column=["k1", "k2"])
 
 
 def test_the_offending_row_and_column_are_named(fresh_registry: None) -> None:
     make_check("FAILS", passes=False)
     frame = pd.DataFrame([{"k1": "fine", "k2": "ok"}, {"k1": "fine", "k2": "b|c"}])
     with pytest.raises(ValueError) as raised:
-        rep.build_report(rep.collect_outcomes(frame), df=frame, key_column=["k1", "k2"])
+        rep.build_report(validate(frame), df=frame, key_column=["k1", "k2"])
     assert "Row 1" in str(raised.value)
     assert "['k2']" in str(raised.value)
 
@@ -586,12 +587,12 @@ def test_a_single_key_column_may_hold_the_separator(fresh_registry: None) -> Non
 
     make_check("FAILS", passes=False)
     frame = pd.DataFrame([{"k1": "a|b"}])
-    report = rep.build_report(rep.collect_outcomes(frame), df=frame, key_column="k1")
+    report = rep.build_report(validate(frame), df=frame, key_column="k1")
     assert list(report["row"]) == ["a|b"]
 
 
 def test_multi_column_keys_join_with_a_pipe(fresh_registry: None) -> None:
     make_check("FAILS", passes=False)
     frame = pd.DataFrame([{"k1": "a", "k2": "c"}])
-    report = rep.build_report(rep.collect_outcomes(frame), df=frame, key_column=["k1", "k2"])
+    report = rep.build_report(validate(frame), df=frame, key_column=["k1", "k2"])
     assert list(report["row"]) == ["a|c"]

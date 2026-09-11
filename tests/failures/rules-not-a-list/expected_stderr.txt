@@ -1,0 +1,1 @@
+ValueError: tests/failures/rules-not-a-list/rules.yaml: override files must contain a flat top-level list of rules (no 'rules:' key), got dict.

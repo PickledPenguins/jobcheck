@@ -1,0 +1,5 @@
+rules:
+  - name: "nested"
+    action: disable
+    codes: [AGE_NEGATIVE]
+    match: all

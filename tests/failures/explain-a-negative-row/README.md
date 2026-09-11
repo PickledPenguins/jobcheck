@@ -1,6 +1,6 @@
 # Explaining a negative row
 
-One of the mistakes a user actually makes, and the message it gets.
+One mistake, one message.
 
-Input:    `--explain -1`, which would wrap round to the last row in Python
-Expected: see `expected_stderr.txt`; a non-zero exit
+Input:    `--explain -1`
+Expected: exit 2: positions start at 0 and do not wrap round

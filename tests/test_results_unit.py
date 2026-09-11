@@ -90,57 +90,17 @@ def test_non_string_comment_keys_are_rejected() -> None:
         CheckResult(Status.INVALID, {7: "actual"})  # type: ignore[dict-item]
 
 
-# --- registering project statuses ------------------------------------------
+# --- the fixed status vocabulary --------------------------------------------
 
 
-def test_a_registered_status_can_be_returned_and_named(fresh_registry: None) -> None:
-    value = res.register_status("DUPLICATE", 10)
-    assert value == 10
-    assert res.status_name(10) == "DUPLICATE"
-    assert res.render_status(10) == "DUPLICATE (10)"
-    assert CheckResult(10).failed is True
+def test_every_status_renders_as_name_and_number() -> None:
+    assert res.render_status(res.Status.INVALID) == "INVALID (3)"
+    assert res.render_status(0) == "PASS (0)"
 
 
-def test_reserved_values_are_refused(fresh_registry: None) -> None:
-    with pytest.raises(ValueError, match="0-9 belong to the built-in Status members"):
-        res.register_status("MINE", 5)
-
-
-def test_a_duplicate_value_is_refused(fresh_registry: None) -> None:
-    res.register_status("DUPLICATE", 10)
-    with pytest.raises(ValueError, match="already registered as 'DUPLICATE'"):
-        res.register_status("OTHER", 10)
-
-
-def test_a_duplicate_name_is_refused(fresh_registry: None) -> None:
-    res.register_status("DUPLICATE", 10)
-    with pytest.raises(ValueError, match="name 'DUPLICATE' is already registered"):
-        res.register_status("DUPLICATE", 11)
-
-
-@pytest.mark.parametrize(
-    "name", [pytest.param("lower", id="lowercase"), pytest.param("has space", id="not-an-identifier"),
-             pytest.param("", id="empty")],
-)
-def test_bad_status_names_are_refused(fresh_registry: None, name: str) -> None:
-    with pytest.raises(ValueError, match="must be an UPPER_CASE identifier"):
-        res.register_status(name, 10)
-
-
-def test_a_non_integer_value_is_refused(fresh_registry: None) -> None:
-    with pytest.raises(ValueError, match="must be an integer"):
-        res.register_status("MINE", "10")  # type: ignore[arg-type]
-
-
-def test_all_statuses_lists_builtins_and_registered(fresh_registry: None) -> None:
-    res.register_status("DUPLICATE", 10)
-    assert res.all_statuses() == {
-        0: "PASS", 1: "MISSING", 2: "MALFORMED", 3: "INVALID", 9: "ERROR", 10: "DUPLICATE"
-    }
-
-
-def test_an_unknown_value_renders_as_unknown() -> None:
-    assert res.status_name(77) == "UNKNOWN"
+def test_a_value_outside_the_vocabulary_is_refused() -> None:
+    with pytest.raises(ValueError, match="Unknown status 77"):
+        res.CheckResult(77)
 
 
 # --- normalising what a check returned --------------------------------------

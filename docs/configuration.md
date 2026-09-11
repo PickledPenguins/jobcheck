@@ -1,7 +1,7 @@
 # Configuration: override rule files
 
 The only configuration this project has is the override YAML. There are no environment
-variables and no settings file: suites and rule paths are chosen by the entry point, on
+variables and no settings file: check files and rule paths are chosen by the entry point, on
 the command line or in code.
 
 Override rules let a non-developer enable a normally-off code, or disable a normally-on
@@ -98,8 +98,7 @@ configuration:
 | Loader | Order |
 |---|---|
 | one file | position in the file |
-| `load_overrides_from_dir` / `-o` on a directory of files | **alphabetical filename**, then position within each file |
-| `load_overrides_from_files` / repeated `-o` paths | the order the paths are given |
+| `load_overrides(paths)` / `--rules` | the order the paths are given |
 
 With directory loading, filenames carry precedence: name files `01_x.yaml`, `02_y.yaml`
 when the ordering between them matters.
@@ -122,12 +121,12 @@ the file it came from.
 | criterion missing a key | `'match' entry {'column': 'email'} needs both 'column' and 'pattern'.` |
 | bad regex | `invalid regex '([unclosed' for column 'email': unterminated character set at position 1` |
 | bad action | `'action' must be exactly 'enable' or 'disable', got 'turn_on'.` |
-| unknown code | `unknown code 'NO_SUCH_CODE'. Load the suite that defines it before loading overrides, or fix the code.` |
+| unknown code | `unknown code 'NO_SUCH_CODE'. Load the check file that defines it before loading overrides, or fix the code.` |
 | duplicate name | `Duplicate override rule name 'same_name': defined in a.yaml and again in b.yaml.` |
 | nested under a key | `override files must contain a flat top-level list of rules (no 'rules:' key), got dict.` |
 | misspelled key | `unknown key(s) codez. Allowed: action, codes, description, match, name.` |
 
-An "unknown code" that you know exists usually means its suite was not loaded by this
+An "unknown code" that you know exists usually means its check file was not loaded by this
 entry point — see [writing-checks.md](writing-checks.md#troubleshooting).
 
 ## Secrets

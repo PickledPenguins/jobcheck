@@ -1,6 +1,6 @@
-# A directory passed as the data file
+# A directory where a file was expected
 
-One of the mistakes a user actually makes, and the message it gets.
+One mistake, one message.
 
-Input:    `--data` naming a directory rather than a file
-Expected: see `expected_stderr.txt`; a non-zero exit
+Input:    `examples/data`, a directory
+Expected: exit 2 naming the path

@@ -97,7 +97,6 @@ def test_status_values_are_permanent() -> None:
     assert {member.name: int(member) for member in res.Status} == {
         "PASS": 0, "MISSING": 1, "MALFORMED": 2, "INVALID": 3, "ERROR": 9
     }
-    assert res.RESERVED_STATUS_MAX == 9
 
 
 def test_outcome_names_are_permanent() -> None:
@@ -110,14 +109,14 @@ def test_report_columns_are_stable() -> None:
     """Anything reading the CSV depends on these names and this order."""
 
     assert rep.REPORT_COLUMNS == [
-        "row", "code", "status", "layer", "suite", "outcome", "message", "comments",
+        "row", "code", "status", "layer", "outcome", "message", "comments",
         "is_root_cause"
     ]
 
 
-def test_registry_table_columns_are_stable(example_suites: None) -> None:
+def test_registry_table_columns_are_stable(example_checks: None) -> None:
     assert list(registry_tables.get_registry_table().columns) == [
-        "code", "layer", "suite", "default_state", "description", "depends_on"
+        "code", "layer", "default_state", "description", "depends_on"
     ]
 
 
@@ -133,22 +132,17 @@ def defaults(fn: Any) -> dict[str, Any]:
     "fn, expected",
     [
         pytest.param(reg.register_check,
-                     {"default_enabled": True, "description": "", "depends_on": None,
-                      "suite": None}, id="register_check"),
-        pytest.param(reg.check_group,
-                     {"depends_on": None, "suite": None, "default_enabled": True},
-                     id="check_group"),
-        pytest.param(reg.load_suites, {}, id="load_suites"),
+                     {"default_enabled": True, "description": "", "depends_on": None},
+                     id="register_check"),
+        pytest.param(reg.load_checks, {}, id="load_checks"),
         pytest.param(engine.explain_row,
                      {"ctx": None, "overrides": None, "on_error": "record"}, id="explain_row"),
         pytest.param(engine.validate_row,
                      {"ctx": None, "overrides": None, "on_error": "record"}, id="validate_row"),
-        pytest.param(reg.load_overrides_from_dir, {"pattern": "*.yaml"}, id="load_overrides_from_dir"),
-        pytest.param(rules.load_overrides_from_dir, {"pattern": "*.yaml"},
-                     id="rules.load_overrides_from_dir"),
-        pytest.param(rep.collect_outcomes,
+        pytest.param(reg.load_overrides, {}, id="load_overrides"),
+        pytest.param(engine.validate,
                      {"overrides": None, "context_builder": validation.build_context,
-                      "on_error": "record"}, id="collect_outcomes"),
+                      "on_error": "record"}, id="validate"),
         pytest.param(rep.build_report,
                      {"df": None, "key_column": None, "data_columns": None,
                       "include_skipped": False, "include_passed": False}, id="build_report"),
@@ -163,11 +157,11 @@ def test_public_defaults(fn: Any, expected: dict[str, Any]) -> None:
     assert defaults(fn) == expected
 
 
-def test_load_suites_requires_the_package_to_load_from() -> None:
-    """This package ships no checks, so a default would name the wrong tree."""
+def test_load_checks_names_files_explicitly() -> None:
+    """This package ships no checks and discovers nothing, so a path is required."""
 
-    with pytest.raises(TypeError, match="package"):
-        reg.load_suites(["hard_checks"])  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        reg.load_checks()  # type: ignore[call-arg]
 
 
 def test_validate_row_returns_outcomes_not_a_separate_result_type(fresh_registry: None) -> None:

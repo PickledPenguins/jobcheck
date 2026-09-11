@@ -43,7 +43,7 @@ def test_build_context_reads_nothing_out_of_the_row() -> None:
 def test_a_caller_supplied_builder_is_what_reaches_the_checks(fresh_registry: None) -> None:
     """The documented replacement path, exercised rather than described."""
 
-    from jobcheck import PASS, CheckResult, Status, collect_outcomes
+    from jobcheck import PASS, CheckResult, Status, validate
     from jobcheck import registry as reg
 
     @reg.register_check(code="NEEDS_FLAG", message="the context said no")
@@ -51,7 +51,7 @@ def test_a_caller_supplied_builder_is_what_reaches_the_checks(fresh_registry: No
         return PASS if ctx and ctx.flags.get("allowed") else CheckResult(Status.INVALID, {})
 
     frame = pd.DataFrame([{"allow": True}, {"allow": False}])
-    outcomes = collect_outcomes(
+    outcomes = validate(
         frame, context_builder=lambda row: RowContext(flags={"allowed": bool(row["allow"])})
     )
     assert [o[0].failed for o in outcomes] == [False, True]

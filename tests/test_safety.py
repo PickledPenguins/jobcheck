@@ -51,43 +51,23 @@ def test_a_rule_pattern_is_never_evaluated_as_code(one_code: None, tmp_path: Pat
 def test_loading_rules_writes_nothing_to_disk(one_code: None, tmp_path: Path) -> None:
     write(tmp_path, "r.yaml", '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n')
     before = sorted(p.name for p in tmp_path.iterdir())
-    reg.load_overrides_from_dir(str(tmp_path))
+    reg.load_overrides([str(tmp_path / "r.yaml")])
     assert sorted(p.name for p in tmp_path.iterdir()) == before
 
 
-def test_validation_never_mutates_the_dataframe_it_reads(example_suites: None) -> None:
+def test_validation_never_mutates_the_dataframe_it_reads(example_checks: None) -> None:
     df = pd.DataFrame([{"age": -1, "email": "a@b.com"}])
     snapshot = df.copy(deep=True)
     df.apply(lambda row: engine.validate_row(row), axis=1)
     assert df.equals(snapshot)
 
 
-def test_a_suite_name_cannot_escape_the_package_via_dots(fresh_registry: None) -> None:
-    """A dotted name is not resolved as a path; it fails as an unknown suite,
-    before anything is imported."""
+def test_a_check_file_name_is_a_path_never_a_module_name(fresh_registry: None) -> None:
+    """load_checks imports files, so a module name is a missing file, not an import."""
 
-    with pytest.raises(ValueError, match="Unknown suite"):
-        reg.load_suites(["..os"], package="example_suites")
+    with pytest.raises(ValueError, match="No check file at"):
+        reg.load_checks(["os"])
     assert reg.CHECKS == []
-
-
-def test_a_suite_name_cannot_import_an_unrelated_top_level_module(fresh_registry: None) -> None:
-    """'os' is resolved against the given package, never as a top-level import,
-    and the failure leaves the registry untouched."""
-
-    with pytest.raises(ValueError, match="Unknown suite 'os'"):
-        reg.load_suites(["os"], package="example_suites")
-    assert reg.loaded_suites() == set()
-    assert reg.CHECKS == []
-
-
-def test_load_overrides_from_dir_does_not_recurse_into_subdirectories(
-    one_code: None, tmp_path: Path
-) -> None:
-    nested = tmp_path / "nested"
-    nested.mkdir()
-    write(nested, "hidden.yaml", '- name: "n"\n  action: disable\n  codes: [A_CODE]\n  match: all\n')
-    assert reg.load_overrides_from_dir(str(tmp_path)) == []
 
 
 def test_a_catastrophic_regex_is_bounded_by_the_value_length(one_code: None, tmp_path: Path) -> None:
@@ -167,7 +147,7 @@ def test_a_formula_inside_a_comment_value_cannot_start_the_cell(
 
 
 def test_a_formula_in_the_row_key_is_neutralised(fresh_registry: None) -> None:
-    from jobcheck import build_report, collect_outcomes, render_report
+    from jobcheck import build_report, validate, render_report
     from jobcheck.results import Status, CheckResult
 
     @reg.register_check(code="CELL", message="m")
@@ -175,7 +155,7 @@ def test_a_formula_in_the_row_key_is_neutralised(fresh_registry: None) -> None:
         return CheckResult(Status.INVALID)
 
     frame = pd.DataFrame([{"id": "=DANGER()"}])
-    report = build_report(collect_outcomes(frame), df=frame, key_column="id")
+    report = build_report(validate(frame), df=frame, key_column="id")
     assert render_report(report, fmt="csv").splitlines()[1].startswith("'=DANGER()")
 
 

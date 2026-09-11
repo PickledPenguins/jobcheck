@@ -21,7 +21,7 @@ import pandas as pd
 import pytest
 
 from conftest import make_check
-from jobcheck import collect_outcomes, iter_traces, registry as reg
+from jobcheck import validate, validate_row, registry as reg
 from jobcheck import report as rep
 
 pytestmark = pytest.mark.long
@@ -47,9 +47,9 @@ def seconds(work: Callable[[], Any]) -> float:
     return max(time.perf_counter() - started, 1e-6)
 
 
-def test_validating_twice_the_rows_costs_about_twice_as_much(example_suites: None) -> None:
-    small = seconds(lambda: collect_outcomes(frame(2_000)))
-    large = seconds(lambda: collect_outcomes(frame(8_000)))
+def test_validating_twice_the_rows_costs_about_twice_as_much(example_checks: None) -> None:
+    small = seconds(lambda: validate(frame(2_000)))
+    large = seconds(lambda: validate(frame(8_000)))
     ratio = large / small
     # Four times the rows: linear is 4, quadratic is 16.
     assert ratio < 8, f"4x the rows cost {ratio:.1f}x the time"
@@ -59,10 +59,10 @@ def test_twice_the_tests_costs_about_twice_as_much(fresh_registry: None) -> None
     df = frame(500)
     for index in range(50):
         make_check(f"CODE_{index}")
-    small = seconds(lambda: collect_outcomes(df))
+    small = seconds(lambda: validate(df))
     for index in range(50, 200):
         make_check(f"CODE_{index}")
-    large = seconds(lambda: collect_outcomes(df))
+    large = seconds(lambda: validate(df))
     ratio = large / small
     # Four times the checks: linear is 4. A per-row topological sort over a
     # growing registry would show here as well above that.
@@ -78,27 +78,27 @@ def test_a_deep_dependency_chain_does_not_cost_more_than_a_flat_one(
     df = frame(500)
     for index in range(100):
         make_check(f"FLAT_{index}")
-    flat = seconds(lambda: collect_outcomes(df))
+    flat = seconds(lambda: validate(df))
 
     reg.clear_registry()
     make_check("DEEP_0")
     for index in range(1, 100):
         make_check(f"DEEP_{index}", depends_on=[f"DEEP_{index - 1}"])
-    deep = seconds(lambda: collect_outcomes(df))
+    deep = seconds(lambda: validate(df))
 
     assert deep / flat < 5, f"a 100-deep chain cost {deep / flat:.1f}x a flat registry"
 
 
 def test_building_a_report_scales_with_the_failures_not_the_rows(
-    example_suites: None,
+    example_checks: None,
 ) -> None:
     """A frame of passing rows costs the report almost nothing."""
 
     clean = pd.DataFrame([{"age": 34, "email": "a@b.com",
                            "start_date": "2024-01-01", "end_date": "2024-02-01"}] * 4_000)
     messy = frame(4_000)
-    clean_outcomes = collect_outcomes(clean)
-    messy_outcomes = collect_outcomes(messy)
+    clean_outcomes = validate(clean)
+    messy_outcomes = validate(messy)
 
     quick = seconds(lambda: rep.build_report(clean_outcomes, df=clean))
     slow = seconds(lambda: rep.build_report(messy_outcomes, df=messy))
@@ -108,12 +108,12 @@ def test_building_a_report_scales_with_the_failures_not_the_rows(
     assert quick < slow
 
 
-def test_streaming_holds_less_than_collecting_on_the_same_frame(
-    example_suites: None,
+def test_row_by_row_holds_less_than_collecting_on_the_same_frame(
+    example_checks: None,
 ) -> None:
-    """iter_traces' whole reason to exist, measured rather than asserted in a docstring.
+    """validate_row's whole reason to exist, measured rather than asserted in a docstring.
 
-    collect_outcomes keeps one outcome per check per row; iter_traces keeps one
+    validate keeps one outcome per check per row; validate_row keeps one
     row's worth at a time. On 6,000 rows the difference is the thing that decides
     whether a large frame can be reported on at all.
     """
@@ -121,7 +121,7 @@ def test_streaming_holds_less_than_collecting_on_the_same_frame(
     df = frame(6_000)
 
     tracemalloc.start()
-    collected = collect_outcomes(df)
+    collected = validate(df)
     collected_peak = tracemalloc.get_traced_memory()[1]
     tracemalloc.stop()
     assert len(collected) == 6_000
@@ -129,8 +129,8 @@ def test_streaming_holds_less_than_collecting_on_the_same_frame(
 
     tracemalloc.start()
     failures = 0
-    for trace in iter_traces(df):
-        failures += len(trace.failures)
+    for _, row in df.iterrows():
+        failures += len(validate_row(row))
     streamed_peak = tracemalloc.get_traced_memory()[1]
     tracemalloc.stop()
 
@@ -141,13 +141,13 @@ def test_streaming_holds_less_than_collecting_on_the_same_frame(
     )
 
 
-def test_streaming_memory_does_not_grow_with_the_frame(example_suites: None) -> None:
-    """Twice the rows, the same peak: nothing accumulates between yields."""
+def test_row_by_row_memory_does_not_grow_with_the_frame(example_checks: None) -> None:
+    """Twice the rows, the same peak: nothing accumulates between rows."""
 
     def peak_for(rows: int) -> int:
         tracemalloc.start()
-        for _ in iter_traces(frame(rows)):
-            pass
+        for _, row in frame(rows).iterrows():
+            validate_row(row)
         peak = tracemalloc.get_traced_memory()[1]
         tracemalloc.stop()
         return peak

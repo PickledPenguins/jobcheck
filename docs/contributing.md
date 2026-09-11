@@ -9,7 +9,7 @@ Changing this project itself: where a change goes, and what enforces what.
 | Change | Where |
 |---|---|
 | A new test for row data | Your own package, not this one. This library ships no tests — see [writing-checks.md](writing-checks.md). |
-| What checks exist: registration, groups, suites, loading, the dependency graph | `src/jobcheck/registry.py` |
+| What checks exist: registration, file loading, the dependency graph | `src/jobcheck/registry.py` |
 | What happens to a row: on/off state, evaluation order, outcomes, root causes | `src/jobcheck/engine.py` |
 | How the registry and the rules are displayed | `src/jobcheck/registry_tables.py` |
 | The whole-frame entry point and what it returns | `src/jobcheck/run.py` |

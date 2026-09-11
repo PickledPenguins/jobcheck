@@ -1,8 +1,7 @@
-# Precedence across directories: last file wins
+# Last file wins
 
-The global `disable` rule is given last, so it beats the earlier `enable` on the
-legacy batch row. Files may live in unrelated directories.
+Precedence is positional: for a given row, the last matching rule decides.
 
 Level:    moderate
-Input:    three `-o` paths, global rule last
-Expected: row 3 (the LEGACY_A/BATCH row) is OK -- AGE_NOT_INTEGER stays off; exit 0
+Input:    `examples/rules/split_by_topic/01_age_rules.yaml`, `examples/rules/split_by_topic/02_email_rules.yaml`, `examples/rules/from_another_directory/global_age_rule.yaml`
+Expected: the global rule, listed last, overrides the age rules before it
