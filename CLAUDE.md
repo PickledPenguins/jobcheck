@@ -20,7 +20,7 @@ mysterious test failure. Everything below exists because neither rename is visib
 
 ## The git history starts on 2026-09-09, and that is an accident
 
-The `.git` directory was removed by mistake and the repository re-initialised, so
+The `.git` directory was removed by mistake and the repository re-initialized, so
 `git log` shows three commits (`f930e09` "Initial commit", `1058b3e` "init",
 `34bac65` "removed .github") and nothing before them. **The history of the project as
 jobcheck is gone.** Treat `git log` as the record from 2026-09-09 onward only; for
@@ -30,7 +30,7 @@ Two consequences worth remembering:
 
 - Do not reason about "when was this introduced" from the log. The answer for anything
   older than 2026-09-09 is: unknowable from this repository.
-- The re-initialised repository never tracked a `jobcheck` package at any commit
+- The re-initialized repository never tracked a `jobcheck` package at any commit
   (`git ls-files` confirms this for all three), which will mislead anyone who assumes the
   log is complete. It is not evidence that the package never existed.
 
@@ -201,7 +201,7 @@ tree uses now — one more reason the two lines cannot be ordered with confidenc
 ## What the rename changed, name by name
 
 Kept, unchanged: `RowContext`, `build_context`, `clear_registry`, `load_overrides`,
-`render_comments`, `ERRORED`, `Status`, `normalise_result`, `render_status`,
+`render_comments`, `ERRORED`, `Status`, `normalize_result`, `render_status`,
 `format_table`, `is_null`, `build_report`, `print_report`, `print_summary`,
 `root_cause_counts`, `row_explanation`.
 
@@ -268,10 +268,10 @@ decisions are in `HANDOFF.md`; what actually changed:
 | `examples/example_suites/` | `examples/checks/`, four flat files named in `main.py`'s `CHECK_FILES`. |
 
 Kept deliberately, against the first proposal: the summary views
-(`summarise_outcomes`, `print_summary`, `root_cause_counts`) and all four registry
+(`summarize_outcomes`, `print_summary`, `root_cause_counts`) and all four registry
 tables. `escape_for_spreadsheet` stays — dropping it reintroduces CSV injection.
 
-Two behaviour changes fell out of it, both visible in `tests/golden/`:
+Two behavior changes fell out of it, both visible in `tests/golden/`:
 
 - a `skipped` line now names only the prerequisite it directly waited for, not
   every transitive one, because the group's unconditional prerequisites are gone.
@@ -284,6 +284,41 @@ It calls `RowContext`, `clear_registry`, `load_checks`, `load_overrides`, `valid
 object means jobchain counts errored outcomes itself and reads root causes with
 `root_causes(row)`, which also fixed a small thing: every failure at the shallowest
 layer is now flagged, not just one.
+
+## The second simplification pass, 2026-09-11
+
+A feature-and-naming pass on the same branch. What went, and what replaced it:
+
+| Dropped | Replaced by |
+|---|---|
+| `debug=0\|1\|2` on the four registry/rule tables | `extra_columns=[...]`, the same argument `build_report` takes for columns of the data. Offers `source_file` everywhere and `could_be_overridden_by` on `print_registry`. |
+| `Check.description` and `register_check(description=)` | The registry table shows `message`, which every check must have. One text field per check, not two. |
+| Multi-column `key_column`, the `\|` join and its collision check | One key column. A composite key is a column the caller builds. |
+| `escape_formulas=False` | Escaping is unconditional: a report is written to be opened by a person. |
+| `include_skipped` / `include_passed` / `only_relevant` | One `include="failures"\|"blocked"\|"all"`, on the report and the row explanation alike. |
+| `build_report(df=None)` | `df` is required; three interlocking guards went with it. |
+| `root_cause` (singular) | `root_causes(...)[0]`. Nothing in `src/` or jobchain called it. |
+| `CheckResult.passed`, `.status` (the name property) | `bool(result)` and `.failed`. `.status` is now the integer field. |
+| A bare `True`/`False` or `Status` returned from a check | `CheckResult(condition)` wraps a comparison; `normalize_result` is a type check. |
+| `build_context`, and `RowContext`'s `flags`/`paths`/`state`/`extra` | A bare `RowContext` to subclass. `validate(context_builder=None)` hands every row the same empty one. |
+| `load_checks("one.py")` / `load_overrides("one.yaml")` | Lists only. A bare string raises, naming the list form. |
+| `OverrideRule.description` (parsed, stored, never shown) | `message`, required and non-empty like a check's, printed by `print_override_rules`. |
+
+Renamed, for one word per concept:
+
+`CheckResult.code` → `.status` (a `code` is a check identifier everywhere else);
+`render_status(status)`; `normalize_result(returned, check_code)`; `ctx` → `context` in
+every public signature; `loaded_files` → `loaded_check_files`; `check_rule_columns` →
+`check_override_columns`; `format_table(df)` → `format_table(table)`; `wrap` →
+`wrap_width`; `outcomes` → `row_outcomes` and `outcomes_per_row` → `frame_outcomes`;
+`resolve_enabled_state` now returns `(enabled, reason)` per code and the private
+`_resolve_state` is gone. **Spelling is American throughout** — `normalise_result` →
+`normalize_result`, `summarise_outcomes` → `summarize_outcomes`.
+
+One output change, visible in `tests/golden/` and the catalog: the report has its own
+`detail` column. `detail` used to be spliced into `message` *and* `comments` for a
+non-evaluating outcome, so the same string appeared twice and neither column heading
+could be trusted.
 
 ### The comparison against jobchain's record is done
 

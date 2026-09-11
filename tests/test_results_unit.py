@@ -18,7 +18,7 @@ def test_pass_is_zero_and_every_other_builtin_is_not() -> None:
 def test_a_passing_result_is_truthy() -> None:
     result = CheckResult()
     assert bool(result) is True
-    assert result.passed is True
+    assert bool(result) is True
     assert result.failed is False
 
 
@@ -26,7 +26,7 @@ def test_a_failing_result_is_falsy() -> None:
     result = CheckResult(Status.MISSING)
     assert bool(result) is False
     assert result.failed is True
-    assert result.status == "MISSING"
+    assert result.status == Status.MISSING
 
 
 def test_the_shared_pass_singleton_passes_and_carries_no_comments() -> None:
@@ -56,8 +56,8 @@ def test_a_test_cannot_return_status_error(fresh_registry: None) -> None:
 
     with pytest.raises(ValueError, match="Status.ERROR is the engine's, not a check's"):
         CheckResult(Status.ERROR)
-    with pytest.raises(ValueError, match="Status.ERROR is the engine's"):
-        res.normalise_result(Status.ERROR, "CODE")
+    with pytest.raises(TypeError, match="Check 'CODE' returned"):
+        res.normalize_result(Status.ERROR, "CODE")
 
 
 def test_the_engine_can_still_record_an_error_outcome(fresh_registry: None) -> None:
@@ -69,15 +69,8 @@ def test_the_engine_can_still_record_an_error_outcome(fresh_registry: None) -> N
 
 
 def test_a_non_integer_status_is_rejected() -> None:
-    with pytest.raises(TypeError, match="code must be an integer status"):
+    with pytest.raises(TypeError, match="status must be a Status value or a bool"):
         CheckResult("MISSING")  # type: ignore[arg-type]
-
-
-def test_a_bool_status_is_rejected() -> None:
-    """True is an int in Python; accepting it would make CheckResult(True) a pass."""
-
-    with pytest.raises(TypeError, match="code must be an integer status"):
-        CheckResult(True)  # type: ignore[arg-type]
 
 
 def test_non_mapping_comments_are_rejected() -> None:
@@ -103,21 +96,27 @@ def test_a_value_outside_the_vocabulary_is_refused() -> None:
         res.CheckResult(77)
 
 
-# --- normalising what a check returned --------------------------------------
+# --- normalizing what a check returned --------------------------------------
 
 
 def test_a_result_passes_through() -> None:
     result = CheckResult(Status.MISSING)
-    assert res.normalise_result(result, "CODE") is result
+    assert res.normalize_result(result, "CODE") is result
 
 
-def test_true_becomes_pass_and_false_becomes_invalid() -> None:
-    assert res.normalise_result(True, "CODE").passed is True
-    assert res.normalise_result(False, "CODE").code == Status.INVALID
+def test_a_condition_wrapped_in_a_result_passes_or_fails_as_invalid() -> None:
+    """CheckResult(condition) is how a bare comparison becomes a result."""
+
+    assert bool(CheckResult(1 > 0)) is True
+    assert CheckResult(1 < 0).status == Status.INVALID
 
 
-def test_a_bare_status_becomes_a_failing_result() -> None:
-    assert res.normalise_result(Status.MALFORMED, "CODE").code == Status.MALFORMED
+def test_a_bool_is_never_read_as_an_integer_status() -> None:
+    """True == 1 == MISSING and False == 0 == PASS: reading either as an integer
+    would invert what the check said."""
+
+    assert CheckResult(True).status == Status.PASS
+    assert CheckResult(False).status == Status.INVALID
 
 
 def test_numpy_scalars_are_accepted(fresh_registry: None) -> None:
@@ -125,27 +124,23 @@ def test_numpy_scalars_are_accepted(fresh_registry: None) -> None:
 
     import numpy
 
-    assert res.normalise_result(numpy.bool_(True), "CODE").passed is True
-    assert res.normalise_result(numpy.bool_(False), "CODE").code == Status.INVALID
-    assert res.normalise_result(numpy.int64(1), "CODE").code == Status.MISSING
-    assert CheckResult(numpy.int64(2)).code == Status.MALFORMED  # type: ignore[arg-type]
-
-
-def test_a_bare_zero_becomes_a_pass() -> None:
-    assert res.normalise_result(0, "CODE").passed is True
+    assert bool(CheckResult(numpy.bool_(True))) is True  # type: ignore[arg-type]
+    assert CheckResult(numpy.bool_(False)).status == Status.INVALID  # type: ignore[arg-type]
+    assert CheckResult(numpy.int64(2)).status == Status.MALFORMED  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
     "returned", [pytest.param(None, id="none"), pytest.param("ok", id="string"),
-                 pytest.param([], id="list")],
+                 pytest.param([], id="list"), pytest.param(True, id="bare-bool"),
+                 pytest.param(Status.MALFORMED, id="bare-status")],
 )
 def test_anything_else_raises_naming_the_test(returned: object) -> None:
     """A check falling off the end must not be read as a pass."""
 
     with pytest.raises(TypeError, match=r"Check 'CODE' returned"):
-        res.normalise_result(returned, "CODE")
+        res.normalize_result(returned, "CODE")
 
 
-def test_an_unregistered_status_from_a_test_raises() -> None:
+def test_an_unregistered_status_raises() -> None:
     with pytest.raises(ValueError, match="Unknown status 42"):
-        res.normalise_result(42, "CODE")
+        CheckResult(42)

@@ -9,43 +9,34 @@ separate :class:`RowContext` object instead, handed to every check function.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
-
-import pandas as pd
+from dataclasses import dataclass
 
 
 @dataclass
 class RowContext:
     """Metadata for a single row, kept out of the DataFrame itself.
 
-    The four buckets are intentionally loose ``dict`` fields rather than a
-    fixed schema: every adopting pipeline carries different metadata, and a
-    rigid schema here would force edits to this file for each new key.
+    Bare by design. What belongs in a row's context is the adopting pipeline's
+    business -- resolved paths, feature flags, a lookup against another system,
+    the whole file for a cross-row check -- and this library cannot guess any of
+    it, so it defines the type and nothing else.
+
+    Subclass it, add the fields your checks read, and build it however suits the
+    pipeline: a classmethod, a factory function, or one object built outside the
+    loop and handed to every row. Whatever builds it is passed to
+    :func:`jobcheck.validate` as ``context_builder``, a callable taking the row
+    and returning a ``RowContext``::
+
+        @dataclass
+        class FileContext(RowContext):
+            counts: dict[str, dict[str, int]] = field(default_factory=dict)
+
+            @classmethod
+            def build(cls, row):
+                return cls(counts=counts_for(row))
+
+        validate(df, context_builder=FileContext.build)
+
+    Without a ``context_builder`` every row is handed the same empty
+    ``RowContext``.
     """
-
-    flags: dict[str, Any] = field(default_factory=dict)
-    paths: dict[str, Any] = field(default_factory=dict)
-    state: dict[str, Any] = field(default_factory=dict)
-    extra: dict[str, Any] = field(default_factory=dict)
-
-
-def build_context(row: "pd.Series[Any]") -> RowContext:
-    """The default context builder: an **empty** context, for every row.
-
-    Deliberately empty. What belongs in a row's context is the adopting
-    pipeline's business -- resolved paths, feature flags, a lookup against
-    another system, the whole file for a cross-row check -- and this library
-    cannot guess any of it. Inventing a field here would put a value in every
-    caller's context that most of them never asked for.
-
-    Supply your own instead, as ``context_builder=``: any callable taking the
-    row and returning a :class:`RowContext` (or a subclass of it, which is how
-    a cross-row check gets the whole file). It is called once per row, so keep
-    it cheap, or build one object outside the loop and hand the same one back::
-
-        shared = FileContext(counts=counts_for(df))
-        collect_outcomes(df, context_builder=lambda row: shared)
-    """
-
-    return RowContext()

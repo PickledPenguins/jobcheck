@@ -6,7 +6,7 @@
 # files sharing a name cannot be combined, and these are meant to be.
 
 - name: "disable_age_integer_check_from_another_directory"
-  description: "Example: disable AGE_NOT_INTEGER for every row, no filtering"
+  message: "Example: disable AGE_NOT_INTEGER for every row, no filtering"
   action: disable
   codes:
     - AGE_NOT_INTEGER

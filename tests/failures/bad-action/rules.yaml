@@ -1,4 +1,5 @@
 - name: "wrong_action"
+  message: "why the rule exists"
   action: skip
   codes: [AGE_NEGATIVE]
   match: all

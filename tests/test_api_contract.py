@@ -21,6 +21,7 @@ from jobcheck import registry_tables
 from jobcheck import report as rep
 from jobcheck import results as res
 from jobcheck import rules, tables
+from jobcheck.results import PASS, Status
 
 pytestmark = pytest.mark.fast
 
@@ -54,7 +55,7 @@ def test_every_tool_the_suite_relies_on_is_declared() -> None:
 
 
 def test_the_package_states_a_version() -> None:
-    """Anyone depending on this needs to be able to say which behaviour they have."""
+    """Anyone depending on this needs to be able to say which behavior they have."""
 
     assert re.fullmatch(r"\d+\.\d+\.\d+", validation.__version__)
     assert "__version__" in validation.__all__
@@ -109,14 +110,14 @@ def test_report_columns_are_stable() -> None:
     """Anything reading the CSV depends on these names and this order."""
 
     assert rep.REPORT_COLUMNS == [
-        "row", "code", "status", "layer", "outcome", "message", "comments",
+        "row", "code", "status", "layer", "outcome", "message", "detail", "comments",
         "is_root_cause"
     ]
 
 
 def test_registry_table_columns_are_stable(example_checks: None) -> None:
     assert list(registry_tables.get_registry_table().columns) == [
-        "code", "layer", "default_state", "description", "depends_on"
+        "code", "layer", "default_state", "message", "depends_on"
     ]
 
 
@@ -132,24 +133,26 @@ def defaults(fn: Any) -> dict[str, Any]:
     "fn, expected",
     [
         pytest.param(reg.register_check,
-                     {"default_enabled": True, "description": "", "depends_on": None},
+                     {"default_enabled": True, "depends_on": None},
                      id="register_check"),
         pytest.param(reg.load_checks, {}, id="load_checks"),
         pytest.param(engine.explain_row,
-                     {"ctx": None, "overrides": None, "on_error": "record"}, id="explain_row"),
+                     {"context": None, "overrides": None, "on_error": "record"},
+                     id="explain_row"),
         pytest.param(engine.validate_row,
-                     {"ctx": None, "overrides": None, "on_error": "record"}, id="validate_row"),
+                     {"context": None, "overrides": None, "on_error": "record"},
+                     id="validate_row"),
         pytest.param(reg.load_overrides, {}, id="load_overrides"),
         pytest.param(engine.validate,
-                     {"overrides": None, "context_builder": validation.build_context,
+                     {"overrides": None, "context_builder": None,
                       "on_error": "record"}, id="validate"),
         pytest.param(rep.build_report,
-                     {"df": None, "key_column": None, "data_columns": None,
-                      "include_skipped": False, "include_passed": False}, id="build_report"),
+                     {"key_column": None, "extra_columns": None,
+                      "include": "failures"}, id="build_report"),
         pytest.param(rep.render_report,
-                     {"fmt": "table", "wrap": 48, "escape_formulas": True}, id="render_report"),
+                     {"fmt": "table", "wrap_width": 48}, id="render_report"),
         pytest.param(rep.write_report,
-                     {"fmt": "csv", "escape_formulas": True}, id="write_report"),
+                     {"fmt": "csv"}, id="write_report"),
         pytest.param(tables.format_table, {"wrap_columns": None}, id="format_table"),
     ],
 )
@@ -165,7 +168,7 @@ def test_load_checks_names_files_explicitly() -> None:
 
 
 def test_validate_row_returns_outcomes_not_a_separate_result_type(fresh_registry: None) -> None:
-    from conftest import make_check
+    from conftest import first_cause, make_check
 
     make_check("FAILS", passes=False)
     results = engine.validate_row(_row())
@@ -174,17 +177,17 @@ def test_validate_row_returns_outcomes_not_a_separate_result_type(fresh_registry
 
 
 def test_root_cause_accepts_either_functions_output(fresh_registry: None) -> None:
-    from conftest import make_check
+    from conftest import first_cause, make_check
 
     make_check("FAILS", passes=False)
     row = _row()
-    assert engine.root_cause(engine.validate_row(row)) == "FAILS"
-    assert engine.root_cause(engine.explain_row(row)) == "FAILS"
+    assert first_cause(engine.validate_row(row)) == "FAILS"
+    assert first_cause(engine.explain_row(row)) == "FAILS"
 
 
 def test_pass_is_a_shared_singleton() -> None:
     assert res.PASS is validation.PASS
-    assert res.normalise_result(True, "CODE") is res.PASS
+    assert res.normalize_result(res.PASS, "CODE") is res.PASS
 
 
 def _row() -> Any:

@@ -31,8 +31,8 @@ from . import rules
 # rather than reaching into .rules directly.
 from .rules import MatchCriterion, OverrideRule
 
-# What an author writes: (row) or (row, ctx), returning PASS, a CheckResult, a
-# bool, or a Status value. The engine stores the normalised two-argument form.
+# What an author writes: (row) or (row, context), returning PASS or a
+# CheckResult. The engine stores the normalized two-argument form.
 CheckFn = Callable[..., Any]
 RunnerFn = Callable[["pd.Series[Any]", RowContext | None], Any]
 
@@ -58,7 +58,6 @@ class Check:
     fn: RunnerFn
     source_file: str
     default_enabled: bool = True
-    description: str = ""
     depends_on: list[str] = field(default_factory=list)
     layer: int = 0
     """How deep in the dependency graph this check sits: 0 with no prerequisites,
@@ -84,9 +83,9 @@ _TOPO_ORDER: list[Check] | None = None
 
 
 def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
-    """Wrap an author's function so the engine can always call ``fn(row, ctx)``.
+    """Wrap an author's function so the engine can always call ``fn(row, context)``.
 
-    A check takes ``(row)`` or ``(row, ctx)``; the shape is settled once here,
+    A check takes ``(row)`` or ``(row, context)``; the shape is settled once here,
     at registration, rather than inspected on every row. Any other signature is
     an authoring error and raises immediately -- a check that cannot be called is
     worth failing the import for.
@@ -109,7 +108,7 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
     if len(positional) == 1:
         return lambda row, ctx: fn(row)
     raise ValueError(
-        f"Check {code!r}: {fn.__name__}{signature} must take (row) or (row, ctx), "
+        f"Check {code!r}: {fn.__name__}{signature} must take (row) or (row, context), "
         f"not {len(positional)} positional argument(s)."
     )
 
@@ -118,7 +117,6 @@ def register_check(
     code: str,
     message: str,
     default_enabled: bool = True,
-    description: str = "",
     depends_on: list[str] | None = None,
 ) -> Callable[[CheckFn], CheckFn]:
     """Decorator registering one validation function into :data:`CHECKS`.
@@ -127,9 +125,9 @@ def register_check(
     else: there is no central list to edit. The source file is captured
     automatically from where the function lives.
 
-    The decorated function takes ``(row)`` or ``(row, ctx)`` and returns
-    :data:`~jobcheck.results.PASS`, a :class:`~jobcheck.results.CheckResult`,
-    a bool, or a :class:`~jobcheck.results.Status` value.
+    The decorated function takes ``(row)`` or ``(row, context)`` and returns
+    :data:`~jobcheck.results.PASS` or a :class:`~jobcheck.results.CheckResult`
+    -- ``CheckResult(condition)`` wraps a bare comparison.
 
     Everything that can be wrong here fails at import: a duplicate code, an
     empty message, a signature the engine cannot call. ``depends_on`` is the one
@@ -164,8 +162,6 @@ def register_check(
         if not isinstance(default_enabled, bool):
             raise ValueError(
                 f"Check {code!r}: default_enabled must be True or False, got {default_enabled!r}.")
-        if not isinstance(description, str):
-            raise ValueError(f"Check {code!r}: description must be text, got {description!r}.")
 
         module = getattr(fn, "__module__", None)
         if module:
@@ -177,7 +173,6 @@ def register_check(
                 fn=_make_runner(fn, code),
                 source_file=inspect.getsourcefile(fn) or "<unknown>",
                 default_enabled=default_enabled,
-                description=description,
                 depends_on=list(dict.fromkeys(prerequisites)),
             )
         )
@@ -208,17 +203,17 @@ def clear_registry() -> None:
     _TOPO_ORDER = None
 
 
-def loaded_files() -> list[str]:
+def loaded_check_files() -> list[str]:
     """Check files loaded so far, in load order (a copy)."""
 
     return list(_LOADED_FILES)
 
 
-def load_checks(paths: str | list[str]) -> None:
+def load_checks(paths: list[str]) -> None:
     """Import the named check files so their checks register themselves.
 
-    Every file is named explicitly -- a path to a ``.py`` file, or several of
-    them. Nothing is discovered, and nothing is imported that was not asked for,
+    Every file is named explicitly, as a list of paths to ``.py`` files.
+    Nothing is discovered, and nothing is imported that was not asked for,
     so two entry points in one codebase can run different sets of checks without
     interfering with each other.
 
@@ -227,9 +222,13 @@ def load_checks(paths: str | list[str]) -> None:
     file in the call has been loaded, so a prerequisite may live in any of them.
     """
 
-    given = [paths] if isinstance(paths, str) else list(paths)
+    if isinstance(paths, str):
+        raise TypeError(
+            f"load_checks takes a list of paths, not one string: pass [{paths!r}]. "
+            "A bare string would be read as a list of its characters."
+        )
     resolved: list[str] = []
-    for path in given:
+    for path in list(paths):
         candidate = Path(path).resolve()
         if not candidate.is_file():
             raise ValueError(
@@ -325,7 +324,7 @@ def validate_registry() -> None:
                 raise ValueError(
                     f"Check {check.code!r} depends on {prerequisite!r}, which is not registered. "
                     "Either the code is a typo, or it lives in a check file that was not loaded "
-                    f"(currently loaded: {loaded_files()})."
+                    f"(currently loaded: {loaded_check_files()})."
                 )
     order = _topological_order()
     by_code = {check.code: check for check in CHECKS}
@@ -338,20 +337,23 @@ def validate_registry() -> None:
 
 
 def _get_topo_order() -> list[Check]:
-    """Return the cached evaluation order, computing it if the registry changed."""
+    """Return the cached evaluation order, computing it if the registry changed.
+
+    ``validate_registry`` always sets the cache, so the second read cannot be
+    ``None``; it is spelled as a local so mypy can see that without a branch
+    nothing can reach.
+    """
 
     if _TOPO_ORDER is None:
         validate_registry()
-    order = _TOPO_ORDER
-    if order is None:  # pragma: no cover - validate_registry always sets it
-        raise RuntimeError("evaluation order was not computed")
+    order: list[Check] = _TOPO_ORDER or []
     return order
 
 
-def load_overrides(paths: str | list[str]) -> list[OverrideRule]:
+def load_overrides(paths: list[str]) -> list[OverrideRule]:
     """Load override rules from the named YAML files, in the order given.
 
-    Named explicitly, exactly as :func:`load_checks` names check files, and
+    Named explicitly as a list, exactly as :func:`load_checks` names check files, and
     precedence follows that order: for a given row, the last matching rule wins.
 
     Load the check files first: a rule naming a code that is not registered is

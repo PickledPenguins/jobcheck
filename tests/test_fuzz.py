@@ -21,14 +21,13 @@ import pandas as pd
 import pytest
 import yaml
 
-from conftest import make_check
+from conftest import first_cause, make_check
 from jobcheck import (
     build_report,
     validate,
     load_overrides,
     registry as reg,
     render_report,
-    root_cause,
 )
 from jobcheck.results import ERRORED, FAILED, PASSED
 
@@ -93,7 +92,7 @@ def test_the_rule_parser_either_loads_or_raises_valueerror(
         rules = [random_rule(rng) for _ in range(rng.randint(0, 3))]
         path.write_text(yaml.safe_dump(rules, allow_unicode=True), encoding="utf-8")
         try:
-            loaded = load_overrides(str(path))
+            loaded = load_overrides([str(path)])
         except ValueError as exc:
             rejected += 1
             assert str(path) in str(exc), f"seed {SEED} case {case}: error omits the file"
@@ -124,8 +123,8 @@ def test_the_engine_holds_its_invariants_on_generated_frames(example_checks: Non
     rng = random.Random(SEED)
     for case in range(CASES):
         frame = random_frame(rng)
-        outcomes_per_row = validate(frame)
-        for outcomes in outcomes_per_row:
+        frame_outcomes = validate(frame)
+        for outcomes in frame_outcomes:
             by_code = {outcome.code: outcome for outcome in outcomes}
             assert len(by_code) == len(outcomes), f"seed {SEED} case {case}: duplicate outcome"
 
@@ -141,7 +140,7 @@ def test_the_engine_holds_its_invariants_on_generated_frames(example_checks: Non
             failures = [o for o in outcomes if o.failed]
             if failures:
                 shallowest = min(failures, key=lambda outcome: outcome.layer)
-                cause = root_cause(outcomes)
+                cause = first_cause(outcomes)
                 assert cause == shallowest.code, (
                     f"seed {SEED} case {case}: root cause is not the shallowest failure"
                 )

@@ -33,10 +33,11 @@ from jobcheck import (
     registry as reg,
     write_report,
 )
+from jobcheck.results import PASS
 
 pytestmark = pytest.mark.long
 
-RULE = ("- name: r\n  action: disable\n  codes: [A_CODE]\n  match: all\n")
+RULE = ("- name: r\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n")
 
 TEST_FILE = (
     "from jobcheck import PASS, register_check\n"
@@ -68,14 +69,14 @@ def test_an_unreadable_rule_file_raises_permission_error(fresh_registry: None,
     path.write_text(RULE)
     unreadable(path)
     with pytest.raises(PermissionError) as raised:
-        load_overrides(str(path))
+        load_overrides([str(path)])
     assert str(path) in str(raised.value)
 
 
 def test_a_rule_path_that_is_a_directory_raises(fresh_registry: None, tmp_path: Path) -> None:
     make_check("A_CODE")
     with pytest.raises(IsADirectoryError):
-        load_overrides(str(tmp_path))
+        load_overrides([str(tmp_path)])
 
 
 def test_a_rule_symlink_pointing_nowhere_raises_file_not_found(fresh_registry: None,
@@ -84,7 +85,7 @@ def test_a_rule_symlink_pointing_nowhere_raises_file_not_found(fresh_registry: N
     link.symlink_to(tmp_path / "gone.yaml")
     make_check("A_CODE")
     with pytest.raises(FileNotFoundError):
-        load_overrides(str(link))
+        load_overrides([str(link)])
 
 
 @unwritable_as_root
@@ -121,9 +122,9 @@ def test_a_rule_file_holding_nul_bytes_is_rejected(fresh_registry: None, tmp_pat
 
     make_check("A_CODE")
     path = tmp_path / "rules.yaml"
-    path.write_bytes(b"- name: r\n  action: disable\n  codes: [A_CODE]\n\x00\x00")
+    path.write_bytes(b"- name: r\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n\x00\x00")
     with pytest.raises(yaml.YAMLError) as raised:
-        load_overrides(str(path))
+        load_overrides([str(path)])
     assert "unacceptable character" in str(raised.value)
     assert str(path) in str(raised.value)
 
@@ -164,7 +165,7 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
     """Loading is not transactional, and the loaded files say so rather than lying.
 
     A file that imported has run its decorators; nothing can un-run them. What
-    matters is that the registry and loaded_files() agree about what happened.
+    matters is that the registry and loaded_check_files() agree about what happened.
     """
 
     good = tmp_path / "good.py"
@@ -174,7 +175,7 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
     with pytest.raises(RuntimeError):
         load_checks([str(good), str(broken)])
     assert [t.code for t in reg.CHECKS] == ["FROM_FILE"]
-    assert reg.loaded_files() == [str(good.resolve())]
+    assert reg.loaded_check_files() == [str(good.resolve())]
 
 
 # --- writing reports --------------------------------------------------------

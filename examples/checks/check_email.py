@@ -24,11 +24,7 @@ def _text(row: "pd.Series[Any]", column: str = "email") -> str | None:
     return str(value)
 
 
-@register_check(
-    code="EMAIL_PRESENT",
-    message="Email is missing",
-    description="The presence check the rest of the email checks wait for.",
-)
+@register_check(code="EMAIL_PRESENT", message="Email is missing")
 def email_present(row: "pd.Series[Any]") -> CheckResult:
     """Pass when the row carries an email at all."""
 
@@ -38,12 +34,7 @@ def email_present(row: "pd.Series[Any]") -> CheckResult:
     return PASS
 
 
-@register_check(
-    "EMAIL_MISSING_AT",
-    "Email has no '@'",
-    depends_on=["EMAIL_PRESENT"],
-    description="The most basic email shape check; the domain check depends on it.",
-)
+@register_check("EMAIL_MISSING_AT", "Email has no '@'", depends_on=["EMAIL_PRESENT"])
 def email_missing_at(row: "pd.Series[Any]") -> CheckResult:
     """Pass when the email contains exactly one '@'."""
 
@@ -58,9 +49,6 @@ def email_missing_at(row: "pd.Series[Any]") -> CheckResult:
     "EMAIL_DOMAIN_INVALID",
     "Email domain looks malformed",
     depends_on=["EMAIL_MISSING_AT"],
-    description="Only checked once EMAIL_MISSING_AT passed: reporting a malformed "
-    "domain on a string with no '@' is redundant noise on top of a more "
-    "fundamental problem already reported.",
 )
 def email_domain(row: "pd.Series[Any]") -> CheckResult:
     """Pass when the part after '@' looks like a dotted hostname."""

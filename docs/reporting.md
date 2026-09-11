@@ -20,10 +20,10 @@ print_report(report)                       # or render_report / write_report
 ```
 
 ```
-row | code             | status        | layer | outcome | message          | comments               | is_root_cause
-----+------------------+---------------+-------+---------+------------------+------------------------+--------------
-102 | AGE_NEGATIVE     | INVALID (3)   | 2     | failed  | Age is negative  | minimum=0; value=-5.0  | True
-103 | EMAIL_MISSING_AT | MALFORMED (2) | 1     | failed  | Email has no '@' | at_signs=0; value=nope | True
+row | code             | status        | layer | outcome | message          | detail | comments               | is_root_cause
+----+------------------+---------------+-------+---------+------------------+--------+------------------------+--------------
+102 | AGE_NEGATIVE     | INVALID (3)   | 2     | failed  | Age is negative  |        | minimum=0; value=-5.0  | True
+103 | EMAIL_MISSING_AT | MALFORMED (2) | 1     | failed  | Email has no '@' |        | at_signs=0; value=nope | True
 ```
 
 ## Shape: one row per failure
@@ -34,19 +34,21 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 
 | Column | What it carries |
 |---|---|
-| `row` | The key of the data row: the `key_column` value(s), or the frame's index. |
+| `row` | The key of the data row: the `key_column` value, or the frame's index. |
 | `code` | The permanent check code. |
 | `status` | The failure kind, rendered as `INVALID (3)`. |
 | `layer` | How deep the check sits in the dependency graph; 0 is fundamental. |
 | `outcome` | `failed`, `errored`, and `skipped`/`disabled`/`passed` when asked for. |
-| `message` | The check's message — what a person reads first. |
+| `message` | The check's message — what a person reads first. Empty for a check that did not evaluate the row. |
+| `detail` | Why a check did not evaluate the row: the rule that disabled it, the prerequisites that blocked it, or the exception it raised. Empty for a check that ran. |
 | `comments` | What the check attached, rendered `key=value; key=value`, sorted. |
 | `is_root_cause` | True for **every** failure at that row's shallowest failing layer. Two failures at the same depth are two root causes: neither is upstream of the other. |
 
 ## Identifying rows
 
-`key_column="id"` names the column that identifies a data row; pass a list for a
-composite key and the parts are joined with `|`. Without it the frame's index is
+`key_column="id"` names the column that identifies a data row — one column, so a
+composite key is a column you build first, where you decide how the parts join.
+Without it the frame's index is
 used, which is fine until the frame has been filtered and the index no longer
 means anything.
 
@@ -56,12 +58,12 @@ than `nan`.
 
 ## Showing data alongside the failures
 
-`data_columns` copies fields from the frame into the report, in the order given,
+`extra_columns` copies fields from the frame into the report, in the order given,
 immediately after `row`:
 
 ```python
 build_report(outcomes, df=df, key_column="id",
-             data_columns=["source_system", "record_type", "age"])
+             extra_columns=["source_system", "record_type", "age"])
 ```
 
 ```
@@ -105,7 +107,7 @@ chains at the same depth. Every
 failure shown is already the root of its own chain — a check only runs once its
 prerequisites passed — so when a row breaks in two chains that never touch,
 neither is upstream of the other and the shallower one is the one to read
-first. `only_relevant=True` drops
+first. `include="blocked"` drops
 the checks that simply passed.
 
 ## Diagnosing a whole file
@@ -128,17 +130,17 @@ broken check, not bad data.
 Comments carry values that came from the data, and a spreadsheet runs any cell
 starting with `=`, `+`, `@`, a tab or a carriage return as a formula. CSV output
 therefore prefixes such a cell with an apostrophe, which makes it display as
-text — the standard neutraliser. A negative number keeps its minus sign.
+text — the standard neutralizer. A negative number keeps its minus sign.
 
 Nothing is escaped in the table view, which cannot execute anything, and the
-outcomes themselves always hold the value the check actually saw. Pass
-`escape_formulas=False` to `render_report` or `write_report` when the CSV feeds
-another program and the exact bytes matter.
+outcomes themselves always hold the value the check actually saw. There is no
+switch for it: a report is written to be opened by a person, and a CSV that can
+execute on open is not one.
 
 ## Formats and files
 
 ```python
-render_report(report)                       # bordered text, message and comments wrapped
+render_report(report)                       # bordered text; message, detail and comments wrapped
 render_report(report, fmt="csv")            # same columns, unwrapped
 write_report(report, "report.csv")          # csv by default
 write_report(report, "report.txt", fmt="table")
@@ -150,13 +152,17 @@ cell in a notebook — is the caller's choice. `fmt` is validated: anything but
 
 ## What to include
 
-By default the report carries failures and errors only. Two switches widen it:
+`include` says how far down to go. Each level contains the one before it, so the
+choice is a depth rather than a set of switches:
 
-- `include_skipped=True` adds the checks a failure blocked, each naming its
-  prerequisite in `comments`. Use it when the question is "why did nothing
-  fire?".
-- `include_passed=True` adds everything else, turning the report into a full
-  audit trail of every check against every row.
+- `include="failures"` (the default) — what failed or errored.
+- `include="blocked"` adds the checks a failure or a rule stopped, each naming its
+  prerequisite in `detail`. Use it when the question is "why did nothing fire?".
+- `include="all"` adds the passes, turning the report into a full audit trail of
+  every check against every row.
+
+`row_explanation` and `print_row_explanation` take the same three levels, with
+`"all"` as their default.
 
 ## Cost
 

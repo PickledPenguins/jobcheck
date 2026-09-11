@@ -13,7 +13,7 @@ of lives in `HANDOFF.md`. This file is for questions that are closed.
 ## Known gaps
 
 **F.1 — `lint`, `parallel` and `params` exist only as bytecode.** Three modules were lost
-when the repository was re-initialised on 2026-09-09 and survive only in
+when the repository was re-initialized on 2026-09-09 and survive only in
 `recovery/bytecode/`. `recovery/README.md` records what each did and the reason to
 rebuild it; none is rebuilt because nothing calls them today. `lint` is the one with
 obvious value — warnings about rule files that parse but can never fire, fire everywhere,

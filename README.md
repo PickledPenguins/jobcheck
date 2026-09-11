@@ -49,7 +49,7 @@ def age_above_limit(row):                         # or (row, ctx)
 
 - That is the whole change: a function in any `check_*.py` file of your own.
 - The check reads whatever columns it needs from the row.
-- It returns `PASS` or a `CheckResult`; a bare `True`/`False` works too.
+- It returns `PASS` or a `CheckResult`; `CheckResult(condition)` wraps a bare comparison.
 - The comments it attaches appear in the report.
 
 ## Validating and reporting
@@ -71,17 +71,17 @@ print_report(build_report(outcomes, df=df, key_column="id"))
 ```
 
 ```
-row | code             | status        | layer | outcome | message          | comments               | is_root_cause
-----+------------------+---------------+-------+---------+------------------+------------------------+--------------
-102 | AGE_NEGATIVE     | INVALID (3)   | 2     | failed  | Age is negative  | minimum=0; value=-5.0  | True         
-103 | EMAIL_MISSING_AT | MALFORMED (2) | 1     | failed  | Email has no '@' | at_signs=0; value=nope | True         
-104 | AGE_PRESENT      | MISSING (1)   | 0     | failed  | Age is missing   |                        | True         
+row | code             | status        | layer | outcome | message          | detail | comments               | is_root_cause
+----+------------------+---------------+-------+---------+------------------+--------+------------------------+--------------
+102 | AGE_NEGATIVE     | INVALID (3)   | 2     | failed  | Age is negative  |        | minimum=0; value=-5.0  | True         
+103 | EMAIL_MISSING_AT | MALFORMED (2) | 1     | failed  | Email has no '@' |        | at_signs=0; value=nope | True         
+104 | AGE_PRESENT      | MISSING (1)   | 0     | failed  | Age is missing   |        |                        | True         
 ```
 
 - One line per failure, not one per row.
 - `write_report(report, "report.csv")` saves it; `render_report(report, fmt="csv")`
   returns the text.
-- `data_columns=[...]` adds columns from the frame next to the row key.
+- `extra_columns=[...]` adds columns from the frame next to the row key.
 
 Row 104 reports only `AGE_PRESENT` — the four age checks below it never ran. To see
 why a check did not fire, ask about the row:
@@ -89,7 +89,7 @@ why a check did not fire, ask about the row:
 ```python
 from jobcheck import explain_row, print_row_explanation
 
-print_row_explanation(explain_row(df.loc[2]), only_relevant=True)
+print_row_explanation(explain_row(df.loc[2]), include="blocked")
 ```
 
 ```
@@ -103,12 +103,12 @@ layer | code             | outcome  | status      | detail
 root cause: AGE_PRESENT
 ```
 
-`only_relevant=True` drops the checks that passed; without it every check appears,
+`include="blocked"` drops the checks that passed; the default `"all"` shows every one,
 which is the full audit view.
 
 ## Counting what happened
 
-`summarise_outcomes` counts what each check did across every row, and
+`summarize_outcomes` counts what each check did across every row, and
 `print_summary` prints that together with the root cause of each failing row.
 
 ```python

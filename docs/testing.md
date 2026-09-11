@@ -61,10 +61,10 @@ Fast:
 | `tests/test_registry_unit.py` | Registration and its duplicate guard, `clear_registry`, dependency validation, cycle detection, topological order and its cache. |
 | `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads skipped, unique module names, prerequisites across files in one call, what a broken file leaves behind, and that no `__pycache__` appears beside the caller's file. |
 | `tests/test_validate_unit.py` | The whole-frame entry point: one list of outcomes per row **in its own position**, the checks that did not run kept, overrides and the context builder passed through, and both `on_error` modes. |
-| `tests/test_overrides_unit.py` | Every rule-file rejection (19 parametrised cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
-| `tests/test_results_unit.py` | The fixed status vocabulary, `CheckResult` truthiness and validation, and normalising whatever a check returned. |
-| `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `check_rule_columns`, root cause, layers, and the shipped tests at their boundaries. |
-| `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys, `include_skipped`/`include_passed`, table and CSV rendering, writing files, explanations and summaries. |
+| `tests/test_overrides_unit.py` | Every rule-file rejection (19 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
+| `tests/test_results_unit.py` | The fixed status vocabulary, `CheckResult` truthiness and validation, and normalizing whatever a check returned. |
+| `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `check_override_columns`, root cause, layers, and the shipped tests at their boundaries. |
+| `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys, `include` levels, table and CSV rendering, writing files, explanations and summaries. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artefact: every rule file loads alone and together, every rule names a real code and a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
 | `tests/test_differential_jobchain.py` | What jobchain's own suite asserted of the pre-rename engine, restated against this one — layering, root cause, cross-row context, crashes, rule-driven disabling. |
@@ -75,11 +75,11 @@ Fast:
 | `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
 | `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
 | `tests/test_tables_unit.py` | `format_table` rendering, wrapping and empty frames; every column of the three registry tables. |
-| `tests/test_context_unit.py` | `RowContext` defaults and `build_context`. |
+| `tests/test_context_unit.py` | `RowContext` as the base type an adopter subclasses. |
 | `tests/test_smoke.py` | The entry point starts, exits 0, and produces its main output. |
 | `tests/test_interface_cli.py` | The CLI contract as a user meets it, in subprocesses: defaults, exit codes 0/1/2, stdout vs stderr routing, and the data-file flag. |
 | `tests/test_pathological.py` | Malformed YAML, unicode, 1000 rules, empty and wide rows, duplicate column labels, a 200-deep dependency chain, a check that raises. |
-| `tests/test_safety.py` | `safe_load` refuses `!!python/object`, patterns are never evaluated, loading writes nothing, validation does not mutate the frame, a check file name is a path and never a module name, a catastrophic regex stays bounded, and CSV reports neutralise cells a spreadsheet would run as a formula. |
+| `tests/test_safety.py` | `safe_load` refuses `!!python/object`, patterns are never evaluated, loading writes nothing, validation does not mutate the frame, a check file name is a path and never a module name, a catastrophic regex stays bounded, and CSV reports neutralize cells a spreadsheet would run as a formula. |
 
 Long:
 
@@ -87,7 +87,7 @@ Long:
 |---|---|
 | `tests/test_e2e_catalogs.py` | Every catalog case through the real entry point, plus the catalog's own rules: each case documents itself, states its level, and the level counts stay above their floors. |
 | `tests/test_integration.py` | Real rule files on disk driving a whole DataFrame, precedence across directories, CSV export, a check file written at runtime and loaded by path, a written report re-read as a spreadsheet reader would. |
-| `tests/test_concurrency.py` | Threads sharing one registry agree with one thread; separate processes do not share one; several processes loading the same file all succeed and leave no bytecode; a crashing process does not affect its neighbour. |
+| `tests/test_concurrency.py` | Threads sharing one registry agree with one thread; separate processes do not share one; several processes loading the same file all succeed and leave no bytecode; a crashing process does not affect its neighbor. |
 | `tests/test_faults.py` | The filesystem failing underneath: unreadable rule and test files, a directory where a file was expected, symlinks pointing nowhere, NUL bytes, a full disk mid-write, and a read-only output directory. |
 | `tests/test_scaling.py` | The *shape* of the cost: four times the rows or the tests costs under eight times the time, a 100-deep dependency chain does not cost more than a flat registry, and going row by row holds a quarter of what collecting holds. |
 | `tests/test_load.py` | 20,000 rows within a time ceiling, correctness at volume, 500 tests × 200 rows, 500 rules × 200 rows, and a guard that the topological sort never runs inside the row loop. |
@@ -107,10 +107,10 @@ Own gates:
 `tests/examples/` holds 42 cases at three levels — 17 simple, 15 moderate, 10 complex —
 and `tests/failures/` holds 17, each asserting the exact message and exit code a user
 sees. Both run through the real entry point in a subprocess, so the documentation cannot
-drift from the behaviour.
+drift from the behavior.
 
 Nothing is faked. The entry point, the library, the rule files and the data files are the
-real ones; the only normalisation is the absolute project root, replaced by `<project>`
+real ones; the only normalization is the absolute project root, replaced by `<project>`
 so the expected output does not pin the catalog to one machine's path.
 
 The data files come from `scripts/make_example_data.py` and are committed:
@@ -243,7 +243,7 @@ Measured on 2026-09-10 after the simplification, Python 3.12.14, Linux 6.12 x86_
 | `validate_row/4000` | 6.174s | 2% |
 | `build_report/4000` | 0.048s | 123% |
 | `render_report/4000` | 0.048s | 8% |
-| `summarise_outcomes/4000` | 0.020s | 7% |
+| `summarize_outcomes/4000` | 0.020s | 7% |
 | `validate/1000-rows-50-rules` | 0.403s | 14% |
 
 `./run-tests.sh long` and `all` end by running `scripts/profile_examples.py`, which

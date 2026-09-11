@@ -20,7 +20,7 @@ write code.
 
 ```yaml
 - name: "enable_legacy_integer_check"
-  description: "Turn on strict integer check for legacy-system batch rows"
+  message: "Turn on strict integer check for legacy-system batch rows"
   action: enable
   codes:
     - AGE_NOT_INTEGER
@@ -31,7 +31,7 @@ write code.
       pattern: "^BATCH$"
 
 - name: "suppress_email_checks_for_test_accounts"
-  description: "Internal check accounts shouldn't trigger email format errors"
+  message: "Internal check accounts shouldn't trigger email format errors"
   action: disable
   codes:
     - EMAIL_MISSING_AT
@@ -41,7 +41,7 @@ write code.
       pattern: "@internal\\.check$"
 
 - name: "disable_age_integer_check_globally"
-  description: "Example: disable AGE_NOT_INTEGER for every row, no filtering"
+  message: "Example: disable AGE_NOT_INTEGER for every row, no filtering"
   action: disable
   codes:
     - AGE_NOT_INTEGER
@@ -59,9 +59,9 @@ files live in `examples/rules/split_by_topic/` and `examples/rules/from_another_
 | `action` | yes | `enable` or `disable` | Exactly one of the two literals; anything else is an error. |
 | `codes` | yes | non-empty list of strings | The codes the rule switches. Every code must already be registered when the file loads. |
 | `match` | yes | list of criteria, or the literal `all` | Which rows the rule applies to. See below. |
-| `description` | no | string, default `""` | Free text for humans. Not used in matching. |
+| `message` | yes | string | Why the rule exists, in your words. Printed beside the rule by `print_override_rules`, so somebody deciding whether it still applies can read it. |
 
-There are no other keys. An unrecognised key is rejected, naming the rule and listing what
+There are no other keys. An unrecognized key is rejected, naming the rule and listing what
 is allowed: in a file edited by hand, a key that is silently ignored is a setting that
 quietly does nothing.
 
@@ -124,7 +124,7 @@ the file it came from.
 | unknown code | `unknown code 'NO_SUCH_CODE'. Load the check file that defines it before loading overrides, or fix the code.` |
 | duplicate name | `Duplicate override rule name 'same_name': defined in a.yaml and again in b.yaml.` |
 | nested under a key | `override files must contain a flat top-level list of rules (no 'rules:' key), got dict.` |
-| misspelled key | `unknown key(s) codez. Allowed: action, codes, description, match, name.` |
+| misspelled key | `unknown key(s) codez. Allowed: action, codes, match, message, name.` |
 
 An "unknown code" that you know exists usually means its check file was not loaded by this
 entry point — see [writing-checks.md](writing-checks.md#troubleshooting).

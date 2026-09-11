@@ -16,7 +16,7 @@ import pandas as pd
 
 from jobcheck import (
     build_report,
-    check_rule_columns,
+    check_override_columns,
     load_checks,
     load_overrides,
     print_registry,
@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Loaded {len(overrides)} override rule(s) from {len(args.rules)} file(s)\n")
 
     df = load_frame(args.data)
-    for warning in check_rule_columns(df, overrides):
+    for warning in check_override_columns(df, overrides):
         print(f"warning: {warning}", file=sys.stderr)
 
     outcomes = validate(df, overrides=overrides)

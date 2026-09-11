@@ -44,43 +44,52 @@ SKIPPED = "skipped"
 ERRORED = "errored"
 
 
-def render_status(code: int) -> str:
+def render_status(status: int) -> str:
     """A status as it appears in a report: ``INVALID (3)``."""
 
-    return f"{Status(code).name} ({int(code)})"
+    return f"{Status(status).name} ({int(status)})"
 
 
 @dataclass(frozen=True)
 class CheckResult:
-    """What a check function returns: a status code, plus comments for the report.
+    """What a check function returns: a status, plus comments for the report.
 
-    ``code`` is 0 (:data:`Status.PASS`) for a pass and any other
-    :class:`Status` member for a failure. ``comments`` is free-form detail the report renders as
+    ``status`` is 0 (:data:`Status.PASS`) for a pass and any other
+    :class:`Status` member for a failure. A bool is accepted in its place, so a
+    check can wrap a bare comparison -- ``CheckResult(row["age"] > 0)`` passes,
+    or fails as :data:`Status.INVALID`; a check wanting a more specific failure
+    names it. ``comments`` is free-form detail the report renders as
     ``key=value; key=value`` -- the numbers a person needs to see why the row
     was rejected, without re-running anything.
 
     It is truthy when the check **passed**, so ``if result:`` reads as "if the
-    check was happy". Do not lean on the raw ``code`` for truthiness: 0 is a pass
-    but is falsy as an integer, which is the opposite meaning.
+    check was happy". Do not lean on the raw ``status`` for truthiness: 0 is a
+    pass but is falsy as an integer, which is the opposite meaning.
     """
 
     __test__ = False  # not a pytest check class, despite the name
 
-    code: int = Status.PASS
+    status: int = Status.PASS
     comments: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        # pandas hands back numpy scalars, so accept anything pandas calls an
-        # integer -- but never a bool, which would make CheckResult(True) a pass.
-        if pd.api.types.is_bool(self.code) or not pd.api.types.is_integer(self.code):
-            raise TypeError(f"CheckResult code must be an integer status, got {self.code!r}.")
-        if int(self.code) not in [int(member) for member in Status]:
+        # A bool is resolved here, before anything reads it as an integer:
+        # True == 1 == Status.MISSING and False == 0 == Status.PASS, so reading
+        # CheckResult(row["age"] > 0) as an integer would invert its meaning.
+        # pandas hands back np.bool_ from a comparison, which counts as a bool.
+        if pd.api.types.is_bool(self.status):
+            object.__setattr__(self, "status", Status.PASS if self.status else Status.INVALID)
+        # pandas hands back numpy scalars, so accept anything pandas calls an integer.
+        if not pd.api.types.is_integer(self.status):
+            raise TypeError(
+                f"CheckResult status must be a Status value or a bool, got {self.status!r}.")
+        if int(self.status) not in [int(member) for member in Status]:
             raise ValueError(
-                f"Unknown status {self.code!r}. Use one of: "
+                f"Unknown status {self.status!r}. Use one of: "
                 + ", ".join(f"Status.{member.name}" for member in Status)
                 + "."
             )
-        if int(self.code) == Status.ERROR:
+        if int(self.status) == Status.ERROR:
             raise ValueError(
                 "Status.ERROR is the engine's, not a check's: it marks a check that raised. "
                 "Raise the exception, or return a failure kind that describes the data."
@@ -90,17 +99,11 @@ class CheckResult:
         for key in self.comments:
             if not isinstance(key, str):
                 raise TypeError(f"CheckResult comment keys must be strings, got {key!r}.")
-        object.__setattr__(self, "code", int(self.code))
+        object.__setattr__(self, "status", int(self.status))
         object.__setattr__(self, "comments", MappingProxyType(dict(self.comments)))
 
     def __bool__(self) -> bool:
-        return int(self.code) == Status.PASS
-
-    @property
-    def passed(self) -> bool:
-        """Whether the check was happy with the row."""
-
-        return bool(self)
+        return int(self.status) == Status.PASS
 
     @property
     def failed(self) -> bool:
@@ -108,38 +111,26 @@ class CheckResult:
 
         return not bool(self)
 
-    @property
-    def status(self) -> str:
-        """The status name, e.g. ``INVALID``."""
-
-        return Status(self.code).name
-
 
 PASS = CheckResult()
 """The result of a check that is happy with the row. Shared, and immutable."""
 
 
-def normalise_result(returned: Any, code: str) -> CheckResult:
-    """Turn whatever a check returned into a :class:`CheckResult`.
+def normalize_result(returned: Any, check_code: str) -> CheckResult:
+    """Confirm a check returned a result, and hand it back.
 
-    Accepts a ``CheckResult``, a bare bool (``True`` passes, ``False`` fails as
-    :data:`Status.INVALID`), or a bare status value (``return Status.MISSING``).
-    numpy's bool and integer scalars count, since a comparison against a pandas
-    value hands back ``np.bool_`` rather than ``bool``.
-    Anything else raises ``TypeError`` naming the check: a check returning ``None``
-    by falling off the end, or returning a string, is an authoring bug and must
-    not be quietly read as a pass.
+    A check returns :data:`PASS` or a :class:`CheckResult`, and one wrapping a
+    bare comparison -- ``CheckResult(row["age"] > 0)`` -- is how a condition
+    becomes a result. Anything else raises ``TypeError`` naming the check: a
+    check returning ``None`` by falling off the end, or handing back a bare bool
+    or status value, is an authoring bug and must not be quietly read as a pass.
     """
 
     if isinstance(returned, CheckResult):
         return returned
-    if pd.api.types.is_bool(returned):
-        return PASS if returned else CheckResult(Status.INVALID)
-    if pd.api.types.is_integer(returned):
-        return CheckResult(int(returned))
     raise TypeError(
-        f"Check {code!r} returned {returned!r}. A check must return PASS, a CheckResult, "
-        "a bool, or a Status value."
+        f"Check {check_code!r} returned {returned!r}. A check must return PASS or a "
+        "CheckResult; CheckResult(condition) wraps a bare comparison."
     )
 
 

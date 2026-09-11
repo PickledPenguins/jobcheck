@@ -10,9 +10,9 @@ A case is a directory holding:
 
 Failure cases compare only the last line of stderr -- the exception type and
 message the user actually reads. The frames above it name absolute paths and
-line numbers that change with any edit, so they are normalised away.
+line numbers that change with any edit, so they are normalized away.
 
-One more normalisation applies to both kinds: the absolute project root is
+One more normalization applies to both kinds: the absolute project root is
 replaced by ``<project>``, so ``source_file`` columns in ``-vv`` output do not
 pin the catalog to one machine.
 
@@ -63,7 +63,7 @@ def stable_root() -> Path:
 
     Falls back to the real root if the filesystem refuses symlinks, in which case
     a case that renders absolute paths compares its padding against whatever this
-    machine produces -- the old behaviour, and the reason this exists.
+    machine produces -- the old behavior, and the reason this exists.
     """
 
     try:
@@ -87,11 +87,11 @@ def run_case(case: Path) -> CaseResult:
         command, cwd=stable_root(), capture_output=True, text=True, timeout=120
     )
     return CaseResult(
-        normalise(completed.stdout), normalise(completed.stderr), completed.returncode
+        normalize(completed.stdout), normalize(completed.stderr), completed.returncode
     )
 
 
-def normalise(text: str) -> str:
+def normalize(text: str) -> str:
     """Replace whichever project root the run rendered, real or stable."""
 
     return text.replace(str(STABLE_ROOT), "<project>").replace(str(ROOT), "<project>")

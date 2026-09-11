@@ -26,7 +26,27 @@ def is_null(value: Any) -> bool:
     return bool(pd.isna(value))
 
 
-def format_table(df: pd.DataFrame, wrap_columns: dict[str, int] | None = None) -> str:
+def _check_extra_columns(requested: list[str], available: list[str], subject: str) -> None:
+    """Reject ``extra_columns`` names that are not on offer, or asked for twice.
+
+    Shared by every table that takes an ``extra_columns`` argument -- the report,
+    the registry, the override rules -- so one mistake is reported the same way
+    whichever table it was made against. Refusing is deliberate: a name that is
+    quietly dropped is a column the caller believes is there.
+    """
+
+    unusable = sorted(
+        {name for name in requested
+         if name not in available or requested.count(name) > 1}
+    )
+    if unusable:
+        raise ValueError(
+            f"extra_columns {unusable} cannot be used for {subject}. Each name must be "
+            f"asked for once and be one of: {', '.join(available) or '(none available)'}."
+        )
+
+
+def format_table(table: pd.DataFrame, wrap_columns: dict[str, int] | None = None) -> str:
     """Render a DataFrame as a bordered plain-text table using only the stdlib.
 
     ``|``-separated columns, a ``-+-`` divider, left-aligned, widths sized to the
@@ -36,15 +56,15 @@ def format_table(df: pd.DataFrame, wrap_columns: dict[str, int] | None = None) -
     than being mangled. An empty frame renders as ``(empty)``.
     """
 
-    if df.empty:
+    if table.empty:
         return "(empty)"
 
     wrap = wrap_columns or {}
-    headers = [str(c) for c in df.columns]
+    headers = [str(c) for c in table.columns]
     cells: list[list[list[str]]] = []
-    for _, row in df.iterrows():
+    for _, row in table.iterrows():
         rendered: list[list[str]] = []
-        for column in df.columns:
+        for column in table.columns:
             cell = row[column]
             text = "" if cell is None or is_null(cell) else str(cell)
             width = wrap.get(str(column))

@@ -28,7 +28,7 @@ from jobcheck import (
 pytestmark = pytest.mark.fast
 
 GOLDEN_FILES = ["report_table.txt", "report.csv", "report_with_skipped.txt",
-                "report_with_data_columns.txt", "row_explanation.txt", "summary.txt"]
+                "report_with_extra_columns.txt", "row_explanation.txt", "summary.txt"]
 
 
 @pytest.mark.parametrize("name", GOLDEN_FILES)
@@ -59,7 +59,7 @@ def test_the_golden_report_shows_every_outcome_the_report_can_carry(
 
 
 def test_the_data_columns_golden_shows_them_next_to_the_row_key() -> None:
-    header = read_golden("report_with_data_columns.txt").splitlines()[0]
+    header = read_golden("report_with_extra_columns.txt").splitlines()[0]
     assert [part.strip() for part in header.split(" | ")[:5]] == [
         "row", "source_system", "record_type", "age", "code"
     ]
@@ -72,7 +72,7 @@ def test_a_written_file_is_byte_for_byte_the_golden_csv(
     trailing newline all come from write_report rather than the caller."""
 
     load_checks([str(ROOT / path) for path in CHECK_FILES])
-    overrides = load_overrides("examples/rules/error_overrides.yaml")
+    overrides = load_overrides(["examples/rules/error_overrides.yaml"])
     df = frame()
     report = build_report(validate(df, overrides=overrides), df=df, key_column="id")
 
@@ -88,7 +88,7 @@ def test_the_golden_csv_parses_back_into_the_same_frame(fresh_registry: None) ->
     import pandas as pd
 
     load_checks([str(ROOT / path) for path in CHECK_FILES])
-    overrides = load_overrides("examples/rules/error_overrides.yaml")
+    overrides = load_overrides(["examples/rules/error_overrides.yaml"])
     df = frame()
     report = build_report(validate(df, overrides=overrides), df=df, key_column="id")
 

@@ -74,21 +74,21 @@ def test_rendering_a_report_has_not_got_slower(example_checks: None) -> None:
     gate("render_report/4000", lambda: rep.render_report(report, fmt="csv"))
 
 
-def test_summarising_has_not_got_slower(example_checks: None) -> None:
+def test_summarizing_has_not_got_slower(example_checks: None) -> None:
     outcomes = validate(frame())
-    gate("summarise_outcomes/4000", lambda: rep.summarise_outcomes(outcomes))
+    gate("summarize_outcomes/4000", lambda: rep.summarize_outcomes(outcomes))
 
 
 def test_resolving_many_rules_has_not_got_slower(fresh_registry: None, tmp_path: Path) -> None:
     for index in range(50):
         make_check(f"CODE_{index}")
     rules = "\n".join(
-        f"- name: rule_{index}\n  action: disable\n  codes: [CODE_{index}]\n"
+        f"- name: rule_{index}\n  message: \"why the rule exists\"\n  action: disable\n  codes: [CODE_{index}]\n"
         f"  match:\n    - column: email\n      pattern: '^no'"
         for index in range(50)
     )
     path = tmp_path / "rules.yaml"
     path.write_text(rules)
-    overrides = reg.load_overrides(str(path))
+    overrides = reg.load_overrides([str(path)])
     df = frame(1_000)
     gate("validate/1000-rows-50-rules", lambda: validate(df, overrides=overrides))

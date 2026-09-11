@@ -13,7 +13,7 @@ __version__ = "0.2.0"
 override YAML schema are the parts treated as permanent, since data written against
 them outlives the code."""
 
-from .context import RowContext, build_context
+from .context import RowContext
 from .registry import (
     CHECKS,
     Check,
@@ -22,14 +22,13 @@ from .registry import (
     clear_registry,
     load_checks,
     load_overrides,
-    loaded_files,
+    loaded_check_files,
     register_check,
     validate_registry,
 )
 from .engine import (
     explain_row,
     resolve_enabled_state,
-    root_cause,
     root_causes,
     validate,
     validate_row,
@@ -41,7 +40,7 @@ from .registry_tables import (
     print_registry,
     print_registry_with_overrides,
 )
-from .rules import check_rule_columns
+from .rules import check_override_columns
 from .report import (
     build_report,
     escape_for_spreadsheet,
@@ -52,7 +51,7 @@ from .report import (
     render_report,
     root_cause_counts,
     row_explanation,
-    summarise_outcomes,
+    summarize_outcomes,
     write_report,
 )
 from .results import (
@@ -65,7 +64,7 @@ from .results import (
     Status,
     CheckOutcome,
     CheckResult,
-    normalise_result,
+    normalize_result,
     render_status,
 )
 from .tables import format_table, is_null
@@ -86,9 +85,8 @@ __all__ = [
     "SKIPPED",
     "Status",
     "__version__",
-    "build_context",
     "build_report",
-    "check_rule_columns",
+    "check_override_columns",
     "clear_registry",
     "escape_for_spreadsheet",
     "explain_row",
@@ -98,8 +96,8 @@ __all__ = [
     "list_rule_codes",
     "load_checks",
     "load_overrides",
-    "loaded_files",
-    "normalise_result",
+    "loaded_check_files",
+    "normalize_result",
     "print_override_rules",
     "print_registry",
     "print_registry_with_overrides",
@@ -111,11 +109,10 @@ __all__ = [
     "render_report",
     "render_status",
     "resolve_enabled_state",
-    "root_cause",
     "root_cause_counts",
     "root_causes",
     "row_explanation",
-    "summarise_outcomes",
+    "summarize_outcomes",
     "validate",
     "validate_registry",
     "validate_row",
