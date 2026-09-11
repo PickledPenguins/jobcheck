@@ -1,7 +1,6 @@
-# `match: []` instead of `match: all`
+# A rule matching nothing
 
-An empty list is far more likely an accidental omission than a deliberate global
-rule, so it is rejected.
+One mistake, one message.
 
-Input:    `python3 examples/main.py -o tests/failures/empty-match-list/rules.yaml`
-Expected: stderr ends with the "Use 'match: all'" guidance; exit 1
+Input:    `match: []`
+Expected: exit 1: an empty list is far likelier to be an omission than a deliberate wildcard

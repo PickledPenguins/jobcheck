@@ -27,7 +27,7 @@ import pandas as pd
 import pytest
 
 from conftest import PROJECT_ROOT
-from jobcheck import collect_outcomes, root_cause, validate, validate_row
+from jobcheck import root_cause, validate, validate_row
 
 pytestmark = pytest.mark.long
 
@@ -48,7 +48,7 @@ def frame(rows: int) -> pd.DataFrame:
     )
 
 
-def test_threads_validating_rows_agree_with_one_thread(example_suites: None) -> None:
+def test_threads_validating_rows_agree_with_one_thread(example_checks: None) -> None:
     df = frame(ROWS)
     rows = [row for _, row in df.iterrows()]
     expected = [[outcome.code for outcome in validate_row(row)] for row in rows]
@@ -59,7 +59,7 @@ def test_threads_validating_rows_agree_with_one_thread(example_suites: None) -> 
     assert concurrent == expected
 
 
-def test_threads_do_not_disturb_each_others_root_causes(example_suites: None) -> None:
+def test_threads_do_not_disturb_each_others_root_causes(example_checks: None) -> None:
     df = frame(ROWS)
     rows = [row for _, row in df.iterrows()]
     expected = [root_cause(validate_row(row)) for row in rows]
@@ -73,23 +73,24 @@ def test_threads_do_not_disturb_each_others_root_causes(example_suites: None) ->
     assert any(cause is not None for cause in expected)
 
 
-def test_whole_frames_validated_on_threads_agree_with_one_thread(example_suites: None) -> None:
+def test_whole_frames_validated_on_threads_agree_with_one_thread(example_checks: None) -> None:
     df = frame(100)
-    expected = [trace.root_cause for trace in validate(df)]
+    expected = [root_cause(outcomes) for outcomes in validate(df)]
 
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        runs = list(pool.map(lambda _: [t.root_cause for t in validate(df)], range(WORKERS)))
+        runs = list(pool.map(
+            lambda _: [root_cause(outcomes) for outcomes in validate(df)], range(WORKERS)))
 
     assert runs == [expected] * WORKERS
 
 
-def test_validation_does_not_mutate_the_registry_under_threads(example_suites: None) -> None:
+def test_validation_does_not_mutate_the_registry_under_threads(example_checks: None) -> None:
     from jobcheck import registry as reg
 
     before = [(check.code, check.layer, check.default_enabled) for check in reg.CHECKS]
     df = frame(100)
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        list(pool.map(lambda _: collect_outcomes(df), range(WORKERS)))
+        list(pool.map(lambda _: validate(df), range(WORKERS)))
 
     assert [(t.code, t.layer, t.default_enabled) for t in reg.CHECKS] == before
 
@@ -110,11 +111,10 @@ CHILD = textwrap.dedent(
 
 TEST_FILE = textwrap.dedent(
     """
-    from jobcheck import PASS, Status, CheckResult, check_group
+    from jobcheck import PASS, Status, CheckResult, register_check
 
-    g = check_group()
-
-    @g("{code}", "{code} failed")
+    
+    @register_check("{code}", "{code} failed")
     def rule(row):
         return PASS if row.get("value") == 1 else CheckResult(Status.INVALID, {{}})
     """

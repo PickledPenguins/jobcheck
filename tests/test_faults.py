@@ -25,10 +25,10 @@ import pytest
 from conftest import make_check
 from jobcheck import (
     build_report,
-    collect_outcomes,
+    validate,
     load_overrides,
-    load_overrides_from_dir,
-    load_overrides_from_files,
+    load_overrides,
+    load_overrides,
     load_checks,
     registry as reg,
     write_report,
@@ -39,9 +39,8 @@ pytestmark = pytest.mark.long
 RULE = ("- name: r\n  action: disable\n  codes: [A_CODE]\n  match: all\n")
 
 TEST_FILE = (
-    "from jobcheck import PASS, check_group\n"
-    "g = check_group()\n"
-    "@g('FROM_FILE', 'from file')\n"
+    "from jobcheck import PASS, register_check\n"
+    "@register_check('FROM_FILE', 'from file')\n"
     "def rule(row):\n"
     "    return PASS\n"
 )
@@ -98,7 +97,7 @@ def test_one_unreadable_file_in_a_directory_stops_the_whole_load(fresh_registry:
     (tmp_path / "02.yaml").write_text(RULE.replace("name: r", "name: s"))
     unreadable(tmp_path / "02.yaml")
     with pytest.raises(PermissionError):
-        load_overrides_from_dir(str(tmp_path))
+        load_overrides([str(tmp_path / "01.yaml"), str(tmp_path / "02.yaml")])
 
 
 def test_a_missing_file_in_a_list_names_that_file(fresh_registry: None, tmp_path: Path) -> None:
@@ -106,7 +105,7 @@ def test_a_missing_file_in_a_list_names_that_file(fresh_registry: None, tmp_path
     good = tmp_path / "01.yaml"
     good.write_text(RULE)
     with pytest.raises(FileNotFoundError) as raised:
-        load_overrides_from_files([str(good), str(tmp_path / "02.yaml")])
+        load_overrides([str(good), str(tmp_path / "02.yaml")])
     assert "02.yaml" in str(raised.value)
 
 
@@ -184,7 +183,7 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
 def report_of(fresh: None) -> pd.DataFrame:
     make_check("FAILS", passes=False)
     frame = pd.DataFrame([{"id": 1}])
-    return build_report(collect_outcomes(frame), df=frame, key_column="id")
+    return build_report(validate(frame), df=frame, key_column="id")
 
 
 def test_writing_into_a_missing_directory_raises_naming_the_path(fresh_registry: None,

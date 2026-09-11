@@ -1,6 +1,6 @@
 # A data file with no columns
 
-One of the mistakes a user actually makes, and the message it gets.
+One mistake, one message.
 
-Input:    an empty file passed to `--data`
-Expected: see `expected_stderr.txt`; a non-zero exit
+Input:    an empty file
+Expected: exit 2: a file with no header is not a frame

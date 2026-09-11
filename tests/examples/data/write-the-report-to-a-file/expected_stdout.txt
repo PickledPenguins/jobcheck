@@ -1,6 +1,0 @@
-Loaded suites: ['base', 'hard_checks', 'soft_checks']
-
-Loaded 3 override rule(s) from 1 file(s)
-
-
-wrote /tmp/jobcheck-example-report.csv

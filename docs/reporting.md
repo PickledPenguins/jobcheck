@@ -11,19 +11,19 @@ Back to the [README](../README.md). The value types are in
 ## The short version
 
 ```python
-from jobcheck import build_report, collect_outcomes, load_suites, print_report
+from jobcheck import build_report, load_checks, print_report, validate
 
-load_suites(["hard_checks", "soft_checks"], package="example_suites")
-outcomes = collect_outcomes(df, overrides=overrides)
+load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
+outcomes = validate(df, overrides=overrides)
 report = build_report(outcomes, df=df, key_column="id")
 print_report(report)                       # or render_report / write_report
 ```
 
 ```
-row | code             | status        | layer | suite      | outcome | message              | comments               | is_root_cause
-----+------------------+---------------+-------+------------+---------+----------------------+------------------------+--------------
-102 | AGE_NEGATIVE     | INVALID (3)   | 2     | hard_checks | failed  | Age is negative      | minimum=0; value=-5.0  | True
-103 | EMAIL_MISSING_AT | MALFORMED (2) | 1     | soft_checks | failed  | Email has no '@'     | at_signs=0; value=nope | True
+row | code             | status        | layer | outcome | message          | comments               | is_root_cause
+----+------------------+---------------+-------+---------+------------------+------------------------+--------------
+102 | AGE_NEGATIVE     | INVALID (3)   | 2     | failed  | Age is negative  | minimum=0; value=-5.0  | True
+103 | EMAIL_MISSING_AT | MALFORMED (2) | 1     | failed  | Email has no '@' | at_signs=0; value=nope | True
 ```
 
 ## Shape: one row per failure
@@ -38,7 +38,6 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 | `code` | The permanent check code. |
 | `status` | The failure kind, rendered as `INVALID (3)`. |
 | `layer` | How deep the check sits in the dependency graph; 0 is fundamental. |
-| `suite` | Which suite the check came from. |
 | `outcome` | `failed`, `errored`, and `skipped`/`disabled`/`passed` when asked for. |
 | `message` | The check's message — what a person reads first. |
 | `comments` | What the check attached, rendered `key=value; key=value`, sorted. |
@@ -161,7 +160,7 @@ By default the report carries failures and errors only. Two switches widen it:
 
 ## Cost
 
-`collect_outcomes` keeps one object per check per row, because that is what the
+`validate` keeps one object per check per row, because that is what the
 explanation and summary views are built from. For a frame large enough that this
 matters, call `validate_row` per row instead and skip the report: it returns only
 the failures and allocates nothing for the checks that passed.

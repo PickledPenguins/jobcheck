@@ -6,7 +6,7 @@ cannot simply be executed: instead every call they show is bound against the rea
 signature, which is what catches an argument that became required, a keyword that
 was renamed, and a function that no longer exists.
 
-The drift this was written for: `load_suites(["hard_checks"])` appeared in three
+The drift this was written for: a call that appeared in three
 documents for as long as `package=` had a default, and went on appearing after it
 became required, where it raises TypeError for anyone who copies it.
 """
@@ -87,7 +87,7 @@ def test_no_document_names_a_public_function_that_is_gone(path: Path) -> None:
     # Names a document may legitimately mention that are not this package's:
     # pandas' own methods, the placeholder names the examples use for a group or
     # a callback, and the builtins.
-    # A public type's methods count as public names: ValidationRun.report() is
+    # A public type's methods count as public names: CheckResult.passed is
     # documented as `report(...)`, and a reader will call it that way.
     methods = {name for value in PUBLIC.values() if inspect.isclass(value)
                for name in dir(value)}

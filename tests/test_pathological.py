@@ -11,6 +11,7 @@ import yaml
 
 from conftest import make_check, one_row_report
 from jobcheck import registry as reg
+from jobcheck import tables
 from jobcheck import engine
 from jobcheck.results import Status
 
@@ -90,7 +91,7 @@ def test_a_thousand_rules_load_and_the_last_wins(fresh_registry: None, tmp_path:
 
 
 def test_empty_row_reports_the_presence_tests_and_nothing_below_them(
-    example_suites: None,
+    example_checks: None,
 ) -> None:
     assert [r.code for r in engine.validate_row(pd.Series(dtype=object))] == [
         "ROW_ALL_NULL", "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"
@@ -98,7 +99,7 @@ def test_empty_row_reports_the_presence_tests_and_nothing_below_them(
 
 
 def test_row_with_unexpected_columns_only_reports_what_is_missing(
-    example_suites: None,
+    example_checks: None,
 ) -> None:
     row = pd.Series({"totally": "unrelated"})
     assert [r.code for r in engine.validate_row(row)] == [
@@ -212,7 +213,7 @@ def test_table_rendering_of_a_cell_containing_a_pipe(fresh_registry: None) -> No
     """The renderer does not escape, so a pipe in data is shown literally."""
 
     df = pd.DataFrame([{"code": "A|B"}])
-    assert reg.format_table(df).splitlines()[2] == "A|B "
+    assert tables.format_table(df).splitlines()[2] == "A|B "
 
 
 # --- hostile values reaching the report ------------------------------------
@@ -290,31 +291,31 @@ def test_a_key_column_value_containing_the_separator_is_refused(
     ("A|B", 1) and ("A", "B|1") would render the same label. The report refuses
     rather than producing two rows nobody can tell apart."""
 
-    from jobcheck import build_report, collect_outcomes
+    from jobcheck import build_report, validate
 
     make_check("FAILS", passes=False)
     frame = pd.DataFrame([{"batch": "A|B", "id": 1}])
     with pytest.raises(ValueError, match="joins a multi-column key"):
-        build_report(collect_outcomes(frame), df=frame, key_column=["batch", "id"])
+        build_report(validate(frame), df=frame, key_column=["batch", "id"])
 
 
 def test_a_frame_with_duplicate_column_labels_fails_on_the_first_row(
     fresh_registry: None,
 ) -> None:
-    from jobcheck import collect_outcomes
+    from jobcheck import validate
 
     make_check("CODE")
     frame = pd.DataFrame([[1, 2]], columns=["age", "age"])
     with pytest.raises(ValueError, match="duplicate column labels"):
-        collect_outcomes(frame)
+        validate(frame)
 
 
 def test_an_empty_frame_produces_an_empty_report(fresh_registry: None) -> None:
-    from jobcheck import build_report, collect_outcomes, summarise_outcomes
+    from jobcheck import build_report, validate, summarise_outcomes
 
     make_check("CODE")
     frame = pd.DataFrame(columns=["age"])
-    outcomes = collect_outcomes(frame)
+    outcomes = validate(frame)
     assert outcomes == []
     assert build_report(outcomes, df=frame).empty
     assert summarise_outcomes(outcomes).empty

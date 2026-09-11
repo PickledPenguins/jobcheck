@@ -16,7 +16,7 @@ from typing import Any
 
 import pandas as pd
 
-from .registry import CHECKS, BASE_SUITE
+from .registry import CHECKS
 from .rules import OverrideRule
 from .tables import format_table
 
@@ -40,12 +40,12 @@ def get_registry_table(debug: int = 0) -> pd.DataFrame:
 
     ``layer`` and ``depends_on`` are base columns, not debug-gated: what a check
     requires, and how deep it sits in the dependency graph, change whether it
-    runs at all. Rows are ordered suite, then layer, then code, so the
-    fundamental checks of each suite read first. ``source_file`` is genuinely
-    only useful when debugging, so it appears at ``debug >= 2``.
+    runs at all. Rows are ordered layer, then code, so the fundamental checks
+    read first. ``source_file`` is genuinely only useful when debugging, so it
+    appears at ``debug >= 2``.
     """
 
-    columns = ["code", "layer", "suite", "default_state", "description", "depends_on"]
+    columns = ["code", "layer", "default_state", "description", "depends_on"]
     if debug >= 2:
         columns.append("source_file")
 
@@ -54,7 +54,6 @@ def get_registry_table(debug: int = 0) -> pd.DataFrame:
         row: dict[str, Any] = {
             "code": check.code,
             "layer": check.layer,
-            "suite": check.suite,
             "default_state": "ON" if check.default_enabled else "OFF",
             "description": check.description,
             "depends_on": "; ".join(check.depends_on) if check.depends_on else "-",
@@ -67,7 +66,7 @@ def get_registry_table(debug: int = 0) -> pd.DataFrame:
     # with columns to sort by; pd.DataFrame([]) has none and sort_values raises.
     return (
         pd.DataFrame(rows, columns=columns)
-        .sort_values(["suite", "layer", "code"])
+        .sort_values(["layer", "code"])
         .reset_index(drop=True)
     )
 
@@ -110,7 +109,7 @@ def print_registry_with_overrides(overrides: list[OverrideRule], debug: int = 0)
         print("No checks registered.")
         return base
 
-    columns = ["code", "layer", "suite", "default_state", "override_rules", "effective_state"]
+    columns = ["code", "layer", "default_state", "override_rules", "effective_state"]
     if debug >= 2:
         columns.append("source_file")
 
@@ -126,7 +125,6 @@ def print_registry_with_overrides(overrides: list[OverrideRule], debug: int = 0)
         row: dict[str, Any] = {
             "code": code,
             "layer": entry["layer"],
-            "suite": entry["suite"],
             "default_state": default_state,
             "override_rules": "; ".join(f"{r.name} ({r.action})" for r in matching) or "-",
             "effective_state": effective,

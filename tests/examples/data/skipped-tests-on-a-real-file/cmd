@@ -1,1 +1,0 @@
-python3 examples/main.py --data examples/data/customers.csv --include-skipped --no-registry

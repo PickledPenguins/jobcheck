@@ -1,10 +1,10 @@
-row      | code                 | status        | layer | suite       | outcome | message                                 | comments                                   | is_root_cause
----------+----------------------+---------------+-------+-------------+---------+-----------------------------------------+--------------------------------------------+--------------
-102      | AGE_NEGATIVE         | INVALID (3)   | 2     | hard_checks | failed  | Age is negative                         | minimum=0; value=-5.0                      | False        
-102      | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | hard_checks | failed  | start_date is after end_date            | end_date=2024-03-01; start_date=2024-05-01 | True         
-102      | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_checks | failed  | Email domain looks malformed            | domain=example                             | False        
-103      | AGE_TOO_HIGH         | INVALID (3)   | 2     | hard_checks | failed  | Age is implausibly high (over 130)      | maximum=130; value=200.0                   | True         
-103      | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | soft_checks | failed  | Email domain looks malformed            | domain=nodomain                            | True         
-<no key> | AGE_PRESENT          | MISSING (1)   | 0     | hard_checks | failed  | Age is missing                          |                                            | True         
-<no key> | DATES_PRESENT        | MISSING (1)   | 0     | hard_checks | failed  | Both start_date and end_date are needed | columns=start_date, end_date               | True         
-<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | soft_checks | failed  | Email is missing                        |                                            | True         
+row      | code                 | status        | layer | outcome | message                                 | comments                                   | is_root_cause
+---------+----------------------+---------------+-------+---------+-----------------------------------------+--------------------------------------------+--------------
+102      | AGE_NEGATIVE         | INVALID (3)   | 2     | failed  | Age is negative                         | minimum=0; value=-5.0                      | False        
+102      | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | failed  | start_date is after end_date            | end_date=2024-03-01; start_date=2024-05-01 | True         
+102      | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | failed  | Email domain looks malformed            | domain=example                             | False        
+103      | AGE_TOO_HIGH         | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130)      | maximum=130; value=200.0                   | True         
+103      | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | failed  | Email domain looks malformed            | domain=nodomain                            | True         
+<no key> | AGE_PRESENT          | MISSING (1)   | 0     | failed  | Age is missing                          |                                            | True         
+<no key> | DATES_PRESENT        | MISSING (1)   | 0     | failed  | Both start_date and end_date are needed | columns=start_date, end_date               | True         
+<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | failed  | Email is missing                        |                                            | True         

@@ -20,6 +20,7 @@ import pytest
 from conftest import make_check
 from jobcheck import build_context, registry as reg
 from jobcheck import report as rep
+from jobcheck import validate
 from jobcheck import engine
 
 pytestmark = pytest.mark.long
@@ -40,7 +41,7 @@ def frame(rows: int) -> pd.DataFrame:
     )
 
 
-def test_twenty_thousand_rows_validate_within_the_time_ceiling(example_suites: None) -> None:
+def test_twenty_thousand_rows_validate_within_the_time_ceiling(example_checks: None) -> None:
     overrides = reg.load_overrides("examples/rules/error_overrides.yaml")
     df = frame(ROWS)
     start = time.monotonic()
@@ -51,7 +52,7 @@ def test_twenty_thousand_rows_validate_within_the_time_ceiling(example_suites: N
     assert elapsed < 60.0, f"{ROWS} rows took {elapsed:.1f}s"
 
 
-def test_results_are_correct_at_volume_not_just_fast(example_suites: None) -> None:
+def test_results_are_correct_at_volume_not_just_fast(example_checks: None) -> None:
     df = frame(1000)
     codes = df.apply(lambda row: tuple(r.code for r in engine.validate_row(row)), axis=1)
     counts = codes.value_counts().to_dict()
@@ -62,14 +63,14 @@ def test_results_are_correct_at_volume_not_just_fast(example_suites: None) -> No
 
 
 def test_building_a_report_over_many_rows_stays_within_the_time_ceiling(
-    example_suites: None,
+    example_checks: None,
 ) -> None:
     """Collecting outcomes keeps an object per check per row, so it is the report
     path -- not validate_row -- that has to be watched at volume."""
 
     df = frame(5000)
     start = time.monotonic()
-    outcomes = rep.collect_outcomes(df)
+    outcomes = validate(df)
     report = rep.build_report(outcomes, df=df)
     elapsed = time.monotonic() - start
     assert len(report) == 6000, "one line per failure, not per row"
@@ -129,7 +130,7 @@ def test_many_rules_resolve_within_the_ceiling(fresh_registry: None) -> None:
     assert elapsed < 30.0, f"500 rules x 200 rows took {elapsed:.1f}s"
 
 
-def test_repeated_validation_does_not_leak_registry_state(example_suites: None) -> None:
+def test_repeated_validation_does_not_leak_registry_state(example_checks: None) -> None:
     row = pd.Series({"age": -1, "email": "nope"})
     before = len(reg.CHECKS)
     for _ in range(1000):
@@ -140,9 +141,9 @@ def test_repeated_validation_does_not_leak_registry_state(example_suites: None) 
     ]
 
 
-def test_rendering_a_large_report_stays_within_the_time_ceiling(example_suites: None) -> None:
+def test_rendering_a_large_report_stays_within_the_time_ceiling(example_checks: None) -> None:
     df = frame(2000)
-    report = rep.build_report(rep.collect_outcomes(df), df=df)
+    report = rep.build_report(validate(df), df=df)
     start = time.monotonic()
     text = rep.render_report(report)
     csv = rep.render_report(report, fmt="csv")
@@ -152,8 +153,8 @@ def test_rendering_a_large_report_stays_within_the_time_ceiling(example_suites: 
     assert elapsed < 30.0, f"rendering {len(report)} failures took {elapsed:.1f}s"
 
 
-def test_summarising_a_large_frame_stays_within_the_time_ceiling(example_suites: None) -> None:
-    outcomes = rep.collect_outcomes(frame(2000))
+def test_summarising_a_large_frame_stays_within_the_time_ceiling(example_checks: None) -> None:
+    outcomes = validate(frame(2000))
     start = time.monotonic()
     summary = rep.summarise_outcomes(outcomes)
     causes = rep.root_cause_counts(outcomes)

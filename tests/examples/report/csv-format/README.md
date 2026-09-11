@@ -1,8 +1,7 @@
-# The same report as CSV
+# The report as CSV
 
-Same columns, unwrapped, for a spreadsheet or another tool. The library writes
-it; the flag only chooses the format.
+`--report csv` renders the report for a spreadsheet or another tool instead of for a terminal.
 
 Level:    simple
-Input:    `python3 examples/main.py --report csv`
-Expected: a CSV header row followed by one line per failure; exit 0
+Input:    the demo frame
+Expected: the same columns, comma separated and unwrapped

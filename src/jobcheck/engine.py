@@ -5,20 +5,21 @@ one algorithm -- resolve the per-row on/off state from the override rules, walk
 the checks in dependency order, and record an outcome for every one of them --
 and everything else here is a view over its result.
 
-:func:`explain_row` is that algorithm. :func:`validate_row` filters it to the
-failures, :func:`root_causes` picks the ones that are not downstream of anything
-else, and :mod:`jobcheck.report` turns whole frames of it into tables. There is
-no second implementation: a view that disagreed with the engine would be worse
-than no view at all.
+:func:`explain_row` is that algorithm. :func:`validate` runs it over a whole
+frame, :func:`validate_row` filters it to the failures, :func:`root_causes`
+picks the ones that are not downstream of anything else, and
+:mod:`jobcheck.report` turns whole frames of it into tables. There is no second
+implementation: a view that disagreed with the engine would be worse than no
+view at all.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import pandas as pd
 
-from .context import RowContext
+from .context import RowContext, build_context
 from .registry import CHECKS, _get_topo_order
 from .results import (
     DISABLED,
@@ -31,6 +32,8 @@ from .results import (
     normalise_result,
 )
 from .rules import OverrideRule, rule_matches
+
+ContextBuilder = Callable[["pd.Series[Any]"], RowContext | None]
 
 
 def resolve_enabled_state(row: "pd.Series[Any]", overrides: list[OverrideRule]) -> dict[str, bool]:
@@ -119,7 +122,7 @@ def explain_row(
             passed[check.code] = False
             disabled.add(check.code)
             outcomes.append(
-                CheckOutcome(check.code, DISABLED, layer=check.layer, suite=check.suite,
+                CheckOutcome(check.code, DISABLED, layer=check.layer,
                             detail=f"disabled by {reason}")
             )
             continue
@@ -134,7 +137,7 @@ def explain_row(
                       if all(code in disabled for code in blocking)
                       else "prerequisite did not pass: ")
             outcomes.append(
-                CheckOutcome(check.code, SKIPPED, layer=check.layer, suite=check.suite,
+                CheckOutcome(check.code, SKIPPED, layer=check.layer,
                             detail=reason + ", ".join(blocking))
             )
             continue
@@ -148,7 +151,7 @@ def explain_row(
             outcomes.append(
                 CheckOutcome(
                     check.code, ERRORED, status=Status.ERROR, layer=check.layer,
-                    suite=check.suite, message=check.message,
+                    message=check.message,
                     detail=f"{type(exc).__name__}: {exc}",
                 )
             )
@@ -162,7 +165,7 @@ def explain_row(
                 PASSED if result.passed else FAILED,
                 status=result.code,
                 layer=check.layer,
-                suite=check.suite,
+               
                 message="" if result.passed else check.message,
                 comments=result.comments,
             )
@@ -231,5 +234,28 @@ def root_causes(outcomes: list[CheckOutcome]) -> list[str]:
     return [outcome.code for outcome in failures if outcome.layer == shallowest]
 
 
-# --------------------------------------------------------------------------
-# Table rendering
+
+def validate(
+    df: pd.DataFrame,
+    overrides: list[OverrideRule] | None = None,
+    context_builder: ContextBuilder = build_context,
+    on_error: str = "record",
+) -> list[list[CheckOutcome]]:
+    """Run every check against every row of *df*, keeping all the outcomes.
+
+    The whole-frame entry point, and one call of :func:`explain_row` per row:
+    the outcomes come back one list per row, in frame order, which is what
+    :func:`jobcheck.build_report` and :func:`jobcheck.summarise_outcomes` take.
+
+    Keeps the checks that did not run as well as the ones that did, because
+    that is what the explanation and summary views are built from. A run keeps
+    one outcome per check per row, so for a frame large enough that the objects
+    matter, call :func:`validate_row` per row instead and skip the report.
+
+    ``on_error`` is passed through to :func:`explain_row`.
+    """
+
+    return [
+        explain_row(row, ctx=context_builder(row), overrides=overrides, on_error=on_error)
+        for _, row in df.iterrows()
+    ]

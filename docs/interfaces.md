@@ -1,6 +1,6 @@
 # Interfaces
 
-Everything here is exported from the `validation` package and is the stable
+Everything here is exported from the `jobcheck` package and is the stable
 surface. Names prefixed with `_` are internal and may change.
 
 Back to the [README](../README.md). Authoring guidance is in
@@ -16,17 +16,10 @@ are treated as permanent.
 ### `Status`
 
 `IntEnum` of failure kinds: `PASS` 0, `MISSING` 1, `MALFORMED` 2, `INVALID` 3,
-`ERROR` 9. Zero is a pass; every other value is a failure. Values 0–9 are
-reserved for these.
+`ERROR` 9. Zero is a pass; every other value is a failure. The vocabulary is
+fixed: these five are the whole of it, and a value outside them is refused.
 
-- `register_status(name, value) -> int` — add a project kind from 10 upwards.
-  Refuses a reserved value, a duplicate value, a duplicate name, a non-integer
-  value, or a name that is not an UPPER_CASE identifier. Values are permanent
-  identifiers, like check codes.
-- `all_statuses() -> dict[int, str]`, `status_name(code) -> str` (`"UNKNOWN"` for
-  an unregistered value), `render_status(code) -> str` (`"INVALID (3)"`).
-- `clear_extra_statuses()` — forget every registered kind; for checks of the
-  framework itself.
+- `render_status(code) -> str` (`"INVALID (3)"`).
 - `normalise_result(returned, code) -> CheckResult` — the boundary the engine puts
   every return value through: a `CheckResult` passes straight back, a bool or a
   status value is converted, anything else raises naming the check. Exported so a
@@ -42,7 +35,7 @@ What a check returns. Frozen dataclass: `code: int = Status.PASS`,
 - `.status` is the status name.
 - Comments are copied and frozen at construction, so a shared result cannot be
   mutated through the dict a caller passed in.
-- Construction validates: an unregistered status, `Status.ERROR` (the engine's, not
+- Construction validates: a value outside `Status`, `Status.ERROR` (the engine's, not
   a check's), a bool as the code, a non-mapping `comments`, or a non-string comment
   key all raise.
 - `PASS` is the shared, immutable passing result.
@@ -51,7 +44,7 @@ What a check returns. Frozen dataclass: `code: int = Status.PASS`,
 
 What the engine recorded for one check on one row: `code` (the check code),
 `outcome` (`passed`, `failed`, `disabled`, `skipped`, `errored`), `status` (a
-`Status` value), `layer`, `suite`, `message`, `detail`, `comments`.
+`Status` value), `layer`, `message`, `detail`, `comments`.
 
 `.failed` is True for `failed` and `errored`; `.status_label` renders as
 `INVALID (3)`. `detail` explains the three non-evaluating outcomes: which rule
@@ -62,9 +55,9 @@ The outcome strings are also exported as `PASSED`, `FAILED`, `DISABLED`,
 
 ### `Check`
 
-One registered check: `code`, `message`, `fn`, `suite`, `source_file`,
+One registered check: `code`, `message`, `fn`, `source_file`,
 `default_enabled`, `description`, `depends_on`, `layer`. Created by the
-decorators, never by hand. `layer` is computed by `validate_registry`.
+decorator, never by hand. `layer` is computed by `validate_registry`.
 
 `CHECKS` is the live registry list, in registration order. Read it freely; mutate
 it only through the decorators and `clear_registry`.
@@ -82,78 +75,57 @@ A rule's `{column, pattern}` filter, and the rule itself: `name`, `action`,
 
 ## Registering checks
 
-### `register_check(code, message, default_enabled=True, description="", depends_on=None, suite=None)`
+### `register_check(code, message, default_enabled=True, description="", depends_on=None)`
 
 Decorator. The function takes `(row)` or `(row, ctx)` and returns `PASS`, a
 `CheckResult`, a bool, or a `Status` value.
 
 Raises at import for a duplicate code, an empty code or message, a non-list
 `depends_on` (a bare string would otherwise register one prerequisite per
-character), a non-string `suite` or `description`, a non-bool `default_enabled`,
+character), a non-string `description`, a non-bool `default_enabled`,
 or a signature the engine cannot call -- including a required keyword-only
 argument. The `depends_on` *codes* are checked later by `validate_registry`,
 since a prerequisite may live in a module not yet imported.
 
-### `check_group(depends_on=None, suite=None, default_enabled=True) -> CheckGroup`
-
-Shared defaults for a file. The returned group is called like the decorator:
-`group(code, message, default_enabled=None, description="", depends_on=None, suite=None)`.
-
-The group's prerequisites are unconditional — a check's own are added to them,
-never substituted. `suite` and `default_enabled` on a check override the group's.
-
-### `load_suites(suites: list[str], package: str) -> None`
-
-Imports every `check_*.py` module in each named subpackage, plus the base suite
-(files directly in *package*) on every call. *package* is required and is **your**
-package: this one ships no checks, so a default would name the wrong tree and the
-error for a missing suite would point at it. Each suite imports once, so repeat
-calls are no-ops. Calls `validate_registry` before returning. Raises `ValueError`
-naming the expected subpackage for an unknown suite.
-
 ### `load_checks(paths: str | list[str]) -> None`
 
-Imports the named `.py` files by path so their checks register themselves — the
-counterpart to `load_suites` for a caller whose check files are not an importable
-package, such as a pipeline that writes them into a run directory. One path or
-several; nothing is discovered. A file already loaded, or listed twice, is
-skipped. `validate_registry` runs once the whole call has been imported, so a
+Imports the named `.py` files by path so their checks register themselves. One
+path or several; **nothing is discovered**, which is what lets two entry points in
+one codebase run different sets of checks. A file already loaded, or listed twice,
+is skipped. `validate_registry` runs once the whole call has been imported, so a
 prerequisite may live in any of the files. Raises `ValueError` for a path that is
 not a file, and propagates whatever a file raises while importing.
 
 Each file is given a unique module name, so two directories that each hold a
-`checks.py` both load. That name is flat, so the checks land in the base suite.
-No `__pycache__` is written beside the file.
+`checks.py` both load. No `__pycache__` is written beside the file: a check file
+comes from wherever the caller names, which is a record of what was read rather
+than somewhere to write to.
 
 ### `loaded_files() -> list[str]`
 
 The resolved paths loaded that way, in load order. A copy.
 
-### `BASE_SUITE`
-
-The suite name (`"base"`) given to checks that sit directly in *package* rather
-than in a suite subpackage, and to any file loaded by path. It is loaded by every
-`load_suites` call and cannot be switched off.
-
-### `loaded_suites() -> set[str]`, `validate_registry() -> None`, `clear_registry() -> None`
+### `validate_registry() -> None`, `clear_registry() -> None`
 
 `validate_registry` checks every `depends_on` edge, detects cycles, computes
 layers, and caches the evaluation order. An unregistered prerequisite raises —
-including one whose suite was not loaded, deliberately as loud as a typo.
+including one living in a check file that was not loaded, deliberately as loud as
+a typo.
 
 `clear_registry` empties the registry and evicts the modules that registered
-checks from `sys.modules`, so a later `load_suites` re-registers rather than
+checks from `sys.modules`, so a later `load_checks` re-registers rather than
 silently doing nothing.
 
 ## Loading override rules
 
-`load_overrides(path)`, `load_overrides_from_dir(directory, pattern="*.yaml")`
-(alphabetical), `load_overrides_from_files(paths)` (the order given) all return
-`list[OverrideRule]` in load order, share one parser, and raise `ValueError` at
-load time for every malformed rule. They are thin wrappers over
-`jobcheck.rules`, which holds the format and its parser and is handed the codes
-that exist rather than reaching into the registry. Load suites first: a rule naming an
-unregistered code is an error. See [configuration.md](configuration.md).
+`load_overrides(paths)` takes one path or a list of them, exactly as
+`load_checks` does, and returns `list[OverrideRule]` in the order given — which is
+the precedence order, since the last matching rule wins. It raises `ValueError` at
+load time for every malformed rule, and for a rule name used twice anywhere in the
+call. It is a thin wrapper over `jobcheck.rules`, which holds the format and its
+parser and is handed the codes that exist rather than reaching into the registry.
+Load the check files first: a rule naming an unregistered code is an error. See
+[configuration.md](configuration.md).
 
 `list_rule_codes(rule_name, overrides) -> list[str]` prints and returns the codes
 one named rule touches.
@@ -200,32 +172,18 @@ One line per rule criterion naming a column the frame lacks — a rule that can
 never fire. Checks are not checked: they read the row themselves, so a missing
 field raises and is recorded as an `ERROR` outcome naming the column.
 
-### `validate(df, overrides=None, context_builder=build_context, on_error="record", progress=None, progress_every=1000) -> ValidationRun`
+### `validate(df, overrides=None, context_builder=build_context, on_error="record") -> list[list[CheckOutcome]]`
 
-Every check against every row, returned as one object rather than a list of lists
-and the frame beside it. `progress`, when given, is called as
-`progress(done, total)` every `progress_every` rows and once at the end;
-`progress_every` below 1 raises `ValueError`.
+Every check against every row: one `explain_row` call per row, and one list of
+outcomes per row, in frame order. That is the shape `build_report` and
+`summarise_outcomes` take.
 
-`ValidationRun` holds `df`, `traces`, `overrides` and `stats`. It supports
-`len()` and iteration over its traces, and offers `records`, `errors`,
-`failed_rows`, `root_causes`, `report(key_column, data_columns, include_skipped,
-include_passed)`, `summary()` and `explain(position)` — which raises `IndexError`
-naming the frame's size rather than letting a negative position wrap round.
-`ValidationRun.from_records(df, records, overrides=None, stats=None)` builds one
-from outcomes collected elsewhere, and raises `ValueError` unless there is
-exactly one list per row.
+`context_builder` is called once per row and returns the `RowContext` handed to
+every check; hand back one shared object when a check needs the whole frame.
 
-`RowTrace` is one row: `position` (the position in the frame, not the index
-label), `records`, and the derived `failures`, `root_cause` and `passed`.
-`RunStats` is `rows`, `failures`, `errors`, `seconds` and `rows_per_second`,
-which is infinity for a run too fast to time.
-
-### `iter_traces(df, ...) -> Iterator[RowTrace]`
-
-The streaming half of `validate`, taking the same arguments and holding one
-trace at a time. For a frame where one outcome per check per row will not fit in
-memory.
+It keeps one outcome per check per row, so for a frame where that will not fit in
+memory, call `validate_row(row)` per row instead and write the failures out as
+they appear.
 
 ## Reporting
 
@@ -234,17 +192,17 @@ include_skipped=False, include_passed=False)` — `data_columns` copies frame
 columns into the report just after `row`; see
 [reporting.md](reporting.md#showing-data-alongside-the-failures).
 
-`collect_outcomes`, `build_report`, `render_report`, `render_comments`,
+`build_report`, `render_report`, `render_comments`,
 `escape_for_spreadsheet`, `write_report`,
 `print_report`, `row_explanation`, `print_row_explanation`, `summarise_outcomes`,
-`root_cause_counts`, `print_summary` — all exported from `validation` and
+`root_cause_counts`, `print_summary` — all exported from `jobcheck` and
 documented in [reporting.md](reporting.md).
 
 Registry tables:
 
-- `get_registry_table(debug=0)` — one row per check, sorted suite, then layer,
-  then code. Columns `code`, `layer`, `suite`, `default_state`, `description`,
-  `depends_on`; plus `source_file` at `debug >= 2`.
+- `get_registry_table(debug=0)` — one row per check, sorted layer, then code.
+  Columns `code`, `layer`, `default_state`, `description`, `depends_on`; plus
+  `source_file` at `debug >= 2`.
 - `print_registry(overrides=None, debug=0)` — prints it. At `debug >= 1` adds
   `could_be_overridden_by`: rules that *reference* each code. Not "was overridden
   by" — whether a rule fires is a per-row question this table cannot answer.

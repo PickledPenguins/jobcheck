@@ -1,4 +1,6 @@
-# `match: al` -- a typo for `all`
+# A misspelled rule key
 
-Input:    `python3 examples/main.py -o tests/failures/match-typo/rules.yaml`
-Expected: stderr naming the literal that was expected; exit 1
+One mistake, one message.
+
+Input:    `matches:` instead of `match:`
+Expected: exit 1 listing the keys a rule may carry

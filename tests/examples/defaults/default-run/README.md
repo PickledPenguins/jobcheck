@@ -1,8 +1,7 @@
-# Default run
+# The default run
 
-Loads `hard_checks` and `soft_checks` plus the always-on base suite, and the root
-`examples/rules/error_overrides.yaml`.
+No flags at all: the demo frame, the shipped rule file, the registry table and the report.
 
 Level:    simple
-Input:    `python3 examples/main.py`
-Expected: registry table, registry-vs-overrides table, per-row results; exit 0
+Input:    the built-in demo frame; the shipped rule file
+Expected: the registry table, then one line per failure; exit 0

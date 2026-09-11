@@ -1,0 +1,51 @@
+Loaded 6 override rule(s) from 4 file(s)
+
+== Registry ==
+code                 | layer | default_state | description                              | depends_on      
+---------------------+-------+---------------+------------------------------------------+-----------------
+AGE_PRESENT          | 0     | ON            | The presence check the rest of this file | -               
+                     |       |               | waits for.                               |                 
+DATES_PRESENT        | 0     | ON            | The presence check the ordering check    | -               
+                     |       |               | waits for.                               |                 
+EMAIL_PRESENT        | 0     | ON            | The presence check the rest of the email | -               
+                     |       |               | checks wait for.                         |                 
+ROW_ALL_NULL         | 0     | ON            | A row with no populated field at all is  | -               
+                     |       |               | never valid input.                       |                 
+AGE_NOT_A_NUMBER     | 1     | ON            |                                          | AGE_PRESENT     
+DATES_OUT_OF_ORDER   | 1     | ON            | A check weighing two columns together,   | DATES_PRESENT   
+                     |       |               | which is why checks are given the whole  |                 
+                     |       |               | row rather than one value.               |                 
+EMAIL_MISSING_AT     | 1     | ON            | The most basic email shape check; the    | EMAIL_PRESENT   
+                     |       |               | domain check depends on it.              |                 
+AGE_NEGATIVE         | 2     | ON            | Ages below zero are always a data-entry  | AGE_NOT_A_NUMBER
+                     |       |               | or unit error.                           |                 
+AGE_NOT_INTEGER      | 2     | OFF           | Off by default: only some source systems | AGE_NOT_A_NUMBER
+                     |       |               | promise integer ages. Turn it on for     |                 
+                     |       |               | those systems with an override rule.     |                 
+AGE_TOO_HIGH         | 2     | ON            | Guards against sentinel values such as   | AGE_NOT_A_NUMBER
+                     |       |               | 999 leaking in as real ages.             |                 
+EMAIL_DOMAIN_INVALID | 2     | ON            | Only checked once EMAIL_MISSING_AT       | EMAIL_MISSING_AT
+                     |       |               | passed: reporting a malformed domain on  |                 
+                     |       |               | a string with no '@' is redundant noise  |                 
+                     |       |               | on top of a more fundamental problem     |                 
+                     |       |               | already reported.                        |                 
+
+== Failures ==
+No failures.
+
+== Summary ==
+code                 | layer | failed | errored | skipped | disabled | passed
+---------------------+-------+--------+---------+---------+----------+-------
+AGE_NEGATIVE         | 2     | 0      | 0       | 0       | 0        | 24    
+AGE_NOT_A_NUMBER     | 1     | 0      | 0       | 0       | 0        | 24    
+AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 24       | 0     
+AGE_PRESENT          | 0     | 0      | 0       | 0       | 0        | 24    
+AGE_TOO_HIGH         | 2     | 0      | 0       | 0       | 0        | 24    
+DATES_OUT_OF_ORDER   | 1     | 0      | 0       | 0       | 0        | 24    
+DATES_PRESENT        | 0     | 0      | 0       | 0       | 0        | 24    
+EMAIL_DOMAIN_INVALID | 2     | 0      | 0       | 0       | 0        | 24    
+EMAIL_MISSING_AT     | 1     | 0      | 0       | 0       | 0        | 24    
+EMAIL_PRESENT        | 0     | 0      | 0       | 0       | 0        | 24    
+ROW_ALL_NULL         | 0     | 0      | 0       | 0       | 0        | 24    
+
+Root causes: none - every row passed.
