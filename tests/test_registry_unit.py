@@ -189,3 +189,59 @@ def test_get_topo_order_recomputes_after_the_cache_is_dropped(fresh_registry: No
     make_check("ONLY")
     reg._TOPO_ORDER = None
     assert [t.code for t in reg._get_topo_order()] == ["ONLY"]
+
+
+# --- what mutation testing found the suite was not pinning ------------------
+
+
+def test_a_duplicate_code_names_the_module_the_second_check_lives_in(
+    fresh_registry: None, tmp_path: Any
+) -> None:
+    """The message says which *module* redefined the code, not just which function.
+
+    A code is usually duplicated across two files, so the function name alone
+    sends the reader to the wrong one. Mutation found nothing asserting the
+    module half: only the exec() case, where there is no module to name.
+    """
+
+    make_check("SHARED")
+    path = tmp_path / "second.py"
+    path.write_text(
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('SHARED', 'again')\n"
+        "def rule(row): return PASS\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError) as excinfo:
+        reg.load_checks([str(path)])
+    assert "(registering jobcheck_check_file_second_0.rule)" in str(excinfo.value)
+
+
+def test_an_empty_string_prerequisite_is_refused(fresh_registry: None) -> None:
+    """`depends_on=[""]` is a typo, not a check with no name, and it would
+    otherwise reach validate_registry as a prerequisite nothing can satisfy."""
+
+    with pytest.raises(ValueError, match="depends_on must be a list of check codes"):
+        reg.register_check(code="CODE", message="m", depends_on=[""])(lambda row: True)
+
+
+def test_the_description_reaches_the_registered_check(fresh_registry: None) -> None:
+    """It is the column a reader scans in the registry table, and nothing else
+    asserted that it survives registration."""
+
+    @reg.register_check(code="DESCRIBED", message="m", description="why this exists")
+    def described(row: Any) -> bool:
+        return True
+
+    assert reg.CHECKS[0].description == "why this exists"
+
+
+def test_two_required_keyword_arguments_are_both_named(fresh_registry: None) -> None:
+    """The message lists them comma-separated; with one argument a broken
+    separator is invisible."""
+
+    with pytest.raises(ValueError) as excinfo:
+        @reg.register_check(code="CODE", message="m")
+        def check(row, *, low, high):  # type: ignore[no-untyped-def]
+            return True
+    assert "needs keyword argument(s) low, high that the engine cannot supply" in str(excinfo.value)

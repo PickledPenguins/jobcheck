@@ -13,13 +13,13 @@ pytest 9.1.1, coverage 7.16.0, mypy 2.3.1, hypothesis 6.167.1, mutmut 3.5.0).
 
 | Gate | Result |
 |---|---|
-| `./run-tests.sh` (fast, the commit gate) | 574 passed, 15s, then mypy |
-| `./run-tests.sh long` | 228 passed, 320s |
+| `./run-tests.sh` (fast, the commit gate) | 600 passed, 18s, then mypy |
+| `./run-tests.sh long` | 228 passed, 330s |
 | `./run-tests.sh cov` | 100% of statements **and** branches (895 statements, 314 branches), floor 95 |
 | `./run-tests.sh memory` | 3 passed, 72s |
 | `./run-tests.sh perf` | 6 timings against a re-recorded `.perf-baseline.json` |
-| `mypy` | clean, 55 source files |
-| Mutation | **not re-run since the simplification**; the last figure (1,466/1,622, 90.4%) describes the old tree |
+| `mypy` | clean, 57 source files |
+| Mutation | 1,300 mutants, **1,169 killed, 131 survived, 0 timeouts (89.9%)**, on a cleaned tree |
 
 ```sh
 PYTHON=~/.conda/envs/pytesting/bin/python ./run-tests.sh fast    # the commit gate
@@ -80,8 +80,11 @@ Both are pinned by `tests/golden/`, regenerated and read as a diff.
 
 ### What is left on this branch
 
-- **Mutation has not been re-run.** It is a pre-release gate, not a commit gate, and the
-  tree it last measured no longer exists. `rm -rf mutants .mutmut-cache` first.
+- **Mutation is re-run and classified** — see `docs/testing.md`. It found nine real gaps,
+  all in code the simplification had just rewritten (five in `register_check`, four in
+  `explain_row`'s errored outcome), now killed. The remaining 131 survivors are
+  default-argument mutants mutmut cannot execute, unreachable branches, platform-equivalent
+  mutants, and print wording the catalog pins where mutmut cannot run it.
 - **`test_scaling.py::test_building_a_report_scales_with_the_failures_not_the_rows`
   is timing-flaky**: it asserts a clean 4,000-row frame builds a report faster than a
   messy one, and a cold first call has been seen to invert that (0.067s against 0.048s)
@@ -137,11 +140,11 @@ re-proposed:
 
 - **Rebuilding `lint`, `parallel` or `params`** — nothing calls them; `recovery/README.md`
   records what each did and what would reopen it.
-- **Chasing the last mutation survivors** (from the pre-simplification run) — 21 are
-  default-argument mutations mutmut's own
-  trampoline cannot execute (verified by hand), several are equivalent on this platform
-  (`utf-8` and `\n` are what Linux gives anyway), and the rest are print-function wording
-  that the catalog and golden files pin byte for byte while mutmut cannot run either.
+- **Chasing the last 131 mutation survivors** — the default-argument ones are mutants
+  mutmut's own trampoline cannot execute (verified by hand), several are unreachable
+  branches or equivalent on this platform (`utf-8` and `\n` are what Linux gives anyway),
+  and the rest are print-function wording that the catalog and golden files pin byte for
+  byte while mutmut cannot run either. `docs/testing.md` carries the classification.
 - **Inferring a report's format from the file extension** — one flag, one meaning.
 - **Accepting the check-era rule format** (a top-level `column`/`pattern` glob) — the
   parser rejects those keys as typos, and ignoring them would disable nothing while the
