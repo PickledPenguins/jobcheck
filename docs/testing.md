@@ -176,27 +176,33 @@ read `mutmut results` in between as the suite's score.
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
 
-Measured on 2026-09-10 after the simplification, on a tree cleaned first
-(`rm -rf mutants .mutmut-cache`): **1,300 mutants, 1,169 killed, 131 survived,
-0 timeouts — 89.9%.** The run takes about four minutes at ~6 mutations/second.
+Measured on 2026-09-11 after the second simplification pass, on a tree cleaned first
+(`rm -rf mutants .mutmut-cache`): **1,278 mutants, 1,144 killed, 134 survived,
+0 timeouts — 89.5%.** The run takes about four minutes at ~6 mutations/second.
 
-The first run of the simplified tree scored 89.2%, and the difference is nine
-mutants that were real gaps, all of them in code the simplification had just
+The first run of that pass scored 87.9%: 20 of the survivors were the new
+`extra_columns` selection on the registry tables, where no test asked a table for
+`source_file` and read it back, and the report's "(none available)" message for a
+frame with nothing left to offer. Both are covered now. The four extra survivors in `rules` are the
+wording of the new `message` and bare-string-path errors, the same class as the
+rest of the survivors below.
+
+The 2026-09-10 run scored 89.2% on its first pass, and the difference then was
+nine mutants that were real gaps, all in code the simplification had just
 rewritten. What they were:
 
-- **`register_check`, five.** The duplicate-code message names the *module* as
+- **`register_check`, four.** The duplicate-code message names the *module* as
   well as the function, and only a check defined by `exec`, which has no module, was
   under test; `depends_on=[""]` was accepted, an empty code being a typo rather
-  than a check with no name; the `description` never reached the registered
-  check; and the required-keyword-argument message lists two arguments
-  comma-separated, which one argument cannot show.
+  than a check with no name; and the required-keyword-argument message lists two
+  arguments comma-separated, which one argument cannot show.
 - **`explain_row`, four.** An `errored` outcome carries a layer and the check's
   message as well as its detail, and nothing asserted either. The layer is what
   decides which code a row reports as its root cause, so a check that raised at
   the wrong layer changes the answer rather than the wording.
 
 Survivors by module: `report` 47, `registry_tables` 43, `engine` 18,
-`registry` 15, `rules` 6, `tables` 2. Sampled and classified, the remainder fall
+`registry` 14, `rules` 10, `tables` 2. Sampled and classified, the remainder fall
 into four groups, none of them a missing assertion:
 
 - **Default-argument mutants — unkillable here.** mutmut's trampoline keeps the
