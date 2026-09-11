@@ -104,7 +104,7 @@ Own gates:
 
 ## The example catalog
 
-`tests/examples/` holds 41 cases at three levels — 16 simple, 15 moderate, 10 complex —
+`tests/examples/` holds 42 cases at three levels — 17 simple, 15 moderate, 10 complex —
 and `tests/failures/` holds 17, each asserting the exact message and exit code a user
 sees. Both run through the real entry point in a subprocess, so the documentation cannot
 drift from the behaviour.
@@ -124,6 +124,12 @@ The data files come from `scripts/make_example_data.py` and are committed:
 Regenerate expected output after an intended change with
 `python3 scripts/regen_catalog.py [substring ...]`, then **read the diff** — a blind
 regeneration defeats the catalog.
+
+Add a case with `scripts/new_catalog_case.py`, which writes the directory, the `cmd` and
+the README, then records the output by running it. It refuses a command another case
+already uses: two cases with one command are one case filed twice, and the duplicate is
+invisible in a directory listing because the names differ — three got in that way when the
+catalog was rebuilt by hand.
 
 **Paths are rendered through a fixed-length root.** A case like
 `verbosity/source-files-and-by-rule-table` prints absolute paths in a table whose column
@@ -159,6 +165,13 @@ in `[tool.mutmut]`:
   which never loads mutmut's instrumentation, so a mutant would always look like it
   survived; the other two assert on the module's own structure and on the doc tree,
   neither of which survives being copied into `mutants/`.
+
+**A targeted re-run discards every other result.** `mutmut run <mutant-name>` re-runs that
+one mutant and drops the stored results for all the others, so the score it was being
+measured against is gone and the only way back to a number is a full run. Check individual
+mutants freely while closing a gap — that is the fastest way to confirm a new test kills
+the thing it was written for — but expect to re-run the whole set afterwards, and do not
+read `mutmut results` in between as the suite's score.
 
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
