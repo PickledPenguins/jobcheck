@@ -57,7 +57,7 @@ def block_id(case: tuple[int, str, str]) -> str:
 
 def test_the_readme_has_python_blocks_to_check() -> None:
     """A guard on the guard: if the README stops carrying examples, say so rather
-    than passing an empty parametrisation."""
+    than passing an empty parametrization."""
 
     assert len(python_blocks()) >= 3
 
@@ -231,12 +231,12 @@ def test_the_declared_version_matches_the_package() -> None:
     assert declared.group(1) == jobcheck.__version__
 
 
-def test_a_bare_bool_return_works_as_the_readme_says(fresh_registry: None) -> None:
-    from jobcheck import normalise_result
+def test_a_condition_wrapped_in_a_result_works_as_the_readme_says(fresh_registry: None) -> None:
+    from jobcheck import CheckResult, Status
 
-    assert "a bare `True`/`False` works too" in readme_text()
-    assert normalise_result(True, "CODE").passed is True
-    assert normalise_result(False, "CODE").failed is True
+    assert "`CheckResult(condition)` wraps a bare comparison" in readme_text()
+    assert bool(CheckResult(1 > 0)) is True
+    assert CheckResult(1 < 0).status == Status.INVALID
 
 
 def test_the_report_is_one_line_per_failure_as_claimed(fresh_registry: None) -> None:
@@ -277,20 +277,20 @@ def test_rule_files_can_only_switch_existing_codes(fresh_registry: None, tmp_pat
     load_checks(EXAMPLE_CHECK_FILES)
     path = tmp_path / "rules.yaml"
     path.write_text(
-        '- name: "invent"\n  action: enable\n  codes: [BRAND_NEW_CODE]\n  match: all\n',
+        '- name: "invent"\n  message: \"why the rule exists\"\n  action: enable\n  codes: [BRAND_NEW_CODE]\n  match: all\n',
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="unknown code 'BRAND_NEW_CODE'"):
-        load_overrides(str(path))
+        load_overrides([str(path)])
 
 
 def test_the_check_files_the_readme_names_exist(fresh_registry: None) -> None:
-    from jobcheck import load_checks, loaded_files
+    from jobcheck import load_checks, loaded_check_files
 
     named = ["examples/checks/check_age.py", "examples/checks/check_email.py"]
     assert f"load_checks({named!r})".replace("'", '"') in readme_text()
     load_checks(named)
-    assert len(loaded_files()) == 2
+    assert len(loaded_check_files()) == 2
 
 
 # --- the documented CLI is the real CLI -------------------------------------

@@ -88,7 +88,7 @@ actionable. It renders as `key=value; key=value`, sorted by key, in the report's
 `comments` column. Put the numbers a reader would otherwise have to go and look
 up: the value seen, the limit breached, the count that was wrong.
 
-Keep them small and scalar. They end up in a CSV cell — one that is neutralised
+Keep them small and scalar. They end up in a CSV cell — one that is neutralized
 against spreadsheet formula injection on the way out, since the values come from
 the data ([reporting.md](reporting.md#opening-the-csv-in-a-spreadsheet)).
 
@@ -100,10 +100,10 @@ what it wants, and two scripts in one codebase run different sets without
 interfering.
 
 ```python
-from jobcheck import load_checks, loaded_files
+from jobcheck import load_checks, loaded_check_files
 
 load_checks(["my_checks/check_age.py", "my_checks/check_email.py"])
-loaded_files()           # the two resolved paths, in load order
+loaded_check_files()           # the two resolved paths, in load order
 ```
 
 Files are named explicitly and **nothing is discovered** — no directory scan, no
@@ -174,10 +174,9 @@ as one of these `ERROR` outcomes naming the column.
 
 ## Per-row context
 
-`RowContext` is **empty by default** and is yours to fill: four loose dicts
-(`flags`, `paths`, `state`, `extra`) rather than a schema, because every pipeline
-carries different metadata. The library's `build_context` returns an empty one
-and reads nothing out of the row — supply your own builder instead:
+`RowContext` is **bare**: the library defines the type and no fields, because every
+pipeline carries different metadata and a schema here would be wrong for all of
+them. Subclass it, add what your checks read, and build it however suits you:
 
 ```python
 from dataclasses import dataclass
@@ -197,22 +196,23 @@ outcomes = validate(df, context_builder=lambda row: shared)
 ```
 
 Handing every row the *same* object is what makes a cross-row check (uniqueness,
-a total) cheap: the counts are built once, not per row.
+a total) cheap: the counts are built once, not per row. Where the context really
+is per row, a `build` classmethod on your subclass is the tidy place for it:
+`validate(df, context_builder=FileContext.build)`.
 
+Without a `context_builder` every row is handed the same empty `RowContext`.
 
 Metadata that is not tabular — flags, computed paths, pipeline state — goes in
 `RowContext`, not in extra DataFrame columns, which cause dtype churn and end up
-in exports. `build_context(row)` in `src/jobcheck/context.py` is a deliberate stub:
-fill it with whatever produces per-row metadata in your pipeline, and take
-`(row, ctx)` in the checks that need it.
+in exports. Take `(row, context)` in the checks that need it.
 
 ## In a pipeline
 
 ```python
 import pandas as pd
 from jobcheck import (
-    build_context, build_report, check_rule_columns, load_checks,
-    load_overrides, root_cause, validate, validate_row, write_report,
+    RowContext, build_report, check_override_columns, load_checks,
+    load_overrides, root_causes, validate, validate_row, write_report,
 )
 
 load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
@@ -220,7 +220,7 @@ overrides = load_overrides([
     "examples/rules/split_by_topic/01_age_rules.yaml",
     "examples/rules/split_by_topic/02_email_rules.yaml",
 ])
-for warning in check_rule_columns(df, overrides):
+for warning in check_override_columns(df, overrides):
     print(f"warning: {warning}")
 
 # Full report, when you want to look at the failures:
@@ -229,9 +229,9 @@ write_report(build_report(outcomes, df=df, key_column="id"), "report.csv")
 
 # Or just the failures per row, when you only need to gate:
 df["errors"] = df.apply(
-    lambda row: validate_row(row, ctx=build_context(row), overrides=overrides), axis=1
+    lambda row: validate_row(row, context=RowContext(), overrides=overrides), axis=1
 )
-df["root_cause"] = df["errors"].apply(lambda results: root_cause(results) or "")
+df["root_cause"] = df["errors"].apply(lambda results: "; ".join(root_causes(results)))
 clean = df[df["errors"].str.len() == 0]
 ```
 
@@ -260,4 +260,4 @@ the frame; check the spelling against the data.
 
 **A rule looks right but has no effect.** Another rule later in load order
 matches the same row and code, and last wins — or its criterion names a column
-the data lacks, which `check_rule_columns` reports.
+the data lacks, which `check_override_columns` reports.

@@ -1,43 +1,68 @@
-"""Unit checks: RowContext and the build_context integration stub."""
+"""Unit checks: RowContext as the base type an adopter subclasses."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any
 
 import pandas as pd
 import pytest
 
-from jobcheck import RowContext, build_context
+from jobcheck import RowContext
 
 pytestmark = pytest.mark.fast
 
 
-def test_row_context_defaults_to_four_empty_dicts() -> None:
-    context = RowContext()
-    assert (context.flags, context.paths, context.state, context.extra) == ({}, {}, {}, {})
+def test_the_base_context_carries_no_fields() -> None:
+    """Bare by design: the library defines the type and invents no fields."""
+
+    import dataclasses
+
+    assert [f.name for f in dataclasses.fields(RowContext)] == []
 
 
-def test_row_context_instances_do_not_share_their_dicts() -> None:
-    first = RowContext()
-    first.flags["x"] = 1
-    assert RowContext().flags == {}
+def test_two_base_contexts_are_equal_and_separate_objects() -> None:
+    first, second = RowContext(), RowContext()
+    assert first == second
+    assert first is not second
 
 
-def test_build_context_returns_an_empty_context() -> None:
-    """The default builder invents nothing: the adopter fills the context."""
+@dataclass
+class FileContext(RowContext):
+    """What an adopter writes: the base plus the fields its checks read."""
 
-    ctx = build_context(pd.Series({"source_system": "LEGACY_A", "age": 30}))
-    assert (ctx.flags, ctx.paths, ctx.state, ctx.extra) == ({}, {}, {}, {})
+    counts: dict[str, int] = field(default_factory=dict)
+
+    @classmethod
+    def build(cls, row: "pd.Series[Any]") -> "FileContext":
+        return cls(counts={str(row["source"]): 1})
 
 
-def test_build_context_reads_nothing_out_of_the_row() -> None:
-    """Two different rows produce contexts that are equal and independent."""
+def test_a_subclass_carries_whatever_the_pipeline_needs() -> None:
+    context = FileContext(counts={"MODERN": 2})
+    assert isinstance(context, RowContext)
+    assert context.counts == {"MODERN": 2}
+    assert FileContext().counts == {}
 
-    first = build_context(pd.Series({"a": 1}))
-    second = build_context(pd.Series({"b": 2}))
-    assert first == second == RowContext()
-    first.flags["mine"] = True
-    assert second.flags == {}
+
+def test_validate_without_a_builder_hands_every_row_a_bare_context(
+    fresh_registry: None,
+) -> None:
+    """The default path: no builder, so a check that reads the context gets one."""
+
+    from jobcheck import PASS, CheckResult, validate
+    from jobcheck import registry as reg
+
+    seen: list[RowContext | None] = []
+
+    @reg.register_check(code="SEES_CONTEXT", message="never fails")
+    def check(row: "pd.Series[Any]", context: RowContext | None) -> CheckResult:
+        seen.append(context)
+        return PASS
+
+    validate(pd.DataFrame([{"a": 1}, {"a": 2}]))
+    assert seen == [RowContext(), RowContext()]
+    assert all(isinstance(context, RowContext) for context in seen)
 
 
 def test_a_caller_supplied_builder_is_what_reaches_the_checks(fresh_registry: None) -> None:
@@ -47,11 +72,10 @@ def test_a_caller_supplied_builder_is_what_reaches_the_checks(fresh_registry: No
     from jobcheck import registry as reg
 
     @reg.register_check(code="NEEDS_FLAG", message="the context said no")
-    def check(row: "pd.Series[Any]", ctx: RowContext | None) -> CheckResult:
-        return PASS if ctx and ctx.flags.get("allowed") else CheckResult(Status.INVALID, {})
+    def check(row: "pd.Series[Any]", context: RowContext | None) -> CheckResult:
+        counts = getattr(context, "counts", {})
+        return PASS if counts.get("MODERN") else CheckResult(Status.INVALID, {})
 
-    frame = pd.DataFrame([{"allow": True}, {"allow": False}])
-    outcomes = validate(
-        frame, context_builder=lambda row: RowContext(flags={"allowed": bool(row["allow"])})
-    )
+    frame = pd.DataFrame([{"source": "MODERN"}, {"source": "LEGACY"}])
+    outcomes = validate(frame, context_builder=FileContext.build)
     assert [o[0].failed for o in outcomes] == [False, True]

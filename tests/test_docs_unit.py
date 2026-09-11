@@ -24,6 +24,7 @@ import pytest
 
 import jobcheck as prv
 from jobcheck import rules
+from jobcheck.results import CheckResult
 
 pytestmark = pytest.mark.fast
 

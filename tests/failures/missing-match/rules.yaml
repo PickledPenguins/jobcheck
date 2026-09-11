@@ -1,3 +1,4 @@
 - name: "no_match_key"
+  message: "why the rule exists"
   action: disable
   codes: [AGE_NEGATIVE]

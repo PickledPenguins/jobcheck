@@ -1,4 +1,4 @@
-"""Differential checks: the behaviour jobchain's suite asserted of the check-era engine.
+"""Differential checks: the behavior jobchain's suite asserted of the check-era engine.
 
 ``~/work/ai/jobchain`` was written against the pre-rename library and is the only
 surviving *written* record of what that engine did -- its checks are executable
@@ -7,7 +7,7 @@ this package's vocabulary (``register_check``, ``CheckResult``, ``load_checks``)
 
 They exist to answer one question: does this tree behave the way the tree
 jobchain was written against behaved? A failure here that a rename does not
-explain is a real behavioural difference between the two lineages, so these are
+explain is a real behavioral difference between the two lineages, so these are
 kept as their own module rather than folded into the unit suites.
 
 Two differences are already known and are not defects here:
@@ -30,14 +30,16 @@ from typing import Any
 import pandas as pd
 import pytest
 
+from conftest import first_cause
+
 from jobcheck import (
     ERRORED,
     CheckOutcome,
     load_overrides,
     load_checks,
-    root_cause,
     validate,
 )
+from jobcheck.results import CheckResult, PASS, Status
 
 pytestmark = pytest.mark.fast
 
@@ -168,7 +170,7 @@ def test_the_shallowest_failure_is_the_root_cause(
     load_checks([write_file(tmp_path, LAYERED)])
     row = validate(frame({"a": "x", "b": "0"}))[0]
     assert [failure.code for failure in failures(row)] == ["B_POSITIVE"]
-    assert root_cause(row) == "B_POSITIVE"
+    assert first_cause(row) == "B_POSITIVE"
 
 
 def test_a_cross_row_test_sees_the_whole_file(fresh_registry: None, tmp_path: Path) -> None:
@@ -212,7 +214,7 @@ def test_a_rule_file_switches_a_test_off_for_chosen_rows(
     load_checks([write_file(tmp_path, SIMPLE)])
     rules = tmp_path / "r.yaml"
     rules.write_text(
-        "- name: off_for_x\n"
+        "- name: off_for_x\n  message: \"why the rule exists\"\n"
         "  action: disable\n"
         "  codes: [B_INT]\n"
         "  match:\n"
@@ -243,7 +245,7 @@ def test_a_dangling_prerequisite_raises(fresh_registry: None, tmp_path: Path) ->
 def test_a_rule_naming_an_unknown_code_raises(fresh_registry: None, tmp_path: Path) -> None:
     load_checks([write_file(tmp_path, SIMPLE)])
     rules = tmp_path / "r.yaml"
-    rules.write_text("- name: r\n  action: disable\n  codes: [NO_SUCH]\n  match: all\n")
+    rules.write_text("- name: r\n  message: \"why the rule exists\"\n  action: disable\n  codes: [NO_SUCH]\n  match: all\n")
     with pytest.raises(ValueError, match="NO_SUCH"):
         load_overrides([str(rules)])
 
@@ -257,6 +259,6 @@ def test_the_check_era_rule_format_is_rejected_rather_than_ignored(
     load_checks([write_file(tmp_path, SIMPLE)])
     rules = tmp_path / "r.yaml"
     rules.write_text(
-        "- name: off_for_x\n  action: disable\n  codes: [B_INT]\n  column: a\n  pattern: 'x'\n")
+        "- name: off_for_x\n  message: \"why the rule exists\"\n  action: disable\n  codes: [B_INT]\n  column: a\n  pattern: 'x'\n")
     with pytest.raises(ValueError):
         load_overrides([str(rules)])

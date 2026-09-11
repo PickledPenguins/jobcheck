@@ -1,5 +1,6 @@
 rules:
   - name: "nested"
+  message: "why the rule exists"
     action: disable
     codes: [AGE_NEGATIVE]
     match: all

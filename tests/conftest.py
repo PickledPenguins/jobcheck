@@ -23,8 +23,10 @@ sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "examples"))
 sys.path.insert(0, PROJECT_ROOT)
 
+from jobcheck import engine as eng  # noqa: E402
 from jobcheck import registry as reg  # noqa: E402
 from jobcheck import results as res  # noqa: E402
+from jobcheck.results import PASS
 
 
 @pytest.fixture
@@ -132,3 +134,26 @@ def run_cli(*args: str) -> CommandResult:
         timeout=120,
     )
     return CommandResult(completed.stdout, completed.stderr, completed.returncode)
+
+
+def first_cause(row_outcomes: list[Any]) -> str | None:
+    """The first of a row's root causes, or None when it passed.
+
+    The engine reports every failure at the shallowest failing layer, since two
+    failures at one depth are two causes. Tests that want a single label per row
+    take the first, which is what this says in one place rather than thirty.
+    """
+
+    causes = eng.root_causes(row_outcomes)
+    return causes[0] if causes else None
+
+
+def enabled_only(state: dict[str, Any]) -> dict[str, bool]:
+    """Drop the reason from what resolve_enabled_state returns.
+
+    The engine reports ``(enabled, reason)`` per code because an explanation
+    prints the reason. A check that only cares which codes are on says so here
+    rather than indexing ``[0]`` thirty times.
+    """
+
+    return {code: enabled for code, (enabled, _) in state.items()}

@@ -6,7 +6,7 @@ stderr and the exit code. Same layout as the example catalog, but with
 
 Only the last non-blank line of stderr is compared: it is the message the user
 reads, while the traceback frames above it carry line numbers that move with any
-edit. Absolute paths are normalised to `<project>`.
+edit. Absolute paths are normalized to `<project>`.
 
 Covered: a data file that is missing, a directory, empty or not CSV; `--explain`
 past the end of the frame and below its start; an unknown flag and a flag missing

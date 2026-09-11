@@ -20,24 +20,28 @@ are treated as permanent.
 fixed: these five are the whole of it, and a value outside them is refused.
 
 - `render_status(code) -> str` (`"INVALID (3)"`).
-- `normalise_result(returned, code) -> CheckResult` — the boundary the engine puts
+- `normalize_result(returned, code) -> CheckResult` — the boundary the engine puts
   every return value through: a `CheckResult` passes straight back, a bool or a
   status value is converted, anything else raises naming the check. Exported so a
   wrapper around checks can accept the same shapes.
 
 ### `CheckResult`
 
-What a check returns. Frozen dataclass: `code: int = Status.PASS`,
+What a check returns. Frozen dataclass: `status: int = Status.PASS`,
 `comments: Mapping[str, Any] = {}`.
 
-- `bool(result)` is **True when the check passed**; `.passed` and `.failed` say it
-  explicitly. The raw `code` is not a truthiness source — 0 is a pass but falsy.
-- `.status` is the status name.
+- `bool(result)` is **True when the check passed**; `.failed` says the opposite
+  explicitly. The raw `status` is not a truthiness source — 0 is a pass but falsy.
+- A **bool** is accepted in place of a status, so a check can wrap a bare
+  comparison: `CheckResult(row["age"] > 0)` is a pass or an `INVALID` failure. It is
+  resolved before anything reads the value as an integer, since `True == 1 ==
+  MISSING` would otherwise invert the meaning. A check wanting `MISSING` or
+  `MALFORMED` names it.
 - Comments are copied and frozen at construction, so a shared result cannot be
   mutated through the dict a caller passed in.
 - Construction validates: a value outside `Status`, `Status.ERROR` (the engine's, not
-  a check's), a bool as the code, a non-mapping `comments`, or a non-string comment
-  key all raise.
+  a check's), a non-integer non-bool status, a non-mapping `comments`, or a
+  non-string comment key all raise.
 - `PASS` is the shared, immutable passing result.
 
 ### `CheckOutcome`
@@ -56,42 +60,47 @@ The outcome strings are also exported as `PASSED`, `FAILED`, `DISABLED`,
 ### `Check`
 
 One registered check: `code`, `message`, `fn`, `source_file`,
-`default_enabled`, `description`, `depends_on`, `layer`. Created by the
-decorator, never by hand. `layer` is computed by `validate_registry`.
+`default_enabled`, `depends_on`, `layer`. Created by the decorator, never by
+hand. `layer` is computed by `validate_registry`. What a check is *for* is its
+`message`, printed wherever it fails and shown in the registry table; there is no
+second description field to keep in step with it.
 
 `CHECKS` is the live registry list, in registration order. Read it freely; mutate
 it only through the decorators and `clear_registry`.
 
 ### `RowContext`
 
-Per-row metadata kept out of the DataFrame: `flags`, `paths`, `state`, `extra`,
-each a dict. `build_context(row) -> RowContext` is the adopter's hook and ships
-as a stub.
+Per-row metadata kept out of the DataFrame. **Bare**: the library defines the type
+and no fields. Subclass it, add what your checks read, and build it however suits
+the pipeline — a classmethod, a factory, or one object built outside the loop.
+Whatever builds it is `validate`'s `context_builder`, a callable taking the row and
+returning a `RowContext`. Without one, every row is handed the same empty context.
 
 ### `MatchCriterion`, `OverrideRule`
 
 A rule's `{column, pattern}` filter, and the rule itself: `name`, `action`,
-`codes`, `criteria`, `match_all`, `description`, `source_file`.
+`codes`, `criteria`, `match_all`, `message`, `source_file`.
 
 ## Registering checks
 
-### `register_check(code, message, default_enabled=True, description="", depends_on=None)`
+### `register_check(code, message, default_enabled=True, depends_on=None)`
 
-Decorator. The function takes `(row)` or `(row, ctx)` and returns `PASS`, a
-`CheckResult`, a bool, or a `Status` value.
+Decorator. The function takes `(row)` or `(row, context)` and returns `PASS` or a
+`CheckResult` — `CheckResult(condition)` wraps a bare comparison.
 
 Raises at import for a duplicate code, an empty code or message, a non-list
 `depends_on` (a bare string would otherwise register one prerequisite per
-character), a non-string `description`, a non-bool `default_enabled`,
+character), a non-bool `default_enabled`,
 or a signature the engine cannot call -- including a required keyword-only
 argument. The `depends_on` *codes* are checked later by `validate_registry`,
 since a prerequisite may live in a module not yet imported.
 
-### `load_checks(paths: str | list[str]) -> None`
+### `load_checks(paths: list[str]) -> None`
 
-Imports the named `.py` files by path so their checks register themselves. One
-path or several; **nothing is discovered**, which is what lets two entry points in
-one codebase run different sets of checks. A file already loaded, or listed twice,
+Imports the named `.py` files by path so their checks register themselves. A list
+of paths, always — a bare string is refused, since it would otherwise be read as a
+list of its characters. **Nothing is discovered**, which is what lets two entry
+points in one codebase run different sets of checks. A file already loaded, or listed twice,
 is skipped. `validate_registry` runs once the whole call has been imported, so a
 prerequisite may live in any of the files. Raises `ValueError` for a path that is
 not a file, and propagates whatever a file raises while importing.
@@ -101,7 +110,7 @@ Each file is given a unique module name, so two directories that each hold a
 comes from wherever the caller names, which is a record of what was read rather
 than somewhere to write to.
 
-### `loaded_files() -> list[str]`
+### `loaded_check_files() -> list[str]`
 
 The resolved paths loaded that way, in load order. A copy.
 
@@ -118,7 +127,7 @@ silently doing nothing.
 
 ## Loading override rules
 
-`load_overrides(paths)` takes one path or a list of them, exactly as
+`load_overrides(paths)` takes a list of paths, exactly as
 `load_checks` does, and returns `list[OverrideRule]` in the order given — which is
 the precedence order, since the last matching rule wins. It raises `ValueError` at
 load time for every malformed rule, and for a rule name used twice anywhere in the
@@ -132,7 +141,7 @@ one named rule touches.
 
 ## Running checks
 
-### `explain_row(row, ctx=None, overrides=None, on_error="record") -> list[CheckOutcome]`
+### `explain_row(row, context=None, overrides=None, on_error="record") -> list[CheckOutcome]`
 
 What every check did on one row, in evaluation order. The single implementation of
 the per-row algorithm.
@@ -144,12 +153,12 @@ not a result always raises — that is an authoring bug, not a data problem.
 Raises `ValueError` when the row has duplicate column labels, before running
 anything.
 
-### `validate_row(row, ctx=None, overrides=None, on_error="record") -> list[CheckOutcome]`
+### `validate_row(row, context=None, overrides=None, on_error="record") -> list[CheckOutcome]`
 
 The failing outcomes from `explain_row`, in evaluation order. Does not mutate `row`
-or `ctx`. For the one to read first, ask `root_cause`.
+or `context`. For the one to read first, ask `root_causes`.
 
-### `root_cause(outcomes) -> str | None`, `root_causes(outcomes) -> list[str]`
+### `root_causes(row_outcomes) -> list[str]`
 
 `root_causes` returns **every** failure at the shallowest failing layer, in
 evaluation order: two chains failing at the same depth are two root causes, and
@@ -157,29 +166,31 @@ naming only the first evaluated would let registration order decide what a
 person reads as the cause. Deeper failures are excluded as downstream — a check
 only runs once its prerequisites passed. Empty for a row that passed.
 
-`root_cause` returns one of them, for a caller that wants a single label per row
-(a tally, a column in a frame), or `None`. Both accept either `validate_row` or
-`explain_row` output.
+A caller wanting a single label per row (a tally, a column in a frame) takes the
+first. Accepts either `validate_row` or `explain_row` output.
 
-### `resolve_enabled_state(row, overrides) -> dict[str, bool]`
+### `resolve_enabled_state(row, overrides) -> dict[str, tuple[bool, str]]`
 
-The effective on/off state of every registered code for one row: each check's
-`default_enabled`, then every matching rule in order, last match winning.
+The effective on/off state of every registered code for one row, and why: each
+check's `default_enabled`, then every matching rule in order, last match winning.
+The reason is `"default"`, `"off by default"`, or `"rule 'name'"` — which is what
+an explanation prints beside a `disabled` outcome.
 
-### `check_rule_columns(df, overrides) -> list[str]`
+### `check_override_columns(df, overrides) -> list[str]`
 
 One line per rule criterion naming a column the frame lacks — a rule that can
 never fire. Checks are not checked: they read the row themselves, so a missing
 field raises and is recorded as an `ERROR` outcome naming the column.
 
-### `validate(df, overrides=None, context_builder=build_context, on_error="record") -> list[list[CheckOutcome]]`
+### `validate(df, overrides=None, context_builder=None, on_error="record") -> list[list[CheckOutcome]]`
 
 Every check against every row: one `explain_row` call per row, and one list of
 outcomes per row, in frame order. That is the shape `build_report` and
-`summarise_outcomes` take.
+`summarize_outcomes` take.
 
 `context_builder` is called once per row and returns the `RowContext` handed to
 every check; hand back one shared object when a check needs the whole frame.
+Without one, every row is handed the same empty `RowContext`.
 
 It keeps one outcome per check per row, so for a frame where that will not fit in
 memory, call `validate_row(row)` per row instead and write the failures out as
@@ -187,32 +198,39 @@ they appear.
 
 ## Reporting
 
-`build_report(outcomes_per_row, df=None, key_column=None, data_columns=None,
-include_skipped=False, include_passed=False)` — `data_columns` copies frame
-columns into the report just after `row`; see
+`build_report(frame_outcomes, df, key_column=None, extra_columns=None,
+include="failures")` — `df` is required, since the outcomes describe its rows;
+`key_column` names the single column that identifies a row; `extra_columns` copies
+frame columns into the report just after `row`; `include` is `"failures"`,
+`"blocked"` or `"all"`. See
 [reporting.md](reporting.md#showing-data-alongside-the-failures).
 
 `build_report`, `render_report`, `render_comments`,
 `escape_for_spreadsheet`, `write_report`,
-`print_report`, `row_explanation`, `print_row_explanation`, `summarise_outcomes`,
+`print_report`, `row_explanation`, `print_row_explanation`, `summarize_outcomes`,
 `root_cause_counts`, `print_summary` — all exported from `jobcheck` and
 documented in [reporting.md](reporting.md).
 
 Registry tables:
 
-- `get_registry_table(debug=0)` — one row per check, sorted layer, then code.
-  Columns `code`, `layer`, `default_state`, `description`, `depends_on`; plus
-  `source_file` at `debug >= 2`.
-- `print_registry(overrides=None, debug=0)` — prints it. At `debug >= 1` adds
-  `could_be_overridden_by`: rules that *reference* each code. Not "was overridden
-  by" — whether a rule fires is a per-row question this table cannot answer.
-- `print_registry_with_overrides(overrides, debug=0)` — adds `override_rules` and
-  `effective_state`, which says `DEFAULT (ON)` when no rule references the code
-  and "depends on row" when one does.
-- `print_override_rules(overrides, debug=0)` — one row per rule: `name`,
-  `action`, `codes_hit_count`, `match`; plus `source_file` at `debug >= 2`.
+Every one of these takes `extra_columns`, the same argument `build_report` takes
+for columns of the data: the names you want beyond the base columns, refused
+rather than ignored when the name is not on offer.
 
-`format_table(df, wrap_columns=None)` renders any frame as bordered text;
+- `get_registry_table(extra_columns=None)` — one row per check, sorted layer, then
+  code. Columns `code`, `layer`, `default_state`, `message`, `depends_on`; offers
+  `source_file`.
+- `print_registry(overrides=None, extra_columns=None)` — prints it. Offers
+  `source_file` and `could_be_overridden_by`: rules that *reference* each code. Not
+  "was overridden by" — whether a rule fires is a per-row question this table
+  cannot answer.
+- `print_registry_with_overrides(overrides, extra_columns=None)` — adds
+  `override_rules` and `effective_state`, which says `DEFAULT (ON)` when no rule
+  references the code and "depends on row" when one does. Offers `source_file`.
+- `print_override_rules(overrides, extra_columns=None)` — one row per rule:
+  `name`, `action`, `codes_hit_count`, `match`, `message`. Offers `source_file`.
+
+`format_table(table, wrap_columns=None)` renders any frame as bordered text;
 `is_null(value)` is the null check both the engine and the renderer use — reach for
 it in your own checks too, since `NaN` is truthy and `pd.isna` returns an array for
 list-like values.

@@ -90,7 +90,7 @@ Six commits here, oldest first.
 
 In `~/work/ai/jobchain`, branch `simplify-port` (commits `4ded386`, `d3e8e63`): ported to
 this engine and handed off. 744 unit tests pass with nothing skipped, the 103-case
-catalogue passes, coverage holds at 89% against its 89% floor.
+catalog passes, coverage holds at 89% against its 89% floor.
 
 **That suite reads whichever branch is checked out here**, since it finds the engine at
 `~/work/ai/jobcheck/src` rather than at a pinned commit. Checking out `claude` in this
@@ -113,7 +113,7 @@ friction log to `reviews/` instead of printing it and forgetting it.
   The new check-code test covers the rot that gap actually produced; revisit only if a doc
   example breaks in a way neither catches.
 - **`recovery/README.md` is not reachable from the README index**, because the index test
-  only walks `docs/`. It documents a recovery archive rather than current behaviour, so it
+  only walks `docs/`. It documents a recovery archive rather than current behavior, so it
   was left out deliberately rather than missed.
 
 Settled by standing preference, not open: the work stays on the `simplify` branch and is
@@ -135,7 +135,7 @@ re-proposed:
   arguments mutmut's own trampoline cannot execute, unreachable branches, platform
   equivalents, and print wording the catalog pins where mutmut cannot run it.
 - **Mirroring the source tree in unit test filenames.** `engine.py` is covered by
-  `test_validate_row_unit.py` and `test_validate_unit.py`, named for behaviour. Consistent,
+  `test_validate_row_unit.py` and `test_validate_unit.py`, named for behavior. Consistent,
   pre-existing, and renaming 33 files buys nothing.
 - **Inferring a report's format from the file extension** — one flag, one meaning.
 - **Accepting the check-era rule format** (a top-level `column`/`pattern` glob) — the parser
@@ -149,7 +149,7 @@ re-proposed:
 `test_*.py` inside an adopter's package is collected by pytest, which imports it a second
 time under its own rules and reports the registry's duplicate-code guard as a mysterious
 test failure. So check files are `check_*.py` and the API is `CheckResult`, `CheckOutcome`,
-`register_check`, `load_checks`, `CHECKS`. Do not "modernise" this.
+`register_check`, `load_checks`, `CHECKS`. Do not "modernize" this.
 
 **There is one loading mechanism and one whole-frame call.** `load_checks(paths)` and
 `load_overrides(paths)` both take explicit paths and discover nothing; `validate(df, ...)`
@@ -173,7 +173,7 @@ label, and `is_root_cause` flags all of them. jobchain gained this in the port.
 same label, which is the one thing a key column exists to prevent.
 
 **`git log` starts on 2026-09-09 and that is an accident, not the project's age.** The
-`.git` directory was removed by mistake and the repository re-initialised. Do not date
+`.git` directory was removed by mistake and the repository re-initialized. Do not date
 anything from the log; `CLAUDE.md` has the forensics.
 
 **Four modules exist only as bytecode.** `lint`, `parallel`, `params` and their tests live
@@ -185,7 +185,7 @@ bottom of that file. A tidy-up of `.gitignore` can silently untrack the only cop
 - **Performance baseline**, re-recorded after the simplification, 4,000-row frame, Python
   3.12.14 on this machine, in the gitignored `.perf-baseline.json`: `validate` 6.250s
   (spread 8%), `validate_row` per row 6.174s (2%), `build_report` 0.048s (123%),
-  `render_report` 0.048s (8%), `summarise_outcomes` 0.020s (7%), `validate` with 50 rules
+  `render_report` 0.048s (8%), `summarize_outcomes` 0.020s (7%), `validate` with 50 rules
   over 1,000 rows 0.403s (14%).
 - **Where the time goes**: `explain_row` is about 85% of a validation run, and inside it the
   example checks' `dates_present` and `dates_in_order` are roughly 40% of the total, because
@@ -233,7 +233,7 @@ files that shell out (they never load the instrumentation), the two that read `d
 the slow suites; without those exclusions a run takes days rather than four minutes.
 
 **The perf gate fails if anything else is using the machine.** Running `perf` and `memory`
-concurrently failed `test_summarising_has_not_got_slower` on a tree that passes both when
+concurrently failed `test_summarizing_has_not_got_slower` on a tree that passes both when
 they are run one at a time. Run the two gates in sequence.
 
 **`./run-tests.sh long` refuses to run without hypothesis.** That is deliberate: a skipped

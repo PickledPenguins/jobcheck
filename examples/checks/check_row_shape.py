@@ -10,11 +10,7 @@ from jobcheck.results import PASS, Status, CheckResult
 from jobcheck.registry import register_check
 
 
-@register_check(
-    code="ROW_ALL_NULL",
-    message="Row is entirely empty",
-    description="A row with no populated field at all is never valid input.",
-)
+@register_check(code="ROW_ALL_NULL", message="Row is entirely empty")
 def row_not_all_null(row: "pd.Series[Any]") -> CheckResult:
     """Pass when at least one field in the row holds a value."""
 

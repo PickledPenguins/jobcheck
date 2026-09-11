@@ -21,11 +21,7 @@ def _number(value: Any) -> float | None:
         return None
 
 
-@register_check(
-    code="AGE_PRESENT",
-    message="Age is missing",
-    description="The presence check the rest of this file waits for.",
-)
+@register_check(code="AGE_PRESENT", message="Age is missing")
 def age_present(row: "pd.Series[Any]") -> CheckResult:
     """Pass when the row carries an age at all."""
 
@@ -48,12 +44,7 @@ def age_is_a_number(row: "pd.Series[Any]") -> CheckResult:
     return PASS
 
 
-@register_check(
-    "AGE_NEGATIVE",
-    "Age is negative",
-    depends_on=["AGE_NOT_A_NUMBER"],
-    description="Ages below zero are always a data-entry or unit error.",
-)
+@register_check("AGE_NEGATIVE", "Age is negative", depends_on=["AGE_NOT_A_NUMBER"])
 def age_negative(row: "pd.Series[Any]") -> CheckResult:
     """Pass unless the age is below zero."""
 
@@ -67,7 +58,6 @@ def age_negative(row: "pd.Series[Any]") -> CheckResult:
     "AGE_TOO_HIGH",
     "Age is implausibly high (over 130)",
     depends_on=["AGE_NOT_A_NUMBER"],
-    description="Guards against sentinel values such as 999 leaking in as real ages.",
 )
 def age_too_high(row: "pd.Series[Any]") -> CheckResult:
     """Pass unless the age exceeds 130."""
@@ -83,8 +73,6 @@ def age_too_high(row: "pd.Series[Any]") -> CheckResult:
     "Age is not a whole number",
     default_enabled=False,
     depends_on=["AGE_NOT_A_NUMBER"],
-    description="Off by default: only some source systems promise integer ages. "
-    "Turn it on for those systems with an override rule.",
 )
 def age_not_integer(row: "pd.Series[Any]") -> CheckResult:
     """Pass unless the age has a fractional part."""

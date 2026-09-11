@@ -20,7 +20,7 @@ import yaml
 
 from conftest import PROJECT_ROOT
 from jobcheck import (
-    check_rule_columns,
+    check_override_columns,
     validate,
     load_overrides,
     registry as reg,
@@ -85,7 +85,7 @@ def test_every_shipped_rule_matches_a_column_the_data_has(example_checks: None) 
 
     overrides = load_overrides([str(path) for path in rule_files()])
     frame = pd.read_csv(DATA_DIR / "customers.csv", dtype=str)
-    assert check_rule_columns(frame, overrides) == []
+    assert check_override_columns(frame, overrides) == []
 
 
 # --- the data files ---------------------------------------------------------

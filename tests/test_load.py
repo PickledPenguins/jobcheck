@@ -1,4 +1,4 @@
-"""Load: behaviour at volume, with asserted ceilings rather than observations.
+"""Load: behavior at volume, with asserted ceilings rather than observations.
 
 Thresholds are deliberately loose -- they catch an order-of-magnitude
 regression (an accidental per-row topological sort, a per-row file read), not
@@ -17,8 +17,8 @@ import time
 import pandas as pd
 import pytest
 
-from conftest import make_check
-from jobcheck import build_context, registry as reg
+from conftest import enabled_only, make_check
+from jobcheck import RowContext, registry as reg
 from jobcheck import report as rep
 from jobcheck import validate
 from jobcheck import engine
@@ -42,10 +42,10 @@ def frame(rows: int) -> pd.DataFrame:
 
 
 def test_twenty_thousand_rows_validate_within_the_time_ceiling(example_checks: None) -> None:
-    overrides = reg.load_overrides("examples/rules/error_overrides.yaml")
+    overrides = reg.load_overrides(["examples/rules/error_overrides.yaml"])
     df = frame(ROWS)
     start = time.monotonic()
-    errors = df.apply(lambda row: engine.validate_row(row, ctx=build_context(row),
+    errors = df.apply(lambda row: engine.validate_row(row, context=RowContext(),
                                                    overrides=overrides), axis=1)
     elapsed = time.monotonic() - start
     assert len(errors) == ROWS
@@ -118,14 +118,14 @@ def test_many_rules_resolve_within_the_ceiling(fresh_registry: None) -> None:
         reg.OverrideRule(
             name=f"rule_{i}", action="disable", codes=["A_CODE"],
             criteria=[reg.MatchCriterion("email", "@internal", re.compile("@internal"))],
-            match_all=False,
+            match_all=False, message="why the rule exists",
         )
         for i in range(500)
     ]
     row = pd.Series({"email": "qa@internal.test"})
     start = time.monotonic()
     for _ in range(200):
-        engine.resolve_enabled_state(row, rules)
+        enabled_only(engine.resolve_enabled_state(row, rules))
     elapsed = time.monotonic() - start
     assert elapsed < 30.0, f"500 rules x 200 rows took {elapsed:.1f}s"
 
@@ -153,10 +153,10 @@ def test_rendering_a_large_report_stays_within_the_time_ceiling(example_checks: 
     assert elapsed < 30.0, f"rendering {len(report)} failures took {elapsed:.1f}s"
 
 
-def test_summarising_a_large_frame_stays_within_the_time_ceiling(example_checks: None) -> None:
+def test_summarizing_a_large_frame_stays_within_the_time_ceiling(example_checks: None) -> None:
     outcomes = validate(frame(2000))
     start = time.monotonic()
-    summary = rep.summarise_outcomes(outcomes)
+    summary = rep.summarize_outcomes(outcomes)
     causes = rep.root_cause_counts(outcomes)
     elapsed = time.monotonic() - start
     assert summary["failed"].sum() + summary["skipped"].sum() > 0
@@ -164,4 +164,4 @@ def test_summarising_a_large_frame_stays_within_the_time_ceiling(example_checks:
     # chains at the same depth has two root causes: 1,200 failing rows out of
     # 2,000, some of them counted against more than one code.
     assert causes["rows"].sum() >= 1200
-    assert elapsed < 15.0, f"summarising 2000 rows took {elapsed:.1f}s"
+    assert elapsed < 15.0, f"summarizing 2000 rows took {elapsed:.1f}s"

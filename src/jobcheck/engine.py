@@ -19,7 +19,7 @@ from typing import Any, Callable
 
 import pandas as pd
 
-from .context import RowContext, build_context
+from .context import RowContext
 from .registry import CHECKS, _get_topo_order
 from .results import (
     DISABLED,
@@ -29,29 +29,27 @@ from .results import (
     SKIPPED,
     CheckOutcome,
     Status,
-    normalise_result,
+    normalize_result,
 )
 from .rules import OverrideRule, rule_matches
 
 ContextBuilder = Callable[["pd.Series[Any]"], RowContext | None]
 
 
-def resolve_enabled_state(row: "pd.Series[Any]", overrides: list[OverrideRule]) -> dict[str, bool]:
-    """Effective on/off state of every registered code, for one row.
-
-    Starts from each check's ``default_enabled`` and applies every matching rule
-    in list order, so the last matching rule wins.  That precedence is
-    positional only -- there is no priority field -- which is why the order
-    files are loaded in is documented at each loader.
-    """
-
-    return {code: enabled for code, (enabled, _) in _resolve_state(row, overrides).items()}
-
-
-def _resolve_state(
+def resolve_enabled_state(
     row: "pd.Series[Any]", overrides: list[OverrideRule]
 ) -> dict[str, tuple[bool, str]]:
-    """Per-row on/off state plus the reason for it, for explanations."""
+    """Effective on/off state of every registered code, for one row, and why.
+
+    Maps each code to ``(enabled, reason)``. Starts from each check's
+    ``default_enabled`` and applies every matching rule in list order, so the
+    last matching rule wins.  That precedence is positional only -- there is no
+    priority field -- which is why the order files are loaded in is documented
+    at each loader.
+
+    The reason is what an explanation prints: ``"default"``, ``"off by
+    default"``, or ``"rule 'name'"`` for the rule that decided it.
+    """
 
     state = {
         t.code: (t.default_enabled, "default" if t.default_enabled else "off by default")
@@ -69,7 +67,7 @@ def _resolve_state(
 
 def explain_row(
     row: "pd.Series[Any]",
-    ctx: RowContext | None = None,
+    context: RowContext | None = None,
     overrides: list[OverrideRule] | None = None,
     on_error: str = "record",
 ) -> list[CheckOutcome]:
@@ -111,7 +109,7 @@ def explain_row(
             "columns before validating."
         )
 
-    state = _resolve_state(row, overrides or [])
+    state = resolve_enabled_state(row, overrides or [])
     passed: dict[str, bool] = {}
     disabled: set[str] = set()
     outcomes: list[CheckOutcome] = []
@@ -143,7 +141,7 @@ def explain_row(
             continue
 
         try:
-            returned = check.fn(row, ctx)
+            returned = check.fn(row, context)
         except Exception as exc:
             if on_error == "raise":
                 raise
@@ -157,16 +155,15 @@ def explain_row(
             )
             continue
 
-        result = normalise_result(returned, check.code)
-        passed[check.code] = result.passed
+        result = normalize_result(returned, check.code)
+        passed[check.code] = bool(result)
         outcomes.append(
             CheckOutcome(
                 check.code,
-                PASSED if result.passed else FAILED,
-                status=result.code,
+                PASSED if result else FAILED,
+                status=result.status,
                 layer=check.layer,
-               
-                message="" if result.passed else check.message,
+                message="" if result else check.message,
                 comments=result.comments,
             )
         )
@@ -175,7 +172,7 @@ def explain_row(
 
 def validate_row(
     row: "pd.Series[Any]",
-    ctx: RowContext | None = None,
+    context: RowContext | None = None,
     overrides: list[OverrideRule] | None = None,
     on_error: str = "record",
 ) -> list[CheckOutcome]:
@@ -187,39 +184,23 @@ def validate_row(
     a failure -- which is what keeps one broken field from producing a page of
     cascading errors. Use :func:`explain_row` to see them.
 
-    Does not mutate ``row`` or ``ctx``.
+    Does not mutate ``row`` or ``context``.
     """
 
     return [
         outcome
-        for outcome in explain_row(row, ctx=ctx, overrides=overrides, on_error=on_error)
+        for outcome in explain_row(row, context=context, overrides=overrides, on_error=on_error)
         if outcome.failed
     ]
 
 
-def root_cause(outcomes: list[CheckOutcome]) -> str | None:
-    """The code of the most fundamental failure in a row's results.
-
-    The shallowest failure -- the one at the lowest layer -- with evaluation
-    order breaking a tie. ``None`` for a row that passed. Accepts either
-    :func:`validate_row` or :func:`explain_row` output.
-
-    When a row fails in two chains at the same depth, both are root causes and
-    :func:`root_causes` returns both. This returns one of them, for the caller
-    that wants a single label per row -- a summary tally, a column in a frame.
-    """
-
-    causes = root_causes(outcomes)
-    return causes[0] if causes else None
-
-
-def root_causes(outcomes: list[CheckOutcome]) -> list[str]:
+def root_causes(row_outcomes: list[CheckOutcome]) -> list[str]:
     """Every failure at the shallowest failing layer, in evaluation order.
 
     A row that fails a missing email and a malformed age has failed two things,
     neither upstream of the other, and naming only the first one evaluated makes
     registration order decide what a person reads as the cause. Both are
-    reported.
+    reported. A caller wanting a single label per row takes the first.
 
     Deeper failures are excluded, not because they are unimportant but because
     they are downstream: a check only runs once its prerequisites passed, so a
@@ -227,7 +208,7 @@ def root_causes(outcomes: list[CheckOutcome]) -> list[str]:
     Where nothing failed at all, this is empty.
     """
 
-    failures = [outcome for outcome in outcomes if outcome.failed]
+    failures = [outcome for outcome in row_outcomes if outcome.failed]
     if not failures:
         return []
     shallowest = min(outcome.layer for outcome in failures)
@@ -238,24 +219,30 @@ def root_causes(outcomes: list[CheckOutcome]) -> list[str]:
 def validate(
     df: pd.DataFrame,
     overrides: list[OverrideRule] | None = None,
-    context_builder: ContextBuilder = build_context,
+    context_builder: ContextBuilder | None = None,
     on_error: str = "record",
 ) -> list[list[CheckOutcome]]:
     """Run every check against every row of *df*, keeping all the outcomes.
 
     The whole-frame entry point, and one call of :func:`explain_row` per row:
     the outcomes come back one list per row, in frame order, which is what
-    :func:`jobcheck.build_report` and :func:`jobcheck.summarise_outcomes` take.
+    :func:`jobcheck.build_report` and :func:`jobcheck.summarize_outcomes` take.
 
     Keeps the checks that did not run as well as the ones that did, because
     that is what the explanation and summary views are built from. A run keeps
     one outcome per check per row, so for a frame large enough that the objects
     matter, call :func:`validate_row` per row instead and skip the report.
 
+    ``context_builder`` is any callable taking a row and returning a
+    :class:`~jobcheck.RowContext`; without one every row is handed the same
+    empty context, since the base class carries no fields to fill in.
+
     ``on_error`` is passed through to :func:`explain_row`.
     """
 
+    empty = RowContext()
+    build = context_builder if context_builder is not None else lambda row: empty
     return [
-        explain_row(row, ctx=context_builder(row), overrides=overrides, on_error=on_error)
+        explain_row(row, context=build(row), overrides=overrides, on_error=on_error)
         for _, row in df.iterrows()
     ]

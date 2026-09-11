@@ -17,7 +17,7 @@ pytestmark = pytest.mark.fast
 def a_rule(name: str = "r", action: str = "disable", codes: list[str] | None = None,
            source_file: str = "rules.yaml") -> reg.OverrideRule:
     return reg.OverrideRule(name=name, action=action, codes=codes or ["A_CODE"],
-                            criteria=[], match_all=True, source_file=source_file)
+                            criteria=[], match_all=True, source_file=source_file, message="why the rule exists")
 
 
 # --- format_table -----------------------------------------------------------
@@ -115,13 +115,13 @@ def test_non_string_cells_are_stringified() -> None:
 
 def test_registry_table_has_the_base_columns(example_checks: None) -> None:
     assert list(registry_tables.get_registry_table().columns) == [
-        "code", "layer", "default_state", "description", "depends_on",
+        "code", "layer", "default_state", "message", "depends_on",
     ]
 
 
-def test_registry_table_adds_source_file_at_debug_two(example_checks: None) -> None:
-    assert "source_file" in registry_tables.get_registry_table(debug=2).columns
-    assert "source_file" not in registry_tables.get_registry_table(debug=1).columns
+def test_registry_table_adds_source_file_when_asked_for(example_checks: None) -> None:
+    assert "source_file" in registry_tables.get_registry_table(extra_columns=["source_file"]).columns
+    assert "source_file" not in registry_tables.get_registry_table().columns
 
 
 def test_registry_table_is_sorted_by_layer_then_code(example_checks: None) -> None:
@@ -155,7 +155,7 @@ def test_registry_table_of_an_empty_registry_has_columns_and_no_rows(fresh_regis
     table = registry_tables.get_registry_table()
     assert table.empty
     assert list(table.columns) == [
-        "code", "layer", "default_state", "description", "depends_on",
+        "code", "layer", "default_state", "message", "depends_on",
     ]
 
 
@@ -180,29 +180,29 @@ def test_print_registry_on_an_empty_registry_says_so(
     assert table.empty
 
 
-def test_could_be_overridden_by_appears_only_from_debug_one(fresh_registry: None) -> None:
+def test_could_be_overridden_by_appears_only_when_asked_for(fresh_registry: None) -> None:
     make_check("A_CODE")
-    assert "could_be_overridden_by" not in registry_tables.print_registry([a_rule()], debug=0).columns
-    assert "could_be_overridden_by" in registry_tables.print_registry([a_rule()], debug=1).columns
+    assert "could_be_overridden_by" not in registry_tables.print_registry([a_rule()]).columns
+    assert "could_be_overridden_by" in registry_tables.print_registry([a_rule()], extra_columns=["could_be_overridden_by"]).columns
 
 
 def test_could_be_overridden_by_lists_referencing_rules_in_load_order(fresh_registry: None) -> None:
     make_check("A_CODE")
     rules = [a_rule("first"), a_rule("second")]
-    table = registry_tables.print_registry(rules, debug=1).set_index("code")
+    table = registry_tables.print_registry(rules, extra_columns=["could_be_overridden_by"]).set_index("code")
     assert table.loc["A_CODE", "could_be_overridden_by"] == "first; second"
 
 
 def test_could_be_overridden_by_is_a_dash_for_an_unreferenced_code(fresh_registry: None) -> None:
     make_check("A_CODE")
     make_check("UNTOUCHED")
-    table = registry_tables.print_registry([a_rule()], debug=1).set_index("code")
+    table = registry_tables.print_registry([a_rule()], extra_columns=["could_be_overridden_by"]).set_index("code")
     assert table.loc["UNTOUCHED", "could_be_overridden_by"] == "-"
 
 
-def test_print_registry_without_overrides_still_renders_at_debug_one(fresh_registry: None) -> None:
+def test_print_registry_without_overrides_still_renders_that_column(fresh_registry: None) -> None:
     make_check("A_CODE")
-    table = registry_tables.print_registry(debug=1).set_index("code")
+    table = registry_tables.print_registry(extra_columns=["could_be_overridden_by"]).set_index("code")
     assert table.loc["A_CODE", "could_be_overridden_by"] == "-"
 
 
@@ -244,8 +244,8 @@ def test_override_rules_column_names_each_rule_with_its_action(fresh_registry: N
     assert table.loc["A_CODE", "override_rules"] == "on (enable); off (disable)"
 
 
-def test_registry_with_overrides_adds_source_file_at_debug_two(example_checks: None) -> None:
-    table = registry_tables.print_registry_with_overrides([], debug=2).set_index("code")
+def test_registry_with_overrides_adds_source_file_when_asked_for(example_checks: None) -> None:
+    table = registry_tables.print_registry_with_overrides([], extra_columns=["source_file"]).set_index("code")
     assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
 
 
@@ -281,16 +281,16 @@ def test_criteria_render_compactly(fresh_registry: None) -> None:
         name="r", action="disable", codes=["A_CODE"],
         criteria=[reg.MatchCriterion("source_system", "^LEGACY_", _re.compile("^LEGACY_")),
                   reg.MatchCriterion("record_type", "^BATCH$", _re.compile("^BATCH$"))],
-        match_all=False,
+        match_all=False, message="why the rule exists",
     )
     assert registry_tables.print_override_rules([rule])["match"][0] == (
         "source_system~=/^LEGACY_/; record_type~=/^BATCH$/"
     )
 
 
-def test_override_rules_table_adds_source_file_at_debug_two(fresh_registry: None) -> None:
+def test_override_rules_table_adds_source_file_when_asked_for(fresh_registry: None) -> None:
     make_check("A_CODE")
-    table = registry_tables.print_override_rules([a_rule(source_file="here.yaml")], debug=2)
+    table = registry_tables.print_override_rules([a_rule(source_file="here.yaml")], extra_columns=["source_file"])
     assert list(table["source_file"]) == ["here.yaml"]
 
 

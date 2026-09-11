@@ -13,10 +13,10 @@ Overlap is deliberate — several cases differ only in one flag, and each stands
 alone as a copyable reference.
 
 Not covered here, because a unit test asserts it more precisely: every rejection
-of a malformed rule file (see `../failures/`), individual check behaviour, and
+of a malformed rule file (see `../failures/`), individual check behavior, and
 table rendering details.
 
-Absolute paths are normalised to `<project>` before comparison; nothing else is.
+Absolute paths are normalized to `<project>` before comparison; nothing else is.
 
 Regenerate after an intended change with `python3 scripts/regen_catalog.py`,
 then read the diff — a blind regeneration defeats the catalog.
