@@ -2,5 +2,5 @@
 
 One mistake, one message.
 
-Input:    `--rules` with nothing after it
-Expected: exit 2: `expected at least one argument`
+Input:    `--data` with nothing after it
+Expected: exit 2: `expected one argument`

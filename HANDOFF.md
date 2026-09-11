@@ -203,6 +203,10 @@ next to 100% branch coverage. `rm -rf mutants .mutmut-cache` and rerun gives the
 number. Delete the tree whenever the package layout changes — **which this branch did**,
 so the first mutation run here must start from a clean tree.
 
+**A targeted `mutmut run <name>` throws away every other mutant's result.** Checking one
+mutant after writing a test for it is the right move; just expect the score to be gone
+until the next full run, and do not quote `mutmut results` in between.
+
 **mutmut runs the *whole* selected suite once per mutant.** `pyproject.toml` excludes the
 files that shell out (they never load the instrumentation), the two that read `docs/`, and
 the slow suites; without those exclusions a run takes days rather than six minutes.

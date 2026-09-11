@@ -52,8 +52,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate rows of a DataFrame with pluggable checks.")
     parser.add_argument("--data", metavar="PATH",
                         help="CSV file to validate (default: the built-in demo frame).")
-    parser.add_argument("--rules", nargs="+", default=DEFAULT_RULES, metavar="PATH",
-                        help="Override YAML files, in precedence order (last match wins).")
+    # nargs="*" rather than "+": `--rules` with nothing after it means no
+    # overrides at all, which is the baseline every rule file is a deviation
+    # from and the first thing somebody adopting this wants to see.
+    parser.add_argument("--rules", nargs="*", default=DEFAULT_RULES, metavar="PATH",
+                        help="Override YAML files, in precedence order (last match wins). "
+                             "Pass --rules with no paths to apply none.")
     parser.add_argument("--report", choices=("table", "csv"), default="table",
                         help="Report format (default table).")
     parser.add_argument("--explain", type=int, metavar="ROW",

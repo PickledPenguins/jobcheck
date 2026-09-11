@@ -101,9 +101,18 @@ def test_unknown_flag_exits_two() -> None:
 
 
 def test_flag_without_its_value_exits_two() -> None:
-    result = run_cli("examples/main.py", "--rules")
+    result = run_cli("examples/main.py", "--data")
     assert result.returncode == 2
-    assert "expected at least one argument" in result.stderr
+    assert "expected one argument" in result.stderr
+
+
+def test_rules_with_no_paths_applies_no_overrides() -> None:
+    """The baseline: `--rules` alone is how a reader sees the checks as written,
+    before any rule file switches one on or off for anybody."""
+
+    result = run_cli("examples/main.py", "--rules")
+    assert result.returncode == 0
+    assert result.stdout.startswith("Loaded 0 override rule(s) from 0 file(s)")
 
 
 def test_missing_override_file_exits_one() -> None:

@@ -237,6 +237,7 @@ this repository (`check_rule_columns`) is deliberate and unrelated.
 ./run-tests.sh profile  # where the example runs spend their time
 ./run-tests.sh types    # mypy alone
 scripts/install-hooks.sh
+scripts/new_catalog_case.py <kind> <path> ...       # add one catalog case, output and all
 scripts/regen_catalog.py, scripts/regen_golden.py   # regenerate committed fixtures
 scripts/make_example_data.py                        # regenerate examples/data/*.csv
 scripts/profile_examples.py                         # the profile, alone
