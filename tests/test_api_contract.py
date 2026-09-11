@@ -117,7 +117,7 @@ def test_report_columns_are_stable() -> None:
 
 def test_registry_table_columns_are_stable(example_checks: None) -> None:
     assert list(registry_tables.get_registry_table().columns) == [
-        "code", "layer", "default_state", "message", "depends_on"
+        "code", "layer", "default", "message", "depends_on"
     ]
 
 

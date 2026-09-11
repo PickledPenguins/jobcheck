@@ -25,10 +25,10 @@ from .rules import OverrideRule
 from .tables import _check_extra_columns, format_table
 
 #: Extra columns the check tables offer. ``source_file`` is where the check was
-#: registered; ``could_be_overridden_by`` needs the loaded rules, so only the
-#: tables that are given them offer it.
+#: registered; ``could_be_overridden_by`` and ``effective_state`` read the loaded
+#: rules, so only :func:`print_registry`, which is given them, offers those two.
 CHECK_EXTRA_COLUMNS = ["source_file"]
-REGISTRY_EXTRA_COLUMNS = ["source_file", "could_be_overridden_by"]
+REGISTRY_EXTRA_COLUMNS = ["source_file", "could_be_overridden_by", "effective_state"]
 RULE_EXTRA_COLUMNS = ["source_file"]
 
 
@@ -61,14 +61,14 @@ def get_registry_table(extra_columns: list[str] | None = None) -> pd.DataFrame:
 
     extra_columns = list(extra_columns or [])
     _check_extra_columns(extra_columns, CHECK_EXTRA_COLUMNS, "the registry table")
-    columns = ["code", "layer", "default_state", "message", "depends_on", *extra_columns]
+    columns = ["code", "layer", "default", "message", "depends_on", *extra_columns]
 
     rows: list[dict[str, Any]] = []
     for check in CHECKS:
         rows.append({
             "code": check.code,
             "layer": check.layer,
-            "default_state": "ON" if check.default_enabled else "OFF",
+            "default": "ON" if check.default_enabled else "OFF",
             "message": check.message,
             "depends_on": "; ".join(check.depends_on) if check.depends_on else "-",
             "source_file": check.source_file,
@@ -88,11 +88,18 @@ def print_registry(
 ) -> pd.DataFrame:
     """Print the registry table and return the frame behind it.
 
-    ``extra_columns`` adds ``source_file`` or ``could_be_overridden_by``, which
-    lists the rules that *reference* each code. That column deliberately is not
-    called "was overridden by": whether a rule actually fires depends on the row
-    it is matched against, and this table has no row. Only
+    ``extra_columns`` adds ``source_file``, or either of the two columns that
+    read the loaded rules: ``could_be_overridden_by``, the rules that
+    *reference* each code with the action each would take, and
+    ``effective_state``, which says ``DEFAULT (ON)`` for a code no rule
+    references and that the answer depends on the row for one that is.
+
+    Neither is called "was overridden by": whether a rule actually fires depends
+    on the row it is matched against, and this table has no row. Only
     :func:`resolve_enabled_state` can answer that.
+
+    ``overrides`` feeds those two columns and nothing else, so passing rules
+    without asking for either prints the same table as passing none.
     """
 
     extra_columns = list(extra_columns or [])
@@ -103,59 +110,22 @@ def print_registry(
         print("No checks registered.")
         return table
 
+    rules = overrides or []
+    matching = {code: _rules_for_code(code, rules) for code in table["code"]}
     if "could_be_overridden_by" in extra_columns:
-        rules = overrides or []
         table["could_be_overridden_by"] = [
-            "; ".join(r.name for r in _rules_for_code(code, rules)) or "-" for code in table["code"]
+            "; ".join(f"{r.name} ({r.action})" for r in matching[code]) or "-"
+            for code in table["code"]
+        ]
+    if "effective_state" in extra_columns:
+        table["effective_state"] = [
+            f"depends on row (default {state} unless a rule above matches)"
+            if matching[code] else f"DEFAULT ({state})"
+            for code, state in zip(table["code"], table["default"])
         ]
 
-    print(format_table(table, wrap_columns={"message": 40, "could_be_overridden_by": 30}))
-    return table
-
-
-def print_registry_with_overrides(
-    overrides: list[OverrideRule], extra_columns: list[str] | None = None
-) -> pd.DataFrame:
-    """Print the registry cross-referenced against the loaded override rules.
-
-    ``effective_state`` states a plain "DEFAULT (ON/OFF)" for any code no rule
-    references, so a reader never has to infer that from an empty cell.  When
-    rules do reference a code the honest answer is row-dependent, and the cell
-    says so rather than inventing one.
-    """
-
-    extra_columns = list(extra_columns or [])
-    _check_extra_columns(extra_columns, CHECK_EXTRA_COLUMNS, "the registry table")
-    base = get_registry_table(extra_columns=extra_columns)
-    if base.empty:
-        print("No checks registered.")
-        return base
-
-    columns = ["code", "layer", "default_state", "override_rules", "effective_state",
-               *extra_columns]
-
-    rows: list[dict[str, Any]] = []
-    for _, entry in base.iterrows():
-        code = str(entry["code"])
-        matching = _rules_for_code(code, overrides)
-        default_state = str(entry["default_state"])
-        if matching:
-            effective = f"depends on row (default {default_state} unless a rule above matches)"
-        else:
-            effective = f"DEFAULT ({default_state})"
-        row: dict[str, Any] = {
-            "code": code,
-            "layer": entry["layer"],
-            "default_state": default_state,
-            "override_rules": "; ".join(f"{r.name} ({r.action})" for r in matching) or "-",
-            "effective_state": effective,
-        }
-        for column in extra_columns:
-            row[column] = entry[column]
-        rows.append(row)
-
-    table = pd.DataFrame(rows, columns=columns)
-    print(format_table(table, wrap_columns={"override_rules": 34, "effective_state": 34}))
+    print(format_table(table, wrap_columns={"message": 40, "could_be_overridden_by": 34,
+                                            "effective_state": 34}))
     return table
 
 

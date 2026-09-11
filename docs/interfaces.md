@@ -221,17 +221,16 @@ for columns of the data: the names you want beyond the base columns, refused
 rather than ignored when the name is not on offer.
 
 - `get_registry_table(extra_columns=None)` — one row per check, sorted layer, then
-  code. Columns `code`, `layer`, `default_state`, `message`, `depends_on`; offers
+  code. Columns `code`, `layer`, `default`, `message`, `depends_on`; offers
   `source_file`.
 - `print_registry(overrides=None, extra_columns=None)` — prints it. Offers
-  `source_file` and `could_be_overridden_by`: rules that *reference* each code. Not
-  "was overridden by" — whether a rule fires is a per-row question this table
-  cannot answer. `overrides` feeds that one column and nothing else, so passing
-  rules without asking for `could_be_overridden_by` prints the same table as
-  passing none.
-- `print_registry_with_overrides(overrides, extra_columns=None)` — adds
-  `override_rules` and `effective_state`, which says `DEFAULT (ON)` when no rule
-  references the code and "depends on row" when one does. Offers `source_file`.
+  `source_file`, plus the two columns that read the loaded rules:
+  `could_be_overridden_by`, the rules that *reference* each code with the action
+  each would take, and `effective_state`, which says `DEFAULT (ON)` when no rule
+  references the code and "depends on row" when one does. Neither is "was
+  overridden by" — whether a rule fires is a per-row question this table cannot
+  answer. `overrides` feeds those two columns and nothing else, so passing rules
+  without asking for either prints the same table as passing none.
 - `print_override_rules(overrides, extra_columns=None)` — one row per rule:
   `name`, `action`, `codes_hit_count`, `match`, `message`. Offers `source_file`.
 
