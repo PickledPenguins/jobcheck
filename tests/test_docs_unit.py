@@ -14,6 +14,7 @@ became required, where it raises TypeError for anyone who copies it.
 from __future__ import annotations
 
 import ast
+import builtins
 import inspect
 import re
 from pathlib import Path
@@ -78,26 +79,48 @@ def test_every_documented_call_matches_the_real_signature(path: Path) -> None:
                 )
 
 
+def known_names() -> set[str]:
+    """Every name a document may show in call form without promising our API.
+
+    This package's own surface, the methods of the types it exports -- a reader
+    will call `CheckResult.passed` as `passed(...)` -- pandas' frame and series
+    methods, every builtin, and the placeholder names the examples use for a
+    group or a callback.
+
+    The builtins come from `builtins` rather than from a list somebody keeps
+    adding to: the hand-written version held eight of them and failed the ninth
+    time one was mentioned in prose. No public name here shadows a builtin, so
+    allowing them all hides nothing this package could remove.
+    """
+
+    import pandas as pd
+
+    methods = {name for value in PUBLIC.values() if inspect.isclass(value)
+               for name in dir(value)}
+    return (set(dir(prv)) | methods | set(dir(pd.DataFrame)) | set(dir(pd.Series))
+            | set(dir(builtins))
+            | {"group", "check", "rule", "main", "progress", "perf_counter"})
+
+
+def called_names(text: str) -> list[str]:
+    """Names shown as `name(` that nothing provides, sorted."""
+
+    return sorted({name for name in re.findall(r"`([a-z_][a-z0-9_]*)\(", text)
+                   if name not in known_names() and not name.startswith("_")})
+
+
 @pytest.mark.parametrize("path", DOCS + [README], ids=lambda p: p.name)
 def test_no_document_names_a_public_function_that_is_gone(path: Path) -> None:
     """A name in backticks with a call after it is a promise the reader will try."""
 
-    import pandas as pd
-
     text = path.read_text(encoding="utf-8")
-    # Names a document may legitimately mention that are not this package's:
-    # pandas' own methods, the placeholder names the examples use for a group or
-    # a callback, and the builtins.
-    # A public type's methods count as public names: CheckResult.passed is
-    # documented as `report(...)`, and a reader will call it that way.
-    methods = {name for value in PUBLIC.values() if inspect.isclass(value)
-               for name in dir(value)}
-    known = (set(dir(prv)) | methods | set(dir(pd.DataFrame)) | set(dir(pd.Series))
-             | {"group", "check", "rule", "main", "progress", "bool", "count",
-                "print", "len", "str", "int", "list", "dict", "open", "sorted",
-                "perf_counter"})
+    known = known_names()
     for name in set(re.findall(r"`([a-z_][a-z0-9_]*)\(", text)):
-        assert name in known or name.startswith("_"), f"{path.name}: `{name}()` does not exist"
+        assert name in known or name.startswith("_"), (
+            f"{path.name}: `{name}()` does not exist. A backticked name followed by `(` "
+            "reads as a call a reader will try, so it has to be one this package, pandas "
+            "or the builtins provide. Name it without the parentheses if it is neither."
+        )
 
 
 def test_every_exported_name_is_documented_in_interfaces() -> None:
@@ -264,3 +287,14 @@ def test_every_exit_code_the_entry_point_can_return_is_documented() -> None:
     documented = {int(value) for value in re.findall(r"^\| (\d+) \| ", table, re.M)}
     assert expected <= documented, f"undocumented exit code(s): {sorted(expected - documented)}"
     assert documented <= expected, f"documented exit code(s) that cannot happen: {sorted(documented - expected)}"
+
+
+def test_the_public_name_check_allows_a_builtin_and_refuses_an_invention(tmp_path: Path) -> None:
+    """The rule the check applies, asserted directly rather than through a document.
+
+    Regression: the builtins were a hand-written list of eight, so writing
+    `exec(...)` in a document failed a check that means to allow any builtin.
+    """
+
+    assert called_names("call `exec()` and `zip()` and `validate()` here") == []
+    assert called_names("call `frobnicate()` here") == ["frobnicate"]
