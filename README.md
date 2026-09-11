@@ -160,7 +160,7 @@ instead: it returns that row's failures and allocates nothing for the rest.
 - [docs/architecture.md](docs/architecture.md) — module responsibilities, design
   decisions, and how to extend.
 - [docs/testing.md](docs/testing.md) — the suites, the gates, coverage, mutation,
-  the performance baseline, and the 58-case example and failure catalogs.
+  the performance baseline, and the 59-case example and failure catalogs.
 - [docs/contributing.md](docs/contributing.md) — where a change goes, and which
   check enforces which rule.
 - [docs/future-work.md](docs/future-work.md) — known gaps, and what was

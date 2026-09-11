@@ -326,7 +326,18 @@ def validate_registry() -> None:
                     "Either the code is a typo, or it lives in a check file that was not loaded "
                     f"(currently loaded: {loaded_check_files()})."
                 )
-    order = _topological_order()
+    try:
+        order = _topological_order()
+    except RecursionError:
+        # The walk is recursive, so its depth is the depth of the chain when a
+        # prerequisite is registered after its dependents. A bare RecursionError
+        # names neither the registry nor the chain, which is no help at all.
+        deepest = max((len(check.depends_on) for check in CHECKS), default=0)
+        raise ValueError(
+            f"Dependency chain too deep to resolve among {len(CHECKS)} checks "
+            f"(deepest declared depends_on: {deepest}). Shorten the chain, or "
+            "register prerequisites before the checks that depend on them."
+        ) from None
     by_code = {check.code: check for check in CHECKS}
     for check in order:
         check.layer = (

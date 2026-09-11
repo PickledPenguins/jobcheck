@@ -220,6 +220,17 @@ def test_a_duplicated_frame_column_is_rejected_rather_than_misread(two_layers: N
         rep.build_report(outs, df=frame, key_column="id", extra_columns=["batch", "age"])
 
 
+def test_a_duplicated_key_column_is_rejected_rather_than_misread(two_layers: None) -> None:
+    """Regression: df[key_column] is a DataFrame when the label is repeated, so
+    every row was labelled with the column *name* -- 'id' on every line -- and
+    zip() then truncated the report to the number of labels produced."""
+
+    frame = pd.DataFrame([[1, "A", 1], [2, "B", 2]], columns=["id", "batch", "id"])
+    outs = validate(pd.DataFrame([{"id": 1, "age": -5}, {"id": 2, "age": -5}]))
+    with pytest.raises(ValueError, match=r"key_column 'id' appears 2 times"):
+        rep.build_report(outs, df=frame, key_column="id")
+
+
 def test_a_duplicate_elsewhere_in_the_frame_does_not_block_other_columns(
     two_layers: None,
 ) -> None:
@@ -500,6 +511,18 @@ def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> Non
 
     assert list(rep.row_explanation([]).columns) == [
         "layer", "code", "outcome", "status", "detail"]
+
+
+def test_a_wrap_width_of_zero_is_refused_rather_than_read_as_no_wrapping(
+    two_layers: None,
+) -> None:
+    """0 silently disabled wrapping while -1 raised out of textwrap: two
+    spellings of nonsense, two behaviors."""
+
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id")
+    for width in (0, -5):
+        with pytest.raises(ValueError, match=r"wrap_width must be greater than 0"):
+            rep.render_report(report, wrap_width=width)
 
 
 def test_printing_a_report_wraps_the_message_column(fresh_registry: None,

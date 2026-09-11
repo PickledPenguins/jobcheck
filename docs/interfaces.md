@@ -119,7 +119,9 @@ The resolved paths loaded that way, in load order. A copy.
 `validate_registry` checks every `depends_on` edge, detects cycles, computes
 layers, and caches the evaluation order. An unregistered prerequisite raises —
 including one living in a check file that was not loaded, deliberately as loud as
-a typo.
+a typo. A chain too deep for the ordering walk (thousands of checks, each
+registered before the prerequisite it names) raises `ValueError` naming the
+registry size, rather than a bare `RecursionError` naming nothing.
 
 `clear_registry` empties the registry and evicts the modules that registered
 checks from `sys.modules`, so a later `load_checks` re-registers rather than
@@ -200,7 +202,8 @@ they appear.
 
 `build_report(frame_outcomes, df, key_column=None, extra_columns=None,
 include="failures")` — `df` is required, since the outcomes describe its rows;
-`key_column` names the single column that identifies a row; `extra_columns` copies
+`key_column` names the single column that identifies a row — one that is not in the
+frame, or is in it more than once, raises `ValueError`; `extra_columns` copies
 frame columns into the report just after `row`; `include` is `"failures"`,
 `"blocked"` or `"all"`. See
 [reporting.md](reporting.md#showing-data-alongside-the-failures).
@@ -223,7 +226,9 @@ rather than ignored when the name is not on offer.
 - `print_registry(overrides=None, extra_columns=None)` — prints it. Offers
   `source_file` and `could_be_overridden_by`: rules that *reference* each code. Not
   "was overridden by" — whether a rule fires is a per-row question this table
-  cannot answer.
+  cannot answer. `overrides` feeds that one column and nothing else, so passing
+  rules without asking for `could_be_overridden_by` prints the same table as
+  passing none.
 - `print_registry_with_overrides(overrides, extra_columns=None)` — adds
   `override_rules` and `effective_state`, which says `DEFAULT (ON)` when no rule
   references the code and "depends on row" when one does. Offers `source_file`.

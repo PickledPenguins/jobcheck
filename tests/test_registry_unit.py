@@ -168,6 +168,26 @@ def test_self_dependency_is_reported_as_a_cycle(fresh_registry: None) -> None:
     assert str(excinfo.value) == "Dependency cycle among checks: SELF -> SELF"
 
 
+def test_a_chain_too_deep_to_walk_names_the_registry_rather_than_the_recursion(
+    fresh_registry: None,
+) -> None:
+    """The ordering walk is recursive, so a chain registered dependent-first is
+    walked to its full depth. A bare RecursionError out of `visit` names neither
+    the registry nor the chain."""
+
+    depth = 2000
+    for index in range(depth):
+        make_check(f"DEEP_{index}",
+                   depends_on=[f"DEEP_{index + 1}"] if index + 1 < depth else [])
+    with pytest.raises(ValueError) as excinfo:
+        reg.validate_registry()
+    assert str(excinfo.value) == (
+        f"Dependency chain too deep to resolve among {depth} checks "
+        "(deepest declared depends_on: 1). Shorten the chain, or register "
+        "prerequisites before the checks that depend on them."
+    )
+
+
 def test_topological_order_puts_a_diamond_in_dependency_order(fresh_registry: None) -> None:
     make_check("D_TOP", depends_on=["D_LEFT", "D_RIGHT"])
     make_check("D_LEFT", depends_on=["D_ROOT"])
