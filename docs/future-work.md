@@ -34,7 +34,7 @@ library code, so it costs an adopter nothing — but it is what a reader of
 
 **A whole-frame `validate` that streams by default.** Rejected: the two ways to spend
 memory are genuinely different jobs. `validate` keeps every outcome because the report,
-the summary and the explanation all need them; `iter_traces` keeps one row's worth for a
+the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
 

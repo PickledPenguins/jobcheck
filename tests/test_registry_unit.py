@@ -1,4 +1,4 @@
-"""Unit checks: registration, suite loading, dependency validation, ordering."""
+"""Unit checks: registration, file loading, dependency validation, ordering."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import make_check
+from conftest import EXAMPLE_CHECK_FILES, make_check
 from jobcheck import registry as reg
 from jobcheck import engine
 
@@ -48,25 +48,14 @@ def test_duplicate_code_raises_naming_the_code(fresh_registry: None) -> None:
         make_check("SAME")
 
 
-def test_source_file_points_at_the_defining_file(example_suites: None) -> None:
+def test_source_file_points_at_the_defining_file(example_checks: None) -> None:
     check = next(t for t in reg.CHECKS if t.code == "AGE_NEGATIVE")
-    assert check.source_file.endswith("examples/example_suites/hard_checks/check_age.py")
+    assert check.source_file.endswith("examples/checks/check_age.py")
 
 
-def test_suite_comes_from_the_subpackage_directory(example_suites: None) -> None:
-    suites = {t.code: t.suite for t in reg.CHECKS}
-    assert suites["AGE_NEGATIVE"] == "hard_checks"
-    assert suites["EMAIL_MISSING_AT"] == "soft_checks"
-
-
-def test_module_in_the_package_root_gets_the_base_suite(example_suites: None) -> None:
-    assert next(t for t in reg.CHECKS if t.code == "ROW_ALL_NULL").suite == reg.BASE_SUITE
-
-
-def test_a_test_defined_by_exec_registers_under_the_base_suite(fresh_registry: None) -> None:
-    """Regression: a function from exec() has __module__ set to None, and suite
-    inference called .split() on it, so a notebook cell or a doc example crashed
-    with AttributeError instead of registering."""
+def test_a_check_defined_by_exec_registers(fresh_registry: None) -> None:
+    """Regression: a function from exec() has __module__ set to None, which the
+    registration path must not assume is a string."""
 
     namespace: dict[str, Any] = {}
     exec(
@@ -77,7 +66,7 @@ def test_a_test_defined_by_exec_registers_under_the_base_suite(fresh_registry: N
         namespace,
     )
     registered = reg.CHECKS[0]
-    assert (registered.code, registered.suite) == ("EXECED", reg.BASE_SUITE)
+    assert registered.code == "EXECED"
     assert registered.source_file == "<unknown>"
     assert engine.validate_row(pd.Series({"age": 1})) == []
 
@@ -95,20 +84,25 @@ def test_a_duplicate_code_from_exec_still_names_the_function(fresh_registry: Non
         exec(source, namespace)
 
 
-def test_infer_suite_of_a_function_outside_any_package_is_base(fresh_registry: None) -> None:
-    def check(row: "pd.Series[Any]") -> bool:
-        return True
+def test_importing_the_package_alone_registers_nothing(fresh_registry: None) -> None:
+    import jobcheck
 
-    assert reg._infer_suite(check) == "base"
-
-
-def test_load_suites_registers_only_the_requested_suites_plus_base(fresh_registry: None) -> None:
-    reg.load_suites(["hard_checks"], package="example_suites")
-    assert sorted({t.suite for t in reg.CHECKS}) == ["base", "hard_checks"]
+    assert jobcheck.CHECKS == []
 
 
-def test_load_suites_registers_the_expected_codes(fresh_registry: None) -> None:
-    reg.load_suites(["hard_checks", "soft_checks"], package="example_suites")
+def test_clear_registry_empties_the_checks_and_the_loaded_files(example_checks: None) -> None:
+    reg.clear_registry()
+    assert reg.CHECKS == []
+    assert reg.loaded_files() == []
+
+
+def test_clear_registry_then_load_checks_re_registers(fresh_registry: None) -> None:
+    """Regression: clearing left the modules in sys.modules, so the re-import was a
+    no-op and the registry stayed silently empty."""
+
+    reg.load_checks(EXAMPLE_CHECK_FILES)
+    reg.clear_registry()
+    reg.load_checks(EXAMPLE_CHECK_FILES)
     assert sorted(t.code for t in reg.CHECKS) == [
         "AGE_NEGATIVE",
         "AGE_NOT_A_NUMBER",
@@ -122,131 +116,6 @@ def test_load_suites_registers_the_expected_codes(fresh_registry: None) -> None:
         "EMAIL_PRESENT",
         "ROW_ALL_NULL",
     ]
-
-
-def test_importing_the_package_alone_registers_nothing(fresh_registry: None) -> None:
-    import jobcheck
-
-    assert jobcheck.CHECKS == []
-
-
-def test_loaded_suites_includes_base_and_is_a_copy(fresh_registry: None) -> None:
-    reg.load_suites(["hard_checks"], package="example_suites")
-    suites = reg.loaded_suites()
-    assert suites == {"base", "hard_checks"}
-    suites.add("mutated")
-    assert reg.loaded_suites() == {"base", "hard_checks"}
-
-
-def test_repeated_load_suites_does_not_register_twice(fresh_registry: None) -> None:
-    reg.load_suites(["hard_checks"], package="example_suites")
-    count = len(reg.CHECKS)
-    reg.load_suites(["hard_checks"], package="example_suites")
-    reg.load_suites(["hard_checks", "hard_checks"], package="example_suites")
-    assert len(reg.CHECKS) == count
-
-
-def test_overlapping_load_suites_adds_only_the_new_suite(fresh_registry: None) -> None:
-    reg.load_suites(["hard_checks"], package="example_suites")
-    reg.load_suites(["hard_checks", "soft_checks"], package="example_suites")
-    assert reg.loaded_suites() == {"base", "hard_checks", "soft_checks"}
-    assert sum(t.code == "AGE_NEGATIVE" for t in reg.CHECKS) == 1
-
-
-def test_unknown_suite_names_the_expected_subpackage(fresh_registry: None) -> None:
-    with pytest.raises(ValueError) as excinfo:
-        reg.load_suites(["nope_tests"], package="example_suites")
-    message = str(excinfo.value)
-    assert "Unknown suite 'nope_tests'" in message
-    assert "'example_suites.nope_tests'" in message
-    assert "example_suites/nope_tests/" in message
-
-
-def test_an_unimportable_package_says_so_rather_than_naming_a_suite(
-    fresh_registry: None,
-) -> None:
-    """A typo in package= is a different mistake from a typo in a suite name, and
-    the message has to say which one happened."""
-
-    with pytest.raises(ValueError) as excinfo:
-        reg.load_suites(["hard_checks"], package="no_such_package")
-    message = str(excinfo.value)
-    assert "Unknown package 'no_such_package'" in message
-    assert "package= is the package your own checks live in" in message
-    assert reg.CHECKS == []
-
-
-def test_unknown_suite_leaves_it_out_of_loaded_suites(fresh_registry: None) -> None:
-    with pytest.raises(ValueError):
-        reg.load_suites(["nope_tests"], package="example_suites")
-    assert "nope_tests" not in reg.loaded_suites()
-
-
-def test_load_suites_rejects_a_module_that_is_not_a_package(fresh_registry: None) -> None:
-    with pytest.raises(ValueError, match="is a module, not a package"):
-        reg._import_test_modules("example_suites.check_row_shape")
-
-
-def test_load_suites_takes_a_package_argument(fresh_registry: None) -> None:
-    reg.load_suites(["hard_checks"], package="example_suites")
-    assert any(t.code == "AGE_NEGATIVE" for t in reg.CHECKS)
-
-
-def test_files_named_tests_plural_are_not_collected(fresh_registry: None, tmp_path: Any) -> None:
-    package = tmp_path / "plural_pkg"
-    package.mkdir()
-    (package / "__init__.py").write_text("", encoding="utf-8")
-    (package / "tests_ignored.py").write_text(
-        "raise AssertionError('tests_*.py must not be imported')", encoding="utf-8"
-    )
-    import sys
-
-    sys.path.insert(0, str(tmp_path))
-    try:
-        reg._import_test_modules("plural_pkg")
-    finally:
-        sys.path.remove(str(tmp_path))
-    assert reg.CHECKS == []
-
-
-def test_clear_registry_empties_tests_and_suites(example_suites: None) -> None:
-    reg.clear_registry()
-    assert reg.CHECKS == []
-    assert reg.loaded_suites() == set()
-
-
-def test_clear_registry_then_load_suites_re_registers(fresh_registry: None) -> None:
-    """Regression: clearing left the modules in sys.modules, so the re-import was a
-    no-op and the registry stayed silently empty."""
-
-    reg.load_suites(["hard_checks"], package="example_suites")
-    reg.clear_registry()
-    reg.load_suites(["hard_checks"], package="example_suites")
-    assert sorted(t.code for t in reg.CHECKS) == [
-        "AGE_NEGATIVE",
-        "AGE_NOT_A_NUMBER",
-        "AGE_NOT_INTEGER",
-        "AGE_PRESENT",
-        "AGE_TOO_HIGH",
-        "DATES_OUT_OF_ORDER",
-        "DATES_PRESENT",
-        "ROW_ALL_NULL",
-    ]
-
-
-def test_clear_registry_re_registers_a_module_imported_by_another_route(
-    fresh_registry: None,
-) -> None:
-    """Regression: eviction tracked only modules imported by the suite loader, so a
-    check module already imported directly (as a check file does) was never re-executed
-    and its checks vanished from the registry after a clear."""
-
-    import example_suites.hard_checks.check_age as check_age
-
-    assert check_age.age_present is not None
-    reg.clear_registry()
-    reg.load_suites(["hard_checks"], package="example_suites")
-    assert any(t.code == "AGE_NEGATIVE" for t in reg.CHECKS)
 
 
 def test_validate_registry_accepts_a_satisfied_dependency(fresh_registry: None) -> None:
@@ -265,10 +134,10 @@ def test_unregistered_prerequisite_raises_naming_both_codes(fresh_registry: None
     assert "currently loaded" in message
 
 
-def test_prerequisite_in_an_unloaded_suite_raises_rather_than_skipping(fresh_registry: None) -> None:
-    """soft_checks is not loaded, so EMAIL_MISSING_AT is unknown and must be loud."""
+def test_prerequisite_in_an_unloaded_file_raises_rather_than_skipping(fresh_registry: None) -> None:
+    """check_email.py is not loaded, so EMAIL_MISSING_AT is unknown and must be loud."""
 
-    reg.load_suites(["hard_checks"], package="example_suites")
+    reg.load_checks([path for path in EXAMPLE_CHECK_FILES if "email" not in path])
     make_check("NEEDS_EMAIL", depends_on=["EMAIL_MISSING_AT"])
     with pytest.raises(ValueError, match="EMAIL_MISSING_AT"):
         reg.validate_registry()

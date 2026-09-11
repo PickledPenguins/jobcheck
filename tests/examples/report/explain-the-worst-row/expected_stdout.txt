@@ -1,0 +1,17 @@
+Loaded 3 override rule(s) from 1 file(s)
+
+== Row 1 ==
+layer | code                 | outcome  | status        | detail                                               
+------+----------------------+----------+---------------+------------------------------------------------------
+0     | ROW_ALL_NULL         | passed   | PASS (0)      | -                                                    
+0     | AGE_PRESENT          | passed   | PASS (0)      | -                                                    
+1     | AGE_NOT_A_NUMBER     | passed   | PASS (0)      | -                                                    
+2     | AGE_NEGATIVE         | failed   | INVALID (3)   | minimum=0; value=-5.0                                
+2     | AGE_TOO_HIGH         | passed   | PASS (0)      | -                                                    
+2     | AGE_NOT_INTEGER      | disabled | PASS (0)      | disabled by rule 'disable_age_integer_check_globally'
+0     | DATES_PRESENT        | passed   | PASS (0)      | -                                                    
+1     | DATES_OUT_OF_ORDER   | failed   | INVALID (3)   | end_date=2024-03-01; start_date=2024-05-01           
+0     | EMAIL_PRESENT        | passed   | PASS (0)      | -                                                    
+1     | EMAIL_MISSING_AT     | failed   | MALFORMED (2) | at_signs=0; value=broken-email                       
+2     | EMAIL_DOMAIN_INVALID | skipped  | PASS (0)      | prerequisite did not pass: EMAIL_MISSING_AT          
+root causes: DATES_OUT_OF_ORDER, EMAIL_MISSING_AT

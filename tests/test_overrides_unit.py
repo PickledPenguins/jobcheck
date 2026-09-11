@@ -163,8 +163,8 @@ def test_missing_file_raises_file_not_found(one_code: None, tmp_path: Path) -> N
         ),
         pytest.param(
             '- name: "r"\n  action: disable\n  codes: [NO_SUCH_CODE]\n  match: all\n',
-            "unknown code 'NO_SUCH_CODE'. Load the suite that defines it before loading "
-            "overrides, or fix the code.",
+            "unknown code 'NO_SUCH_CODE'. Load the check file that defines it before "
+            "loading overrides, or fix the code.",
             id="unknown-code",
         ),
         pytest.param(
@@ -214,47 +214,40 @@ def test_duplicate_rule_name_across_files_names_both_files(one_code: None, tmp_p
     first = write(tmp_path, "a.yaml", GLOBAL_DISABLE)
     second = write(tmp_path, "b.yaml", GLOBAL_DISABLE)
     with pytest.raises(ValueError) as excinfo:
-        reg.load_overrides_from_files([first, second])
+        reg.load_overrides([first, second])
     message = str(excinfo.value)
     assert f"defined in {first} and again in {second}" in message
 
 
-def test_load_overrides_from_dir_loads_alphabetically(one_code: None, tmp_path: Path) -> None:
-    write(tmp_path, "02_second.yaml", GLOBAL_DISABLE.replace("kill_it", "second"))
-    write(tmp_path, "01_first.yaml", GLOBAL_DISABLE.replace("kill_it", "first"))
-    assert [r.name for r in reg.load_overrides_from_dir(str(tmp_path))] == ["first", "second"]
+def test_a_sorted_list_of_files_loads_in_that_order(one_code: None, tmp_path: Path) -> None:
+    """Alphabetical order is the caller's to choose: the loader takes the list as given."""
+
+    second = write(tmp_path, "02_second.yaml", GLOBAL_DISABLE.replace("kill_it", "second"))
+    first = write(tmp_path, "01_first.yaml", GLOBAL_DISABLE.replace("kill_it", "first"))
+    assert [r.name for r in reg.load_overrides(sorted([second, first]))] == ["first", "second"]
 
 
-def test_load_overrides_from_dir_honours_the_pattern(one_code: None, tmp_path: Path) -> None:
-    write(tmp_path, "01_first.yaml", GLOBAL_DISABLE.replace("kill_it", "first"))
-    write(tmp_path, "02_second.yaml", GLOBAL_DISABLE.replace("kill_it", "second"))
-    rules = reg.load_overrides_from_dir(str(tmp_path), pattern="01_*.yaml")
-    assert [r.name for r in rules] == ["first"]
+def test_loading_no_files_returns_nothing(one_code: None) -> None:
+    assert reg.load_overrides([]) == []
 
 
-def test_load_overrides_from_dir_of_an_empty_directory_returns_nothing(
-    one_code: None, tmp_path: Path
-) -> None:
-    assert reg.load_overrides_from_dir(str(tmp_path)) == []
-
-
-def test_load_overrides_from_files_keeps_the_given_order_not_alphabetical(
+def test_load_overrides_keeps_the_given_order_not_alphabetical(
     one_code: None, tmp_path: Path
 ) -> None:
     first = write(tmp_path, "a.yaml", GLOBAL_DISABLE.replace("kill_it", "alpha"))
     second = write(tmp_path, "z.yaml", GLOBAL_DISABLE.replace("kill_it", "zulu"))
-    rules = reg.load_overrides_from_files([second, first])
+    rules = reg.load_overrides([second, first])
     assert [r.name for r in rules] == ["zulu", "alpha"]
 
 
-def test_load_overrides_from_files_spans_directories(one_code: None, tmp_path: Path) -> None:
+def test_load_overrides_spans_directories(one_code: None, tmp_path: Path) -> None:
     left = tmp_path / "left"
     right = tmp_path / "right"
     left.mkdir()
     right.mkdir()
     a = write(left, "a.yaml", GLOBAL_DISABLE.replace("kill_it", "from_left"))
     b = write(right, "b.yaml", GLOBAL_DISABLE.replace("kill_it", "from_right"))
-    assert [r.name for r in reg.load_overrides_from_files([a, b])] == ["from_left", "from_right"]
+    assert [r.name for r in reg.load_overrides([a, b])] == ["from_left", "from_right"]
 
 
 def test_list_rule_codes_returns_the_exact_codes(one_code: None, tmp_path: Path) -> None:

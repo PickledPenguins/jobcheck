@@ -11,11 +11,9 @@ import pytest
 from jobcheck import (
     build_context,
     build_report,
-    collect_outcomes,
+    validate,
+    load_checks,
     load_overrides,
-    load_overrides_from_dir,
-    load_overrides_from_files,
-    load_suites,
     render_report,
     root_cause,
     validate_row,
@@ -24,6 +22,11 @@ from jobcheck import (
 from jobcheck import registry as reg
 
 pytestmark = pytest.mark.long
+
+SPLIT_BY_TOPIC = [
+    "examples/rules/split_by_topic/01_age_rules.yaml",
+    "examples/rules/split_by_topic/02_email_rules.yaml",
+]
 
 DEMO = pd.DataFrame(
     [
@@ -49,7 +52,7 @@ def validated(overrides: list[reg.OverrideRule]) -> pd.DataFrame:
     return df
 
 
-def test_shipped_root_rule_file_drives_a_whole_frame(example_suites: None) -> None:
+def test_shipped_root_rule_file_drives_a_whole_frame(example_checks: None) -> None:
     df = validated(load_overrides("examples/rules/error_overrides.yaml"))
     assert codes(df) == [
         [],
@@ -59,15 +62,15 @@ def test_shipped_root_rule_file_drives_a_whole_frame(example_suites: None) -> No
     ]
 
 
-def test_directory_loading_produces_the_same_first_two_rules(example_suites: None) -> None:
-    """One directory of files says what one file says -- rule for rule, not name for name.
+def test_split_files_produce_the_same_first_two_rules(example_checks: None) -> None:
+    """Two files say what one file says -- rule for rule, not name for name.
 
     The names deliberately differ: the split files end "_by_topic" so the two
     sets can be loaded together, which a shared name makes impossible. What has
     to match is what the rules *do*.
     """
 
-    from_dir = load_overrides_from_dir("examples/rules/split_by_topic")
+    from_dir = load_overrides(SPLIT_BY_TOPIC)
     from_file = load_overrides("examples/rules/error_overrides.yaml")
     assert [r.action for r in from_dir] == [r.action for r in from_file[:2]]
     assert [r.codes for r in from_dir] == [r.codes for r in from_file[:2]]
@@ -76,24 +79,24 @@ def test_directory_loading_produces_the_same_first_two_rules(example_suites: Non
     assert [r.name for r in from_dir] == [f"{r.name}_by_topic" for r in from_file[:2]]
 
 
-def test_directory_loading_leaves_the_legacy_enable_in_force(example_suites: None) -> None:
-    df = validated(load_overrides_from_dir("examples/rules/split_by_topic"))
+def test_split_files_leave_the_legacy_enable_in_force(example_checks: None) -> None:
+    df = validated(load_overrides(SPLIT_BY_TOPIC))
     assert codes(df)[1] == ["AGE_NOT_INTEGER"]
 
 
-def test_file_order_decides_precedence_across_directories(example_suites: None) -> None:
+def test_file_order_decides_precedence_across_directories(example_checks: None) -> None:
     paths = [
         "examples/rules/split_by_topic/01_age_rules.yaml",
         "examples/rules/split_by_topic/02_email_rules.yaml",
         "examples/rules/from_another_directory/global_age_rule.yaml",
     ]
-    assert codes(validated(load_overrides_from_files(paths)))[1] == []
-    assert codes(validated(load_overrides_from_files(list(reversed(paths)))))[1] == [
+    assert codes(validated(load_overrides(paths)))[1] == []
+    assert codes(validated(load_overrides(list(reversed(paths)))))[1] == [
         "AGE_NOT_INTEGER"
     ]
 
 
-def test_errors_column_projects_to_text_for_export(example_suites: None, tmp_path: Path) -> None:
+def test_errors_column_projects_to_text_for_export(example_checks: None, tmp_path: Path) -> None:
     df = validated([])
     df["error_codes"] = df["errors"].apply(lambda rs: ";".join(r.code for r in rs))
     df["root_cause"] = df["errors"].apply(lambda rs: root_cause(rs) or "")
@@ -108,8 +111,8 @@ def test_errors_column_projects_to_text_for_export(example_suites: None, tmp_pat
     assert list(written["root_cause"].fillna("")) == ["", "", "DATES_OUT_OF_ORDER"]
 
 
-def test_a_written_report_reads_back_as_a_frame(example_suites: None, tmp_path: Path) -> None:
-    outcomes = collect_outcomes(DEMO, overrides=load_overrides("examples/rules/error_overrides.yaml"))
+def test_a_written_report_reads_back_as_a_frame(example_checks: None, tmp_path: Path) -> None:
+    outcomes = validate(DEMO, overrides=load_overrides("examples/rules/error_overrides.yaml"))
     report = build_report(outcomes, df=DEMO, key_column="id")
     path = tmp_path / "report.csv"
     write_report(report, str(path))
@@ -123,15 +126,15 @@ def test_a_written_report_reads_back_as_a_frame(example_suites: None, tmp_path: 
     assert list(written["is_root_cause"]) == [False, True, True]
 
 
-def test_a_table_report_renders_the_comments_a_reader_needs(example_suites: None) -> None:
-    report = build_report(collect_outcomes(DEMO), df=DEMO, key_column="id")
+def test_a_table_report_renders_the_comments_a_reader_needs(example_checks: None) -> None:
+    report = build_report(validate(DEMO), df=DEMO, key_column="id")
     text = render_report(report)
     assert "maximum=130" not in text
     assert "at_signs=0" in text
     assert "end_date=2024-03-01; start_date=2024-05-01" in text
 
 
-def test_a_rule_file_written_at_runtime_is_picked_up(example_suites: None, tmp_path: Path) -> None:
+def test_a_rule_file_written_at_runtime_is_picked_up(example_checks: None, tmp_path: Path) -> None:
     path = tmp_path / "runtime.yaml"
     path.write_text(
         '- name: "off_everywhere"\n  action: disable\n  codes: [AGE_NEGATIVE]\n  match: all\n',
@@ -142,55 +145,44 @@ def test_a_rule_file_written_at_runtime_is_picked_up(example_suites: None, tmp_p
     ]
 
 
-def test_loading_leaves_no_stray_files_behind(example_suites: None, tmp_path: Path) -> None:
+def test_loading_leaves_no_stray_files_behind(example_checks: None, tmp_path: Path) -> None:
     (tmp_path / "r.yaml").write_text(
         '- name: "r"\n  action: disable\n  codes: [AGE_NEGATIVE]\n  match: all\n', encoding="utf-8"
     )
-    load_overrides_from_dir(str(tmp_path))
+    load_overrides([str(tmp_path / "r.yaml")])
     assert [p.name for p in tmp_path.iterdir()] == ["r.yaml"]
 
 
-def test_a_new_suite_added_at_runtime_is_discovered(fresh_registry: None, tmp_path: Path) -> None:
-    """The discovery contract: a subpackage with an __init__.py and a test_*.py."""
+def test_a_check_file_written_at_runtime_is_loaded_by_path(fresh_registry: None,
+                                                           tmp_path: Path) -> None:
+    """The loading contract: a .py file anywhere on disk, named explicitly."""
 
-    import sys
-
-    package = tmp_path / "runtime_validation"
-    suite = package / "extra_tests"
-    suite.mkdir(parents=True)
-    (package / "__init__.py").write_text("", encoding="utf-8")
-    (suite / "__init__.py").write_text("", encoding="utf-8")
-    (suite / "check_added.py").write_text(
+    added = tmp_path / "check_added.py"
+    added.write_text(
         "from jobcheck.registry import register_check\n\n\n"
         '@register_check(code="ADDED_AT_RUNTIME", message="added")\n'
         "def check(row):\n"
         "    return row['age'] != 99\n",
         encoding="utf-8",
     )
-    sys.path.insert(0, str(tmp_path))
-    try:
-        load_suites(["extra_tests"], package="runtime_validation")
-        results = validate_row(pd.Series({"age": 99}))
-    finally:
-        sys.path.remove(str(tmp_path))
-        for name in [n for n in sys.modules if n.startswith("runtime_validation")]:
-            del sys.modules[name]
+    load_checks([str(added)])
+    results = validate_row(pd.Series({"age": 99}))
 
     assert [r.code for r in results] == ["ADDED_AT_RUNTIME"]
-    assert next(t for t in reg.CHECKS if t.code == "ADDED_AT_RUNTIME").suite == "extra_tests"
+    assert reg.loaded_files() == [str(added.resolve())]
 
 
-def test_source_file_of_a_shipped_check_exists_on_disk(example_suites: None) -> None:
+def test_source_file_of_a_shipped_check_exists_on_disk(example_checks: None) -> None:
     for check in reg.CHECKS:
         assert os.path.isfile(check.source_file), check.code
 
 
 def test_a_written_report_round_trips_through_a_spreadsheet_reader(
-    example_suites: None, tmp_path: Path
+    example_checks: None, tmp_path: Path
 ) -> None:
     """What a person actually does: write the CSV, open it, read the failures."""
 
-    outcomes = collect_outcomes(DEMO)
+    outcomes = validate(DEMO)
     report = build_report(outcomes, df=DEMO, key_column="id")
     path = tmp_path / "report.csv"
     write_report(report, str(path))
@@ -202,21 +194,21 @@ def test_a_written_report_round_trips_through_a_spreadsheet_reader(
     assert set(reopened["is_root_cause"]) <= {"True", "False"}
 
 
-def test_the_table_and_csv_forms_carry_the_same_failures(example_suites: None) -> None:
-    report = build_report(collect_outcomes(DEMO), df=DEMO, key_column="id")
+def test_the_table_and_csv_forms_carry_the_same_failures(example_checks: None) -> None:
+    report = build_report(validate(DEMO), df=DEMO, key_column="id")
     text = render_report(report)
     csv = render_report(report, fmt="csv")
     for code in report["code"]:
         assert code in text and code in csv
 
 
-def test_explaining_a_row_agrees_with_the_report(example_suites: None) -> None:
+def test_explaining_a_row_agrees_with_the_report(example_checks: None) -> None:
     """The two views are the same data: the report's first line for a row is the
     row's root cause, and the explanation says the same."""
 
     from jobcheck import explain_row, root_causes
 
-    outcomes = collect_outcomes(DEMO)
+    outcomes = validate(DEMO)
     report = build_report(outcomes, df=DEMO, key_column="id")
     for position, row_outcomes in enumerate(outcomes):
         causes = root_causes(row_outcomes)
@@ -229,12 +221,12 @@ def test_explaining_a_row_agrees_with_the_report(example_suites: None) -> None:
         assert root_cause(explain_row(DEMO.iloc[position])) is not None
 
 
-def test_a_rule_file_and_a_suite_change_the_same_report(example_suites: None) -> None:
-    """The two knobs a user has, exercised against one frame."""
+def test_a_rule_file_changes_the_same_report(example_checks: None) -> None:
+    """The knob a user has without editing a check, exercised against one frame."""
 
-    unrestricted = build_report(collect_outcomes(DEMO), df=DEMO, key_column="id")
+    unrestricted = build_report(validate(DEMO), df=DEMO, key_column="id")
     suppressed = build_report(
-        collect_outcomes(DEMO, overrides=load_overrides("examples/rules/error_overrides.yaml")),
+        validate(DEMO, overrides=load_overrides("examples/rules/error_overrides.yaml")),
         df=DEMO, key_column="id",
     )
     assert len(suppressed) <= len(unrestricted)

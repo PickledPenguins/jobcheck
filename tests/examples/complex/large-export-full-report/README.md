@@ -1,14 +1,7 @@
-# Large export, full report
+# A large export, fully reported
 
-2,000 rows, every skipped test included, a data column, and a rule file --
-the shape of a nightly job's output rather than a demonstration.
+The nightly job: a large file, a rule file, CSV out, counts to watch.
 
 Level:    complex
-Input:    `examples/data/customers_large.csv` with a global rule file
-Expected: several thousand report lines, then the summary; exit 0
-
-Why this combination:
-
-Volume is the point: layering that looks tidy on six rows has to stay tidy on
-two thousand, and the summary is the only thing that can be checked by eye at
-that size. It also pins the cost -- this case is the slowest in the catalog.
+Input:    `examples/data/customers_large.csv` with `examples/rules/from_another_directory/global_age_rule.yaml`, as CSV, summarised
+Expected: a CSV report of 2,000 rows followed by the counts

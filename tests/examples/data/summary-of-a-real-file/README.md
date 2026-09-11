@@ -1,8 +1,7 @@
 # Summary of a real file
 
-Per-test counts and what each failing row bottomed out at. The first thing to
-look at on a file you have not seen before.
+Where the summary earns its place: 49 rows are too many to read one line at a time.
 
 Level:    simple
 Input:    `examples/data/customers.csv`
-Expected: the failure table, then per-test counts and the root-cause tally; exit 0
+Expected: per-check counts over 49 rows, worst first

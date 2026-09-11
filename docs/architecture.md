@@ -6,21 +6,19 @@ Back to the [README](../README.md).
 
 One module holds the engine. Checks are ordinary functions that register themselves into a
 process-global list when their module is imported; which modules get imported is the
-suite mechanism. Everything else reads that list: rule files are validated against it,
+loading mechanism. Everything else reads that list: rule files are validated against it,
 the tables render it, and `validate_row` walks it once per row in a precomputed order.
 
 ```
 entry point
   |
-  +-- load_suites([...], package="your_package")
-  |                          -> imports your_package/check_*.py and your_package/<suite>/check_*.py
-  +-- load_checks([...]) -> imports named .py files by path, into the base suite
+  +-- load_checks([...]) -> imports the named .py files by path
   |                             -> @register_check / a group appends to TESTS
   |                             -> validate_registry(): depends_on, cycles, layers, topo order
   |
   +-- load_overrides*(...)  -> parse YAML -> validate each rule against TESTS -> [OverrideRule]
   |
-  +-- collect_outcomes(df)  -> explain_row per row
+  +-- validate(df)          -> explain_row per row
   |       resolve state (defaults, then matching rules, last wins)
   |       walk the cached topological order
   |       disabled / blocked  -> CheckOutcome, fn never called
@@ -35,7 +33,7 @@ entry point
 ```
 src/jobcheck/   the package: the only thing that ships
 examples/                    two demo entry points, the rule files they load,
-                             and example_suites/ -- the checks they run
+                             and checks/ -- the checks it runs
 docs/                        this and its siblings
 tests/                       the suites, the golden files, the catalogs
 scripts/                     hook installer and the two regenerators
@@ -51,19 +49,17 @@ the package by accident from the working directory. The demos add `src/` to
 
 | File | Responsibility |
 |---|---|
-| `src/jobcheck/registry.py` | The registry: registration, suite and file import, dependency validation, ordering and layers. What checks *exist*. |
+| `src/jobcheck/registry.py` | The registry: registration, file import, dependency validation, ordering and layers. What checks *exist*. |
 | `src/jobcheck/engine.py` | What happens to one row: per-row on/off state from the rules, evaluation in dependency order, the outcomes, and the root causes. |
 | `src/jobcheck/registry_tables.py` | The registry and the rules as tables: what is registered, which rules could touch each code, what each rule covers. |
-| `src/jobcheck/run.py` | The whole-frame entry point: `validate`, the streaming `iter_traces`, and the `ValidationRun`/`RowTrace`/`RunStats` types it returns. |
 | `src/jobcheck/report.py` | Collecting outcomes for a frame, the long-format failure table, summaries, explanations, and rendering them as text or CSV. |
 | `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `CheckResult`, `CheckOutcome`. |
 | `src/jobcheck/rules.py` | The override rule file format and its parser. Knows nothing about the registry. |
 | `src/jobcheck/tables.py` | Table rendering and null handling, shared by every view. |
 | `src/jobcheck/context.py` | The per-row metadata type and its builder — the one adopter-supplied hook. |
 | `src/jobcheck/__init__.py` | Re-exports the public surface. Registers no checks, and ships none. |
-| `examples/example_suites/` | The example checks. Outside the package on purpose: nothing of ours should register in an adopter's registry. |
+| `examples/checks/` | The example checks. Outside the package on purpose: nothing of ours should register in an adopter's registry. |
 | `examples/main.py` | Demo entry point and end-to-end driver: registry tables, the report, explanations, summaries. |
-| `examples/main_hard_only.py` | Second entry point proving suite selection is per-entry-point. |
 | `tests/` | pytest suites, split `fast`/`long` by marker, plus the example and failure catalogs. |
 | `run-tests.sh`, `scripts/` | Suite entry points, the pre-commit hook installer, the catalog regenerator, and the bytecode interface reader. |
 | `recovery/` | The pre-2026-09-09 bytecode, tracked deliberately, and the interface read out of it. See `recovery/README.md`. |
@@ -89,9 +85,10 @@ registers nothing. Several entry points in one process space can each opt into a
 subset without interfering. Rejected: importing every `check_*.py` on package import, which
 makes the set of active checks a property of the codebase rather than of the script.
 
-**A base suite that always loads.** Some checks must run regardless of which optional
-sets an entry point picked. It is a real named suite (`BASE_FLAVOR = "base"`) rather than
-a special case, so it appears correctly in registry tables.
+**One loading mechanism, not two.** Checks are loaded from a list of file paths and
+nothing else — no package convention, no directory scan, no suite names. Two mechanisms
+that differed in what they discovered was one more thing to explain than the feature was
+worth, and a path is what a pipeline writing check files into a run directory already has.
 
 **Per-row metadata lives in `RowContext`, not in DataFrame columns.** Extra columns
 holding dicts or paths cause dtype churn and leak into exports. `build_context` is left a
@@ -99,7 +96,7 @@ stub on purpose: it is the one place an adopter is expected to fill in.
 
 **Dependency validation happens after loading, not at decoration.** A prerequisite may be
 registered by a module not yet imported, so the check belongs at the end of
-`load_suites`. An unloaded prerequisite raises rather than silently skipping its
+`load_checks`. An unloaded prerequisite raises rather than silently skipping its
 dependent: otherwise which checks ran would change with an unrelated CLI flag, with no
 diagnostic.
 
@@ -132,7 +129,7 @@ not effect, and `effective_state` says "depends on row" instead of picking an an
 `resolve_enabled_state` against a real row can decide.
 
 **`clear_registry` evicts the modules that registered checks.** Python caches a module
-after its first import, so clearing the list alone would make the next `load_suites` a
+after its first import, so clearing the list alone would make the next `load_checks` a
 silent no-op. Eviction is recorded at registration rather than at import, so a module
 pulled in by any route — a check file importing it directly, for instance — is still
 tracked.
@@ -183,26 +180,25 @@ codes that exist, which the registry's three loader wrappers hand it. That keeps
 the import one-directional and lets the format be read, tested and changed on its
 own.
 
-**The library ships no checks of its own.** The example suites live under
-`examples/`, not in the package, because the base suite loads unconditionally:
+**The library ships no checks of its own.** The example checks live under
+`examples/`, not in the package, because importing a package should register nothing:
 anything shipped inside would register in every adopter's registry and fail on
-their rows. It also makes `package=` on `load_suites` required rather than
+their rows. It also makes the path list on `load_checks` required rather than
 defaulted, which is the honest signature -- the checks being loaded are always
 someone else's.
 
 **One module for the engine.** Registration, ordering, rules, and rendering all read the
 same registry; splitting them into four files would spread one concept across four imports
 without decoupling anything. `context.py` is separate because it is the adopter's hook,
-and the `check_*.py` files are separate because their location is the suite mechanism.
+and the `check_*.py` files are separate because the entry point names which of them to load.
 
 ## Extension points
 
-- **A check**: a function in a `check_*.py` file under a suite subpackage. Nothing else.
-- **A suite**: a subpackage with an `__init__.py`, then pass its name to `load_suites`.
+- **A check**: a function in a `check_*.py` file the entry point loads. Nothing else.
 - **Per-row metadata**: fill in `build_context`; add fields to `RowContext` if the four
   dicts do not fit.
-- **An entry point**: a script calling `load_suites` with its own subset. See
-  `examples/main_hard_only.py`.
+- **An entry point**: a script calling `load_checks` with its own list of files. See
+  `examples/main.py`.
 - **A new report**: build a DataFrame and hand it to `format_table`.
 
 ## Dependencies
@@ -213,7 +209,7 @@ else at runtime — table rendering uses `textwrap`, discovery uses `pkgutil` an
 
 ## Limitations
 
-- The registry is process-global. Two suite sets cannot be active in one process at once;
+- The registry is process-global. Two sets of check files cannot be active in one process at once;
   entry points are separate processes.
 - `df.apply(..., axis=1)` is row-at-a-time Python, not vectorised. Large frames are slow by
   construction; the design buys per-row rule resolution and dependency logic with that.

@@ -1,0 +1,4 @@
+- name: "wrong_action"
+  action: skip
+  codes: [AGE_NEGATIVE]
+  match: all

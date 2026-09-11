@@ -36,9 +36,9 @@ import main  # noqa: E402
 DEFAULT_SAVE = ROOT / ".build" / "examples.prof"
 # The runs worth profiling: the ones a user actually waits for.
 RUNS = [
-    ["--data", "examples/data/customers.csv", "--no-registry", "--summary"],
-    ["--data", "examples/data/customers.csv", "-vv", "--include-skipped", "--summary"],
-    ["--data", "examples/data/customers_large.csv", "--no-registry", "--summary"],
+    ["--data", "examples/data/customers.csv", "--summary"],
+    ["--data", "examples/data/customers.csv", "--report", "csv", "--summary"],
+    ["--data", "examples/data/customers_large.csv", "--summary"],
 ]
 
 
@@ -80,7 +80,7 @@ def main_(argv: list[str] | None = None) -> int:
 
     profiler = cProfile.Profile()
     for run_argv in RUNS:
-        # Each run loads suites into the same registry; clearing between them
+        # Each run loads check files into the same registry; clearing between them
         # keeps the profile honest about what one run costs.
         from jobcheck import clear_registry
         clear_registry()

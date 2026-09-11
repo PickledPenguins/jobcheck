@@ -21,7 +21,7 @@ import pytest
 
 from conftest import make_check
 from perf_baseline import compare
-from jobcheck import collect_outcomes, iter_traces, registry as reg
+from jobcheck import validate, validate_row, registry as reg
 from jobcheck import report as rep
 
 pytestmark = pytest.mark.perf
@@ -52,30 +52,30 @@ def gate(name: str, work: Callable[[], Any]) -> None:
     )
 
 
-def test_validating_a_frame_has_not_got_slower(example_suites: None) -> None:
+def test_validating_a_frame_has_not_got_slower(example_checks: None) -> None:
     df = frame()
-    gate("collect_outcomes/4000", lambda: collect_outcomes(df))
+    gate("validate/4000", lambda: validate(df))
 
 
-def test_streaming_a_frame_has_not_got_slower(example_suites: None) -> None:
+def test_row_by_row_has_not_got_slower(example_checks: None) -> None:
     df = frame()
-    gate("iter_traces/4000", lambda: [t.root_cause for t in iter_traces(df)])
+    gate("validate_row/4000", lambda: [validate_row(row) for _, row in df.iterrows()])
 
 
-def test_building_a_report_has_not_got_slower(example_suites: None) -> None:
+def test_building_a_report_has_not_got_slower(example_checks: None) -> None:
     df = frame()
-    outcomes = collect_outcomes(df)
+    outcomes = validate(df)
     gate("build_report/4000", lambda: rep.build_report(outcomes, df=df, key_column=None))
 
 
-def test_rendering_a_report_has_not_got_slower(example_suites: None) -> None:
+def test_rendering_a_report_has_not_got_slower(example_checks: None) -> None:
     df = frame()
-    report = rep.build_report(collect_outcomes(df), df=df)
+    report = rep.build_report(validate(df), df=df)
     gate("render_report/4000", lambda: rep.render_report(report, fmt="csv"))
 
 
-def test_summarising_has_not_got_slower(example_suites: None) -> None:
-    outcomes = collect_outcomes(frame())
+def test_summarising_has_not_got_slower(example_checks: None) -> None:
+    outcomes = validate(frame())
     gate("summarise_outcomes/4000", lambda: rep.summarise_outcomes(outcomes))
 
 
@@ -91,4 +91,4 @@ def test_resolving_many_rules_has_not_got_slower(fresh_registry: None, tmp_path:
     path.write_text(rules)
     overrides = reg.load_overrides(str(path))
     df = frame(1_000)
-    gate("collect_outcomes/1000-rows-50-rules", lambda: collect_outcomes(df, overrides=overrides))
+    gate("validate/1000-rows-50-rules", lambda: validate(df, overrides=overrides))

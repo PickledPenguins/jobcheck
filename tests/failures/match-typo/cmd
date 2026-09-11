@@ -1,1 +1,1 @@
-python3 examples/main.py -o tests/failures/match-typo/rules.yaml
+python3 examples/main.py --rules tests/failures/match-typo/rules.yaml

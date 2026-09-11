@@ -1,1 +1,1 @@
-python3 examples/main.py -o no_such_file.yaml
+python3 examples/main.py --rules no_such_file.yaml

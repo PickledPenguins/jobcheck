@@ -1,0 +1,392 @@
+Loaded 1 override rule(s) from 1 file(s)
+
+== Registry ==
+code                 | layer | default_state | description                              | depends_on      
+---------------------+-------+---------------+------------------------------------------+-----------------
+AGE_PRESENT          | 0     | ON            | The presence check the rest of this file | -               
+                     |       |               | waits for.                               |                 
+DATES_PRESENT        | 0     | ON            | The presence check the ordering check    | -               
+                     |       |               | waits for.                               |                 
+EMAIL_PRESENT        | 0     | ON            | The presence check the rest of the email | -               
+                     |       |               | checks wait for.                         |                 
+ROW_ALL_NULL         | 0     | ON            | A row with no populated field at all is  | -               
+                     |       |               | never valid input.                       |                 
+AGE_NOT_A_NUMBER     | 1     | ON            |                                          | AGE_PRESENT     
+DATES_OUT_OF_ORDER   | 1     | ON            | A check weighing two columns together,   | DATES_PRESENT   
+                     |       |               | which is why checks are given the whole  |                 
+                     |       |               | row rather than one value.               |                 
+EMAIL_MISSING_AT     | 1     | ON            | The most basic email shape check; the    | EMAIL_PRESENT   
+                     |       |               | domain check depends on it.              |                 
+AGE_NEGATIVE         | 2     | ON            | Ages below zero are always a data-entry  | AGE_NOT_A_NUMBER
+                     |       |               | or unit error.                           |                 
+AGE_NOT_INTEGER      | 2     | OFF           | Off by default: only some source systems | AGE_NOT_A_NUMBER
+                     |       |               | promise integer ages. Turn it on for     |                 
+                     |       |               | those systems with an override rule.     |                 
+AGE_TOO_HIGH         | 2     | ON            | Guards against sentinel values such as   | AGE_NOT_A_NUMBER
+                     |       |               | 999 leaking in as real ages.             |                 
+EMAIL_DOMAIN_INVALID | 2     | ON            | Only checked once EMAIL_MISSING_AT       | EMAIL_MISSING_AT
+                     |       |               | passed: reporting a malformed domain on  |                 
+                     |       |               | a string with no '@' is redundant noise  |                 
+                     |       |               | on top of a more fundamental problem     |                 
+                     |       |               | already reported.                        |                 
+
+== Failures ==
+row  | code               | status        | layer | outcome | message                            | comments                                   | is_root_cause
+-----+--------------------+---------------+-------+---------+------------------------------------+--------------------------------------------+--------------
+5000 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5003 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-9.0                      | True         
+5007 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=587.0                   | True         
+5012 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5012-example.com     | True         
+5022 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5028 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5033 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5036 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-38.0                     | True         
+5044 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=204.0                   | True         
+5047 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=516.0                   | True         
+5049 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=262.0                   | True         
+5059 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5059-example.com     | True         
+5082 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5083 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5083-example.com     | True         
+5085 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-23.0                     | True         
+5092 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5095 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5101 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-25.0                     | True         
+5111 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5111-example.com     | True         
+5116 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5122 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=756.0                   | True         
+5129 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5132 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5133 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5176 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-31.0                     | True         
+5184 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5184-example.com     | True         
+5185 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5185-example.com     | True         
+5192 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=832.0                   | True         
+5201 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5201-example.com     | True         
+5202 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5210 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5213 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5213-example.com     | True         
+5219 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=798.0                   | True         
+5220 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5220-example.com     | True         
+5226 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5227 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5237 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5237-example.com     | True         
+5244 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5244-example.com     | True         
+5246 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5246-example.com     | True         
+5249 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5249-example.com     | True         
+5251 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=894.0                   | True         
+5253 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5254 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5257 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5257-example.com     | True         
+5258 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5269 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-26.0                     | True         
+5278 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=481.0                   | True         
+5282 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5289 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5290 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-19.0                     | True         
+5297 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5303 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5303-example.com     | True         
+5304 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5304-example.com     | True         
+5309 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=316.0                   | True         
+5311 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5321 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5321-example.com     | True         
+5327 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5327-example.com     | True         
+5342 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5346 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-6.0                      | True         
+5350 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5350-example.com     | True         
+5352 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5352-example.com     | True         
+5359 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=724.0                   | True         
+5360 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5360-example.com     | True         
+5361 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=772.0                   | True         
+5367 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=350.0                   | True         
+5375 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=844.0                   | True         
+5382 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5382-example.com     | True         
+5384 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-21.0                     | True         
+5388 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5397 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5402 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5402-example.com     | True         
+5405 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5405-example.com     | True         
+5406 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5408 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=661.0                   | True         
+5422 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=161.0                   | True         
+5434 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5435 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-3.0                      | True         
+5437 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=858.0                   | True         
+5445 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5463 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5466 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5466-example.com     | True         
+5469 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5471 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5476 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=926.0                   | True         
+5482 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5482-example.com     | True         
+5500 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=467.0                   | True         
+5502 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5506 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5515 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5524 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5524-example.com     | True         
+5525 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5526 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-37.0                     | True         
+5527 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-6.0                      | True         
+5540 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5543 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5550 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5550-example.com     | True         
+5553 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-29.0                     | True         
+5554 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5569 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5576 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5576-example.com     | True         
+5578 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5578-example.com     | True         
+5581 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=240.0                   | True         
+5584 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5594 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-30.0                     | True         
+5600 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5607 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5608 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=547.0                   | True         
+5616 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-33.0                     | True         
+5620 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5639 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5640 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-36.0                     | True         
+5644 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=537.0                   | True         
+5652 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5652-example.com     | True         
+5657 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5667 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5670 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5670-example.com     | True         
+5671 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5672 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5676 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5677 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5678 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5678-example.com     | True         
+5684 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5688 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5688-example.com     | True         
+5693 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=805.0                   | True         
+5705 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=608.0                   | True         
+5707 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5711 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5711-example.com     | True         
+5713 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=393.0                   | True         
+5724 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5725 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5732 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5740 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-27.0                     | True         
+5757 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-31.0                     | True         
+5764 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-2.0                      | True         
+5768 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-10.0                     | True         
+5772 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=515.0                   | True         
+5773 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5773-example.com     | True         
+5778 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5787 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=964.0                   | True         
+5788 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=756.0                   | True         
+5789 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=997.0                   | True         
+5793 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=208.0                   | True         
+5795 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5795-example.com     | True         
+5796 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5799 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5799-example.com     | True         
+5804 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5804-example.com     | True         
+5810 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5810-example.com     | True         
+5812 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5819 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-32.0                     | True         
+5820 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=905.0                   | True         
+5828 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=693.0                   | True         
+5836 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-8.0                      | True         
+5837 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5838 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=856.0                   | True         
+5865 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=993.0                   | True         
+5868 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5868-example.com     | True         
+5876 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+5878 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=272.0                   | True         
+5880 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-16.0                     | True         
+5903 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5918 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5918-example.com     | True         
+5922 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-18.0                     | True         
+5926 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5926-example.com     | True         
+5927 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-5.0                      | True         
+5928 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-11.0                     | True         
+5929 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5931 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5931-example.com     | True         
+5939 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=947.0                   | True         
+5945 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-19.0                     | True         
+5951 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=987.0                   | True         
+5957 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+5964 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5964-example.com     | True         
+5966 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5966-example.com     | True         
+5967 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5967-example.com     | True         
+5972 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5972-example.com     | True         
+5987 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user5987-example.com     | True         
+6005 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6006 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6007 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6010 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=439.0                   | True         
+6013 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=794.0                   | True         
+6014 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6014-example.com     | True         
+6020 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6021 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6026 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-29.0                     | True         
+6032 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6033 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=997.0                   | True         
+6036 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6036-example.com     | True         
+6041 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6046 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6046-example.com     | True         
+6057 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6059 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6065 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=379.0                   | True         
+6071 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=600.0                   | True         
+6074 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6084 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6085 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6087 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-34.0                     | True         
+6102 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-35.0                     | True         
+6110 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=922.0                   | True         
+6117 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6119 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6119-example.com     | True         
+6128 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6136 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-31.0                     | True         
+6142 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6142-example.com     | True         
+6143 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=622.0                   | True         
+6145 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=762.0                   | True         
+6150 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6150-example.com     | True         
+6155 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-30.0                     | True         
+6157 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-11.0                     | True         
+6164 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6164-example.com     | True         
+6180 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6180-example.com     | True         
+6203 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6203-example.com     | True         
+6206 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6206-example.com     | True         
+6209 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-34.0                     | True         
+6215 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6216 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6220 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=291.0                   | True         
+6232 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6233 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=479.0                   | True         
+6242 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=915.0                   | True         
+6250 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-18.0                     | True         
+6252 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6268 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6274 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=222.0                   | True         
+6294 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6303 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6303-example.com     | True         
+6310 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6318 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6321 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-15.0                     | True         
+6325 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=756.0                   | True         
+6330 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6334 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6334-example.com     | True         
+6336 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6357 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-3.0                      | True         
+6368 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6383 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6390 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6392 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=654.0                   | True         
+6398 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6407 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6407-example.com     | True         
+6408 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6408-example.com     | True         
+6411 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=384.0                   | True         
+6414 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6423 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6423-example.com     | True         
+6439 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=884.0                   | True         
+6441 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6441-example.com     | True         
+6446 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6446-example.com     | True         
+6463 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-8.0                      | True         
+6464 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=142.0                   | True         
+6470 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6473 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-14.0                     | True         
+6481 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6481-example.com     | True         
+6488 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6496 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6496-example.com     | True         
+6497 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6513 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6519 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-9.0                      | True         
+6551 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6555 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6561 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6565 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6567 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=946.0                   | True         
+6581 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6581-example.com     | True         
+6583 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6583-example.com     | True         
+6584 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6587 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=193.0                   | True         
+6597 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6597-example.com     | True         
+6599 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-17.0                     | True         
+6601 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=360.0                   | True         
+6605 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6605-example.com     | True         
+6608 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6637 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=280.0                   | True         
+6643 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6662 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6665 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-12.0                     | True         
+6666 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-25.0                     | True         
+6667 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6668 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=778.0                   | True         
+6671 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6674 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-11.0                     | True         
+6682 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6682-example.com     | True         
+6683 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-36.0                     | True         
+6687 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6687-example.com     | True         
+6690 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6690-example.com     | True         
+6701 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6701-example.com     | True         
+6721 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=404.0                   | True         
+6725 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=457.0                   | True         
+6730 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6744 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6755 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6756 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6758 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6761 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=850.0                   | True         
+6762 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6762-example.com     | True         
+6767 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6773 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6776 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6776-example.com     | True         
+6777 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-11.0                     | True         
+6779 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=152.0                   | True         
+6782 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=738.0                   | True         
+6783 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6791 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6804 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=641.0                   | True         
+6805 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=983.0                   | True         
+6814 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6814-example.com     | True         
+6824 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-35.0                     | True         
+6833 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-19.0                     | True         
+6854 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6865 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=992.0                   | True         
+6866 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6866-example.com     | True         
+6867 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6871 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6880 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=941.0                   | True         
+6886 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6901 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6906 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6906-example.com     | True         
+6907 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6919 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=356.0                   | True         
+6924 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6925 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6925-example.com     | True         
+6929 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6930 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6934 | DATES_OUT_OF_ORDER | INVALID (3)   | 1     | failed  | start_date is after end_date       | end_date=2024-01-01; start_date=2024-06-01 | True         
+6959 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6972 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6972-example.com     | True         
+6973 | AGE_PRESENT        | MISSING (1)   | 0     | failed  | Age is missing                     |                                            | True         
+6978 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6978-example.com     | True         
+6979 | AGE_NEGATIVE       | INVALID (3)   | 2     | failed  | Age is negative                    | minimum=0; value=-3.0                      | True         
+6980 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6980-example.com     | True         
+6983 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=478.0                   | True         
+6988 | AGE_TOO_HIGH       | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) | maximum=130; value=796.0                   | True         
+6989 | EMAIL_MISSING_AT   | MALFORMED (2) | 1     | failed  | Email has no '@'                   | at_signs=0; value=user6989-example.com     | True         
+
+== Summary ==
+code                 | layer | failed | errored | skipped | disabled | passed
+---------------------+-------+--------+---------+---------+----------+-------
+EMAIL_MISSING_AT     | 1     | 86     | 0       | 0       | 0        | 1914  
+AGE_TOO_HIGH         | 2     | 71     | 0       | 58      | 0        | 1871  
+DATES_OUT_OF_ORDER   | 1     | 69     | 0       | 0       | 0        | 1931  
+AGE_PRESENT          | 0     | 58     | 0       | 0       | 0        | 1942  
+AGE_NEGATIVE         | 2     | 49     | 0       | 58      | 0        | 1893  
+EMAIL_DOMAIN_INVALID | 2     | 0      | 0       | 86      | 0        | 1914  
+AGE_NOT_A_NUMBER     | 1     | 0      | 0       | 58      | 0        | 1942  
+AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 2000     | 0     
+DATES_PRESENT        | 0     | 0      | 0       | 0       | 0        | 2000  
+EMAIL_PRESENT        | 0     | 0      | 0       | 0       | 0        | 2000  
+ROW_ALL_NULL         | 0     | 0      | 0       | 0       | 0        | 2000  
+
+Root cause of each failing row:
+root_cause         | rows
+-------------------+-----
+EMAIL_MISSING_AT   | 86  
+AGE_TOO_HIGH       | 71  
+DATES_OUT_OF_ORDER | 69  
+AGE_PRESENT        | 58  
+AGE_NEGATIVE       | 49  

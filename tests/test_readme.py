@@ -20,6 +20,7 @@ from typing import Any
 
 import pytest
 
+from conftest import EXAMPLE_CHECK_FILES
 from jobcheck import registry as reg
 from jobcheck import engine
 
@@ -64,7 +65,7 @@ def test_the_readme_has_python_blocks_to_check() -> None:
 def is_template(source: str) -> bool:
     """The "writing a check" block is a template, not part of the worked session."""
 
-    return "check_group(" in source
+    return "AGE_ABOVE_LIMIT" in source
 
 
 def session_blocks() -> list[tuple[int, str, str]]:
@@ -119,9 +120,9 @@ def test_the_writing_a_test_block_registers_a_working_test(fresh_registry: None)
     assert "AGE_ABOVE_LIMIT" in registered
     assert registered["AGE_ABOVE_LIMIT"].depends_on == ["AGE_PRESENT"]
 
-    # The group's prerequisite is real, so the whole thing validates once the
-    # suite that defines it is loaded.
-    reg.load_suites(["hard_checks"], package="example_suites")
+    # The prerequisite is real, so the whole thing validates once the check file
+    # that defines it is loaded.
+    reg.load_checks(EXAMPLE_CHECK_FILES)
     row = pd.Series({"age": 200, "email": "a@b.com", "start_date": None, "end_date": None})
     assert "AGE_ABOVE_LIMIT" in [outcome.code for outcome in engine.validate_row(row)]
 
@@ -132,7 +133,7 @@ def test_the_example_code_does_not_collide_with_the_shipped_tests(
     """A README example that duplicated a shipped code would fail on import for
     anyone who pasted it into a project with the example suites loaded."""
 
-    reg.load_suites(["hard_checks", "soft_checks"], package="example_suites")
+    reg.load_checks(EXAMPLE_CHECK_FILES)
     shipped = {check.code for check in reg.CHECKS}
     for _, source, _ in python_blocks():
         for code in re.findall(r'@\w+\(\s*"([A-Z_]+)"', source):
@@ -241,12 +242,13 @@ def test_a_bare_bool_return_works_as_the_readme_says(fresh_registry: None) -> No
 def test_the_report_is_one_line_per_failure_as_claimed(fresh_registry: None) -> None:
     import pandas as pd
 
-    from jobcheck import build_report, collect_outcomes, load_suites
+    from jobcheck import build_report, validate, load_checks
 
     assert "One line per failure, not one per row." in readme_text()
-    load_suites(["hard_checks"], package="example_suites")
+    load_checks([path for path in EXAMPLE_CHECK_FILES
+                 if path.endswith(("check_age.py", "check_dates.py"))])
     frame = pd.DataFrame([{"age": -5, "start_date": "2024-05-01", "end_date": "2024-03-01"}])
-    report = build_report(collect_outcomes(frame), df=frame)
+    report = build_report(validate(frame), df=frame)
     assert len(report) == 2, "one row, two failures, two report lines"
 
 
@@ -255,13 +257,13 @@ def test_the_scope_limits_the_readme_states_hold(fresh_registry: None) -> None:
 
     import pandas as pd
 
-    from jobcheck import collect_outcomes, load_suites
+    from jobcheck import validate, load_checks
 
     assert "It does not fix, coerce, or drop rows." in readme_text()
-    load_suites(["hard_checks"], package="example_suites")
+    load_checks(EXAMPLE_CHECK_FILES)
     frame = pd.DataFrame([{"age": -5, "start_date": None, "end_date": None}])
     before = frame.copy(deep=True)
-    collect_outcomes(frame)
+    validate(frame)
     assert frame.equals(before)
 
 
@@ -269,10 +271,10 @@ def test_rule_files_can_only_switch_existing_codes(fresh_registry: None, tmp_pat
     """"the override rule files can only switch existing checks on or off ...
     never define new ones"."""
 
-    from jobcheck import load_overrides, load_suites
+    from jobcheck import load_overrides, load_checks
 
     assert "they cannot define new ones" in readme_text()
-    load_suites(["hard_checks"], package="example_suites")
+    load_checks(EXAMPLE_CHECK_FILES)
     path = tmp_path / "rules.yaml"
     path.write_text(
         '- name: "invent"\n  action: enable\n  codes: [BRAND_NEW_CODE]\n  match: all\n',
@@ -282,12 +284,13 @@ def test_rule_files_can_only_switch_existing_codes(fresh_registry: None, tmp_pat
         load_overrides(str(path))
 
 
-def test_the_suites_the_readme_names_exist(fresh_registry: None) -> None:
-    from jobcheck import load_suites, loaded_suites
+def test_the_check_files_the_readme_names_exist(fresh_registry: None) -> None:
+    from jobcheck import load_checks, loaded_files
 
-    assert 'load_suites(["hard_checks", "soft_checks"], package="example_suites")' in readme_text()
-    load_suites(["hard_checks", "soft_checks"], package="example_suites")
-    assert loaded_suites() == {"base", "hard_checks", "soft_checks"}
+    named = ["examples/checks/check_age.py", "examples/checks/check_email.py"]
+    assert f"load_checks({named!r})".replace("'", '"') in readme_text()
+    load_checks(named)
+    assert len(loaded_files()) == 2
 
 
 # --- the documented CLI is the real CLI -------------------------------------

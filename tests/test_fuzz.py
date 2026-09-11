@@ -24,7 +24,7 @@ import yaml
 from conftest import make_check
 from jobcheck import (
     build_report,
-    collect_outcomes,
+    validate,
     load_overrides,
     registry as reg,
     render_report,
@@ -116,7 +116,7 @@ def random_frame(rng: random.Random) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def test_the_engine_holds_its_invariants_on_generated_frames(example_suites: None) -> None:
+def test_the_engine_holds_its_invariants_on_generated_frames(example_checks: None) -> None:
     """The three properties the whole design rests on, over input nobody chose:
     a check runs only when every prerequisite passed, the first failure is the
     lowest-layer failure, and no check appears twice in a row's outcomes."""
@@ -124,7 +124,7 @@ def test_the_engine_holds_its_invariants_on_generated_frames(example_suites: Non
     rng = random.Random(SEED)
     for case in range(CASES):
         frame = random_frame(rng)
-        outcomes_per_row = collect_outcomes(frame)
+        outcomes_per_row = validate(frame)
         for outcomes in outcomes_per_row:
             by_code = {outcome.code: outcome for outcome in outcomes}
             assert len(by_code) == len(outcomes), f"seed {SEED} case {case}: duplicate outcome"
@@ -151,7 +151,7 @@ def test_the_engine_holds_its_invariants_on_generated_frames(example_suites: Non
 
 
 def test_rendering_survives_whatever_a_test_puts_in_its_comments(
-    example_suites: None,
+    example_checks: None,
 ) -> None:
     """Comments carry data, and data is hostile: the renderer must not raise, and
     the table must stay rectangular."""
@@ -162,7 +162,7 @@ def test_rendering_survives_whatever_a_test_puts_in_its_comments(
         comments = {random_name(rng) or "k": random_scalar(rng) for _ in range(rng.randint(0, 4))}
         make_check("GENERATED", passes=False, comments=comments)
         frame = random_frame(rng)
-        report = build_report(collect_outcomes(frame), df=frame)
+        report = build_report(validate(frame), df=frame)
 
         text = render_report(report)
         widths = {len(line) for line in text.splitlines()}

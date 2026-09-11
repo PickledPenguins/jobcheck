@@ -1,1 +1,0 @@
-python3 examples/main.py --data examples/data/customers.csv --key-column id --data-columns name --no-registry --summary

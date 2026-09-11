@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -131,7 +130,7 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRul
         if code not in known_codes:
             raise ValueError(
                 f"rule {name!r} in {source_file}: unknown code {code!r}. "
-                "Load the suite that defines it before loading overrides, or fix the code."
+                "Load the check file that defines it before loading overrides, or fix the code."
             )
 
     criteria, match_all = parse_match(raw.get("match"), name, source_file)
@@ -165,56 +164,31 @@ def parse_file(path: str, known_codes: set[str]) -> list[OverrideRule]:
     return [parse_rule(entry, path, known_codes) for entry in raw]
 
 
-def combine(paths: list[str], known_codes: set[str]) -> list[OverrideRule]:
-    """Parse several files, rejecting duplicate rule names across all of them.
+def load_overrides(paths: str | list[str], known_codes: set[str]) -> list[OverrideRule]:
+    """Parse the named YAML files into rules, in the order given.
 
-    Duplicate names are caught across the whole load, not per file: the name is
-    how a person refers to a rule in :func:`list_rule_codes` and in error
-    messages, so two rules sharing one is ambiguous even when they came from
-    different directories.  Precedence follows the order of *paths*.
+    Duplicate rule names are caught across the whole load, not per file: the
+    name is how a person refers to a rule in error messages, so two rules
+    sharing one is ambiguous even when they came from different directories.
+
+    Precedence follows the order of *paths* -- for a given row, the last
+    matching rule wins -- so a caller that wants alphabetical order sorts the
+    list itself.
     """
 
+    given = [paths] if isinstance(paths, str) else list(paths)
     seen: dict[str, str] = {}
-    rules: list[OverrideRule] = []
-    for path in paths:
+    loaded: list[OverrideRule] = []
+    for path in given:
         for rule in parse_file(path, known_codes):
             if rule.name in seen:
                 raise ValueError(
-                    f"Duplicate override rule name {rule.name!r}: defined in {seen[rule.name]} and again in {rule.source_file}."
+                    f"Duplicate override rule name {rule.name!r}: defined in "
+                    f"{seen[rule.name]} and again in {rule.source_file}."
                 )
             seen[rule.name] = rule.source_file
-            rules.append(rule)
-    return rules
-
-
-def load_overrides(path: str, known_codes: set[str]) -> list[OverrideRule]:
-    """Load override rules from a single YAML file."""
-
-    return combine([path], known_codes)
-
-
-def load_overrides_from_dir(
-    directory: str, known_codes: set[str], pattern: str = "*.yaml"
-) -> list[OverrideRule]:
-    """Load every matching file in one directory, sorted alphabetically.
-
-    Alphabetical order is the load order, and load order decides "last rule
-    wins", so filenames carry precedence: name files ``01_x.yaml``,
-    ``02_y.yaml`` when the ordering between them matters.
-    """
-
-    paths = sorted(str(p) for p in Path(directory).glob(pattern))
-    return combine(paths, known_codes)
-
-
-def load_overrides_from_files(paths: list[str], known_codes: set[str]) -> list[OverrideRule]:
-    """Load an explicit list of files, which need not share a directory.
-
-    Precedence follows the order given on the command line, not alphabetical or
-    filesystem order.
-    """
-
-    return combine(list(paths), known_codes)
+            loaded.append(rule)
+    return loaded
 
 
 def cell_text(row: "pd.Series[Any]", column: str) -> str | None:

@@ -1,6 +1,6 @@
-# Explaining a row past the end of the frame
+# Explaining a row that is not there
 
-One of the mistakes a user actually makes, and the message it gets.
+One mistake, one message.
 
-Input:    `--explain` with a position the frame does not reach
-Expected: see `expected_stderr.txt`; a non-zero exit
+Input:    `--explain 500` on a 24-row file
+Expected: exit 2 naming the frame's size

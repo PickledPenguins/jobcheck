@@ -1,0 +1,1 @@
+python3 examples/main.py --data tests/failures/a-data-file-that-is-not-csv/ragged.csv

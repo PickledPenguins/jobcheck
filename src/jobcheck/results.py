@@ -7,9 +7,8 @@ Two value types live here:
 * :class:`CheckOutcome` -- what the engine recorded for one check on one row,
   including the checks that never ran and why.
 
-The status vocabulary is deliberately small. Values 0-9 are reserved for the
-built-in :class:`Status` members; a project adds its own kinds from 10 upwards
-with :func:`register_status`.
+The status vocabulary is deliberately small and fixed: the four
+:class:`Status` members below are the only kinds a check can report.
 """
 
 from __future__ import annotations
@@ -37,9 +36,6 @@ class Status(IntEnum):
     since it would report as a failure while claiming to be a broken check."""
 
 
-RESERVED_STATUS_MAX = 9
-_EXTRA_STATUSES: dict[int, str] = {}
-
 # Outcome of one check on one row, as recorded by the engine.
 PASSED = "passed"
 FAILED = "failed"
@@ -48,64 +44,18 @@ SKIPPED = "skipped"
 ERRORED = "errored"
 
 
-def register_status(name: str, value: int) -> int:
-    """Add a project-specific failure kind, and return its value.
-
-    Values are permanent identifiers like check codes: reports, saved output and
-    downstream tooling refer to them, so a reused value silently changes the
-    meaning of data already written. Registration fails loudly on anything
-    ambiguous -- a value below 10, a duplicate value, or a duplicate name --
-    rather than letting two kinds share an identifier.
-    """
-
-    if not isinstance(name, str) or not name.isidentifier() or not name.isupper():
-        raise ValueError(f"Status name {name!r} must be an UPPER_CASE identifier.")
-    if not isinstance(value, int) or isinstance(value, bool):
-        raise ValueError(f"Status value for {name!r} must be an integer, got {value!r}.")
-    if value <= RESERVED_STATUS_MAX:
-        raise ValueError(
-            f"Status value {value} for {name!r} is reserved: 0-{RESERVED_STATUS_MAX} belong to "
-            "the built-in Status members. Project codes start at 10."
-        )
-    known = all_statuses()
-    if value in known:
-        raise ValueError(f"Status value {value} is already registered as {known[value]!r}.")
-    if name in known.values():
-        raise ValueError(f"Status name {name!r} is already registered.")
-    _EXTRA_STATUSES[value] = name
-    return value
-
-
-def clear_extra_statuses() -> None:
-    """Forget every project-registered status. For checks of the framework itself."""
-
-    _EXTRA_STATUSES.clear()
-
-
-def all_statuses() -> dict[int, str]:
-    """Every known status value mapped to its name, built-in and registered."""
-
-    return {**{int(member): member.name for member in Status}, **_EXTRA_STATUSES}
-
-
-def status_name(code: int) -> str:
-    """The name of a status value, or ``UNKNOWN`` for one never registered."""
-
-    return all_statuses().get(int(code), "UNKNOWN")
-
-
 def render_status(code: int) -> str:
     """A status as it appears in a report: ``INVALID (3)``."""
 
-    return f"{status_name(code)} ({int(code)})"
+    return f"{Status(code).name} ({int(code)})"
 
 
 @dataclass(frozen=True)
 class CheckResult:
     """What a check function returns: a status code, plus comments for the report.
 
-    ``code`` is 0 (:data:`Status.PASS`) for a pass and any registered non-zero
-    value for a failure. ``comments`` is free-form detail the report renders as
+    ``code`` is 0 (:data:`Status.PASS`) for a pass and any other
+    :class:`Status` member for a failure. ``comments`` is free-form detail the report renders as
     ``key=value; key=value`` -- the numbers a person needs to see why the row
     was rejected, without re-running anything.
 
@@ -124,10 +74,11 @@ class CheckResult:
         # integer -- but never a bool, which would make CheckResult(True) a pass.
         if pd.api.types.is_bool(self.code) or not pd.api.types.is_integer(self.code):
             raise TypeError(f"CheckResult code must be an integer status, got {self.code!r}.")
-        if int(self.code) not in all_statuses():
+        if int(self.code) not in [int(member) for member in Status]:
             raise ValueError(
-                f"Unknown status {self.code!r}. Use a Status member, or register the value "
-                "with register_status() before returning it."
+                f"Unknown status {self.code!r}. Use one of: "
+                + ", ".join(f"Status.{member.name}" for member in Status)
+                + "."
             )
         if int(self.code) == Status.ERROR:
             raise ValueError(
@@ -161,7 +112,7 @@ class CheckResult:
     def status(self) -> str:
         """The status name, e.g. ``INVALID``."""
 
-        return status_name(self.code)
+        return Status(self.code).name
 
 
 PASS = CheckResult()
@@ -208,7 +159,6 @@ class CheckOutcome:
     outcome: str
     status: int = Status.PASS
     layer: int = 0
-    suite: str = ""
     message: str = ""
     detail: str = ""
     comments: Mapping[str, Any] = field(default_factory=dict)

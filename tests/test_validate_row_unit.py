@@ -10,6 +10,7 @@ import pytest
 
 from conftest import make_check
 from jobcheck import RowContext, registry as reg
+from jobcheck import results as res
 from jobcheck.results import ERRORED, FAILED, PASS, PASSED, SKIPPED, Status, CheckResult
 from jobcheck import engine
 from jobcheck import rules
@@ -27,15 +28,15 @@ def enable(code: str, name: str = "switch_on") -> reg.OverrideRule:
     return reg.OverrideRule(name=name, action="enable", codes=[code], criteria=[], match_all=True)
 
 
-def codes(outcomes: list[reg.CheckOutcome]) -> list[str]:
+def codes(outcomes: list[res.CheckOutcome]) -> list[str]:
     return [o.code for o in outcomes]
 
 
-def statuses(outcomes: list[reg.CheckOutcome]) -> dict[str, str]:
+def statuses(outcomes: list[res.CheckOutcome]) -> dict[str, str]:
     return {o.code: o.outcome for o in outcomes}
 
 
-def detail(outcomes: list[reg.CheckOutcome], code: str) -> str:
+def detail(outcomes: list[res.CheckOutcome], code: str) -> str:
     return next(o.detail for o in outcomes if o.code == code)
 
 
@@ -216,7 +217,7 @@ def test_the_last_matching_rule_is_the_one_named(fresh_registry: None) -> None:
     assert detail(engine.explain_row(ROW, overrides=rules), "CODE") == "disabled by rule 'second'"
 
 
-def test_validate_row_and_explain_row_agree_on_failures(example_suites: None) -> None:
+def test_validate_row_and_explain_row_agree_on_failures(example_checks: None) -> None:
     row = pd.Series({"age": -5, "email": "nope"})
     failed = [o.code for o in engine.explain_row(row) if o.failed]
     assert codes(engine.validate_row(row)) == failed
@@ -356,11 +357,11 @@ def test_layer_counts_the_deepest_chain(fresh_registry: None) -> None:
     assert {t.code: t.layer for t in reg.CHECKS} == {"L0": 0, "L1": 1, "L2": 2, "WIDE": 3}
 
 
-def test_outcomes_carry_the_layer_and_suite(fresh_registry: None) -> None:
+def test_outcomes_carry_the_layer(fresh_registry: None) -> None:
     make_check("ROOT")
     make_check("LEAF", depends_on=["ROOT"])
-    layers = {o.code: (o.layer, o.suite) for o in engine.explain_row(ROW)}
-    assert layers == {"ROOT": (0, "base"), "LEAF": (1, "base")}
+    layers = {o.code: o.layer for o in engine.explain_row(ROW)}
+    assert layers == {"ROOT": 0, "LEAF": 1}
 
 
 # --- duplicate labels -------------------------------------------------------
@@ -401,13 +402,13 @@ def test_duplicate_labels_raise_before_any_test_runs(fresh_registry: None) -> No
     ],
 )
 def test_example_tests_report_the_expected_codes(
-    example_suites: None, row: dict[str, Any], expected: list[str]
+    example_checks: None, row: dict[str, Any], expected: list[str]
 ) -> None:
     assert codes(engine.validate_row(pd.Series(row))) == expected
 
 
 def test_a_missing_field_reports_once_not_from_every_test_that_reads_it(
-    example_suites: None,
+    example_checks: None,
 ) -> None:
     """The whole point of layering: one complaint about a blank age."""
 
@@ -419,21 +420,21 @@ def test_a_missing_field_reports_once_not_from_every_test_that_reads_it(
     assert statuses(outcomes)["AGE_NEGATIVE"] == SKIPPED
 
 
-def test_failure_comments_carry_the_numbers_a_reader_needs(example_suites: None) -> None:
+def test_failure_comments_carry_the_numbers_a_reader_needs(example_checks: None) -> None:
     row = pd.Series({"age": 200, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
     outcome = engine.validate_row(row)[0]
     assert dict(outcome.comments) == {"value": 200.0, "maximum": 130}
 
 
-def test_the_off_by_default_integer_test_once_enabled(example_suites: None) -> None:
+def test_the_off_by_default_integer_test_once_enabled(example_checks: None) -> None:
     row = pd.Series({"age": 41.5, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
     assert codes(engine.validate_row(row)) == []
     assert codes(engine.validate_row(row, overrides=[enable("AGE_NOT_INTEGER")])) == ["AGE_NOT_INTEGER"]
 
 
-def test_disabling_a_presence_test_hides_everything_below_it(example_suites: None) -> None:
+def test_disabling_a_presence_test_hides_everything_below_it(example_checks: None) -> None:
     row = pd.Series({"age": None, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
     assert codes(engine.validate_row(row, overrides=[disable("AGE_PRESENT")])) == []
@@ -500,12 +501,12 @@ def test_check_rule_columns_ignores_a_match_all_rule(fresh_registry: None) -> No
     ],
 )
 def test_example_tests_handle_edge_values(
-    example_suites: None, row: dict[str, Any], expected: list[str]
+    example_checks: None, row: dict[str, Any], expected: list[str]
 ) -> None:
     assert codes(engine.validate_row(pd.Series(row))) == expected
 
 
-def test_the_integer_test_passes_a_whole_number_once_enabled(example_suites: None) -> None:
+def test_the_integer_test_passes_a_whole_number_once_enabled(example_checks: None) -> None:
     row = pd.Series({"age": 41.0, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
     assert codes(engine.validate_row(row, overrides=[enable("AGE_NOT_INTEGER")])) == []

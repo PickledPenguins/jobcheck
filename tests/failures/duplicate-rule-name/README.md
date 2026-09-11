@@ -1,7 +1,6 @@
-# Two rules share a name across two files
+# Two rules with one name
 
-Names identify a rule in tables and errors, so they must be unique across every
-file loaded together.
+One mistake, one message.
 
-Input:    two `-o` paths defining `same_name`
-Expected: stderr naming both files; exit 1
+Input:    two files each defining a rule called `r`
+Expected: exit 1 naming both files

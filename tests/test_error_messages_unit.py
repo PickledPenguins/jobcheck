@@ -24,7 +24,7 @@ import pytest
 from conftest import make_check
 from jobcheck import (
     build_report,
-    collect_outcomes,
+    validate,
     explain_row,
     registry as reg,
     render_report,
@@ -79,15 +79,6 @@ def test_a_string_depends_on_explains_why_it_is_wrong(fresh_registry: None) -> N
     )
 
 
-def test_a_string_depends_on_in_a_group_says_the_same(fresh_registry: None) -> None:
-    with pytest.raises(ValueError) as raised:
-        reg.check_group(depends_on="OTHER")  # type: ignore[arg-type]
-    assert message_of(raised) == (
-        "check_group depends_on must be a list of check codes, got 'OTHER'. "
-        "A bare string is a list of its characters, which is never what you meant."
-    )
-
-
 def test_a_non_boolean_default_enabled_names_the_value(fresh_registry: None) -> None:
     with pytest.raises(ValueError) as raised:
         reg.register_check(code="CODE", message="m", default_enabled="yes")(  # type: ignore[arg-type]
@@ -101,16 +92,6 @@ def test_a_non_text_description_names_the_value(fresh_registry: None) -> None:
         reg.register_check(code="CODE", message="m", description=7)(  # type: ignore[arg-type]
             lambda row: True)
     assert message_of(raised) == "Check 'CODE': description must be text, got 7."
-
-
-def test_a_non_text_suite_says_what_to_do_instead(fresh_registry: None) -> None:
-    with pytest.raises(ValueError) as raised:
-        reg.register_check(code="CODE", message="m", suite=7)(  # type: ignore[arg-type]
-            lambda row: True)
-    assert message_of(raised) == (
-        "Check 'CODE': suite must be the name of a suite, got 7. Leave it out "
-        "to take the name of the directory the check lives in."
-    )
 
 
 def test_a_three_argument_test_is_rejected_with_its_signature(fresh_registry: None) -> None:
@@ -139,39 +120,13 @@ def test_a_required_keyword_argument_says_how_to_fix_it(fresh_registry: None) ->
 # --- loading ----------------------------------------------------------------
 
 
-def test_an_unknown_suite_names_the_subpackage_it_expected(fresh_registry: None) -> None:
-    with pytest.raises(ValueError) as raised:
-        reg.load_suites(["nope_tests"], package="example_suites")
-    assert message_of(raised) == (
-        "Unknown suite 'nope_tests': expected a subpackage 'example_suites.nope_tests' "
-        "(directory example_suites/nope_tests/ containing an __init__.py). "
-        "Pass package= to point this at your own checks."
-    )
-
-
-def test_an_unknown_package_says_what_package_means_here(fresh_registry: None) -> None:
-    with pytest.raises(ValueError) as raised:
-        reg.load_suites([], package="no_such_package_anywhere")
-    assert message_of(raised) == (
-        "Unknown package 'no_such_package_anywhere': it is not importable from here. "
-        "package= is the package your own checks live in."
-    )
-
-
-def test_a_module_where_a_package_was_expected_says_which(fresh_registry: None) -> None:
-    with pytest.raises(ValueError) as raised:
-        reg._import_test_modules("json.decoder")
-    assert message_of(raised) == (
-        "'json.decoder' is a module, not a package; expected a package directory")
-
-
-def test_a_dangling_prerequisite_lists_the_loaded_suites(fresh_registry: None) -> None:
+def test_a_dangling_prerequisite_lists_the_loaded_files(fresh_registry: None) -> None:
     make_check("DEPENDENT", depends_on=["ABSENT"])
     with pytest.raises(ValueError) as raised:
         reg.validate_registry()
     assert message_of(raised) == (
         "Check 'DEPENDENT' depends on 'ABSENT', which is not registered. "
-        "Either the code is a typo, or it belongs to a suite that was not loaded "
+        "Either the code is a typo, or it lives in a check file that was not loaded "
         "(currently loaded: [])."
     )
 
@@ -226,7 +181,7 @@ def test_a_result_with_an_unknown_status_names_the_registered_ones(fresh_registr
 
 def test_a_key_column_that_is_not_there_lists_the_columns(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
-    outcomes = collect_outcomes(FRAME)
+    outcomes = validate(FRAME)
     with pytest.raises(ValueError) as raised:
         build_report(outcomes, df=FRAME, key_column="nope")
     assert message_of(raised) == (
@@ -236,7 +191,7 @@ def test_a_key_column_that_is_not_there_lists_the_columns(fresh_registry: None) 
 def test_a_key_column_without_a_frame_says_to_pass_one(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     with pytest.raises(ValueError) as raised:
-        build_report(collect_outcomes(FRAME), key_column="id")
+        build_report(validate(FRAME), key_column="id")
     assert message_of(raised) == (
         "key_column needs the frame it names columns in; pass df as well.")
 
@@ -244,52 +199,53 @@ def test_a_key_column_without_a_frame_says_to_pass_one(fresh_registry: None) -> 
 def test_data_columns_without_a_frame_say_to_pass_one(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     with pytest.raises(ValueError) as raised:
-        build_report(collect_outcomes(FRAME), data_columns=["age"])
+        build_report(validate(FRAME), data_columns=["age"])
     assert message_of(raised) == "data_columns names columns in the frame; pass df as well."
+
+
+UNUSABLE = (
+    "cannot be used. Each name must appear exactly once in the frame, once in "
+    "data_columns, and not be one of the report's own columns ['row', 'code', 'status', "
+    "'layer', 'outcome', 'message', 'comments', 'is_root_cause']. Frame columns: "
+)
 
 
 def test_data_columns_that_are_not_there_list_the_columns(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     with pytest.raises(ValueError) as raised:
-        build_report(collect_outcomes(FRAME), df=FRAME, data_columns=["nope"])
-    assert message_of(raised) == (
-        "data_columns ['nope'] is not in the data. Available columns: id, age.")
+        build_report(validate(FRAME), df=FRAME, data_columns=["nope"])
+    assert message_of(raised) == f"data_columns ['nope'] {UNUSABLE}id, age."
 
 
 def test_a_repeated_data_column_names_the_repeat(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     with pytest.raises(ValueError) as raised:
-        build_report(collect_outcomes(FRAME), df=FRAME, data_columns=["age", "age"])
-    assert message_of(raised) == "data_columns names ['age'] more than once."
+        build_report(validate(FRAME), df=FRAME, data_columns=["age", "age"])
+    assert message_of(raised) == f"data_columns ['age'] {UNUSABLE}id, age."
 
 
-def test_an_ambiguous_data_column_says_to_rename_it(fresh_registry: None) -> None:
+def test_an_ambiguous_data_column_is_refused_with_the_frame_columns(
+    fresh_registry: None,
+) -> None:
     make_check("CODE", passes=False)
     frame = pd.DataFrame([[1, 2, 3]], columns=["id", "age", "age"])
-    outcomes = collect_outcomes(FRAME)
+    outcomes = validate(FRAME)
     with pytest.raises(ValueError) as raised:
         build_report(outcomes, df=frame, data_columns=["age"])
-    assert message_of(raised) == (
-        "data_columns ['age'] appears more than once in the frame, so the report "
-        "cannot tell which column you meant. Rename or drop the duplicates first."
-    )
+    assert message_of(raised) == f"data_columns ['age'] {UNUSABLE}id, age, age."
 
 
-def test_a_data_column_clashing_with_a_report_column_shows_the_fix(fresh_registry: None) -> None:
+def test_a_data_column_clashing_with_a_report_column_is_refused(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     frame = pd.DataFrame([{"id": 1, "code": "x"}])
     with pytest.raises(ValueError) as raised:
-        build_report(collect_outcomes(frame), df=frame, data_columns=["code"])
-    assert message_of(raised) == (
-        "data_columns ['code'] would collide with the report's own column(s) of the "
-        "same name. Rename the column in the frame first, e.g. "
-        "df.rename(columns={'code': 'source_code'})."
-    )
+        build_report(validate(frame), df=frame, data_columns=["code"])
+    assert message_of(raised) == f"data_columns ['code'] {UNUSABLE}id, code."
 
 
 def test_a_frame_of_the_wrong_length_says_to_pass_the_same_one(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
-    outcomes = collect_outcomes(FRAME)
+    outcomes = validate(FRAME)
     bigger = pd.DataFrame([{"id": 1}, {"id": 2}])
     with pytest.raises(ValueError) as raised:
         build_report(outcomes, df=bigger)
@@ -301,42 +257,9 @@ def test_a_frame_of_the_wrong_length_says_to_pass_the_same_one(fresh_registry: N
 
 def test_an_unknown_format_names_the_two_that_work(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
-    report = build_report(collect_outcomes(FRAME), df=FRAME)
+    report = build_report(validate(FRAME), df=FRAME)
     with pytest.raises(ValueError) as raised:
         render_report(report, fmt="pdf")
     assert message_of(raised) == "fmt must be 'table' or 'csv', got 'pdf'."
 
 
-# --- the whole-frame entry point --------------------------------------------
-
-
-def test_a_progress_interval_below_one_names_the_value(fresh_registry: None) -> None:
-    from jobcheck import validate
-
-    make_check("CODE")
-    with pytest.raises(ValueError) as raised:
-        validate(FRAME, progress_every=0)
-    assert message_of(raised) == "progress_every must be at least 1, got 0."
-
-
-def test_from_records_of_the_wrong_length_says_what_it_needs(fresh_registry: None) -> None:
-    from jobcheck import ValidationRun
-
-    make_check("CODE")
-    with pytest.raises(ValueError) as raised:
-        ValidationRun.from_records(FRAME, [])
-    assert message_of(raised) == (
-        "0 row(s) of outcomes for a frame of 1 row(s): "
-        "from_records() needs one list per row, in frame order."
-    )
-
-
-def test_explaining_a_row_outside_the_frame_names_the_range(fresh_registry: None) -> None:
-    from jobcheck import validate
-
-    make_check("CODE")
-    run = validate(FRAME)
-    with pytest.raises(IndexError) as raised:
-        run.explain(5)
-    assert str(raised.value) == (
-        "No row at position 5: the frame has 1 row(s), so positions run 0..0.")

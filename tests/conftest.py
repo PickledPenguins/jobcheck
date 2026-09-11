@@ -31,32 +31,33 @@ from jobcheck import results as res  # noqa: E402
 def fresh_registry() -> Iterator[None]:
     """Give the check an empty registry and restore the previous one afterwards."""
 
-    saved_tests = list(reg.CHECKS)
-    saved_suites = set(reg._LOADED_SUITES)
+    saved_checks = list(reg.CHECKS)
     saved_modules = set(reg._REGISTERING_MODULES)
     saved_files = list(reg._LOADED_FILES)
     saved_order = reg._TOPO_ORDER
-    saved_statuses = dict(res._EXTRA_STATUSES)
 
     reg.clear_registry()
-    res.clear_extra_statuses()
     yield
 
     reg.clear_registry()
-    res.clear_extra_statuses()
-    reg.CHECKS.extend(saved_tests)
-    reg._LOADED_SUITES.update(saved_suites)
+    reg.CHECKS.extend(saved_checks)
     reg._REGISTERING_MODULES.update(saved_modules)
     reg._LOADED_FILES.extend(saved_files)
     reg._TOPO_ORDER = saved_order
-    res._EXTRA_STATUSES.update(saved_statuses)
+
+
+#: The check files the shipped demo loads, as paths from the project root.
+EXAMPLE_CHECK_FILES = [
+    os.path.join(PROJECT_ROOT, "examples", "checks", name)
+    for name in ("check_row_shape.py", "check_age.py", "check_dates.py", "check_email.py")
+]
 
 
 @pytest.fixture
-def example_suites(fresh_registry: None) -> None:
-    """A registry holding the shipped example checks (base + hard + soft)."""
+def example_checks(fresh_registry: None) -> None:
+    """A registry holding the shipped example checks."""
 
-    reg.load_suites(["hard_checks", "soft_checks"], package="example_suites")
+    reg.load_checks(EXAMPLE_CHECK_FILES)
 
 
 def make_check(
@@ -100,7 +101,7 @@ def one_row_report(
     -- rendered, escaped, wrapped -- without each of them growing its own copy.
     """
 
-    from jobcheck import build_report, collect_outcomes
+    from jobcheck import build_report, validate
     from jobcheck.results import Status, CheckResult
 
     @reg.register_check(code="CELL", message=message)
@@ -108,7 +109,7 @@ def one_row_report(
         return CheckResult(Status.INVALID, comments or {})
 
     frame = pd.DataFrame([{"id": 1}])
-    return build_report(collect_outcomes(frame), df=frame, key_column="id")
+    return build_report(validate(frame), df=frame, key_column="id")
 
 
 @dataclass

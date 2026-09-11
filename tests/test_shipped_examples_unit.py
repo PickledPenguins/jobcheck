@@ -21,8 +21,8 @@ import yaml
 from conftest import PROJECT_ROOT
 from jobcheck import (
     check_rule_columns,
-    collect_outcomes,
-    load_overrides_from_files,
+    validate,
+    load_overrides,
     registry as reg,
 )
 
@@ -40,12 +40,12 @@ def test_there_are_rule_files_to_check() -> None:
     assert len(rule_files()) >= 4
 
 
-def test_every_shipped_rule_file_loads_on_its_own(example_suites: None) -> None:
+def test_every_shipped_rule_file_loads_on_its_own(example_checks: None) -> None:
     for path in rule_files():
-        assert load_overrides_from_files([str(path)]), path
+        assert load_overrides([str(path)]), path
 
 
-def test_all_shipped_rule_files_load_together(example_suites: None) -> None:
+def test_all_shipped_rule_files_load_together(example_checks: None) -> None:
     """Regression: two pairs of them shared a rule name, so this call raised.
 
     Rule names are unique across everything loaded in one call, which makes a
@@ -54,7 +54,7 @@ def test_all_shipped_rule_files_load_together(example_suites: None) -> None:
     fails with a duplicate-name error.
     """
 
-    overrides = load_overrides_from_files([str(path) for path in rule_files()])
+    overrides = load_overrides([str(path) for path in rule_files()])
     names = [rule.name for rule in overrides]
     assert len(names) == len(set(names))
 
@@ -70,8 +70,8 @@ def test_every_shipped_rule_name_is_unique_in_its_own_right() -> None:
             names[name] = path
 
 
-def test_every_shipped_rule_names_a_code_the_example_suites_define(
-    example_suites: None,
+def test_every_shipped_rule_names_a_code_the_example_checks_define(
+    example_checks: None,
 ) -> None:
     known = {check.code for check in reg.CHECKS}
     for path in rule_files():
@@ -80,10 +80,10 @@ def test_every_shipped_rule_names_a_code_the_example_suites_define(
                 assert code in known, f"{code} in {path}"
 
 
-def test_every_shipped_rule_matches_a_column_the_data_has(example_suites: None) -> None:
+def test_every_shipped_rule_matches_a_column_the_data_has(example_checks: None) -> None:
     """A rule filtering on a column the example data lacks can never fire."""
 
-    overrides = load_overrides_from_files([str(path) for path in rule_files()])
+    overrides = load_overrides([str(path) for path in rule_files()])
     frame = pd.read_csv(DATA_DIR / "customers.csv", dtype=str)
     assert check_rule_columns(frame, overrides) == []
 
@@ -101,12 +101,12 @@ def test_each_data_file_is_the_size_its_documentation_claims(name: str, rows: in
     assert len(frame) == rows
 
 
-def test_the_messy_file_exercises_every_shipped_test(example_suites: None) -> None:
+def test_the_messy_file_exercises_every_shipped_test(example_checks: None) -> None:
     """Data that stopped failing anything would make the whole catalog vacuous."""
 
     frame = pd.read_csv(DATA_DIR / "customers.csv", dtype=str)
     failed = {outcome.code
-              for outcomes in collect_outcomes(frame)
+              for outcomes in validate(frame)
               for outcome in outcomes if outcome.failed}
     expected = {"ROW_ALL_NULL", "AGE_PRESENT", "AGE_NOT_A_NUMBER", "AGE_NEGATIVE",
                 "AGE_TOO_HIGH", "DATES_PRESENT", "DATES_OUT_OF_ORDER",
@@ -114,10 +114,10 @@ def test_the_messy_file_exercises_every_shipped_test(example_suites: None) -> No
     assert expected <= failed
 
 
-def test_the_clean_file_fails_nothing(example_suites: None) -> None:
+def test_the_clean_file_fails_nothing(example_checks: None) -> None:
     frame = pd.read_csv(DATA_DIR / "customers_clean.csv", dtype=str)
     failed = [outcome.code
-              for outcomes in collect_outcomes(frame)
+              for outcomes in validate(frame)
               for outcome in outcomes if outcome.failed]
     assert failed == []
 
