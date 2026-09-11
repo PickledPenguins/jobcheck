@@ -59,6 +59,13 @@ Optional. Override YAML files, loaded through `load_overrides`. Default
 Multi-valued: files need not share a directory, and **the order given is the precedence
 order** — later files win over earlier ones for the same code.
 
+`--rules` with no paths after it applies **no** overrides, which is the baseline every
+rule file is a deviation from:
+
+```sh
+python3 examples/main.py --data examples/data/customers.csv --rules
+```
+
 ```sh
 python3 examples/main.py --rules examples/rules/split_by_topic/01_age_rules.yaml \
                                  examples/rules/split_by_topic/02_email_rules.yaml \

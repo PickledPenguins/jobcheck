@@ -1,1 +1,1 @@
-python3 examples/main.py --rules
+python3 examples/main.py --data

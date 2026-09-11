@@ -131,6 +131,12 @@ def test_a_rule_naming_a_column_the_data_lacks_warns_on_stderr(fresh_registry: N
     assert "not_a_column" in captured.err
 
 
+def test_rules_with_no_paths_loads_none(fresh_registry: None, capsys: Any) -> None:
+    out = run(capsys, "--rules")
+    assert "Loaded 0 override rule(s) from 0 file(s)" in out
+    assert "AGE_NOT_INTEGER" not in out.split("== Failures ==")[1]
+
+
 def test_the_csv_report_format_is_comma_separated(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys, "--data", SMALL, "--report", "csv")
     assert "row,code,status,layer,outcome,message,comments,is_root_cause" in out
