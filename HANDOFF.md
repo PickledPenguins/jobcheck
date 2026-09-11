@@ -1,26 +1,25 @@
 # Handoff
 
-Written 2026-09-10. Branch `claude`, commit `e4da2cf`, 17 commits ahead of `main`, tree
-clean apart from this file and one line in `pyproject.toml` (both committed with it).
-Start at `README.md` and the documents its index links; `CLAUDE.md` holds the project's
-own history, which is stranger than most.
+Written 2026-09-10. Branch `simplify`, commit `fab967a`, one commit ahead of `claude`
+(which is 18 ahead of `main`), tree clean apart from this file. Start at `README.md` and
+the documents its index links; `CLAUDE.md` holds the project's own history, which is
+stranger than most, and its last section is what this branch changed.
 
 ## State
 
-Measured at `e4da2cf` on 2026-09-10 with the conda `pytesting` environment
+Measured at `fab967a` on 2026-09-10 with the conda `pytesting` environment
 (`~/.conda/envs/pytesting/bin/python`, Python 3.12.14, pandas 3.0.5, PyYAML 6.0.3,
 pytest 9.1.1, coverage 7.16.0, mypy 2.3.1, hypothesis 6.167.1, mutmut 3.5.0).
 
 | Gate | Result |
 |---|---|
-| `./run-tests.sh` (fast, the commit gate) | 717 passed, 28s, then mypy |
-| `./run-tests.sh long` | 251 passed |
-| `./run-tests.sh all` | 968 passed, 286s |
-| `./run-tests.sh cov` | 100% of statements **and** branches (1,176 statements, 388 branches), floor 95 |
+| `./run-tests.sh` (fast, the commit gate) | 574 passed, 15s, then mypy |
+| `./run-tests.sh long` | 228 passed, 320s |
+| `./run-tests.sh cov` | 100% of statements **and** branches (895 statements, 314 branches), floor 95 |
 | `./run-tests.sh memory` | 3 passed, 72s |
-| `./run-tests.sh perf` | 6 timings against `.perf-baseline.json` |
-| `mypy` | clean, 62 source files |
-| Mutation | 1,622 mutants, **1,466 killed, 156 survived, 0 timeouts (90.4%)** |
+| `./run-tests.sh perf` | 6 timings against a re-recorded `.perf-baseline.json` |
+| `mypy` | clean, 55 source files |
+| Mutation | **not re-run since the simplification**; the last figure (1,466/1,622, 90.4%) describes the old tree |
 
 ```sh
 PYTHON=~/.conda/envs/pytesting/bin/python ./run-tests.sh fast    # the commit gate
@@ -36,109 +35,62 @@ The default `python3` here is anaconda 3.14.6 and has neither hypothesis nor mut
 is why `PYTHON=` is in every line above. `./run-tests.sh long` refuses to run without
 hypothesis rather than skipping the property tests quietly.
 
-Catalog: 48 example cases (20 simple, 18 moderate, 10 complex) and 18 failure cases, all
+Catalog: 41 example cases (16 simple, 15 moderate, 10 complex) and 17 failure cases, all
 driven through the real entry point in a subprocess.
 
-## The last task, unfinished: a simplified jobcheck
+## The simplification is done
 
-**This is where the next session starts.** The owner asked for a simplified version that a
-junior developer can read, and asked first for a line count. The count was produced and a
-strip list proposed; **two questions were asked and not yet answered**, so nothing was
-changed. Everything below is the analysis, so it does not have to be redone.
+**This is what the previous session left unfinished, and it is finished.** The two open
+questions were answered: simplify `jobcheck` itself on a new branch (`simplify`), and port
+jobchain to it (branch `simplify-port`, commit `4ded386`, 744 unit tests passing with
+nothing skipped and its 103-case catalogue green).
 
-### Executable lines today, at `e4da2cf`
+### What the package measures now
 
-Counted with an AST pass that excludes blank lines, comments and docstrings
-(`/tmp/.../count.py` is gone; the script is eight lines of `ast.walk` collecting
-docstring line ranges, then counting what is left).
+Counted with the same AST pass as before — blank lines, comments and docstrings excluded.
 
-| Group | Executable | Physical |
+| Group | Was | Now |
 |---|---|---|
-| Package `src/jobcheck/` | **1,428** | 2,572 |
-| Example entry points (`main.py` 146, `main_hard_only.py` 42) | 188 | 279 |
-| Example check suites | 166 | 266 |
-| Dev scripts (data, catalog, golden, profile, bytecode reader) | 342 | 526 |
-| **Total, no tests and no docs** | **2,124** | 3,643 |
+| Package `src/jobcheck/` | 1,428 | **1,052** |
+| Demo entry points | 188 (two files) | 89 (one) |
+| Example check files | 166 (a package of suites) | 163 (four flat files) |
 
-Package by module: `registry` 344, `report` 255, `run` 149, `rules` 146, `__init__` 140
-(almost all of it the re-export list), `engine` 121, `results` 115, `registry_tables` 105,
-`tables` 41, `context` 12.
+By module: `report` 230, `registry` 195, `rules` 138, `engine` 131, `__init__` 112,
+`registry_tables` 103, `results` 90, `tables` 41, `context` 12. `run.py` is gone.
 
-### The strip list, with the measured cost of each
+The reduction is smaller than the 660-700 the earlier analysis projected because two of
+the nine proposed strips were deliberately kept (the summary views, 54 lines, and the
+extra registry tables, 59), and because `validate` survives at about 25 lines rather than
+being deleted with the rest of `run.py`.
 
-Every one of the ten stated goals stays met after all of these.
+### What was dropped, and what replaced it
 
-| Strip | Executable lines | Why it is not load-bearing |
-|---|---|---|
-| `run.py` entirely — `ValidationRun`, `RowTrace`, `RunStats`, `iter_traces`, `validate` | 149 | A convenience layer over `collect_outcomes`; goal 8 is met by `build_report`. **jobchain calls `validate()`** — see the open question. |
-| `CheckGroup` + `check_group` | 52 | Shared defaults per file. `register_check(depends_on=[...])` says the same thing per check. **jobchain's check files use `check_group`.** |
-| Suites — `load_suites`, `_import_test_modules`, `_infer_suite`, `loaded_suites`, `BASE_SUITE`, the `suite` column | ~55 | Two loading mechanisms is one too many to explain. `load_checks(paths)` is the one jobchain uses. |
-| Extensible statuses — `register_status`, `all_statuses`, `clear_extra_statuses`, `status_name` | 41 | A fixed `Status` enum covers the goals; a plugin point with no caller. |
-| Summary views — `summarise_outcomes`, `print_summary`, `root_cause_counts` | 54 | Aggregates, not in the goal list. |
-| Extra registry tables — `print_registry_with_overrides`, `print_override_rules`, `list_rule_codes` | 59 | Goal 9 needs one debug table: `get_registry_table` + `print_registry` is 34 lines. |
-| Loader trio to one — `load_overrides`, `_from_dir`, `_from_files`, `combine` | ~15 | One function taking a list of paths. |
-| `_make_runner` and `_register` trimmed | ~45 | Both are mostly error-message text, not logic. |
-| `_check_data_columns` trimmed (30 to ~10) | ~20 | Four separate refusals where two would do. |
+`CLAUDE.md` carries the table. In short: `run.py`, `check_group`, the suite mechanism and
+the `suite` column, extensible statuses, two of the three override loaders, the second
+demo entry point and eight of its twelve flags.
 
-**Estimate: the package lands at 660-700 executable lines, from 1,428** — roughly half —
-and the demo entry point at ~50 from 146 by dropping most of its twelve flags.
+### Two behaviour changes, both intended
 
-Keep, because a goal needs it: the decorator, `Check`, `CHECKS`, the dependency graph and
-layers, `explain_row` (68 lines, the whole engine), `RowContext`, `CheckResult` and
-`CheckOutcome`, the rule parser and matcher, `build_report` with `data_columns` and
-`is_root_cause`, `row_explanation`, the table and CSV renderers, and
-`escape_for_spreadsheet` (12 lines, and dropping it reintroduces CSV injection).
+- A `skipped` outcome's detail now names only the prerequisite it directly waited for.
+  `check_group`'s prerequisites were unconditional and added to every check in the file,
+  so the old detail listed transitive ancestors too. Layers and skipping are unchanged.
+- The registry table sorts by layer then code. There is no suite to sort by first.
 
-### The two questions waiting for an answer
+Both are pinned by `tests/golden/`, regenerated and read as a diff.
 
-1. **Where does the simplified version live?** A separate `jobcheck-lite` project, so both
-   survive and the full one keeps serving jobchain — or simplify `jobcheck` itself on a new
-   branch, with jobchain following it.
-2. **Must jobchain keep working?** It uses exactly seven names, listed in
-   `jobchain/checks.py:_ENGINE_NAMES`: `RowContext`, `clear_registry`, `load_checks`,
-   `load_overrides_from_files`, `validate`, `render_comments`, `ERRORED` — plus
-   `check_group` and `CheckResult` inside its own check files and tests. Stripping `run.py`
-   and `check_group` removes three of those. Either keep a minimal `validate()` (~40 lines
-   rather than 149) and `check_group`, or port jobchain to `collect_outcomes` and
-   `register_check`.
+### What is left on this branch
 
-## What this session changed
-
-Seventeen commits, oldest first.
-
-- `6956bcc` — `recovery/bytecode/` tracks the pre-2026-09-09 bytecode, the only copy of
-  four lost modules, plus `scripts/read_bytecode_api.py` to read interfaces out of it.
-- `af1906b` — `load_checks(paths)` rebuilt: importing check files by path, which
-  `load_suites` cannot express.
-- `c2a3851` — `run.py` rebuilt from the bytecode: `validate`, `iter_traces`,
-  `ValidationRun`, `RowTrace`, `RunStats`.
-- `f311078` — `tests/test_differential_jobchain.py`: what jobchain's suite asserted of the
-  pre-rename engine, restated here. All of it holds.
-- `0f00222` — `recovery/README.md`: what was lost, and the decision on each module.
-- `84e5d1d` — `CLAUDE.md` committed (it was untracked) and brought up to date.
-- `45fce47`, `837ef23` — a coverage gap and the one catalog case that renders paths.
-- `da032a3` — the first handoff this project ever had.
-- `9ea3727` — the test suite rebuilt to the `ctesting` standard: concurrency, fault
-  injection, scaling, performance against a recorded baseline, memory in its own run, the
-  entry points in-process; the catalog from 16 cases to 48 at three levels with real data;
-  `--data`, `--key-column` and `--no-registry` added to the demo so cases could use it.
-- `4a9226f` — every library error message pinned word for word, which found a real defect:
-  `register_check(depends_on="CODE")` turned a mistyped string into its characters before
-  the guard could see it.
-- `4c20de6` — the mutation survivors that were real, killed; the rest classified.
-- `5485357` — catalog cases run through a fixed-length root, so they no longer depend on
-  where the repository is cloned.
-- `0f2aeec` — the documents made true again, plus `tests/test_docs_unit.py`, which binds
-  every call shown in a document against the real signature; `contributing.md` and
-  `future-work.md` added.
-- `e675337`, `7166108` — suite sizes corrected in the docs.
-- `e4da2cf` — **the big one**: renamed back to `jobcheck`, the vocabulary reverted to
-  "check", `registry.py` split three ways, four behaviour changes. Details below.
-
-In `~/work/ai/jobchain`, branch `claude-port` (commit `649434b`, clean): ported to this
-engine and then back again with it. 744 unit tests pass with nothing skipped (it was 724
-passing and 20 skipped), the 103-case example catalog passes, and its coverage gate went
-from 85% failing an 89% floor to 89% passing it.
+- **Mutation has not been re-run.** It is a pre-release gate, not a commit gate, and the
+  tree it last measured no longer exists. `rm -rf mutants .mutmut-cache` first.
+- **`test_scaling.py::test_building_a_report_scales_with_the_failures_not_the_rows`
+  is timing-flaky**: it asserts a clean 4,000-row frame builds a report faster than a
+  messy one, and a cold first call has been seen to invert that (0.067s against 0.048s)
+  in one isolated run, while passing in every full `long` run. Pre-existing, not caused
+  by this branch; if it recurs, warm the call rather than loosening the assertion.
+- **Neither branch is merged.** `jobcheck` is on `simplify`, jobchain on `simplify-port`,
+  and jobchain finds the engine through `~/work/ai/jobcheck/src` — so whichever branch is
+  checked out there is the one jobchain's own suite runs against. Checking out `claude`
+  in jobcheck breaks `simplify-port`, and the reverse.
 
 ## Decisions worth knowing before changing things
 
@@ -147,8 +99,8 @@ to `pandas-row-validation` on 2026-09-09, package and words together, and rename
 2026-09-10 at the owner's instruction. The reason is concrete: a file named `test_*.py`
 inside an adopter's package is collected by pytest, which imports it a second time under
 its own rules and reports the registry's duplicate-code guard as a mysterious test failure.
-So check files are `check_*.py` and the API is `check_group`, `CheckResult`,
-`CheckOutcome`, `register_check`, `load_checks`, `CHECKS`. Do not "modernise" this.
+So check files are `check_*.py` and the API is `CheckResult`, `CheckOutcome`,
+`register_check`, `load_checks`, `CHECKS`. Do not "modernise" this.
 
 **`RowContext` is empty by default.** `build_context` reads nothing out of the row. What
 belongs in a context is the adopting pipeline's business, and the previous version invented
@@ -185,7 +137,8 @@ re-proposed:
 
 - **Rebuilding `lint`, `parallel` or `params`** — nothing calls them; `recovery/README.md`
   records what each did and what would reopen it.
-- **Chasing the last mutation survivors** — 21 are default-argument mutations mutmut's own
+- **Chasing the last mutation survivors** (from the pre-simplification run) — 21 are
+  default-argument mutations mutmut's own
   trampoline cannot execute (verified by hand), several are equivalent on this platform
   (`utf-8` and `\n` are what Linux gives anyway), and the rest are print-function wording
   that the catalog and golden files pin byte for byte while mutmut cannot run either.
@@ -204,18 +157,18 @@ wanted; the licence is the owner's to choose.
 
 ## Measurements, so they are not re-derived
 
-- **Performance baseline**, 4,000-row frame, Python 3.12.14 on this machine, stored in the
-  gitignored `.perf-baseline.json`: `collect_outcomes` 6.118s (spread 5%), `iter_traces`
-  5.941s (2%), `build_report` 0.064s (77%), `render_report` 0.053s (4%),
-  `summarise_outcomes` 0.021s (3%), `collect_outcomes` with 50 rules over 1,000 rows
-  0.393s (27%). The gate is the machine's own measured spread doubled, floored at 35% and
+- **Performance baseline**, re-recorded after the simplification, 4,000-row frame,
+  Python 3.12.14 on this machine, stored in the gitignored `.perf-baseline.json`:
+  `validate` 6.250s (spread 8%), `validate_row` per row 6.174s (2%), `build_report`
+  0.048s (123%), `render_report` 0.048s (8%), `summarise_outcomes` 0.020s (7%),
+  `validate` with 50 rules over 1,000 rows 0.403s (14%). The gate is the machine's own measured spread doubled, floored at 35% and
   capped at 150%; verified by lowering a baseline and watching it report
   `6.15s against a limit of 2.06s`.
 - **Where the time goes**: `explain_row` is about 85% of a validation run, and inside it
-  the example suites' `dates_present` and `dates_in_order` are roughly 40% of the total,
+  the example checks' `dates_present` and `dates_in_order` are roughly 40% of the total,
   because both call `pandas.to_datetime` per row. That is example code, not library code.
-- **Suite runtimes**: fast 28s, long ~265s, all 286s, cov 28s, memory 72s, perf ~85s,
-  a full mutation run ~6 minutes at about 5 mutations/second.
+- **Suite runtimes**: fast 15s, long ~320s, cov 25s, memory 72s, perf ~84s. A full
+  mutation run took ~6 minutes at about 5 mutations/second on the larger tree.
 - **Lost source sizes**, read from the `.pyc` headers: `run` 10,756 B, `lint` 14,326 B,
   `parallel` 15,072 B, `params` 7,173 B; the lost test modules total roughly 150 KB.
 
@@ -227,7 +180,9 @@ wanted; the licence is the owner's to choose.
 - Generated and gitignored: `mutants/` (19 MB after a run), `.build/` (the saved profile),
   `.mypy_cache/`, `.pytest_cache/`, `.perf-baseline.json` (962 bytes, machine-specific by
   design), `reviews/`.
-- `reviews/` is empty: the review saved earlier today was worked through and cleared.
+- `reviews/` is empty: the review saved on 2026-09-10 was worked through and cleared.
+- `.build/` is now gitignored; `.build/examples.prof` had been tracked because the
+  pattern was `build/`, and it is untracked as of `fab967a`.
 - `scripts/install-hooks.sh` installs the fast suite as `.git/hooks/pre-commit`.
 - There is no `requirements.txt` any more. `pyproject.toml` is the one dependency list, and
   the test that used to read the file reads the metadata now — without `tomllib`, which
@@ -242,7 +197,8 @@ command in the State block above works.
 **A stale `mutants/` tree lies about the score.** After the package rename, a run over the
 existing tree reported 264 killed, 1,056 "no tests" and 302 survived — an impossible result
 next to 100% branch coverage. `rm -rf mutants .mutmut-cache` and rerun gives the real
-number (1,466 / 156). Delete the tree whenever the package layout changes.
+number. Delete the tree whenever the package layout changes — **which this branch did**,
+so the first mutation run here must start from a clean tree.
 
 **mutmut runs the *whole* selected suite once per mutant.** `pyproject.toml` excludes the
 files that shell out (they never load the instrumentation), the two that read `docs/`, and
