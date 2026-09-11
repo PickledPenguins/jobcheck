@@ -1,4 +1,5 @@
 - name: "typo_in_code"
+  message: "why the rule exists"
   action: disable
   codes: [AGE_NEGATIV]
   match: all

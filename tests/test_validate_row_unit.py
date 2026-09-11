@@ -8,7 +8,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import make_check
+from conftest import first_cause, make_check
 from jobcheck import RowContext, registry as reg
 from jobcheck import results as res
 from jobcheck.results import ERRORED, FAILED, PASS, PASSED, SKIPPED, Status, CheckResult
@@ -21,11 +21,11 @@ ROW = pd.Series({"age": 30, "email": "a@b.com"})
 
 
 def disable(code: str, name: str = "kill_it") -> reg.OverrideRule:
-    return reg.OverrideRule(name=name, action="disable", codes=[code], criteria=[], match_all=True)
+    return reg.OverrideRule(name=name, action="disable", codes=[code], criteria=[], match_all=True, message="why the rule exists")
 
 
 def enable(code: str, name: str = "switch_on") -> reg.OverrideRule:
-    return reg.OverrideRule(name=name, action="enable", codes=[code], criteria=[], match_all=True)
+    return reg.OverrideRule(name=name, action="enable", codes=[code], criteria=[], match_all=True, message="why the rule exists")
 
 
 def codes(outcomes: list[res.CheckOutcome]) -> list[str]:
@@ -93,8 +93,8 @@ def test_a_two_argument_test_receives_the_context(fresh_registry: None) -> None:
         seen.append(ctx)
         return PASS
 
-    context = RowContext(flags={"legacy": True})
-    engine.validate_row(ROW, ctx=context)
+    context = RowContext()
+    engine.validate_row(ROW, context=context)
     assert seen == [context]
 
 
@@ -112,14 +112,14 @@ def test_ctx_defaults_to_none(fresh_registry: None) -> None:
 
 @pytest.mark.parametrize(
     "arguments",
-    [pytest.param("", id="none"), pytest.param("row, ctx, extra", id="three")],
+    [pytest.param("", id="none"), pytest.param("row, context, extra", id="three")],
 )
 def test_a_signature_the_engine_cannot_call_is_rejected_at_registration(
     fresh_registry: None, arguments: str
 ) -> None:
     namespace: dict[str, Any] = {}
     exec(f"def check({arguments}):\n    return True", namespace)
-    with pytest.raises(ValueError, match="must take \\(row\\) or \\(row, ctx\\)"):
+    with pytest.raises(ValueError, match=r"must take \(row\) or \(row, context\)"):
         reg.register_check(code="BAD_SIGNATURE", message="m")(namespace["check"])
 
 
@@ -131,19 +131,19 @@ def test_a_starargs_test_is_accepted(fresh_registry: None) -> None:
     assert engine.validate_row(ROW) == []
 
 
-def test_returning_true_passes_and_false_fails_as_invalid(fresh_registry: None) -> None:
+def test_a_condition_wrapped_in_a_result_fails_as_invalid(fresh_registry: None) -> None:
     @reg.register_check(code="BOOLEAN", message="m")
-    def check(row: "pd.Series[Any]") -> bool:
-        return False
+    def check(row: "pd.Series[Any]") -> CheckResult:
+        return CheckResult(1 < 0)
 
     outcome = engine.validate_row(ROW)[0]
     assert outcome.status == Status.INVALID
 
 
-def test_returning_a_bare_status_fails_with_it(fresh_registry: None) -> None:
+def test_a_named_status_fails_with_it(fresh_registry: None) -> None:
     @reg.register_check(code="BARE", message="m")
-    def check(row: "pd.Series[Any]") -> Status:
-        return Status.MISSING
+    def check(row: "pd.Series[Any]") -> CheckResult:
+        return CheckResult(Status.MISSING)
 
     assert engine.validate_row(ROW)[0].status == Status.MISSING
 
@@ -151,10 +151,10 @@ def test_returning_a_bare_status_fails_with_it(fresh_registry: None) -> None:
 def test_validate_row_does_not_mutate_the_row_or_the_context(fresh_registry: None) -> None:
     make_check("PASSES")
     row = ROW.copy()
-    context = RowContext(flags={"legacy": False})
-    engine.validate_row(row, ctx=context)
+    context = RowContext()
+    engine.validate_row(row, context=context)
     assert row.equals(ROW)
-    assert context == RowContext(flags={"legacy": False})
+    assert context == RowContext()
 
 
 # --- enabled state ----------------------------------------------------------
@@ -184,8 +184,7 @@ def test_an_override_applies_only_to_matching_rows(fresh_registry: None) -> None
     only_internal = reg.OverrideRule(
         name="internal", action="disable", codes=["ON"],
         criteria=[reg.MatchCriterion("email", "@internal", re.compile("@internal"))],
-        match_all=False,
-    )
+        match_all=False, message="why the rule exists")
     assert codes(engine.validate_row(ROW, overrides=[only_internal])) == ["ON"]
     internal_row = pd.Series({"age": 30, "email": "qa@internal.test"})
     assert engine.validate_row(internal_row, overrides=[only_internal]) == []
@@ -319,19 +318,19 @@ def test_root_cause_is_the_first_failure_in_dependency_order(fresh_registry: Non
     make_check("SHALLOW", passes=False)
     results = engine.validate_row(ROW)
     assert codes(results) == ["SHALLOW"]
-    assert engine.root_cause(results) == "SHALLOW"
+    assert first_cause(results) == "SHALLOW"
 
 
 def test_root_cause_of_a_clean_row_is_none(fresh_registry: None) -> None:
     make_check("PASSES")
-    assert engine.root_cause(engine.validate_row(ROW)) is None
-    assert engine.root_cause(engine.explain_row(ROW)) is None
+    assert first_cause(engine.validate_row(ROW)) is None
+    assert first_cause(engine.explain_row(ROW)) is None
 
 
 def test_root_cause_ignores_disabled_and_skipped_outcomes(fresh_registry: None) -> None:
     make_check("DISABLED_ONE", default_enabled=False)
     make_check("FAILS", passes=False)
-    assert engine.root_cause(engine.explain_row(ROW)) == "FAILS"
+    assert first_cause(engine.explain_row(ROW)) == "FAILS"
 
 
 def test_an_errored_outcome_carries_the_layer_and_the_message(fresh_registry: None) -> None:
@@ -353,7 +352,7 @@ def test_an_errored_outcome_carries_the_layer_and_the_message(fresh_registry: No
 
 def test_an_errored_test_can_be_the_root_cause(fresh_registry: None) -> None:
     make_check("BROKEN", raises=RuntimeError("boom"))
-    assert engine.root_cause(engine.explain_row(ROW)) == "BROKEN"
+    assert first_cause(engine.explain_row(ROW)) == "BROKEN"
 
 
 # --- layers -----------------------------------------------------------------
@@ -466,9 +465,8 @@ def test_check_rule_columns_is_quiet_when_every_criterion_column_is_present(
     make_check("CODE")
     rule = reg.OverrideRule(
         name="on_age", action="disable", codes=["CODE"],
-        criteria=[reg.MatchCriterion("age", "^1$", re.compile("^1$"))], match_all=False,
-    )
-    assert rules.check_rule_columns(pd.DataFrame({"age": [1]}), [rule]) == []
+        criteria=[reg.MatchCriterion("age", "^1$", re.compile("^1$"))], match_all=False, message="why the rule exists")
+    assert rules.check_override_columns(pd.DataFrame({"age": [1]}), [rule]) == []
 
 
 def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: None) -> None:
@@ -478,9 +476,8 @@ def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: 
     rule = reg.OverrideRule(
         name="legacy_only", action="disable", codes=["CODE"],
         criteria=[reg.MatchCriterion("source_sytem", "^LEGACY", re.compile("^LEGACY"))],
-        match_all=False,
-    )
-    assert rules.check_rule_columns(pd.DataFrame({"age": [1]}), [rule]) == [
+        match_all=False, message="why the rule exists")
+    assert rules.check_override_columns(pd.DataFrame({"age": [1]}), [rule]) == [
         "rule 'legacy_only' matches on column 'source_sytem', which is not in the data: "
         "the rule will never apply"
     ]
@@ -488,7 +485,7 @@ def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: 
 
 def test_check_rule_columns_ignores_a_match_all_rule(fresh_registry: None) -> None:
     make_check("CODE")
-    assert rules.check_rule_columns(pd.DataFrame({"age": [1]}), [disable("CODE")]) == []
+    assert rules.check_override_columns(pd.DataFrame({"age": [1]}), [disable("CODE")]) == []
 
 
 # --- example check helpers at their edges ------------------------------------
@@ -535,7 +532,7 @@ def test_a_child_blocked_by_a_disabled_parent_says_disabled(fresh_registry: None
     make_check("PARENT")
     make_check("CHILD", depends_on=["PARENT"])
     rule = reg.OverrideRule(name="off", action="disable", codes=["PARENT"], criteria=[],
-                            match_all=True, source_file="<test>")
+                            match_all=True, source_file="<test>", message="why the rule exists")
     outcomes = engine.explain_row(pd.Series({"a": 1}), overrides=[rule])
     assert [(o.code, o.outcome, o.detail) for o in outcomes] == [
         ("PARENT", "disabled", "disabled by rule 'off'"),
@@ -561,7 +558,7 @@ def test_a_mix_of_disabled_and_failed_prerequisites_says_did_not_pass(
     make_check("BROKEN", passes=False)
     make_check("CHILD", depends_on=["OFF", "BROKEN"])
     rule = reg.OverrideRule(name="off", action="disable", codes=["OFF"], criteria=[],
-                            match_all=True, source_file="<test>")
+                            match_all=True, source_file="<test>", message="why the rule exists")
     outcomes = engine.explain_row(pd.Series({"a": 1}), overrides=[rule])
     assert outcomes[-1].detail == "prerequisite did not pass: OFF, BROKEN"
 
@@ -593,4 +590,4 @@ def test_root_cause_returns_one_of_the_root_causes(fresh_registry: None) -> None
     make_check("A", passes=False)
     make_check("B", passes=False)
     outcomes = engine.explain_row(pd.Series({"a": 1}))
-    assert engine.root_cause(outcomes) in engine.root_causes(outcomes)
+    assert first_cause(outcomes) in engine.root_causes(outcomes)

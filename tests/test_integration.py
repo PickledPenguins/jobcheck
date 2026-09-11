@@ -8,14 +8,15 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from conftest import first_cause
+
 from jobcheck import (
-    build_context,
+    RowContext,
     build_report,
     validate,
     load_checks,
     load_overrides,
     render_report,
-    root_cause,
     validate_row,
     write_report,
 )
@@ -47,13 +48,13 @@ def codes(df: pd.DataFrame) -> list[list[str]]:
 def validated(overrides: list[reg.OverrideRule]) -> pd.DataFrame:
     df = DEMO.copy()
     df["errors"] = df.apply(
-        lambda row: validate_row(row, ctx=build_context(row), overrides=overrides), axis=1
+        lambda row: validate_row(row, context=RowContext(), overrides=overrides), axis=1
     )
     return df
 
 
 def test_shipped_root_rule_file_drives_a_whole_frame(example_checks: None) -> None:
-    df = validated(load_overrides("examples/rules/error_overrides.yaml"))
+    df = validated(load_overrides(["examples/rules/error_overrides.yaml"]))
     assert codes(df) == [
         [],
         [],  # internal.test suppresses the email checks; the global rule keeps
@@ -71,7 +72,7 @@ def test_split_files_produce_the_same_first_two_rules(example_checks: None) -> N
     """
 
     from_dir = load_overrides(SPLIT_BY_TOPIC)
-    from_file = load_overrides("examples/rules/error_overrides.yaml")
+    from_file = load_overrides(["examples/rules/error_overrides.yaml"])
     assert [r.action for r in from_dir] == [r.action for r in from_file[:2]]
     assert [r.codes for r in from_dir] == [r.codes for r in from_file[:2]]
     assert [[(c.column, c.pattern) for c in r.criteria] for r in from_dir] == \
@@ -99,7 +100,7 @@ def test_file_order_decides_precedence_across_directories(example_checks: None) 
 def test_errors_column_projects_to_text_for_export(example_checks: None, tmp_path: Path) -> None:
     df = validated([])
     df["error_codes"] = df["errors"].apply(lambda rs: ";".join(r.code for r in rs))
-    df["root_cause"] = df["errors"].apply(lambda rs: root_cause(rs) or "")
+    df["root_cause"] = df["errors"].apply(lambda rs: first_cause(rs) or "")
     out = tmp_path / "out.csv"
     df.drop(columns=["errors"]).to_csv(out, index=False)
     written = pd.read_csv(out)
@@ -112,7 +113,7 @@ def test_errors_column_projects_to_text_for_export(example_checks: None, tmp_pat
 
 
 def test_a_written_report_reads_back_as_a_frame(example_checks: None, tmp_path: Path) -> None:
-    outcomes = validate(DEMO, overrides=load_overrides("examples/rules/error_overrides.yaml"))
+    outcomes = validate(DEMO, overrides=load_overrides(["examples/rules/error_overrides.yaml"]))
     report = build_report(outcomes, df=DEMO, key_column="id")
     path = tmp_path / "report.csv"
     write_report(report, str(path))
@@ -137,17 +138,17 @@ def test_a_table_report_renders_the_comments_a_reader_needs(example_checks: None
 def test_a_rule_file_written_at_runtime_is_picked_up(example_checks: None, tmp_path: Path) -> None:
     path = tmp_path / "runtime.yaml"
     path.write_text(
-        '- name: "off_everywhere"\n  action: disable\n  codes: [AGE_NEGATIVE]\n  match: all\n',
+        '- name: "off_everywhere"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [AGE_NEGATIVE]\n  match: all\n',
         encoding="utf-8",
     )
-    assert codes(validated(load_overrides(str(path))))[2] == [
+    assert codes(validated(load_overrides([str(path)])))[2] == [
         "DATES_OUT_OF_ORDER", "EMAIL_MISSING_AT"
     ]
 
 
 def test_loading_leaves_no_stray_files_behind(example_checks: None, tmp_path: Path) -> None:
     (tmp_path / "r.yaml").write_text(
-        '- name: "r"\n  action: disable\n  codes: [AGE_NEGATIVE]\n  match: all\n', encoding="utf-8"
+        '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [AGE_NEGATIVE]\n  match: all\n', encoding="utf-8"
     )
     load_overrides([str(tmp_path / "r.yaml")])
     assert [p.name for p in tmp_path.iterdir()] == ["r.yaml"]
@@ -159,17 +160,18 @@ def test_a_check_file_written_at_runtime_is_loaded_by_path(fresh_registry: None,
 
     added = tmp_path / "check_added.py"
     added.write_text(
-        "from jobcheck.registry import register_check\n\n\n"
+        "from jobcheck.registry import register_check\n"
+        "from jobcheck.results import CheckResult\n\n\n"
         '@register_check(code="ADDED_AT_RUNTIME", message="added")\n'
         "def check(row):\n"
-        "    return row['age'] != 99\n",
+        "    return CheckResult(row['age'] != 99)\n",
         encoding="utf-8",
     )
     load_checks([str(added)])
     results = validate_row(pd.Series({"age": 99}))
 
     assert [r.code for r in results] == ["ADDED_AT_RUNTIME"]
-    assert reg.loaded_files() == [str(added.resolve())]
+    assert reg.loaded_check_files() == [str(added.resolve())]
 
 
 def test_source_file_of_a_shipped_check_exists_on_disk(example_checks: None) -> None:
@@ -218,7 +220,7 @@ def test_explaining_a_row_agrees_with_the_report(example_checks: None) -> None:
         flagged = lines[lines["is_root_cause"]]
         # Every root cause is flagged, and nothing else is.
         assert sorted(flagged["code"]) == sorted(causes)
-        assert root_cause(explain_row(DEMO.iloc[position])) is not None
+        assert first_cause(explain_row(DEMO.iloc[position])) is not None
 
 
 def test_a_rule_file_changes_the_same_report(example_checks: None) -> None:
@@ -226,7 +228,7 @@ def test_a_rule_file_changes_the_same_report(example_checks: None) -> None:
 
     unrestricted = build_report(validate(DEMO), df=DEMO, key_column="id")
     suppressed = build_report(
-        validate(DEMO, overrides=load_overrides("examples/rules/error_overrides.yaml")),
+        validate(DEMO, overrides=load_overrides(["examples/rules/error_overrides.yaml"])),
         df=DEMO, key_column="id",
     )
     assert len(suppressed) <= len(unrestricted)

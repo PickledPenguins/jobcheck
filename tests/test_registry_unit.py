@@ -10,6 +10,7 @@ import pytest
 from conftest import EXAMPLE_CHECK_FILES, make_check
 from jobcheck import registry as reg
 from jobcheck import engine
+from jobcheck.results import CheckResult, PASS, Status
 
 pytestmark = pytest.mark.fast
 
@@ -20,18 +21,18 @@ def test_register_test_captures_code_and_message(fresh_registry: None) -> None:
     assert (check.code, check.message) == ("A_CODE", "A_CODE failed")
 
 
-def test_register_test_defaults_are_enabled_no_deps_no_description(fresh_registry: None) -> None:
+def test_register_test_defaults_are_enabled_with_no_dependencies(fresh_registry: None) -> None:
     make_check("A_CODE")
     check = reg.CHECKS[0]
-    assert (check.default_enabled, check.depends_on, check.description) == (True, [], "")
+    assert (check.default_enabled, check.depends_on) == (True, [])
 
 
 def test_register_test_returns_the_undecorated_function(fresh_registry: None) -> None:
     @reg.register_check(code="RETURNED", message="m")
-    def check(row: "pd.Series[Any]") -> bool:
-        return False
+    def check(row: "pd.Series[Any]") -> CheckResult:
+        return CheckResult(Status.INVALID)
 
-    assert check(pd.Series(dtype=object)) is False
+    assert bool(check(pd.Series(dtype=object))) is False
 
 
 def test_register_test_copies_depends_on_so_caller_list_cannot_mutate_it(fresh_registry: None) -> None:
@@ -93,7 +94,7 @@ def test_importing_the_package_alone_registers_nothing(fresh_registry: None) -> 
 def test_clear_registry_empties_the_checks_and_the_loaded_files(example_checks: None) -> None:
     reg.clear_registry()
     assert reg.CHECKS == []
-    assert reg.loaded_files() == []
+    assert reg.loaded_check_files() == []
 
 
 def test_clear_registry_then_load_checks_re_registers(fresh_registry: None) -> None:
@@ -225,17 +226,6 @@ def test_an_empty_string_prerequisite_is_refused(fresh_registry: None) -> None:
         reg.register_check(code="CODE", message="m", depends_on=[""])(lambda row: True)
 
 
-def test_the_description_reaches_the_registered_check(fresh_registry: None) -> None:
-    """It is the column a reader scans in the registry table, and nothing else
-    asserted that it survives registration."""
-
-    @reg.register_check(code="DESCRIBED", message="m", description="why this exists")
-    def described(row: Any) -> bool:
-        return True
-
-    assert reg.CHECKS[0].description == "why this exists"
-
-
 def test_two_required_keyword_arguments_are_both_named(fresh_registry: None) -> None:
     """The message lists them comma-separated; with one argument a broken
     separator is invisible."""
@@ -243,5 +233,5 @@ def test_two_required_keyword_arguments_are_both_named(fresh_registry: None) -> 
     with pytest.raises(ValueError) as excinfo:
         @reg.register_check(code="CODE", message="m")
         def check(row, *, low, high):  # type: ignore[no-untyped-def]
-            return True
+            return PASS
     assert "needs keyword argument(s) low, high that the engine cannot supply" in str(excinfo.value)

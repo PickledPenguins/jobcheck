@@ -1,6 +1,6 @@
 """Unit checks: loading check files by path, the only way checks are loaded.
 
-The behaviour a pipeline depends on is that a file written into a run directory
+The behavior a pipeline depends on is that a file written into a run directory
 can be loaded without being importable as a package, that loading it twice does
 nothing, and that a bad path is loud rather than silently empty.
 """
@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from jobcheck import registry as reg
+from jobcheck.results import CheckResult, PASS, Status
 
 pytestmark = pytest.mark.fast
 
@@ -38,7 +39,7 @@ def test_loads_a_file_by_path(fresh_registry: None, tmp_path: Path) -> None:
 
 
 def test_accepts_a_bare_string_as_one_path(fresh_registry: None, tmp_path: Path) -> None:
-    reg.load_checks(write_test_file(tmp_path, "checks.py", "SINGLE"))
+    reg.load_checks([write_test_file(tmp_path, "checks.py", "SINGLE")])
     assert [t.code for t in reg.CHECKS] == ["SINGLE"]
 
 
@@ -46,13 +47,13 @@ def test_loaded_files_records_resolved_paths_in_order(fresh_registry: None, tmp_
     first = write_test_file(tmp_path, "first.py", "FIRST")
     second = write_test_file(tmp_path, "second.py", "SECOND")
     reg.load_checks([first, second])
-    assert reg.loaded_files() == [str(Path(first).resolve()), str(Path(second).resolve())]
+    assert reg.loaded_check_files() == [str(Path(first).resolve()), str(Path(second).resolve())]
 
 
 def test_loaded_files_is_a_copy(fresh_registry: None, tmp_path: Path) -> None:
     reg.load_checks([write_test_file(tmp_path, "checks.py", "COPY")])
-    reg.loaded_files().append("invented")
-    assert len(reg.loaded_files()) == 1
+    reg.loaded_check_files().append("invented")
+    assert len(reg.loaded_check_files()) == 1
 
 
 def test_the_same_file_twice_in_one_call_is_loaded_once(fresh_registry: None, tmp_path: Path) -> None:
@@ -99,7 +100,7 @@ def test_a_file_that_raises_on_import_propagates(fresh_registry: None, tmp_path:
     path.write_text("raise RuntimeError('boom')\n")
     with pytest.raises(RuntimeError, match="boom"):
         reg.load_checks([str(path)])
-    assert reg.loaded_files() == []
+    assert reg.loaded_check_files() == []
 
 
 def test_a_file_that_raises_on_import_leaves_no_module_behind(
@@ -148,7 +149,7 @@ def test_clear_registry_forgets_loaded_files(fresh_registry: None, tmp_path: Pat
     path = write_test_file(tmp_path, "checks.py", "FORGOTTEN")
     reg.load_checks([path])
     reg.clear_registry()
-    assert reg.loaded_files() == []
+    assert reg.loaded_check_files() == []
 
 
 def test_a_file_can_be_loaded_again_after_clear_registry(fresh_registry: None, tmp_path: Path) -> None:
@@ -188,7 +189,7 @@ def test_a_file_python_cannot_import_says_so(fresh_registry: None, tmp_path: Pat
     # A path that exists but has no importer -- the likely mistake being a rule
     # file passed where a check file was meant.
     path = tmp_path / "rules.yaml"
-    path.write_text("- name: r\n")
+    path.write_text("- name: r\n  message: \"why the rule exists\"\n")
     with pytest.raises(ValueError, match="as a Python file"):
         reg.load_checks([str(path)])
 
@@ -270,4 +271,17 @@ def test_a_file_that_registers_nothing_can_still_be_loaded_again(fresh_registry:
 
     reg.clear_registry()
     assert name not in sys.modules
-    assert reg.loaded_files() == []
+    assert reg.loaded_check_files() == []
+
+
+def test_a_bare_string_path_is_refused_by_load_checks(fresh_registry: None) -> None:
+    """A string is a list of its characters, so iterating one loads nothing and
+    reports a missing file named 'c'. Say what to pass instead."""
+
+    with pytest.raises(TypeError, match=r"load_checks takes a list of paths"):
+        reg.load_checks("checks.py")  # type: ignore[arg-type]
+
+
+def test_a_bare_string_path_is_refused_by_load_overrides(fresh_registry: None) -> None:
+    with pytest.raises(TypeError, match=r"load_overrides takes a list of paths"):
+        reg.load_overrides("rules.yaml")  # type: ignore[arg-type]

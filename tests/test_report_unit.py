@@ -13,7 +13,7 @@ from jobcheck import registry as reg
 from jobcheck import results as res
 from jobcheck import report as rep
 from jobcheck import validate
-from jobcheck.results import Status, CheckResult
+from jobcheck.results import PASS, Status, CheckResult
 
 pytestmark = pytest.mark.fast
 
@@ -32,7 +32,7 @@ def two_layers(fresh_registry: None) -> None:
 
     @reg.register_check(code="AGE_PRESENT", message="Age is missing")
     def age_present(row: "pd.Series[Any]") -> Any:
-        return True if row["age"] is not None and not pd.isna(row["age"]) else Status.MISSING
+        return PASS if row["age"] is not None and not pd.isna(row["age"]) else CheckResult(Status.MISSING)
 
     @reg.register_check(code="AGE_IN_RANGE", message="Age is out of range",
                        depends_on=["AGE_PRESENT"])
@@ -41,11 +41,17 @@ def two_layers(fresh_registry: None) -> None:
             return CheckResult(Status.INVALID, {"maximum": 130, "actual": row["age"]})
         if row["age"] < 0:
             return CheckResult(Status.INVALID, {"minimum": 0, "actual": row["age"]})
-        return True
+        return PASS
 
 
 def outcomes(df: pd.DataFrame = FRAME) -> list[list[res.CheckOutcome]]:
     return validate(df)
+
+
+def report_for(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+    """Build a report for a frame the test made up on the spot."""
+
+    return rep.build_report(validate(df), df=df, **kwargs)
 
 
 # --- collection -------------------------------------------------------------
@@ -59,7 +65,7 @@ def test_validate_returns_one_list_per_row(two_layers: None) -> None:
 
 def test_validate_passes_overrides_through(two_layers: None) -> None:
     rule = reg.OverrideRule(name="off", action="disable", codes=["AGE_IN_RANGE"],
-                            criteria=[], match_all=True)
+                            criteria=[], match_all=True, message="why the rule exists")
     collected = validate(FRAME, overrides=[rule])
     assert {o.outcome for row in collected for o in row if o.code == "AGE_IN_RANGE"} == {"disabled"}
 
@@ -81,7 +87,7 @@ def test_the_report_has_one_row_per_failure(two_layers: None) -> None:
 
 
 def test_a_clean_frame_produces_an_empty_report_with_columns(two_layers: None) -> None:
-    report = rep.build_report(outcomes(pd.DataFrame([{"id": 1, "age": 30}])))
+    report = report_for(pd.DataFrame([{"id": 1, "age": 30}]))
     assert report.empty
     assert list(report.columns) == rep.REPORT_COLUMNS
 
@@ -100,7 +106,7 @@ def test_two_failures_at_the_same_layer_are_both_root_causes(fresh_registry: Non
 
     make_check("FIRST", passes=False)
     make_check("SECOND", passes=False)
-    report = rep.build_report(outcomes(pd.DataFrame([{"age": 1}])))
+    report = report_for(pd.DataFrame([{"age": 1}]))
     assert list(report["is_root_cause"]) == [True, True]
 
 
@@ -108,7 +114,7 @@ def test_a_failure_below_another_is_not_a_root_cause(fresh_registry: None) -> No
     make_check("PARENT")
     make_check("FIRST", passes=False)
     make_check("CHILD", passes=False, depends_on=["PARENT"])
-    report = rep.build_report(outcomes(pd.DataFrame([{"age": 1}])))
+    report = report_for(pd.DataFrame([{"age": 1}]))
     flagged = dict(zip(report["code"], report["is_root_cause"]))
     assert flagged == {"FIRST": True, "CHILD": False}
 
@@ -125,13 +131,7 @@ def test_a_missing_key_value_is_labelled_rather_than_rendered_as_nan(two_layers:
 
 
 def test_without_a_frame_rows_are_numbered_by_position(two_layers: None) -> None:
-    assert list(rep.build_report(outcomes())["row"]) == ["1", "2"]
-
-
-def test_a_composite_key_joins_its_parts(two_layers: None) -> None:
-    frame = pd.DataFrame([{"id": 101, "batch": "B1", "age": -5}])
-    report = rep.build_report(validate(frame), df=frame, key_column=["batch", "id"])
-    assert list(report["row"]) == ["B1|101"]
+    assert list(rep.build_report(outcomes(), df=FRAME)["row"]) == ["1", "2"]
 
 
 def test_a_whole_float_key_loses_its_decimal(two_layers: None) -> None:
@@ -143,13 +143,8 @@ def test_a_whole_float_key_loses_its_decimal(two_layers: None) -> None:
 
 
 def test_an_unknown_key_column_is_rejected(two_layers: None) -> None:
-    with pytest.raises(ValueError, match=r"key_column \['nope'\] is not in the data"):
+    with pytest.raises(ValueError, match=r"key_column 'nope' is not in the data"):
         rep.build_report(outcomes(), df=FRAME, key_column="nope")
-
-
-def test_a_key_column_without_a_frame_is_rejected(two_layers: None) -> None:
-    with pytest.raises(ValueError, match="key_column needs the frame"):
-        rep.build_report(outcomes(), key_column="id")
 
 
 def test_a_frame_of_the_wrong_length_is_rejected(two_layers: None) -> None:
@@ -160,22 +155,22 @@ def test_a_frame_of_the_wrong_length_is_rejected(two_layers: None) -> None:
 # --- data columns -----------------------------------------------------------
 
 
-def test_data_columns_sit_between_the_row_key_and_the_code(two_layers: None) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id", data_columns=["age"])
+def test_extra_columns_sit_between_the_row_key_and_the_code(two_layers: None) -> None:
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id", extra_columns=["age"])
     assert list(report.columns) == ["row", "age", *rep.REPORT_COLUMNS[1:]]
 
 
-def test_data_columns_keep_the_order_they_were_given(two_layers: None) -> None:
+def test_extra_columns_keep_the_order_they_were_given(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": 1, "age": -5, "batch": "B1", "region": "EU"}])
     report = rep.build_report(validate(frame), df=frame, key_column="id",
-                              data_columns=["region", "batch"])
+                              extra_columns=["region", "batch"])
     assert list(report.columns)[:3] == ["row", "region", "batch"]
 
 
 def test_a_data_column_repeats_on_every_failure_of_its_row(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": 1, "age": -5, "batch": "B1"}])
     report = rep.build_report(validate(frame), df=frame, key_column="id",
-                              data_columns=["batch"])
+                              extra_columns=["batch"])
     assert list(report["batch"]) == ["B1"]
 
 
@@ -184,50 +179,45 @@ def test_data_column_values_render_like_the_row_key(two_layers: None) -> None:
 
     frame = pd.DataFrame([{"id": 1, "age": -5, "batch": 7.0, "region": None}])
     report = rep.build_report(validate(frame), df=frame, key_column="id",
-                              data_columns=["batch", "region"])
+                              extra_columns=["batch", "region"])
     assert list(report["batch"]) == ["7"]
     assert list(report["region"]) == [""]
 
 
-def test_data_columns_reach_the_csv_too(two_layers: None) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id", data_columns=["age"])
+def test_extra_columns_reach_the_csv_too(two_layers: None) -> None:
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id", extra_columns=["age"])
     assert rep.render_report(report, fmt="csv").splitlines()[0].startswith("row,age,code")
 
 
-def test_data_columns_work_without_a_key_column(two_layers: None) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, data_columns=["age"])
+def test_extra_columns_work_without_a_key_column(two_layers: None) -> None:
+    report = rep.build_report(outcomes(), df=FRAME, extra_columns=["age"])
     assert list(report.columns)[:2] == ["row", "age"]
 
 
 def test_an_empty_data_columns_list_changes_nothing(two_layers: None) -> None:
-    assert list(rep.build_report(outcomes(), df=FRAME, data_columns=[]).columns) == \
+    assert list(rep.build_report(outcomes(), df=FRAME, extra_columns=[]).columns) == \
         rep.REPORT_COLUMNS
 
 
 def test_an_unknown_data_column_is_rejected(two_layers: None) -> None:
-    with pytest.raises(ValueError, match=r"data_columns \['nope'\] cannot be used"):
-        rep.build_report(outcomes(), df=FRAME, data_columns=["nope"])
-
-
-def test_data_columns_without_a_frame_are_rejected(two_layers: None) -> None:
-    with pytest.raises(ValueError, match="data_columns names columns in the frame"):
-        rep.build_report(outcomes(), data_columns=["age"])
+    with pytest.raises(ValueError, match=r"extra_columns \['nope'\] cannot be used"):
+        rep.build_report(outcomes(), df=FRAME, extra_columns=["nope"])
 
 
 def test_a_repeated_data_column_is_rejected(two_layers: None) -> None:
-    with pytest.raises(ValueError, match=r"data_columns \['age'\] cannot be used"):
-        rep.build_report(outcomes(), df=FRAME, data_columns=["age", "age"])
+    with pytest.raises(ValueError, match=r"extra_columns \['age'\] cannot be used"):
+        rep.build_report(outcomes(), df=FRAME, extra_columns=["age", "age"])
 
 
 def test_a_duplicated_frame_column_is_rejected_rather_than_misread(two_layers: None) -> None:
-    """Regression: df[data_columns] returns one value per matching column, so a
+    """Regression: df[extra_columns] returns one value per matching column, so a
     duplicated label produced more values than names and zip paired them by
     position -- the second 'batch' value printed under the 'age' heading."""
 
     frame = pd.DataFrame([[1, "A", "B", -5]], columns=["id", "batch", "batch", "age"])
     outs = validate(pd.DataFrame([{"id": 1, "age": -5}]))
-    with pytest.raises(ValueError, match=r"data_columns \['batch'\] cannot be used"):
-        rep.build_report(outs, df=frame, key_column="id", data_columns=["batch", "age"])
+    with pytest.raises(ValueError, match=r"extra_columns \['batch'\] cannot be used"):
+        rep.build_report(outs, df=frame, key_column="id", extra_columns=["batch", "age"])
 
 
 def test_a_duplicate_elsewhere_in_the_frame_does_not_block_other_columns(
@@ -235,7 +225,7 @@ def test_a_duplicate_elsewhere_in_the_frame_does_not_block_other_columns(
 ) -> None:
     frame = pd.DataFrame([[1, "A", "B", -5]], columns=["id", "batch", "batch", "age"])
     outs = validate(pd.DataFrame([{"id": 1, "age": -5}]))
-    report = rep.build_report(outs, df=frame, key_column="id", data_columns=["age"])
+    report = rep.build_report(outs, df=frame, key_column="id", extra_columns=["age"])
     assert list(report["age"]) == ["-5"]
 
 
@@ -243,38 +233,38 @@ def test_a_data_column_colliding_with_a_report_column_is_rejected(two_layers: No
     """Silently overwriting the report's own column would hide the failure."""
 
     frame = pd.DataFrame([{"id": 1, "age": -5, "code": "SOURCE-1"}])
-    with pytest.raises(ValueError, match=r"data_columns \['code'\] cannot be used"):
+    with pytest.raises(ValueError, match=r"extra_columns \['code'\] cannot be used"):
         rep.build_report(validate(frame), df=frame, key_column="id",
-                         data_columns=["code"])
+                         extra_columns=["code"])
 
 
 def test_the_key_column_may_also_be_shown_as_a_data_column(two_layers: None) -> None:
     """Nothing stops it, and it is a reasonable thing to want when the key is
     also a value worth reading."""
 
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id", data_columns=["id"])
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id", extra_columns=["id"])
     assert list(report["row"]) == list(report["id"])
 
 
 def test_include_skipped_adds_the_blocked_tests_with_their_reason(two_layers: None) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id", include_skipped=True)
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id", include="blocked")
     skipped = report[report["outcome"] == "skipped"]
     assert list(skipped["code"]) == ["AGE_IN_RANGE"]
-    assert list(skipped["comments"]) == ["prerequisite did not pass: AGE_PRESENT"]
+    assert list(skipped["detail"]) == ["prerequisite did not pass: AGE_PRESENT"]
 
 
 def test_include_passed_turns_the_report_into_an_audit_trail(two_layers: None) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id", include_passed=True)
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id", include="all")
     assert len(report) == 6
     assert set(report["outcome"]) == {"passed", "failed", "skipped"}
 
 
 def test_an_errored_test_appears_in_the_report(fresh_registry: None) -> None:
     make_check("BOOM", raises=RuntimeError("boom"))
-    report = rep.build_report(outcomes(pd.DataFrame([{"age": 1}])))
+    report = report_for(pd.DataFrame([{"age": 1}]))
     assert list(report["outcome"]) == ["errored"]
     assert list(report["status"]) == ["ERROR (9)"]
-    assert list(report["comments"]) == ["RuntimeError: boom"]
+    assert list(report["detail"]) == ["RuntimeError: boom"]
 
 
 # --- rendering --------------------------------------------------------------
@@ -305,7 +295,7 @@ def test_the_csv_format_round_trips(two_layers: None) -> None:
 
 def test_an_unknown_format_is_rejected(two_layers: None) -> None:
     with pytest.raises(ValueError, match="fmt must be 'table' or 'csv', got 'json'"):
-        rep.render_report(rep.build_report(outcomes()), fmt="json")
+        rep.render_report(rep.build_report(outcomes(), df=FRAME), fmt="json")
 
 
 def test_write_report_writes_what_render_report_returns(two_layers: None, tmp_path: Path) -> None:
@@ -334,7 +324,7 @@ def test_print_report_prints_the_rendered_table(
 def test_print_report_says_so_when_nothing_failed(
     two_layers: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    rep.print_report(rep.build_report(outcomes(pd.DataFrame([{"id": 1, "age": 30}]))))
+    rep.print_report(report_for(pd.DataFrame([{"id": 1, "age": 30}])))
     assert capsys.readouterr().out == "No failures.\n"
 
 
@@ -348,7 +338,7 @@ def test_row_explanation_lists_every_test_in_order(two_layers: None) -> None:
 
 
 def test_only_relevant_hides_the_tests_that_passed(two_layers: None) -> None:
-    table = rep.row_explanation(outcomes()[1], only_relevant=True)
+    table = rep.row_explanation(outcomes()[1], include="blocked")
     assert list(table["code"]) == ["AGE_IN_RANGE"]
 
 
@@ -367,17 +357,17 @@ def test_print_row_explanation_says_when_the_row_passed(
 
 
 def test_the_summary_counts_every_status(two_layers: None) -> None:
-    table = rep.summarise_outcomes(outcomes()).set_index("code")
+    table = rep.summarize_outcomes(outcomes()).set_index("code")
     assert list(table.loc["AGE_PRESENT"]) == [0, 1, 0, 0, 0, 2]
     assert list(table.loc["AGE_IN_RANGE"]) == [1, 1, 0, 1, 0, 1]
 
 
 def test_the_summary_puts_the_worst_test_first(two_layers: None) -> None:
-    assert set(rep.summarise_outcomes(outcomes())["code"][:2]) == {"AGE_IN_RANGE", "AGE_PRESENT"}
+    assert set(rep.summarize_outcomes(outcomes())["code"][:2]) == {"AGE_IN_RANGE", "AGE_PRESENT"}
 
 
 def test_the_summary_of_nothing_has_columns_and_no_rows(fresh_registry: None) -> None:
-    table = rep.summarise_outcomes([])
+    table = rep.summarize_outcomes([])
     assert table.empty
     assert list(table.columns) == [
         "code", "layer", "failed", "errored", "skipped", "disabled", "passed"
@@ -432,21 +422,29 @@ def test_validate_hands_each_row_the_context_its_builder_returned(
 ) -> None:
     """The context_builder is the adopter's one hook, so its result has to arrive.
 
-    Written against a surviving mutant: passing ``ctx=None`` instead of
+    Written against a surviving mutant: passing ``context=None`` instead of
     ``context_builder(row)`` broke nothing any check asserted.
     """
 
     from jobcheck import FAILED, PASS, PASSED, RowContext
 
+    # A plain subclass rather than a nested dataclass: fresh_registry evicts the
+    # test module from sys.modules, and @dataclass resolves annotations through
+    # it when the class is built inside a function.
+    class Allowed(RowContext):
+        def __init__(self, allowed: bool) -> None:
+            self.allowed = allowed
+
     @reg.register_check(code="NEEDS_CTX", message="the context said no")
-    def check(row: "pd.Series[Any]", ctx: "RowContext | None") -> CheckResult:
-        if ctx is None:
-            return CheckResult(Status.INVALID, {"ctx": "missing"})
-        return PASS if ctx.flags.get("allowed") else CheckResult(Status.INVALID, ctx.flags)
+    def check(row: "pd.Series[Any]", context: "RowContext | None") -> CheckResult:
+        if context is None:
+            return CheckResult(Status.INVALID, {"context": "missing"})
+        allowed = getattr(context, "allowed", False)
+        return PASS if allowed else CheckResult(Status.INVALID, {"allowed": allowed})
 
     frame = pd.DataFrame([{"id": 1, "allow": True}, {"id": 2, "allow": False}])
     outcomes = validate(
-        frame, context_builder=lambda row: RowContext(flags={"allowed": bool(row["allow"])})
+        frame, context_builder=lambda row: Allowed(allowed=bool(row["allow"]))
     )
     assert [o[0].outcome for o in outcomes] == [PASSED, FAILED]
     assert outcomes[1][0].comments == {"allowed": False}
@@ -486,7 +484,7 @@ def formula_report(fresh: None) -> pd.DataFrame:
     make_check("CELL", passes=False)
     frame = pd.DataFrame([{"id": 1, "name": "=SUM(A1:A9)"}])
     return rep.build_report(validate(frame), df=frame, key_column="id",
-                            data_columns=["name"])
+                            extra_columns=["name"])
 
 
 def test_a_written_report_escapes_formulas_by_default(fresh_registry: None,
@@ -494,15 +492,6 @@ def test_a_written_report_escapes_formulas_by_default(fresh_registry: None,
     path = tmp_path / "report.csv"
     rep.write_report(formula_report(fresh_registry), str(path))
     assert "'=SUM(A1:A9)" in path.read_text(encoding="utf-8")
-
-
-def test_escaping_can_be_turned_off_for_a_machine_reader(fresh_registry: None,
-                                                         tmp_path: Path) -> None:
-    path = tmp_path / "report.csv"
-    rep.write_report(formula_report(fresh_registry), str(path), escape_formulas=False)
-    text = path.read_text(encoding="utf-8")
-    assert "=SUM(A1:A9)" in text
-    assert "'=SUM" not in text
 
 
 def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> None:
@@ -529,7 +518,7 @@ def test_printing_a_report_wraps_the_message_column(fresh_registry: None,
 # --- root causes, and keys that identify a row ------------------------------
 
 
-def two_independent_failures(fresh: None) -> list[list[Any]]:
+def two_independent_failures(fresh: None) -> tuple[list[list[Any]], pd.DataFrame]:
     """A row failing two chains: one deep, one shallow, deep registered first."""
 
     make_check("P")
@@ -537,49 +526,32 @@ def two_independent_failures(fresh: None) -> list[list[Any]]:
     make_check("DEEP", passes=False, depends_on=["Q"])
     make_check("SHALLOW_A", passes=False)
     make_check("SHALLOW_B", passes=False)
-    return validate(pd.DataFrame([{"id": 1}]))
+    frame = pd.DataFrame([{"id": 1}])
+    return validate(frame), frame
 
 
 def test_every_failure_at_the_shallowest_layer_is_a_root_cause(fresh_registry: None) -> None:
     """Two failures at the same depth are two root causes, not a race between them."""
 
-    outcomes = two_independent_failures(fresh_registry)
-    report = rep.build_report(outcomes)
+    outcomes, frame = two_independent_failures(fresh_registry)
+    report = rep.build_report(outcomes, df=frame)
     flagged = set(report.loc[report["is_root_cause"], "code"])
     assert flagged == {"SHALLOW_A", "SHALLOW_B"}
 
 
 def test_a_deeper_failure_is_not_a_root_cause(fresh_registry: None) -> None:
-    outcomes = two_independent_failures(fresh_registry)
-    report = rep.build_report(outcomes)
+    outcomes, frame = two_independent_failures(fresh_registry)
+    report = rep.build_report(outcomes, df=frame)
     assert not report.loc[report["code"] == "DEEP", "is_root_cause"].any()
 
 
 def test_the_root_cause_is_not_always_the_first_line(fresh_registry: None) -> None:
     """The claim the docstring used to make, pinned as false so it stays fixed."""
 
-    outcomes = two_independent_failures(fresh_registry)
-    report = rep.build_report(outcomes)
+    outcomes, frame = two_independent_failures(fresh_registry)
+    report = rep.build_report(outcomes, df=frame)
     assert report.iloc[0]["code"] == "DEEP"
     assert report.iloc[0]["is_root_cause"] is False or not report.iloc[0]["is_root_cause"]
-
-
-def test_a_key_column_holding_the_separator_is_refused(fresh_registry: None) -> None:
-    """('a|b','c') and ('a','b|c') would both render `a|b|c`, hiding a row."""
-
-    make_check("FAILS", passes=False)
-    frame = pd.DataFrame([{"k1": "a|b", "k2": "c"}])
-    with pytest.raises(ValueError, match=r"hold the '\|' that joins a multi-column key"):
-        rep.build_report(validate(frame), df=frame, key_column=["k1", "k2"])
-
-
-def test_the_offending_row_and_column_are_named(fresh_registry: None) -> None:
-    make_check("FAILS", passes=False)
-    frame = pd.DataFrame([{"k1": "fine", "k2": "ok"}, {"k1": "fine", "k2": "b|c"}])
-    with pytest.raises(ValueError) as raised:
-        rep.build_report(validate(frame), df=frame, key_column=["k1", "k2"])
-    assert "Row 1" in str(raised.value)
-    assert "['k2']" in str(raised.value)
 
 
 def test_a_single_key_column_may_hold_the_separator(fresh_registry: None) -> None:
@@ -591,8 +563,13 @@ def test_a_single_key_column_may_hold_the_separator(fresh_registry: None) -> Non
     assert list(report["row"]) == ["a|b"]
 
 
-def test_multi_column_keys_join_with_a_pipe(fresh_registry: None) -> None:
-    make_check("FAILS", passes=False)
-    frame = pd.DataFrame([{"k1": "a", "k2": "c"}])
-    report = rep.build_report(validate(frame), df=frame, key_column=["k1", "k2"])
-    assert list(report["row"]) == ["a|c"]
+
+
+def test_an_unknown_include_level_names_the_levels(two_layers: None) -> None:
+    with pytest.raises(ValueError, match="include must be one of failures, blocked, all"):
+        rep.build_report(outcomes(), df=FRAME, include="everything")
+
+
+def test_row_explanation_rejects_an_unknown_include_level(two_layers: None) -> None:
+    with pytest.raises(ValueError, match="include must be one of"):
+        rep.row_explanation(outcomes()[0], include="everything")

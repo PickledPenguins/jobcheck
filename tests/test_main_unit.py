@@ -122,7 +122,7 @@ def test_a_rule_naming_a_column_the_data_lacks_warns_on_stderr(fresh_registry: N
     """The rule still loads: it simply cannot fire, which is a warning, not an error."""
 
     rules = tmp_path / "rules.yaml"
-    rules.write_text("- name: needs_a_missing_column\n  action: disable\n"
+    rules.write_text("- name: needs_a_missing_column\n  message: \"why the rule exists\"\n  action: disable\n"
                      "  codes: [AGE_NEGATIVE]\n  match:\n"
                      "    - column: not_a_column\n      pattern: 'x'\n")
     main.main(["--data", SMALL, "--rules", str(rules)])
@@ -139,4 +139,4 @@ def test_rules_with_no_paths_loads_none(fresh_registry: None, capsys: Any) -> No
 
 def test_the_csv_report_format_is_comma_separated(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys, "--data", SMALL, "--report", "csv")
-    assert "row,code,status,layer,outcome,message,comments,is_root_cause" in out
+    assert "row,code,status,layer,outcome,message,detail,comments,is_root_cause" in out

@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from conftest import make_check, one_row_report
+from conftest import enabled_only, make_check, one_row_report
 from jobcheck import registry as reg
 from jobcheck import tables
 from jobcheck import engine
@@ -33,58 +33,58 @@ def one_code(fresh_registry: None) -> None:
 
 
 def test_invalid_yaml_raises_a_yaml_error(one_code: None, tmp_path: Path) -> None:
-    path = write(tmp_path, "bad.yaml", "- name: [unclosed\n")
+    path = write(tmp_path, "bad.yaml", "- name: [unclosed\n  message: \"why the rule exists\"\n")
     with pytest.raises(yaml.YAMLError):
-        reg.load_overrides(path)
+        reg.load_overrides([path])
 
 
 def test_yaml_that_is_only_a_comment_yields_no_rules(one_code: None, tmp_path: Path) -> None:
-    assert reg.load_overrides(write(tmp_path, "c.yaml", "# nothing here\n")) == []
+    assert reg.load_overrides([write(tmp_path, "c.yaml", "# nothing here\n")]) == []
 
 
 def test_yaml_null_document_yields_no_rules(one_code: None, tmp_path: Path) -> None:
-    assert reg.load_overrides(write(tmp_path, "n.yaml", "null\n")) == []
+    assert reg.load_overrides([write(tmp_path, "n.yaml", "null\n")]) == []
 
 
 def test_a_list_of_nulls_is_rejected_as_a_non_mapping_rule(one_code: None, tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="each rule must be a mapping, got NoneType."):
-        reg.load_overrides(write(tmp_path, "n.yaml", "- \n- \n"))
+        reg.load_overrides([write(tmp_path, "n.yaml", "- \n- \n")])
 
 
 def test_directory_passed_where_a_file_is_expected(one_code: None, tmp_path: Path) -> None:
     with pytest.raises(IsADirectoryError):
-        reg.load_overrides(str(tmp_path))
+        reg.load_overrides([str(tmp_path)])
 
 
 def test_utf8_content_survives_the_round_trip(one_code: None, tmp_path: Path) -> None:
     path = write(
         tmp_path, "u.yaml",
-        '- name: "rÃ¨gle_Ã©tÃ©"\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
+        '- name: "rÃ¨gle_Ã©tÃ©"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
     )
-    assert reg.load_overrides(path)[0].name == "rÃ¨gle_Ã©tÃ©"
+    assert reg.load_overrides([path])[0].name == "rÃ¨gle_Ã©tÃ©"
 
 
 def test_a_pattern_matching_a_unicode_value(fresh_registry: None, tmp_path: Path) -> None:
     make_check("A_CODE")
     path = write(
         tmp_path, "u.yaml",
-        '- name: "r"\n  action: disable\n  codes: [A_CODE]\n'
+        '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n'
         '  match:\n    - column: city\n      pattern: "^MÃ¼nchen$"\n',
     )
-    rules = reg.load_overrides(path)
-    assert engine.resolve_enabled_state(pd.Series({"city": "MÃ¼nchen"}), rules)["A_CODE"] is False
+    rules = reg.load_overrides([path])
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"city": "MÃ¼nchen"}), rules))["A_CODE"] is False
 
 
 def test_a_thousand_rules_load_and_the_last_wins(fresh_registry: None, tmp_path: Path) -> None:
     make_check("A_CODE")
     body = "".join(
-        f'- name: "rule_{i:04d}"\n  action: {"enable" if i % 2 == 0 else "disable"}\n'
+        f'- name: "rule_{i:04d}"\n  message: \"why the rule exists\"\n  action: {"enable" if i % 2 == 0 else "disable"}\n'
         f"  codes: [A_CODE]\n  match: all\n"
         for i in range(1000)
     )
-    rules = reg.load_overrides(write(tmp_path, "many.yaml", body))
+    rules = reg.load_overrides([write(tmp_path, "many.yaml", body)])
     assert len(rules) == 1000
-    assert engine.resolve_enabled_state(pd.Series({"age": 1}), rules)["A_CODE"] is False
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"age": 1}), rules))["A_CODE"] is False
 
 
 # --- hostile rows -----------------------------------------------------------
@@ -132,10 +132,9 @@ def test_a_very_long_string_value_is_matched_not_truncated(fresh_registry: None)
     make_check("A_CODE")
     rule = reg.OverrideRule(
         name="r", action="disable", codes=["A_CODE"],
-        criteria=[reg.MatchCriterion("email", "end$", re.compile("end$"))], match_all=False,
-    )
+        criteria=[reg.MatchCriterion("email", "end$", re.compile("end$"))], match_all=False, message="why the rule exists")
     row = pd.Series({"email": "x" * 100_000 + "end"})
-    assert engine.resolve_enabled_state(row, [rule])["A_CODE"] is False
+    assert enabled_only(engine.resolve_enabled_state(row, [rule]))["A_CODE"] is False
 
 
 def test_a_test_that_raises_is_recorded_as_an_error_not_a_pass(fresh_registry: None) -> None:
@@ -284,21 +283,6 @@ def test_a_hundred_comment_keys_render_in_sorted_order(fresh_registry: None) -> 
     assert rendered.count(";") == 99
 
 
-def test_a_key_column_value_containing_the_separator_is_refused(
-    fresh_registry: None,
-) -> None:
-    """Composite keys join with '|', so a value containing one is ambiguous:
-    ("A|B", 1) and ("A", "B|1") would render the same label. The report refuses
-    rather than producing two rows nobody can tell apart."""
-
-    from jobcheck import build_report, validate
-
-    make_check("FAILS", passes=False)
-    frame = pd.DataFrame([{"batch": "A|B", "id": 1}])
-    with pytest.raises(ValueError, match="joins a multi-column key"):
-        build_report(validate(frame), df=frame, key_column=["batch", "id"])
-
-
 def test_a_frame_with_duplicate_column_labels_fails_on_the_first_row(
     fresh_registry: None,
 ) -> None:
@@ -311,11 +295,11 @@ def test_a_frame_with_duplicate_column_labels_fails_on_the_first_row(
 
 
 def test_an_empty_frame_produces_an_empty_report(fresh_registry: None) -> None:
-    from jobcheck import build_report, validate, summarise_outcomes
+    from jobcheck import build_report, validate, summarize_outcomes
 
     make_check("CODE")
     frame = pd.DataFrame(columns=["age"])
     outcomes = validate(frame)
     assert outcomes == []
     assert build_report(outcomes, df=frame).empty
-    assert summarise_outcomes(outcomes).empty
+    assert summarize_outcomes(outcomes).empty

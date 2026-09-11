@@ -68,13 +68,13 @@ def render_all() -> dict[str, str]:
 
     clear_registry()
     load_checks([str(ROOT / path) for path in CHECK_FILES])
-    overrides = load_overrides(str(ROOT / RULE_FILE))
+    overrides = load_overrides([str(ROOT / RULE_FILE)])
     df = frame()
     outcomes = validate(df, overrides=overrides)
     report = build_report(outcomes, df=df, key_column="id")
-    with_skipped = build_report(outcomes, df=df, key_column="id", include_skipped=True)
+    with_skipped = build_report(outcomes, df=df, key_column="id", include="blocked")
     with_data = build_report(outcomes, df=df, key_column="id",
-                             data_columns=["source_system", "record_type", "age"])
+                             extra_columns=["source_system", "record_type", "age"])
 
     explanation = io.StringIO()
     with redirect_stdout(explanation):
@@ -88,7 +88,7 @@ def render_all() -> dict[str, str]:
         "report_table.txt": render_report(report) + "\n",
         "report.csv": render_report(report, fmt="csv"),
         "report_with_skipped.txt": render_report(with_skipped) + "\n",
-        "report_with_data_columns.txt": render_report(with_data) + "\n",
+        "report_with_extra_columns.txt": render_report(with_data) + "\n",
         "row_explanation.txt": explanation.getvalue(),
         "summary.txt": summary.getvalue(),
     }

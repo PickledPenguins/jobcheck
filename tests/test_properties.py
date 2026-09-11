@@ -21,7 +21,7 @@ hypothesis = pytest.importorskip("hypothesis")
 from hypothesis import HealthCheck, given, settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 
-from conftest import make_check  # noqa: E402
+from conftest import first_cause, make_check  # noqa: E402
 from jobcheck import registry as reg  # noqa: E402
 from jobcheck.results import PASSED  # noqa: E402
 from jobcheck import engine
@@ -89,7 +89,7 @@ def test_root_cause_is_always_the_shallowest_failure(
 
     outcomes = engine.explain_row(pd.Series({"age": 1}))
     failures = [outcome for outcome in outcomes if outcome.failed]
-    cause = engine.root_cause(outcomes)
+    cause = first_cause(outcomes)
 
     if not failures:
         assert cause is None

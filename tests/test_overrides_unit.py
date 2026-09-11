@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from conftest import make_check
+from conftest import enabled_only, make_check
 from jobcheck import registry as reg
 from jobcheck import engine
 from jobcheck import registry_tables
@@ -16,6 +16,7 @@ pytestmark = pytest.mark.fast
 
 GLOBAL_DISABLE = """
 - name: "kill_it"
+  message: "why the rule exists"
   action: disable
   codes: [A_CODE]
   match: all
@@ -37,28 +38,33 @@ def test_rule_fields_are_parsed(one_code: None, tmp_path: Path) -> None:
     path = write(
         tmp_path,
         "r.yaml",
-        '- name: "n"\n  description: "d"\n  action: enable\n  codes: [A_CODE]\n'
+        '- name: "n"\n  message: "d"\n  action: enable\n  codes: [A_CODE]\n'
         '  match:\n    - column: email\n      pattern: "x$"\n',
     )
-    rule = reg.load_overrides(path)[0]
-    assert (rule.name, rule.action, rule.codes, rule.description) == ("n", "enable", ["A_CODE"], "d")
+    rule = reg.load_overrides([path])[0]
+    assert (rule.name, rule.action, rule.codes, rule.message) == ("n", "enable", ["A_CODE"], "d")
     assert (rule.criteria[0].column, rule.criteria[0].pattern) == ("email", "x$")
     assert rule.match_all is False
 
 
 def test_match_all_sets_the_flag_and_leaves_criteria_empty(one_code: None, tmp_path: Path) -> None:
-    rule = reg.load_overrides(write(tmp_path, "r.yaml", GLOBAL_DISABLE))[0]
+    rule = reg.load_overrides([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])[0]
     assert rule.match_all is True
     assert rule.criteria == []
 
 
 def test_source_file_records_the_file_the_rule_came_from(one_code: None, tmp_path: Path) -> None:
     path = write(tmp_path, "rules.yaml", GLOBAL_DISABLE)
-    assert reg.load_overrides(path)[0].source_file == path
+    assert reg.load_overrides([path])[0].source_file == path
 
 
-def test_missing_description_defaults_to_empty(one_code: None, tmp_path: Path) -> None:
-    assert reg.load_overrides(write(tmp_path, "r.yaml", GLOBAL_DISABLE))[0].description == ""
+def test_a_rule_without_a_message_is_refused(one_code: None, tmp_path: Path) -> None:
+    """A rule nobody can justify is a rule nobody dares delete, so say why."""
+
+    body = '- name: "silent"\n  action: disable\n  codes: [A_CODE]\n  match: all\n'
+    with pytest.raises(ValueError) as excinfo:
+        reg.load_overrides([write(tmp_path, "r.yaml", body)])
+    assert "'message' must be the text saying why the rule exists" in str(excinfo.value)
 
 
 def test_an_unknown_key_is_rejected_rather_than_silently_ignored(
@@ -68,107 +74,107 @@ def test_an_unknown_key_is_rejected_rather_than_silently_ignored(
 
     path = write(tmp_path, "r.yaml", GLOBAL_DISABLE + "  bogus_key: 1\n")
     with pytest.raises(ValueError) as excinfo:
-        reg.load_overrides(path)
+        reg.load_overrides([path])
     assert "unknown key(s) bogus_key" in str(excinfo.value)
-    assert "Allowed: action, codes, description, match, name." in str(excinfo.value)
+    assert "Allowed: action, codes, match, message, name." in str(excinfo.value)
 
 
 def test_every_documented_key_is_accepted(one_code: None, tmp_path: Path) -> None:
     path = write(
         tmp_path, "r.yaml",
-        '- name: "full"\n  description: "d"\n  action: disable\n  codes: [A_CODE]\n'
+        '- name: "full"\n  message: "d"\n  action: disable\n  codes: [A_CODE]\n'
         "  match: all\n",
     )
-    assert reg.load_overrides(path)[0].description == "d"
+    assert reg.load_overrides([path])[0].message == "d"
 
 
 def test_empty_file_contributes_no_rules(one_code: None, tmp_path: Path) -> None:
-    assert reg.load_overrides(write(tmp_path, "empty.yaml", "")) == []
+    assert reg.load_overrides([write(tmp_path, "empty.yaml", "")]) == []
 
 
 def test_missing_file_raises_file_not_found(one_code: None, tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
-        reg.load_overrides(str(tmp_path / "absent.yaml"))
+        reg.load_overrides([str(tmp_path / "absent.yaml")])
 
 
 @pytest.mark.parametrize(
     "body, expected",
     [
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: []\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: []\n',
             "'match' is an empty list. Use 'match: all' if you really mean every row.",
             id="empty-match-list",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n',
             "missing 'match'. Use 'match: all' to apply the rule to every row.",
             id="missing-match",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: al\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: al\n',
             "'match' must be a list of criteria or the literal 'all', got 'al'.",
             id="match-typo",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: 7\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: 7\n',
             "'match' must be a list of criteria or the literal 'all', got int.",
             id="match-wrong-type",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: ["oops"]\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: ["oops"]\n',
             "each 'match' entry must be a mapping with 'column' and 'pattern'.",
             id="criterion-not-a-mapping",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match:\n    - column: email\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match:\n    - column: email\n',
             "'match' entry {'column': 'email'} needs both 'column' and 'pattern'.",
             id="criterion-missing-pattern",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match:\n'
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match:\n'
             "    - column: 7\n      pattern: \"x\"\n",
             "'column' and 'pattern' must both be strings in {'column': 7, 'pattern': 'x'}.",
             id="criterion-wrong-types",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match:\n'
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match:\n'
             '    - column: email\n      pattern: "([unclosed"\n',
             "invalid regex '([unclosed' for column 'email': unterminated character set at position 1",
             id="invalid-regex",
         ),
         pytest.param(
-            '- name: "r"\n  action: turn_on\n  codes: [A_CODE]\n  match: all\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: turn_on\n  codes: [A_CODE]\n  match: all\n',
             "'action' must be exactly 'enable' or 'disable', got 'turn_on'.",
             id="bad-action",
         ),
         pytest.param(
-            '- name: "r"\n  codes: [A_CODE]\n  match: all\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  codes: [A_CODE]\n  match: all\n',
             "'action' must be exactly 'enable' or 'disable', got None.",
             id="missing-action",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: []\n  match: all\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: []\n  match: all\n',
             "'codes' must be a non-empty list of code strings.",
             id="empty-codes",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: A_CODE\n  match: all\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: A_CODE\n  match: all\n',
             "'codes' must be a non-empty list of code strings.",
             id="codes-not-a-list",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [7]\n  match: all\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [7]\n  match: all\n',
             "'codes' must be a non-empty list of code strings.",
             id="codes-not-strings",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [NO_SUCH_CODE]\n  match: all\n',
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [NO_SUCH_CODE]\n  match: all\n',
             "unknown code 'NO_SUCH_CODE'. Load the check file that defines it before "
             "loading overrides, or fix the code.",
             id="unknown-code",
         ),
         pytest.param(
-            '- name: ""\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
+            '- name: ""\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
             "every rule needs a non-empty string 'name'.",
             id="empty-name",
         ),
@@ -178,9 +184,9 @@ def test_missing_file_raises_file_not_found(one_code: None, tmp_path: Path) -> N
             id="missing-name",
         ),
         pytest.param(
-            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n  description: 7\n',
-            "'description' must be a string.",
-            id="description-not-a-string",
+            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n  message: 7\n',
+            "'message' must be the text saying why the rule exists",
+            id="message-not-a-string",
         ),
         pytest.param(
             "- just_a_string\n",
@@ -199,7 +205,7 @@ def test_malformed_rule_is_rejected_at_load_time(
 ) -> None:
     path = write(tmp_path, "bad.yaml", body)
     with pytest.raises(ValueError) as excinfo:
-        reg.load_overrides(path)
+        reg.load_overrides([path])
     assert expected in str(excinfo.value)
     assert path in str(excinfo.value)
 
@@ -207,7 +213,7 @@ def test_malformed_rule_is_rejected_at_load_time(
 def test_duplicate_rule_name_within_one_file_is_rejected(one_code: None, tmp_path: Path) -> None:
     path = write(tmp_path, "dup.yaml", GLOBAL_DISABLE + GLOBAL_DISABLE)
     with pytest.raises(ValueError, match=r"Duplicate override rule name 'kill_it'"):
-        reg.load_overrides(path)
+        reg.load_overrides([path])
 
 
 def test_duplicate_rule_name_across_files_names_both_files(one_code: None, tmp_path: Path) -> None:
@@ -253,20 +259,20 @@ def test_load_overrides_spans_directories(one_code: None, tmp_path: Path) -> Non
 def test_list_rule_codes_returns_the_exact_codes(one_code: None, tmp_path: Path) -> None:
     make_check("B_CODE")
     path = write(
-        tmp_path, "r.yaml", '- name: "two"\n  action: disable\n  codes: [A_CODE, B_CODE]\n  match: all\n'
+        tmp_path, "r.yaml", '- name: "two"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE, B_CODE]\n  match: all\n'
     )
-    rules = reg.load_overrides(path)
+    rules = reg.load_overrides([path])
     assert registry_tables.list_rule_codes("two", rules) == ["A_CODE", "B_CODE"]
 
 
 def test_list_rule_codes_prints_the_rule(one_code: None, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    rules = reg.load_overrides(write(tmp_path, "r.yaml", GLOBAL_DISABLE))
+    rules = reg.load_overrides([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
     registry_tables.list_rule_codes("kill_it", rules)
     assert capsys.readouterr().out == "kill_it (disable) -> A_CODE\n"
 
 
 def test_list_rule_codes_unknown_name_lists_what_is_loaded(one_code: None, tmp_path: Path) -> None:
-    rules = reg.load_overrides(write(tmp_path, "r.yaml", GLOBAL_DISABLE))
+    rules = reg.load_overrides([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
     with pytest.raises(ValueError) as excinfo:
         registry_tables.list_rule_codes("nope", rules)
     assert str(excinfo.value) == "No override rule named 'nope'. Loaded rules: kill_it"
@@ -282,27 +288,27 @@ def test_list_rule_codes_with_no_rules_loaded_says_so(one_code: None) -> None:
 
 def rule(name: str, action: str, codes: list[str], criteria: list[tuple[str, str]] | None,
          ) -> reg.OverrideRule:
-    """Build a rule directly, bypassing YAML, to isolate matching behaviour."""
+    """Build a rule directly, bypassing YAML, to isolate matching behavior."""
 
     import re
 
     made = [reg.MatchCriterion(c, p, re.compile(p)) for c, p in (criteria or [])]
     return reg.OverrideRule(name=name, action=action, codes=codes, criteria=made,
-                            match_all=criteria is None)
+                            match_all=criteria is None, message="why the rule exists")
 
 
 def test_default_state_is_used_when_no_rule_matches(fresh_registry: None) -> None:
     make_check("ON_BY_DEFAULT")
     make_check("OFF_BY_DEFAULT", default_enabled=False)
-    state = engine.resolve_enabled_state(pd.Series({"age": 1}), [])
+    state = enabled_only(engine.resolve_enabled_state(pd.Series({"age": 1}), []))
     assert state == {"ON_BY_DEFAULT": True, "OFF_BY_DEFAULT": False}
 
 
 def test_enable_rule_turns_on_an_off_by_default_code(fresh_registry: None) -> None:
     make_check("OFF_BY_DEFAULT", default_enabled=False)
-    state = engine.resolve_enabled_state(
+    state = enabled_only(engine.resolve_enabled_state(
         pd.Series({"age": 1}), [rule("on", "enable", ["OFF_BY_DEFAULT"], None)]
-    )
+    ))
     assert state["OFF_BY_DEFAULT"] is True
 
 
@@ -311,39 +317,41 @@ def test_all_criteria_must_match(fresh_registry: None) -> None:
     two = rule("both", "disable", ["A_CODE"], [("source_system", "^LEGACY_"), ("record_type", "^BATCH$")])
     matching = pd.Series({"source_system": "LEGACY_A", "record_type": "BATCH"})
     half = pd.Series({"source_system": "LEGACY_A", "record_type": "STREAM"})
-    assert engine.resolve_enabled_state(matching, [two])["A_CODE"] is False
-    assert engine.resolve_enabled_state(half, [two])["A_CODE"] is True
+    assert enabled_only(engine.resolve_enabled_state(matching, [two]))["A_CODE"] is False
+    assert enabled_only(engine.resolve_enabled_state(half, [two]))["A_CODE"] is True
 
 
 def test_pattern_is_a_search_not_a_full_match(fresh_registry: None) -> None:
     make_check("A_CODE")
     unanchored = rule("mid", "disable", ["A_CODE"], [("email", "internal")])
-    assert engine.resolve_enabled_state(pd.Series({"email": "qa@internal.test"}), [unanchored])["A_CODE"] is False
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"email": "qa@internal.test"}), [unanchored]))["A_CODE"] is False
 
 
 def test_absent_column_does_not_match(fresh_registry: None) -> None:
     make_check("A_CODE")
     on_email = rule("r", "disable", ["A_CODE"], [("email", ".*")])
-    assert engine.resolve_enabled_state(pd.Series({"age": 1}), [on_email])["A_CODE"] is True
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"age": 1}), [on_email]))["A_CODE"] is True
 
 
 def test_null_value_does_not_match(fresh_registry: None) -> None:
     make_check("A_CODE")
     on_email = rule("r", "disable", ["A_CODE"], [("email", ".*")])
-    assert engine.resolve_enabled_state(pd.Series({"email": None}), [on_email])["A_CODE"] is True
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"email": None}), [on_email]))["A_CODE"] is True
 
 
 def test_non_string_values_are_matched_as_text(fresh_registry: None) -> None:
     make_check("A_CODE")
     numeric = rule("r", "disable", ["A_CODE"], [("age", "^41$")])
-    assert engine.resolve_enabled_state(pd.Series({"age": 41}), [numeric])["A_CODE"] is False
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"age": 41}), [numeric]))["A_CODE"] is False
 
 
 def test_last_matching_rule_wins(fresh_registry: None) -> None:
     make_check("A_CODE", default_enabled=False)
     rules = [rule("on", "enable", ["A_CODE"], None), rule("off", "disable", ["A_CODE"], None)]
-    assert engine.resolve_enabled_state(pd.Series({"age": 1}), rules)["A_CODE"] is False
-    assert engine.resolve_enabled_state(pd.Series({"age": 1}), list(reversed(rules)))["A_CODE"] is True
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"age": 1}), rules))["A_CODE"] is False
+    assert enabled_only(
+        engine.resolve_enabled_state(pd.Series({"age": 1}), list(reversed(rules)))
+    )["A_CODE"] is True
 
 
 def test_a_non_matching_later_rule_does_not_override(fresh_registry: None) -> None:
@@ -352,23 +360,23 @@ def test_a_non_matching_later_rule_does_not_override(fresh_registry: None) -> No
         rule("on", "enable", ["A_CODE"], None),
         rule("off", "disable", ["A_CODE"], [("email", "@internal")]),
     ]
-    assert engine.resolve_enabled_state(pd.Series({"email": "a@b.com"}), rules)["A_CODE"] is True
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"email": "a@b.com"}), rules))["A_CODE"] is True
 
 
 def test_one_rule_switches_several_codes(fresh_registry: None) -> None:
     make_check("FIRST")
     make_check("SECOND")
-    state = engine.resolve_enabled_state(
+    state = enabled_only(engine.resolve_enabled_state(
         pd.Series({"age": 1}), [rule("both", "disable", ["FIRST", "SECOND"], None)]
-    )
+    ))
     assert state == {"FIRST": False, "SECOND": False}
 
 
 def test_codes_that_are_not_registered_are_ignored_by_resolution(fresh_registry: None) -> None:
     make_check("A_CODE")
-    state = engine.resolve_enabled_state(
+    state = enabled_only(engine.resolve_enabled_state(
         pd.Series({"age": 1}), [rule("stale", "disable", ["GONE_CODE"], None)]
-    )
+    ))
     assert state == {"A_CODE": True}
 
 

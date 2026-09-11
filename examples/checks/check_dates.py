@@ -22,11 +22,7 @@ def _date(row: "pd.Series[Any]", column: str) -> pd.Timestamp | None:
     return None if pd.isna(parsed) else pd.Timestamp(parsed)
 
 
-@register_check(
-    code="DATES_PRESENT",
-    message="Both start_date and end_date are needed",
-    description="The presence check the ordering check waits for.",
-)
+@register_check(code="DATES_PRESENT", message="Both start_date and end_date are needed")
 def dates_present(row: "pd.Series[Any]") -> CheckResult:
     """Pass when both dates are readable."""
 
@@ -40,8 +36,6 @@ def dates_present(row: "pd.Series[Any]") -> CheckResult:
     "DATES_OUT_OF_ORDER",
     "start_date is after end_date",
     depends_on=["DATES_PRESENT"],
-    description="A check weighing two columns together, which is why checks are given "
-    "the whole row rather than one value.",
 )
 def dates_in_order(row: "pd.Series[Any]") -> CheckResult:
     """Pass when start_date is not later than end_date."""

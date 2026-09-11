@@ -30,7 +30,8 @@ from jobcheck import (
     render_report,
     validate_row,
 )
-from jobcheck.results import Status, CheckResult, normalise_result
+from jobcheck.results import Status, CheckResult, normalize_result
+from jobcheck.results import PASS
 
 pytestmark = pytest.mark.fast
 
@@ -87,20 +88,13 @@ def test_a_non_boolean_default_enabled_names_the_value(fresh_registry: None) -> 
         "Check 'CODE': default_enabled must be True or False, got 'yes'.")
 
 
-def test_a_non_text_description_names_the_value(fresh_registry: None) -> None:
-    with pytest.raises(ValueError) as raised:
-        reg.register_check(code="CODE", message="m", description=7)(  # type: ignore[arg-type]
-            lambda row: True)
-    assert message_of(raised) == "Check 'CODE': description must be text, got 7."
-
-
 def test_a_three_argument_test_is_rejected_with_its_signature(fresh_registry: None) -> None:
     with pytest.raises(ValueError) as raised:
         @reg.register_check(code="CODE", message="m")
         def check(row, ctx, extra):  # type: ignore[no-untyped-def]
-            return True
+            return PASS
     assert message_of(raised) == (
-        "Check 'CODE': check(row, ctx, extra) must take (row) or (row, ctx), "
+        "Check 'CODE': check(row, ctx, extra) must take (row) or (row, context), "
         "not 3 positional argument(s)."
     )
 
@@ -109,7 +103,7 @@ def test_a_required_keyword_argument_says_how_to_fix_it(fresh_registry: None) ->
     with pytest.raises(ValueError) as raised:
         @reg.register_check(code="CODE", message="m")
         def check(row, *, limit):  # type: ignore[no-untyped-def]
-            return True
+            return PASS
     assert message_of(raised) == (
         "Check 'CODE': check(row, *, limit) needs keyword argument(s) "
         "limit that the engine cannot supply. Give them defaults, or read them "
@@ -164,10 +158,11 @@ def test_an_unknown_on_error_names_the_two_that_work(fresh_registry: None) -> No
 
 def test_a_test_returning_nonsense_says_what_it_may_return(fresh_registry: None) -> None:
     with pytest.raises(TypeError) as raised:
-        normalise_result(object(), "CODE")
+        normalize_result(object(), "CODE")
     assert message_of(raised).startswith("Check 'CODE' returned ")
     assert message_of(raised).endswith(
-        "A check must return PASS, a CheckResult, a bool, or a Status value.")
+        "A check must return PASS or a CheckResult; CheckResult(condition) wraps a "
+        "bare comparison.")
 
 
 def test_a_result_with_an_unknown_status_names_the_registered_ones(fresh_registry: None) -> None:
@@ -185,43 +180,26 @@ def test_a_key_column_that_is_not_there_lists_the_columns(fresh_registry: None) 
     with pytest.raises(ValueError) as raised:
         build_report(outcomes, df=FRAME, key_column="nope")
     assert message_of(raised) == (
-        "key_column ['nope'] is not in the data. Available columns: id, age.")
-
-
-def test_a_key_column_without_a_frame_says_to_pass_one(fresh_registry: None) -> None:
-    make_check("CODE", passes=False)
-    with pytest.raises(ValueError) as raised:
-        build_report(validate(FRAME), key_column="id")
-    assert message_of(raised) == (
-        "key_column needs the frame it names columns in; pass df as well.")
-
-
-def test_data_columns_without_a_frame_say_to_pass_one(fresh_registry: None) -> None:
-    make_check("CODE", passes=False)
-    with pytest.raises(ValueError) as raised:
-        build_report(validate(FRAME), data_columns=["age"])
-    assert message_of(raised) == "data_columns names columns in the frame; pass df as well."
+        "key_column 'nope' is not in the data. Available columns: id, age.")
 
 
 UNUSABLE = (
-    "cannot be used. Each name must appear exactly once in the frame, once in "
-    "data_columns, and not be one of the report's own columns ['row', 'code', 'status', "
-    "'layer', 'outcome', 'message', 'comments', 'is_root_cause']. Frame columns: "
+    "cannot be used for the report. Each name must be asked for once and be one of: "
 )
 
 
-def test_data_columns_that_are_not_there_list_the_columns(fresh_registry: None) -> None:
+def test_extra_columns_that_are_not_there_list_the_columns(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     with pytest.raises(ValueError) as raised:
-        build_report(validate(FRAME), df=FRAME, data_columns=["nope"])
-    assert message_of(raised) == f"data_columns ['nope'] {UNUSABLE}id, age."
+        build_report(validate(FRAME), df=FRAME, extra_columns=["nope"])
+    assert message_of(raised) == f"extra_columns ['nope'] {UNUSABLE}id, age."
 
 
 def test_a_repeated_data_column_names_the_repeat(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     with pytest.raises(ValueError) as raised:
-        build_report(validate(FRAME), df=FRAME, data_columns=["age", "age"])
-    assert message_of(raised) == f"data_columns ['age'] {UNUSABLE}id, age."
+        build_report(validate(FRAME), df=FRAME, extra_columns=["age", "age"])
+    assert message_of(raised) == f"extra_columns ['age'] {UNUSABLE}id, age."
 
 
 def test_an_ambiguous_data_column_is_refused_with_the_frame_columns(
@@ -231,16 +209,16 @@ def test_an_ambiguous_data_column_is_refused_with_the_frame_columns(
     frame = pd.DataFrame([[1, 2, 3]], columns=["id", "age", "age"])
     outcomes = validate(FRAME)
     with pytest.raises(ValueError) as raised:
-        build_report(outcomes, df=frame, data_columns=["age"])
-    assert message_of(raised) == f"data_columns ['age'] {UNUSABLE}id, age, age."
+        build_report(outcomes, df=frame, extra_columns=["age"])
+    assert message_of(raised) == f"extra_columns ['age'] {UNUSABLE}id."
 
 
 def test_a_data_column_clashing_with_a_report_column_is_refused(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     frame = pd.DataFrame([{"id": 1, "code": "x"}])
     with pytest.raises(ValueError) as raised:
-        build_report(validate(frame), df=frame, data_columns=["code"])
-    assert message_of(raised) == f"data_columns ['code'] {UNUSABLE}id, code."
+        build_report(validate(frame), df=frame, extra_columns=["code"])
+    assert message_of(raised) == f"extra_columns ['code'] {UNUSABLE}id."
 
 
 def test_a_frame_of_the_wrong_length_says_to_pass_the_same_one(fresh_registry: None) -> None:

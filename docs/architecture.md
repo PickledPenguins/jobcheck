@@ -91,8 +91,8 @@ that differed in what they discovered was one more thing to explain than the fea
 worth, and a path is what a pipeline writing check files into a run directory already has.
 
 **Per-row metadata lives in `RowContext`, not in DataFrame columns.** Extra columns
-holding dicts or paths cause dtype churn and leak into exports. `build_context` is left a
-stub on purpose: it is the one place an adopter is expected to fill in.
+holding dicts or paths cause dtype churn and leak into exports. `RowContext` is left
+bare on purpose: it is the one type an adopter is expected to fill in.
 
 **Dependency validation happens after loading, not at decoration.** A prerequisite may be
 registered by a module not yet imported, so the check belongs at the end of
@@ -138,13 +138,13 @@ tracked.
 and many weigh several fields together, so a single "the" column was a fiction.
 The cost is that a misspelled field is no longer detectable before the run: it
 raises `KeyError` from the check and lands as an `ERROR` outcome naming the
-column. `check_rule_columns` still covers the rule side, where nothing else
+column. `check_override_columns` still covers the rule side, where nothing else
 would catch it.
 
 **A check returns a status and comments, not a bool.** "Age is out of range" is
 not actionable without the value and the limit, and threading that into the
 report through anything but the return value meant per-row state. Bare bools
-still work for one-liners, normalised at the boundary.
+still work for one-liners, normalized at the boundary.
 
 **Failure kinds are one small shared vocabulary, extensible from 10.** A fixed
 set can be grouped and counted across every check in a summary, which per-check
@@ -195,8 +195,8 @@ and the `check_*.py` files are separate because the entry point names which of t
 ## Extension points
 
 - **A check**: a function in a `check_*.py` file the entry point loads. Nothing else.
-- **Per-row metadata**: fill in `build_context`; add fields to `RowContext` if the four
-  dicts do not fit.
+- **Per-row metadata**: subclass `RowContext` and add the fields your checks read, then
+  hand `validate` something that builds it.
 - **An entry point**: a script calling `load_checks` with its own list of files. See
   `examples/main.py`.
 - **A new report**: build a DataFrame and hand it to `format_table`.
@@ -211,10 +211,10 @@ else at runtime — table rendering uses `textwrap`, discovery uses `pkgutil` an
 
 - The registry is process-global. Two sets of check files cannot be active in one process at once;
   entry points are separate processes.
-- `df.apply(..., axis=1)` is row-at-a-time Python, not vectorised. Large frames are slow by
+- `df.apply(..., axis=1)` is row-at-a-time Python, not vectorized. Large frames are slow by
   construction; the design buys per-row rule resolution and dependency logic with that.
 - Rules can only enable and disable existing codes. They cannot define checks, change
-  messages, or parameterise thresholds.
+  messages, or parameterize thresholds.
 - Regex matching stringifies values, so numeric or datetime criteria match the text of the
   value.
 - A check reading a column the frame lacks raises `KeyError`, which lands as an `ERROR`

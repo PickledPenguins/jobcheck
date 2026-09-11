@@ -23,7 +23,7 @@ from .tables import is_null
 
 
 # Every key a rule may carry. Anything else is a typo, and rejected as one.
-RULE_KEYS = {"name", "action", "codes", "match", "description"}
+RULE_KEYS = {"name", "action", "codes", "match", "message"}
 
 
 @dataclass
@@ -43,6 +43,10 @@ class OverrideRule:
     opt-in wildcard.  It is a separate flag rather than "empty criteria list"
     so that an accidentally empty list can never be mistaken for a deliberate
     match-everything rule.
+
+    ``message`` is why the rule exists, in the author's words, and is required
+    for the same reason a check's message is: it is printed where somebody has
+    to decide whether the rule still makes sense.
     """
 
     name: str
@@ -50,7 +54,7 @@ class OverrideRule:
     codes: list[str]
     criteria: list[MatchCriterion]
     match_all: bool
-    description: str = ""
+    message: str
     source_file: str = ""
 
 
@@ -100,7 +104,7 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRul
 
     Every problem is raised here rather than when the rule is first applied to
     a row, so a malformed YAML file is reported once at start-up instead of
-    part-way through a long pipeline run. That includes an unrecognised key: in
+    part-way through a long pipeline run. That includes an unrecognized key: in
     a file edited by hand, a misspelled key is a setting that silently does
     nothing, which is worse than being told about it.
     """
@@ -134,9 +138,12 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRul
             )
 
     criteria, match_all = parse_match(raw.get("match"), name, source_file)
-    description = raw.get("description", "")
-    if not isinstance(description, str):
-        raise ValueError(f"rule {name!r} in {source_file}: 'description' must be a string.")
+    message = raw.get("message")
+    if not isinstance(message, str) or not message:
+        raise ValueError(
+            f"rule {name!r} in {source_file}: 'message' must be the text saying why the "
+            "rule exists. It is printed beside the rule wherever the rules are listed."
+        )
 
     return OverrideRule(
         name=name,
@@ -144,7 +151,7 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRul
         codes=list(codes),
         criteria=criteria,
         match_all=match_all,
-        description=description,
+        message=message,
         source_file=source_file,
     )
 
@@ -164,7 +171,7 @@ def parse_file(path: str, known_codes: set[str]) -> list[OverrideRule]:
     return [parse_rule(entry, path, known_codes) for entry in raw]
 
 
-def load_overrides(paths: str | list[str], known_codes: set[str]) -> list[OverrideRule]:
+def load_overrides(paths: list[str], known_codes: set[str]) -> list[OverrideRule]:
     """Parse the named YAML files into rules, in the order given.
 
     Duplicate rule names are caught across the whole load, not per file: the
@@ -176,10 +183,14 @@ def load_overrides(paths: str | list[str], known_codes: set[str]) -> list[Overri
     list itself.
     """
 
-    given = [paths] if isinstance(paths, str) else list(paths)
+    if isinstance(paths, str):
+        raise TypeError(
+            f"load_overrides takes a list of paths, not one string: pass [{paths!r}]. "
+            "A bare string would be read as a list of its characters."
+        )
     seen: dict[str, str] = {}
     loaded: list[OverrideRule] = []
-    for path in given:
+    for path in list(paths):
         for rule in parse_file(path, known_codes):
             if rule.name in seen:
                 raise ValueError(
@@ -218,7 +229,7 @@ def rule_matches(rule: OverrideRule, row: "pd.Series[Any]") -> bool:
     return True
 
 
-def check_rule_columns(df: pd.DataFrame, overrides: list[OverrideRule]) -> list[str]:
+def check_override_columns(df: pd.DataFrame, overrides: list[OverrideRule]) -> list[str]:
     """Warn about columns an override rule matches on that the data lacks.
 
     A criterion naming a column that is not there never matches, so the rule

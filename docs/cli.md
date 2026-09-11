@@ -3,7 +3,7 @@
 One demo entry point, `examples/main.py`, run from the project root: it imports
 `jobcheck` from the working directory and resolves file paths relative to it. It loads
 the example checks, prints the registry table and the failure report, and can explain one
-row or summarise the frame.
+row or summarize the frame.
 
 It is not the product: the library does the work, and this exists to demonstrate it and to
 give the end-to-end checks something to drive. A pipeline calls

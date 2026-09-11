@@ -1,7 +1,7 @@
 """End-to-end: run every catalog case through the real entry point.
 
 These double as the project's worked examples and troubleshooting reference, so
-a behaviour change fails here before it reaches a user.
+a behavior change fails here before it reaches a user.
 """
 
 from __future__ import annotations

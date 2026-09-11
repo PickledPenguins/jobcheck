@@ -8,6 +8,10 @@ defined?") becomes another column rather than another engine feature.
 Every function here returns the DataFrame it prints, so a caller can take the
 data without the output. :mod:`jobcheck.tables` does the rendering; this module
 decides what goes in the table.
+
+Each table has the columns a reader always wants, and takes ``extra_columns``
+for the ones only some readers do -- the same argument, with the same meaning,
+as :func:`jobcheck.build_report` takes for columns of the data.
 """
 
 from __future__ import annotations
@@ -18,7 +22,14 @@ import pandas as pd
 
 from .registry import CHECKS
 from .rules import OverrideRule
-from .tables import format_table
+from .tables import _check_extra_columns, format_table
+
+#: Extra columns the check tables offer. ``source_file`` is where the check was
+#: registered; ``could_be_overridden_by`` needs the loaded rules, so only the
+#: tables that are given them offer it.
+CHECK_EXTRA_COLUMNS = ["source_file"]
+REGISTRY_EXTRA_COLUMNS = ["source_file", "could_be_overridden_by"]
+RULE_EXTRA_COLUMNS = ["source_file"]
 
 
 def _rules_for_code(code: str, overrides: list[OverrideRule]) -> list[OverrideRule]:
@@ -35,32 +46,33 @@ def _render_match(rule: OverrideRule) -> str:
     return "; ".join(f"{c.column}~=/{c.pattern}/" for c in rule.criteria)
 
 
-def get_registry_table(debug: int = 0) -> pd.DataFrame:
+def get_registry_table(extra_columns: list[str] | None = None) -> pd.DataFrame:
     """One row per registered check.
 
-    ``layer`` and ``depends_on`` are base columns, not debug-gated: what a check
+    ``layer`` and ``depends_on`` are base columns, not optional: what a check
     requires, and how deep it sits in the dependency graph, change whether it
     runs at all. Rows are ordered layer, then code, so the fundamental checks
-    read first. ``source_file`` is genuinely only useful when debugging, so it
-    appears at ``debug >= 2``.
+    read first. ``extra_columns`` accepts ``source_file``, which is long enough
+    to be worth asking for rather than always printing.
+
+    What a check is *for* is its message, printed wherever it fails; there is no
+    second description field to keep in step with it.
     """
 
-    columns = ["code", "layer", "default_state", "description", "depends_on"]
-    if debug >= 2:
-        columns.append("source_file")
+    extra_columns = list(extra_columns or [])
+    _check_extra_columns(extra_columns, CHECK_EXTRA_COLUMNS, "the registry table")
+    columns = ["code", "layer", "default_state", "message", "depends_on", *extra_columns]
 
     rows: list[dict[str, Any]] = []
     for check in CHECKS:
-        row: dict[str, Any] = {
+        rows.append({
             "code": check.code,
             "layer": check.layer,
             "default_state": "ON" if check.default_enabled else "OFF",
-            "description": check.description,
+            "message": check.message,
             "depends_on": "; ".join(check.depends_on) if check.depends_on else "-",
-        }
-        if debug >= 2:
-            row["source_file"] = check.source_file
-        rows.append(row)
+            "source_file": check.source_file,
+        })
 
     # Columns are passed explicitly so an empty registry still yields a frame
     # with columns to sort by; pd.DataFrame([]) has none and sort_values raises.
@@ -71,31 +83,39 @@ def get_registry_table(debug: int = 0) -> pd.DataFrame:
     )
 
 
-def print_registry(overrides: list[OverrideRule] | None = None, debug: int = 0) -> pd.DataFrame:
+def print_registry(
+    overrides: list[OverrideRule] | None = None, extra_columns: list[str] | None = None
+) -> pd.DataFrame:
     """Print the registry table and return the frame behind it.
 
-    At ``debug >= 1`` a ``could_be_overridden_by`` column lists the rules that
-    *reference* each code.  It deliberately is not called "was overridden by":
-    whether a rule actually fires depends on the row it is matched against, and
-    this table has no row.  Only :func:`resolve_enabled_state` can answer that.
+    ``extra_columns`` adds ``source_file`` or ``could_be_overridden_by``, which
+    lists the rules that *reference* each code. That column deliberately is not
+    called "was overridden by": whether a rule actually fires depends on the row
+    it is matched against, and this table has no row. Only
+    :func:`resolve_enabled_state` can answer that.
     """
 
-    table = get_registry_table(debug=debug)
+    extra_columns = list(extra_columns or [])
+    _check_extra_columns(extra_columns, REGISTRY_EXTRA_COLUMNS, "the registry table")
+    table = get_registry_table(
+        extra_columns=[c for c in extra_columns if c in CHECK_EXTRA_COLUMNS])
     if table.empty:
         print("No checks registered.")
         return table
 
-    if debug >= 1:
+    if "could_be_overridden_by" in extra_columns:
         rules = overrides or []
         table["could_be_overridden_by"] = [
             "; ".join(r.name for r in _rules_for_code(code, rules)) or "-" for code in table["code"]
         ]
 
-    print(format_table(table, wrap_columns={"description": 40, "could_be_overridden_by": 30}))
+    print(format_table(table, wrap_columns={"message": 40, "could_be_overridden_by": 30}))
     return table
 
 
-def print_registry_with_overrides(overrides: list[OverrideRule], debug: int = 0) -> pd.DataFrame:
+def print_registry_with_overrides(
+    overrides: list[OverrideRule], extra_columns: list[str] | None = None
+) -> pd.DataFrame:
     """Print the registry cross-referenced against the loaded override rules.
 
     ``effective_state`` states a plain "DEFAULT (ON/OFF)" for any code no rule
@@ -104,14 +124,15 @@ def print_registry_with_overrides(overrides: list[OverrideRule], debug: int = 0)
     says so rather than inventing one.
     """
 
-    base = get_registry_table(debug=debug)
+    extra_columns = list(extra_columns or [])
+    _check_extra_columns(extra_columns, CHECK_EXTRA_COLUMNS, "the registry table")
+    base = get_registry_table(extra_columns=extra_columns)
     if base.empty:
         print("No checks registered.")
         return base
 
-    columns = ["code", "layer", "default_state", "override_rules", "effective_state"]
-    if debug >= 2:
-        columns.append("source_file")
+    columns = ["code", "layer", "default_state", "override_rules", "effective_state",
+               *extra_columns]
 
     rows: list[dict[str, Any]] = []
     for _, entry in base.iterrows():
@@ -129,8 +150,8 @@ def print_registry_with_overrides(overrides: list[OverrideRule], debug: int = 0)
             "override_rules": "; ".join(f"{r.name} ({r.action})" for r in matching) or "-",
             "effective_state": effective,
         }
-        if debug >= 2:
-            row["source_file"] = entry["source_file"]
+        for column in extra_columns:
+            row[column] = entry[column]
         rows.append(row)
 
     table = pd.DataFrame(rows, columns=columns)
@@ -138,35 +159,38 @@ def print_registry_with_overrides(overrides: list[OverrideRule], debug: int = 0)
     return table
 
 
-def print_override_rules(overrides: list[OverrideRule], debug: int = 0) -> pd.DataFrame:
+def print_override_rules(
+    overrides: list[OverrideRule], extra_columns: list[str] | None = None
+) -> pd.DataFrame:
     """Print one row per override rule (rather than per code).
 
-    ``codes_hit_count`` is a count, not the code list, so a rule touching many
-    codes does not blow the table apart; :func:`list_rule_codes` gives the
-    detail when it is wanted.
+    ``message`` is the rule author's line about why the rule exists, and is a
+    base column for the same reason a check's message is printed on failure: a
+    rule nobody can justify is a rule nobody dares delete. ``codes_hit_count``
+    is a count, not the code list, so a rule touching many codes does not blow
+    the table apart; :func:`list_rule_codes` gives the detail when it is wanted.
     """
 
-    columns = ["name", "action", "codes_hit_count", "match"]
-    if debug >= 2:
-        columns.append("source_file")
+    extra_columns = list(extra_columns or [])
+    _check_extra_columns(extra_columns, RULE_EXTRA_COLUMNS, "the override rules table")
+    columns = ["name", "action", "codes_hit_count", "match", "message", *extra_columns]
 
     rows: list[dict[str, Any]] = []
     for rule in overrides:
-        row: dict[str, Any] = {
+        rows.append({
             "name": rule.name,
             "action": rule.action,
             "codes_hit_count": len(rule.codes),
             "match": _render_match(rule),
-        }
-        if debug >= 2:
-            row["source_file"] = rule.source_file
-        rows.append(row)
+            "message": rule.message,
+            "source_file": rule.source_file,
+        })
 
     table = pd.DataFrame(rows, columns=columns)
     if table.empty:
         print("No override rules loaded.")
         return table
-    print(format_table(table, wrap_columns={"match": 44}))
+    print(format_table(table, wrap_columns={"match": 44, "message": 40}))
     return table
 
 

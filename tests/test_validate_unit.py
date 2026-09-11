@@ -24,6 +24,7 @@ from jobcheck import (
     validate,
 )
 from jobcheck.rules import OverrideRule
+from jobcheck.results import PASS, CheckResult
 
 pytestmark = pytest.mark.fast
 
@@ -57,8 +58,8 @@ def test_each_row_gets_its_own_outcomes_in_its_own_position(fresh_registry: None
     """
 
     @register_check(code="ODD_VALUE", message="value is odd")
-    def odd_value(row: "pd.Series[Any]") -> bool:
-        return int(row["value"]) % 2 == 0
+    def odd_value(row: "pd.Series[Any]") -> CheckResult:
+        return CheckResult(int(row["value"]) % 2 == 0)
 
     outcomes = validate(frame(4))
     assert [row[0].outcome for row in outcomes] == [PASSED, FAILED, PASSED, FAILED]
@@ -79,7 +80,7 @@ def test_an_empty_frame_produces_no_outcomes(fresh_registry: None) -> None:
 
 def test_overrides_reach_the_per_row_engine(fresh_registry: None) -> None:
     make_check("A", passes=False)
-    rule = OverrideRule(name="off", action="disable", codes=["A"], criteria=[], match_all=True)
+    rule = OverrideRule(name="off", action="disable", codes=["A"], criteria=[], match_all=True, message="why the rule exists")
     outcomes = validate(frame(1), overrides=[rule])
     assert outcomes[0][0].outcome == DISABLED
     assert outcomes[0][0].detail == "disabled by rule 'off'"
@@ -92,11 +93,11 @@ def test_the_context_builder_is_called_once_per_row(fresh_registry: None) -> Non
     seen: list[Any] = []
 
     @register_check(code="CTX", message="ctx")
-    def uses_context(row: "pd.Series[Any]", ctx: Any) -> bool:
-        seen.append(ctx)
-        return True
+    def uses_context(row: "pd.Series[Any]", context: Any) -> CheckResult:
+        seen.append(context)
+        return PASS
 
-    shared = RowContext(flags={"whole_frame": True})
+    shared = RowContext()
     outcomes = validate(frame(2), context_builder=lambda row: shared)
     assert seen == [shared, shared]
     assert [row[0].outcome for row in outcomes] == [PASSED, PASSED]

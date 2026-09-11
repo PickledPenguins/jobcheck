@@ -26,8 +26,10 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import PROJECT_ROOT
-from jobcheck import root_cause, validate, validate_row
+from conftest import first_cause, PROJECT_ROOT
+from conftest import first_cause
+from jobcheck import validate, validate_row
+from jobcheck.results import CheckResult, PASS, Status
 
 pytestmark = pytest.mark.long
 
@@ -62,10 +64,10 @@ def test_threads_validating_rows_agree_with_one_thread(example_checks: None) -> 
 def test_threads_do_not_disturb_each_others_root_causes(example_checks: None) -> None:
     df = frame(ROWS)
     rows = [row for _, row in df.iterrows()]
-    expected = [root_cause(validate_row(row)) for row in rows]
+    expected = [first_cause(validate_row(row)) for row in rows]
 
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        concurrent = list(pool.map(lambda row: root_cause(validate_row(row)), rows))
+        concurrent = list(pool.map(lambda row: first_cause(validate_row(row)), rows))
 
     assert concurrent == expected
     # Not all None: a check that only proves two empty lists are equal proves
@@ -75,11 +77,11 @@ def test_threads_do_not_disturb_each_others_root_causes(example_checks: None) ->
 
 def test_whole_frames_validated_on_threads_agree_with_one_thread(example_checks: None) -> None:
     df = frame(100)
-    expected = [root_cause(outcomes) for outcomes in validate(df)]
+    expected = [first_cause(outcomes) for outcomes in validate(df)]
 
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         runs = list(pool.map(
-            lambda _: [root_cause(outcomes) for outcomes in validate(df)], range(WORKERS)))
+            lambda _: [first_cause(outcomes) for outcomes in validate(df)], range(WORKERS)))
 
     assert runs == [expected] * WORKERS
 
@@ -101,11 +103,11 @@ CHILD = textwrap.dedent(
     """
     import sys
     sys.path.insert(0, {src!r})
-    from jobcheck import load_checks, loaded_files, CHECKS
+    from jobcheck import load_checks, loaded_check_files, CHECKS
 
     load_checks([{path!r}])
     print(",".join(sorted(t.code for t in CHECKS)))
-    print(len(loaded_files()))
+    print(len(loaded_check_files()))
     """
 )
 

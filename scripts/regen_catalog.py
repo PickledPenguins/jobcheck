@@ -1,6 +1,6 @@
 """Regenerate the expected output of every catalog case.
 
-A tool, not a gate: run it after an intended behaviour change, then read the
+A tool, not a gate: run it after an intended behavior change, then read the
 diff before committing. A blind regeneration defeats the point of the catalog.
 
 Usage: python3 scripts/regen_catalog.py [case-name-substring ...]
