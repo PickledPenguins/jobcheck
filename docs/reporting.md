@@ -148,7 +148,8 @@ write_report(report, "report.txt", fmt="table")
 
 `render_report` returns a string, so anything else — a log line, an email body, a
 cell in a notebook — is the caller's choice. `fmt` is validated: anything but
-`table` or `csv` raises.
+`table` or `csv` raises, and so does a `wrap_width` of zero or less — there is no
+spelling of "do not wrap", since a column no wider than its heading is unreadable.
 
 ## What to include
 

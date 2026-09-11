@@ -1,3 +1,0 @@
-row,code,status,layer,outcome,message,comments,is_root_cause
-1,AGE_NEGATIVE,INVALID (3),2,failed,Age is negative,minimum=0; value=-5.0,False
-1,EMAIL_MISSING_AT,MALFORMED (2),1,failed,Email has no '@',at_signs=0; value=nope,True

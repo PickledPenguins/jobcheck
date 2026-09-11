@@ -17,6 +17,8 @@ import ast
 import builtins
 import inspect
 import re
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -299,3 +301,64 @@ def test_the_public_name_check_allows_a_builtin_and_refuses_an_invention(tmp_pat
 
     assert called_names("call `exec()` and `zip()` and `validate()` here") == []
     assert called_names("call `frobnicate()` here") == ["frobnicate"]
+
+
+def collected(marker: str) -> int:
+    """How many tests pytest collects for one marker, asked of pytest itself.
+
+    A subprocess, because collecting inside the running session would count this
+    session's own state rather than a clean one. ``-q --collect-only`` prints one
+    ``path: count`` line per file, which is what is summed here.
+    """
+
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-m", marker],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    counts = re.findall(r"^\S+\.py: (\d+)$", result.stdout, re.M)
+    assert counts, f"no collection counts in:\n{result.stdout}"
+    return sum(int(count) for count in counts)
+
+
+def test_the_documented_suite_sizes_are_the_real_ones() -> None:
+    """The numbers in the suite table drifted by five, three and eight before
+    anything compared them with a collection: they are the one documented
+    surface nothing else gates."""
+
+    table = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
+    documented = {
+        mode: int(size.replace(",", ""))
+        for mode, size in re.findall(r"\| `\./run-tests\.sh (\w+)` \| ([\d,]+) tests", table)
+    }
+    fast, long = collected("fast"), collected("long")
+    assert documented.get("fast") == fast, f"docs say {documented.get('fast')}, pytest collects {fast}"
+    assert documented.get("long") == long, f"docs say {documented.get('long')}, pytest collects {long}"
+    assert documented.get("all") == fast + long, (
+        f"docs say {documented.get('all')}, fast plus long is {fast + long}")
+
+
+def test_the_documented_catalog_counts_are_the_real_ones() -> None:
+    """The README calls the two catalogs a case total, and testing.md breaks it
+    down by level; both are written by hand and neither was checked."""
+
+    cases = sorted(p.parent for p in (ROOT / "tests" / "examples").rglob("cmd"))
+    failures = sorted(p.parent for p in (ROOT / "tests" / "failures").rglob("cmd"))
+    levels = {level: sum(f"Level:    {level}" in (case / "README.md").read_text(encoding="utf-8")
+                         for case in cases)
+              for level in ("simple", "moderate", "complex")}
+
+    testing = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
+    documented = re.search(
+        r"holds (\d+) cases at three levels -- (\d+) simple, (\d+) moderate, (\d+) complex --\s+"
+        r"and `tests/failures/` holds (\d+),",
+        testing.replace("—", "--"),
+    )
+    assert documented, "docs/testing.md no longer states the catalog counts in the expected shape"
+    assert [int(value) for value in documented.groups()] == [
+        len(cases), levels["simple"], levels["moderate"], levels["complex"], len(failures)]
+
+    readme = README.read_text(encoding="utf-8")
+    total = re.search(r"the (\d+)-case example and failure catalogs", readme)
+    assert total, "the README index no longer states a case total"
+    assert int(total.group(1)) == len(cases) + len(failures)

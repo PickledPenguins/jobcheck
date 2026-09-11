@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./run-tests.sh fast` | 600 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 15s |
-| `./run-tests.sh long` | 228 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 320s |
-| `./run-tests.sh all` | 828 tests, then mypy and the profile | 350s |
+| `./run-tests.sh fast` | 610 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 15s |
+| `./run-tests.sh long` | 231 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 320s |
+| `./run-tests.sh all` | 841 tests, then mypy and the profile | 350s |
 | `./run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 25s |
 | `./run-tests.sh perf` | timing against this machine's baseline; its own gate | 85s |
 | `./run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 72s |
@@ -71,7 +71,7 @@ Fast:
 | `tests/test_error_messages_unit.py` | Every message the library raises, compared word for word rather than by keyword: registration, loading, per-row evaluation, reporting and the whole-frame entry point. |
 | `tests/test_perf_baseline_unit.py` | The baseline arithmetic itself: recording, comparing, the tolerance floor and cap, and discarding a baseline from another machine. |
 | `tests/test_readme.py` | The README executed, plus the prose claims and the two-way CLI documentation contract: every flag has a section in `docs/cli.md`, and every documented flag exists. |
-| `tests/test_docs_unit.py` | The rest of `docs/`, both directions: every call shown binds against the real signature and names something this package, pandas or the builtins provides, every exported name appears in `interfaces.md` and nothing documented there is gone, every check code a document shows is one that exists, every exit code the entry point can return has a row in `docs/cli.md` and no row describes one it cannot, the README stays an index and links every document, no internal link or anchor is dead, and the rule keys, statuses and outcome names are documented where they belong. |
+| `tests/test_docs_unit.py` | The rest of `docs/`, both directions: every call shown binds against the real signature and names something this package, pandas or the builtins provides, every exported name appears in `interfaces.md` and nothing documented there is gone, every check code a document shows is one that exists, every exit code the entry point can return has a row in `docs/cli.md` and no row describes one it cannot, the README stays an index and links every document, no internal link or anchor is dead, the rule keys, statuses and outcome names are documented where they belong, and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. |
 | `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
 | `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
 | `tests/test_tables_unit.py` | `format_table` rendering, wrapping and empty frames; every column of the three registry tables. |
@@ -249,7 +249,7 @@ Measured on 2026-09-10 after the simplification, Python 3.12.14, Linux 6.12 x86_
 | `validate_row/4000` | 6.174s | 2% |
 | `build_report/4000` | 0.048s | 123% |
 | `render_report/4000` | 0.048s | 8% |
-| `summarize_outcomes/4000` | 0.020s | 7% |
+| `summarize_outcomes/4000` | 0.020s | 4% |
 | `validate/1000-rows-50-rules` | 0.403s | 14% |
 
 `./run-tests.sh long` and `all` end by running `scripts/profile_examples.py`, which
