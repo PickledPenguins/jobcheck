@@ -22,6 +22,7 @@ from typing import Any
 import pytest
 
 import jobcheck as prv
+from jobcheck import rules
 
 pytestmark = pytest.mark.fast
 
@@ -184,3 +185,82 @@ def test_every_outcome_name_is_documented(outcome: str) -> None:
     reporting = (ROOT / "docs" / "reporting.md").read_text(encoding="utf-8")
     writing = (ROOT / "docs" / "writing-checks.md").read_text(encoding="utf-8")
     assert outcome in reporting or outcome in writing
+
+
+def _main() -> Any:
+    """The demo entry point, imported the way the catalog runs it."""
+
+    import main
+
+    return main
+
+
+def documented_codes() -> dict[str, set[str]]:
+    """Every CODE_SHAPED token each document shows, minus the ones that are not codes.
+
+    A check code is the one identifier in these documents that a reader will paste
+    into a rule file, so a document naming a code that no longer exists sends them
+    to a load-time error. The exclusions are derived rather than listed: the
+    package's own exported names, the status names, the outcome names and the rule
+    keys are all upper-case too, and none of them is a check code.
+    """
+
+    from jobcheck.results import Status
+
+    not_a_code = (
+        {name.upper() for name in prv.__all__}
+        | {member.name for member in Status}
+        | {prv.PASSED, prv.FAILED, prv.DISABLED, prv.SKIPPED, prv.ERRORED}
+        | {key.upper() for key in rules.RULE_KEYS}
+        # Words that happen to be shouted in prose or shell, not codes.
+        | {"CSV", "YAML", "PATH", "ROW", "COLUMN", "NAME", "OFF", "ON", "TODO",
+           "README", "PYTHON", "LEGACY_A", "MODERN", "STREAM", "BATCH", "NO_KEY"}
+        # The demo entry point's own constants, documented in cli.md.
+        | {name for name in vars(_main()) if name.isupper()}
+    )
+    found: dict[str, set[str]] = {}
+    for path in DOCS + [README]:
+        tokens = set(re.findall(r"\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b",
+                                path.read_text(encoding="utf-8")))
+        found[path.name] = tokens - not_a_code
+    return found
+
+
+@pytest.mark.parametrize("name", [path.name for path in DOCS + [README]])
+def test_every_check_code_a_document_shows_is_a_real_one(
+    name: str, example_checks: None
+) -> None:
+    """Regression: a document showed `AGE_IN_RANGE`, which no check ever defined,
+    and a reader writing a rule file for it would meet an unknown-code error."""
+
+    real = {check.code for check in prv.CHECKS} | {
+        # Codes the documents invent to show a reader writing their own check.
+        "AGE_ABOVE_LIMIT", "THREADS_INT", "BRAND_NEW_CODE", "ADDED_AT_RUNTIME",
+        "FIELD_MISSING", "NO_SUCH_CODE", "SOURCE_CODE", "MY_CODE",
+    }
+    unknown = sorted(documented_codes()[name] - real)
+    assert unknown == [], f"{name}: no such check code: {unknown}"
+
+
+def test_every_exit_code_the_entry_point_can_return_is_documented() -> None:
+    """The exit codes are the contract a scheduled job is written against, and
+    they live in one table; a new one added without a row there is invisible."""
+
+    source = ast.parse((ROOT / "examples" / "main.py").read_text(encoding="utf-8"))
+    raised = {
+        int(node.exc.args[0].value)
+        for node in ast.walk(source)
+        if isinstance(node, ast.Raise)
+        and isinstance(node.exc, ast.Call)
+        and getattr(node.exc.func, "id", None) == "SystemExit"
+        and node.exc.args
+        and isinstance(node.exc.args[0], ast.Constant)
+        and isinstance(node.exc.args[0].value, int)
+    }
+    # 0 for a clean run and 1 for an uncaught exception are the interpreter's, not
+    # the entry point's, so they are never raised in the source and are added here.
+    expected = raised | {0, 1}
+    table = (ROOT / "docs" / "cli.md").read_text(encoding="utf-8")
+    documented = {int(value) for value in re.findall(r"^\| (\d+) \| ", table, re.M)}
+    assert expected <= documented, f"undocumented exit code(s): {sorted(expected - documented)}"
+    assert documented <= expected, f"documented exit code(s) that cannot happen: {sorted(documented - expected)}"

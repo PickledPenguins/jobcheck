@@ -25,7 +25,7 @@ current suite covers most of the same surface; `test_error_messages` and `test_r
 are the two whose subjects are now covered from a different angle rather than directly.
 
 **F.3 — Dates dominate the profile.** `explain_row` is about 85% of a validation run, and
-inside it the example suites' `dates_present` and `dates_in_order` are roughly 40% of the
+inside it the example checks' `dates_present` and `dates_in_order` are roughly 40% of the
 total, because both call `pandas.to_datetime` per row. That is example code rather than
 library code, so it costs an adopter nothing — but it is what a reader of
 `./run-tests.sh profile` will see first, and it is worth knowing it is not the engine.
