@@ -131,7 +131,10 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     print("== Registry ==")
-    print_registry(overrides=overrides)
+    # could_be_overridden_by is the only use print_registry makes of the rules:
+    # without it the argument is inert and the demo never shows which rule
+    # touches which code.
+    print_registry(overrides=overrides, extra_columns=["could_be_overridden_by"])
 
     print("\n== Failures ==")
     print_report(build_report(outcomes, df=df, key_column=KEY_COLUMN), fmt=args.report)

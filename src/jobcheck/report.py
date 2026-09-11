@@ -38,8 +38,6 @@ INCLUDE_LEVELS: dict[str, set[str]] = {
 # the table view keep the value the check actually saw.
 FORMULA_PREFIXES = ("=", "+", "@", "\t", "\r")
 
-KEY_SEPARATOR = "|"
-
 
 def _included(include: str) -> set[str]:
     """The outcomes an ``include`` level covers, or a ValueError naming the levels."""
@@ -91,6 +89,13 @@ def _row_labels(df: pd.DataFrame, key_column: str | None) -> list[str]:
         raise ValueError(
             f"key_column {key_column!r} is not in the data. Available columns: "
             f"{', '.join(str(c) for c in df.columns)}."
+        )
+    repeated = list(df.columns).count(key_column)
+    if repeated > 1:
+        raise ValueError(
+            f"key_column {key_column!r} appears {repeated} times in the data: "
+            "df[key_column] is then a table rather than a column, and every row would "
+            "be labelled with the column name. Rename or drop the duplicate columns."
         )
     return [_format_cell(value, missing="<no key>") for value in df[key_column]]
 
@@ -218,8 +223,14 @@ def render_report(report: pd.DataFrame, fmt: str = "table", wrap_width: int = 48
     leading apostrophe -- see :func:`escape_for_spreadsheet` -- because comments
     carry values that came from the data. That is not optional: a report is
     written to be opened by a person.
+
+    Raises ``ValueError`` for a *wrap_width* that is not positive: 0 read as "do
+    not wrap" while -1 raised out of ``textwrap``, two spellings of nonsense with
+    two different behaviors.
     """
 
+    if wrap_width <= 0:
+        raise ValueError(f"wrap_width must be greater than 0, got {wrap_width!r}.")
     if fmt == "table":
         return format_table(
             report,
