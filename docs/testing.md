@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./run-tests.sh fast` | 574 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 15s |
+| `./run-tests.sh fast` | 600 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 15s |
 | `./run-tests.sh long` | 228 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 320s |
-| `./run-tests.sh all` | 802 tests, then mypy and the profile | 335s |
+| `./run-tests.sh all` | 828 tests, then mypy and the profile | 350s |
 | `./run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 25s |
 | `./run-tests.sh perf` | timing against this machine's baseline; its own gate | 85s |
 | `./run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 72s |
@@ -60,7 +60,7 @@ Fast:
 |---|---|
 | `tests/test_registry_unit.py` | Registration and its duplicate guard, `clear_registry`, dependency validation, cycle detection, topological order and its cache. |
 | `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads skipped, unique module names, prerequisites across files in one call, what a broken file leaves behind, and that no `__pycache__` appears beside the caller's file. |
-| `tests/test_validate_unit.py` | The whole-frame entry point: one list of outcomes per row in frame order, the checks that did not run kept, overrides and the context builder passed through, and `on_error` reaching `explain_row`. |
+| `tests/test_validate_unit.py` | The whole-frame entry point: one list of outcomes per row **in its own position**, the checks that did not run kept, overrides and the context builder passed through, and both `on_error` modes. |
 | `tests/test_overrides_unit.py` | Every rule-file rejection (19 parametrised cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
 | `tests/test_results_unit.py` | The fixed status vocabulary, `CheckResult` truthiness and validation, and normalising whatever a check returned. |
 | `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `check_rule_columns`, root cause, layers, and the shipped tests at their boundaries. |
@@ -163,32 +163,48 @@ in `[tool.mutmut]`:
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
 
-Measured on 2026-09-10 **before the simplification**: 1,602 mutants, 1,450 killed,
-152 survived, 0 timeouts — 90.5%. Not re-run since; the package is roughly a third
-smaller, so the mutant count will have moved and the figure above is history rather
-than the current score.
+Measured on 2026-09-10 after the simplification, on a tree cleaned first
+(`rm -rf mutants .mutmut-cache`): **1,300 mutants, 1,169 killed, 131 survived,
+0 timeouts — 89.9%.** The run takes about four minutes at ~6 mutations/second.
 
-The first run scored 87%, and every survivor was read. What they were:
+The first run of the simplified tree scored 89.2%, and the difference is nine
+mutants that were real gaps, all of them in code the simplification had just
+rewritten. What they were:
 
-- **Real gaps, now killed.** Four in `load_checks` (the module missing from `sys.modules`, the bytecode flag not
-  restored exactly, a file registering no tests never evicted), `validate`
-  ignoring its `context_builder`, `format_table` breaking long words and hyphens,
-  `row_explanation` losing its columns on an empty frame, and `cell_text` treating a
-  null cell as text.
-- **21 default-argument mutants: unkillable here, and not a gap.** mutmut's trampoline
-  keeps the *original* function's defaults and forwards the caller's arguments, so a
+- **`register_check`, five.** The duplicate-code message names the *module* as
+  well as the function, and only a check defined by `exec`, which has no module, was
+  under test; `depends_on=[""]` was accepted, an empty code being a typo rather
+  than a check with no name; the `description` never reached the registered
+  check; and the required-keyword-argument message lists two arguments
+  comma-separated, which one argument cannot show.
+- **`explain_row`, four.** An `errored` outcome carries a layer and the check's
+  message as well as its detail, and nothing asserted either. The layer is what
+  decides which code a row reports as its root cause, so a check that raised at
+  the wrong layer changes the answer rather than the wording.
+
+Survivors by module: `report` 47, `registry_tables` 43, `engine` 18,
+`registry` 15, `rules` 6, `tables` 2. Sampled and classified, the remainder fall
+into four groups, none of them a missing assertion:
+
+- **Default-argument mutants — unkillable here.** mutmut's trampoline keeps the
+  *original* function's defaults and forwards the caller's arguments, so a
   mutated default in the mutant body is never evaluated. Verified by hand on
   `validate(on_error="XXrecordXX")`, which behaves exactly like the original.
-- **Environment-equivalent mutants.** `write_report`'s `encoding="utf-8"` and
-  `newline=""` can be dropped without effect on a UTF-8 Linux box: the platform default
-  is the same. They would matter on Windows, and the tests that pin them
-  (`test_a_written_report_is_utf_8`, `..._uses_unix_line_endings`) exist for that reason
-  even though mutmut cannot show it here.
-- **Equivalent mutants.** `break_long_words=None` for `False`, `wrap=wrap` dropped where
-  the callee's default is the same 48, `itertuples(index=None)` for `index=False`.
-- **46 string-wording mutants in the print functions.** Those outputs are pinned by the
-  example catalog and the golden files, neither of which mutmut can run -- the catalog
-  shells out to a subprocess that never loads the instrumentation. The library's *error*
+- **Unreachable branches.** `state.get(check.code, <default>)` in `explain_row`
+  cannot miss: `_resolve_state` builds an entry for every registered check.
+  `passed.get(code, False)` cannot miss either, because the topological order
+  evaluates prerequisites first and `validate_registry` rejects dangling ones.
+- **Equivalent mutants.** `False` swapped for `None` where the value is only ever
+  read through `not`; `write_report`'s `encoding="utf-8"` and `newline=""`, which
+  are the platform defaults on a UTF-8 Linux box — they matter on Windows, and
+  the tests that pin them (`test_a_written_report_is_utf_8`,
+  `..._uses_unix_line_endings`) exist for that reason even though mutmut cannot
+  show it here.
+- **Print-function wording, the largest group.** `registry_tables` is entirely
+  print functions, and most of `report`'s survivors are the same. Those outputs
+  are pinned byte for byte by the example catalog and the golden files; the
+  catalog shells out to a subprocess that never loads mutmut's instrumentation,
+  so mutmut cannot run the thing that would kill them. The library's *error*
   messages are a different matter and are pinned word for word by
   `tests/test_error_messages_unit.py`.
 

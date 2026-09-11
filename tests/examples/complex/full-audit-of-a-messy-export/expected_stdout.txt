@@ -1,4 +1,4 @@
-Loaded 2 override rule(s) from 2 file(s)
+Loaded 6 override rule(s) from 4 file(s)
 
 == Registry ==
 code                 | layer | default_state | description                              | depends_on      
@@ -43,7 +43,6 @@ row      | code                 | status        | layer | outcome | message     
 1010     | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | failed  | start_date is after end_date            | end_date=2024-03-01; start_date=2024-09-01 | True         
 1011     | DATES_PRESENT        | MISSING (1)   | 0     | failed  | Both start_date and end_date are needed | columns=start_date                         | True         
 1012     | DATES_PRESENT        | MISSING (1)   | 0     | failed  | Both start_date and end_date are needed | columns=end_date                           | True         
-1014     | AGE_NOT_INTEGER      | INVALID (3)   | 2     | failed  | Age is not a whole number               | value=58.5                                 | True         
 1019     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | failed  | Email has no '@'                        | at_signs=0; value=sheet-example.com        | True         
 1020     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | failed  | Email domain looks malformed            | domain=example.com                         | True         
 1021     | AGE_PRESENT          | MISSING (1)   | 0     | failed  | Age is missing                          |                                            | True         
@@ -66,8 +65,8 @@ AGE_NEGATIVE         | 2     | 1      | 0       | 4       | 0        | 44
 AGE_TOO_HIGH         | 2     | 1      | 0       | 4       | 0        | 44    
 DATES_OUT_OF_ORDER   | 1     | 1      | 0       | 4       | 0        | 44    
 AGE_NOT_A_NUMBER     | 1     | 1      | 0       | 3       | 0        | 45    
-AGE_NOT_INTEGER      | 2     | 1      | 0       | 0       | 43       | 5     
 ROW_ALL_NULL         | 0     | 1      | 0       | 0       | 0        | 48    
+AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 49       | 0     
 
 Root cause of each failing row:
 root_cause           | rows
@@ -79,7 +78,6 @@ EMAIL_DOMAIN_INVALID | 2
 EMAIL_MISSING_AT     | 2   
 AGE_NEGATIVE         | 1   
 AGE_NOT_A_NUMBER     | 1   
-AGE_NOT_INTEGER      | 1   
 AGE_TOO_HIGH         | 1   
 DATES_OUT_OF_ORDER   | 1   
 ROW_ALL_NULL         | 1   

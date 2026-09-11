@@ -69,7 +69,7 @@ explicit_package_bases = true
 
 [tool.mutmut]
 paths_to_mutate = ["src/jobcheck/"]
-# The entry points, the example suites and the example data the tests load live
+# The entry point, the example check files and the example data the tests load live
 # here; scripts/ comes too because a test regenerates the data files from the
 # generator and compares, which needs the generator inside the mutants tree.
 also_copy = ["examples/", "scripts/"]
