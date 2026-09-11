@@ -88,9 +88,15 @@ Six commits here, oldest first.
   `--rules` with no paths now means no overrides, `scripts/new_catalog_case.py` exists, and
   two documentation gaps are closed.
 
-In `~/work/ai/jobchain`, branch `simplify-port` (commit `4ded386`): ported to this engine.
-744 unit tests pass with nothing skipped, the 103-case catalogue passes, coverage holds at
-89% against its 89% floor.
+In `~/work/ai/jobchain`, branch `simplify-port` (commits `4ded386`, `d3e8e63`): ported to
+this engine and handed off. 744 unit tests pass with nothing skipped, the 103-case
+catalogue passes, coverage holds at 89% against its 89% floor.
+
+**That suite reads whichever branch is checked out here**, since it finds the engine at
+`~/work/ai/jobcheck/src` rather than at a pinned commit. Checking out `claude` in this
+repository breaks `simplify-port` over there, and checking out `simplify` breaks the older
+`claude-port`. There is no version constraint to lean on: the engine is a sibling clone,
+not a released package.
 
 In `~/work/ai/skills`, branch `claude` (commits `3166e97`, `0412662`, `d7b7e29`, `8d91f94`):
 `bin/bgrun`, `bin/subst`, `bin/breaks-it` and `bin/pyloc`, and `ctesting` now saves its
