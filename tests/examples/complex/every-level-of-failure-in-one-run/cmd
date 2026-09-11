@@ -1,1 +1,1 @@
-python3 examples/main.py --data examples/data/customers.csv --summary
+python3 examples/main.py --data examples/data/customers.csv --rules examples/rules/split_by_topic/02_email_rules.yaml examples/rules/from_another_directory/global_age_rule.yaml --report csv --summary
