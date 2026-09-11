@@ -202,9 +202,8 @@ bottom of that file. A tidy-up of `.gitignore` can silently untrack the only cop
 - **Never install anything without asking.** Test tooling belongs in the `pytesting` env.
 - Generated and gitignored: `mutants/` (19 MB after a run), `.build/`, `.mypy_cache/`,
   `.pytest_cache/`, `.perf-baseline.json` (machine-specific by design), `reviews/`.
-- `reviews/` holds one report: the friction log from this session, every entry fixed. It is
-  gitignored, so it is local to this clone — `cclean` will not remove it, since it is not a
-  build artifact.
+- `reviews/` is empty: the friction log written on 2026-09-11 was worked through by
+  `caddressreview` and cleared. Its four entries are fixed in `6104170` and `14d45b7`.
 - `.build/` became gitignored at `fab967a`; `.build/examples.prof` had been tracked because
   the pattern was `build/`, and it is untracked now.
 - `scripts/install-hooks.sh` installs the fast suite as `.git/hooks/pre-commit`.
