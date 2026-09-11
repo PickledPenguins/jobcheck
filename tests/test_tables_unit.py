@@ -341,3 +341,76 @@ def test_an_empty_cell_wraps_to_one_blank_line() -> None:
     rendered = tables.format_table(frame, wrap_columns={"note": 10})
     assert "KEPT" in rendered
     assert len(rendered.splitlines()) == 3
+
+
+# --- extra_columns, the one argument every table takes ----------------------
+
+
+def test_the_registry_table_carries_the_source_file_it_was_asked_for(
+    example_checks: None,
+) -> None:
+    table = registry_tables.print_registry(extra_columns=["source_file"]).set_index("code")
+    assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
+
+
+def test_the_cross_reference_table_carries_the_source_file_too(example_checks: None) -> None:
+    table = registry_tables.print_registry_with_overrides(
+        [], extra_columns=["source_file"]
+    ).set_index("code")
+    assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
+
+
+def test_the_rules_table_carries_the_source_file_it_was_asked_for(fresh_registry: None) -> None:
+    make_check("A_CODE")
+    table = registry_tables.print_override_rules(
+        [a_rule(source_file="here.yaml")], extra_columns=["source_file"]
+    )
+    assert list(table["source_file"]) == ["here.yaml"]
+
+
+def test_the_rules_table_prints_the_message_that_says_why_a_rule_exists(
+    fresh_registry: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A rule nobody can justify is a rule nobody dares delete."""
+
+    make_check("A_CODE")
+    table = registry_tables.print_override_rules([a_rule()])
+    assert list(table["message"]) == ["why the rule exists"]
+    assert "why the rule exists" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "call, subject",
+    [
+        pytest.param(lambda: registry_tables.get_registry_table(extra_columns=["nope"]),
+                     "the registry table", id="registry-table"),
+        pytest.param(lambda: registry_tables.print_registry(extra_columns=["nope"]),
+                     "the registry table", id="print-registry"),
+        pytest.param(lambda: registry_tables.print_registry_with_overrides([],
+                                                                          extra_columns=["nope"]),
+                     "the registry table", id="with-overrides"),
+        pytest.param(lambda: registry_tables.print_override_rules([], extra_columns=["nope"]),
+                     "the override rules table", id="override-rules"),
+    ],
+)
+def test_an_unknown_extra_column_names_the_table_and_what_is_on_offer(
+    example_checks: None, call: object, subject: str
+) -> None:
+    with pytest.raises(ValueError) as raised:
+        call()  # type: ignore[operator]
+    assert f"cannot be used for {subject}" in str(raised.value)
+    assert "source_file" in str(raised.value)
+
+
+def test_a_column_asked_for_twice_is_refused(example_checks: None) -> None:
+    with pytest.raises(ValueError, match=r"extra_columns \['source_file'\] cannot be used"):
+        registry_tables.get_registry_table(extra_columns=["source_file", "source_file"])
+
+
+def test_could_be_overridden_by_is_not_on_offer_where_there_are_no_rules_to_read(
+    example_checks: None,
+) -> None:
+    """Only the tables handed the rules can answer that, so only they offer it."""
+
+    with pytest.raises(ValueError, match="cannot be used for the registry table"):
+        registry_tables.get_registry_table(extra_columns=["could_be_overridden_by"])

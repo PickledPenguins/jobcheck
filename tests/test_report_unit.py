@@ -573,3 +573,13 @@ def test_an_unknown_include_level_names_the_levels(two_layers: None) -> None:
 def test_row_explanation_rejects_an_unknown_include_level(two_layers: None) -> None:
     with pytest.raises(ValueError, match="include must be one of"):
         rep.row_explanation(outcomes()[0], include="everything")
+
+
+def test_a_frame_offering_no_extra_columns_says_so(fresh_registry: None) -> None:
+    """Every column of this frame is one the report already uses, so there is
+    nothing left to ask for, and the message says that rather than listing air."""
+
+    make_check("FAILS", passes=False)
+    frame = pd.DataFrame([{"code": "x", "status": "y"}])
+    with pytest.raises(ValueError, match=r"be one of: \(none available\)"):
+        rep.build_report(validate(frame), df=frame, extra_columns=["code"])
