@@ -38,7 +38,6 @@ from .registry_tables import (
     list_rule_codes,
     print_override_rules,
     print_registry,
-    print_registry_with_overrides,
 )
 from .rules import check_override_columns
 from .report import (
@@ -100,7 +99,6 @@ __all__ = [
     "normalize_result",
     "print_override_rules",
     "print_registry",
-    "print_registry_with_overrides",
     "print_report",
     "print_row_explanation",
     "print_summary",

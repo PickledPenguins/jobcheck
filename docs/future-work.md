@@ -78,3 +78,25 @@ something close to their own case. It is judged on variety, not on coverage.
 **A CI workflow.** Not wanted. The pre-commit hook and the release gates in
 [testing.md](testing.md#gates) are what run the suites; an absent workflow is not
 outstanding work.
+
+**Narrowing the registry table by breaking long words.** Rejected: the demo registry table
+with `could_be_overridden_by` asked for is 150 columns, and the binding constraint is a
+single 48-character rule name, not the wrap width. Breaking words at the wrap width takes
+it to 138, and a `wrap_width` default applied to every column saves nothing at all (both
+measured on 2026-09-11). A code or rule name split across two lines cannot be copied out
+of the output, which is what `format_table`'s `break_long_words=False` is protecting; a
+table 150 columns wide is read by scrolling, a mangled identifier is not read at all.
+Renaming `default_state` to `default` was taken — it was 13 columns of heading for three
+characters of data.
+
+**Replacing `could_be_overridden_by` with a count.** Rejected, though it is the narrowest
+option measured (107 columns) and matches what `print_override_rules` does with
+`codes_hit_count`: the names are the reason the column exists. `print_override_rules` and
+`list_rule_codes` already carry the detail for a reader who wants it by rule rather than
+by code.
+
+**Shortening the demo rule names.** Not done. Two are 48 characters
+(`disable_age_integer_check_from_another_directory`), which is what makes the table as
+wide as it is, but they are self-documenting in a directory whose whole job is to show a
+reader what a rule file looks like. This is data in `examples/rules/`, not a library
+limit — worth remembering before concluding the table cannot be narrower.

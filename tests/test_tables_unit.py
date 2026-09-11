@@ -115,7 +115,7 @@ def test_non_string_cells_are_stringified() -> None:
 
 def test_registry_table_has_the_base_columns(example_checks: None) -> None:
     assert list(registry_tables.get_registry_table().columns) == [
-        "code", "layer", "default_state", "message", "depends_on",
+        "code", "layer", "default", "message", "depends_on",
     ]
 
 
@@ -134,10 +134,10 @@ def test_registry_table_is_sorted_by_layer_then_code(example_checks: None) -> No
     assert list(table["layer"]) == [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2]
 
 
-def test_registry_table_renders_default_state_as_on_or_off(example_checks: None) -> None:
+def test_registry_table_renders_the_default_as_on_or_off(example_checks: None) -> None:
     table = registry_tables.get_registry_table().set_index("code")
-    assert table.loc["AGE_NEGATIVE", "default_state"] == "ON"
-    assert table.loc["AGE_NOT_INTEGER", "default_state"] == "OFF"
+    assert table.loc["AGE_NEGATIVE", "default"] == "ON"
+    assert table.loc["AGE_NOT_INTEGER", "default"] == "OFF"
 
 
 def test_registry_table_joins_dependencies_and_dashes_when_there_are_none(
@@ -155,7 +155,7 @@ def test_registry_table_of_an_empty_registry_has_columns_and_no_rows(fresh_regis
     table = registry_tables.get_registry_table()
     assert table.empty
     assert list(table.columns) == [
-        "code", "layer", "default_state", "message", "depends_on",
+        "code", "layer", "default", "message", "depends_on",
     ]
 
 
@@ -186,11 +186,13 @@ def test_could_be_overridden_by_appears_only_when_asked_for(fresh_registry: None
     assert "could_be_overridden_by" in registry_tables.print_registry([a_rule()], extra_columns=["could_be_overridden_by"]).columns
 
 
-def test_could_be_overridden_by_lists_referencing_rules_in_load_order(fresh_registry: None) -> None:
+def test_could_be_overridden_by_names_each_rule_with_its_action_in_load_order(
+    fresh_registry: None,
+) -> None:
     make_check("A_CODE")
-    rules = [a_rule("first"), a_rule("second")]
+    rules = [a_rule("first", action="enable"), a_rule("second", action="disable")]
     table = registry_tables.print_registry(rules, extra_columns=["could_be_overridden_by"]).set_index("code")
-    assert table.loc["A_CODE", "could_be_overridden_by"] == "first; second"
+    assert table.loc["A_CODE", "could_be_overridden_by"] == "first (enable); second (disable)"
 
 
 def test_could_be_overridden_by_is_a_dash_for_an_unreferenced_code(fresh_registry: None) -> None:
@@ -206,14 +208,7 @@ def test_print_registry_without_overrides_still_renders_that_column(fresh_regist
     assert table.loc["A_CODE", "could_be_overridden_by"] == "-"
 
 
-# --- print_registry_with_overrides -----------------------------------------
-
-
-def test_registry_with_overrides_has_its_columns(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    assert list(registry_tables.print_registry_with_overrides([]).columns) == [
-        "code", "layer", "default_state", "override_rules", "effective_state",
-    ]
+# --- print_registry, the columns that read the rules ------------------------
 
 
 def test_effective_state_states_the_default_when_no_rule_references_the_code(
@@ -221,40 +216,36 @@ def test_effective_state_states_the_default_when_no_rule_references_the_code(
 ) -> None:
     make_check("ON_CODE")
     make_check("OFF_CODE", default_enabled=False)
-    table = registry_tables.print_registry_with_overrides([]).set_index("code")
+    table = registry_tables.print_registry(
+        [], extra_columns=["effective_state"]).set_index("code")
     assert table.loc["ON_CODE", "effective_state"] == "DEFAULT (ON)"
     assert table.loc["OFF_CODE", "effective_state"] == "DEFAULT (OFF)"
-    assert table.loc["ON_CODE", "override_rules"] == "-"
 
 
 def test_effective_state_refuses_to_guess_when_a_rule_references_the_code(
     fresh_registry: None,
 ) -> None:
     make_check("A_CODE", default_enabled=False)
-    table = registry_tables.print_registry_with_overrides([a_rule()]).set_index("code")
+    table = registry_tables.print_registry(
+        [a_rule()], extra_columns=["effective_state"]).set_index("code")
     assert table.loc["A_CODE", "effective_state"] == (
         "depends on row (default OFF unless a rule above matches)"
     )
 
 
-def test_override_rules_column_names_each_rule_with_its_action(fresh_registry: None) -> None:
+def test_effective_state_appears_only_when_asked_for(fresh_registry: None) -> None:
     make_check("A_CODE")
-    rules = [a_rule("on", action="enable"), a_rule("off", action="disable")]
-    table = registry_tables.print_registry_with_overrides(rules).set_index("code")
-    assert table.loc["A_CODE", "override_rules"] == "on (enable); off (disable)"
+    assert "effective_state" not in registry_tables.print_registry([a_rule()]).columns
 
 
-def test_registry_with_overrides_adds_source_file_when_asked_for(example_checks: None) -> None:
-    table = registry_tables.print_registry_with_overrides([], extra_columns=["source_file"]).set_index("code")
-    assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
-
-
-def test_registry_with_overrides_on_an_empty_registry_says_so(
-    fresh_registry: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    table = registry_tables.print_registry_with_overrides([])
-    assert capsys.readouterr().out == "No checks registered.\n"
-    assert table.empty
+def test_both_rule_columns_can_be_asked_for_at_once(fresh_registry: None) -> None:
+    make_check("A_CODE")
+    table = registry_tables.print_registry(
+        [a_rule()], extra_columns=["could_be_overridden_by", "effective_state"])
+    assert list(table.columns) == [
+        "code", "layer", "default", "message", "depends_on",
+        "could_be_overridden_by", "effective_state",
+    ]
 
 
 # --- print_override_rules ---------------------------------------------------
@@ -353,11 +344,14 @@ def test_the_registry_table_carries_the_source_file_it_was_asked_for(
     assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
 
 
-def test_the_cross_reference_table_carries_the_source_file_too(example_checks: None) -> None:
-    table = registry_tables.print_registry_with_overrides(
-        [], extra_columns=["source_file"]
+def test_the_registry_table_carries_the_source_file_beside_the_rule_columns(
+    example_checks: None,
+) -> None:
+    table = registry_tables.print_registry(
+        [], extra_columns=["source_file", "effective_state"]
     ).set_index("code")
     assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
+    assert table.loc["AGE_NEGATIVE", "effective_state"] == "DEFAULT (ON)"
 
 
 def test_the_rules_table_carries_the_source_file_it_was_asked_for(fresh_registry: None) -> None:
@@ -386,9 +380,6 @@ def test_the_rules_table_prints_the_message_that_says_why_a_rule_exists(
                      "the registry table", id="registry-table"),
         pytest.param(lambda: registry_tables.print_registry(extra_columns=["nope"]),
                      "the registry table", id="print-registry"),
-        pytest.param(lambda: registry_tables.print_registry_with_overrides([],
-                                                                          extra_columns=["nope"]),
-                     "the registry table", id="with-overrides"),
         pytest.param(lambda: registry_tables.print_override_rules([], extra_columns=["nope"]),
                      "the override rules table", id="override-rules"),
     ],
