@@ -113,6 +113,42 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
     )
 
 
+def _reject_bad_registration(
+    code: Any, message: Any, default_enabled: Any, prerequisites: Any, where: str
+) -> None:
+    """Everything a `register_check` call can get wrong, in one place.
+
+    All of it raises at import, where the author is looking at the file that has
+    the mistake in it, rather than at the first row validated. *where* names the
+    function being registered, which is the only one of these facts the decorator
+    can see and this module cannot.
+
+    ``depends_on`` is checked for shape here and for existence in
+    :func:`validate_registry`: a prerequisite may live in a module not yet
+    imported, so only the shape can be judged this early.
+    """
+
+    if not isinstance(code, str) or not code:
+        raise ValueError(f"Check code must be a non-empty string, got {code!r}.")
+    if not isinstance(message, str) or not message:
+        raise ValueError(f"Check {code!r}: message must be the text a person sees on failure.")
+    if any(check.code == code for check in CHECKS):
+        raise ValueError(
+            f"Duplicate check code {code!r} (registering {where}). "
+            "Codes are permanent identifiers and must be unique."
+        )
+    if not isinstance(prerequisites, list) or not all(
+        isinstance(prerequisite, str) and prerequisite for prerequisite in prerequisites
+    ):
+        raise ValueError(
+            f"Check {code!r}: depends_on must be a list of check codes, got {prerequisites!r}. "
+            "A bare string is a list of its characters, which is never what you meant."
+        )
+    if not isinstance(default_enabled, bool):
+        raise ValueError(
+            f"Check {code!r}: default_enabled must be True or False, got {default_enabled!r}.")
+
+
 def register_check(
     code: str,
     message: str,
@@ -138,32 +174,16 @@ def register_check(
     def decorator(fn: CheckFn) -> CheckFn:
         global _TOPO_ORDER
 
+        module = getattr(fn, "__module__", None)
         # depends_on is inspected before it is copied: list("CODE") would turn a
         # mistyped bare string into its characters, and the prerequisite check
         # downstream would then complain about a check called 'C'.
         prerequisites = [] if depends_on is None else depends_on
-        if not isinstance(code, str) or not code:
-            raise ValueError(f"Check code must be a non-empty string, got {code!r}.")
-        if not isinstance(message, str) or not message:
-            raise ValueError(f"Check {code!r}: message must be the text a person sees on failure.")
-        if any(check.code == code for check in CHECKS):
-            where = f"{fn.__module__}.{fn.__name__}" if getattr(fn, "__module__", None) else fn.__name__
-            raise ValueError(
-                f"Duplicate check code {code!r} (registering {where}). "
-                "Codes are permanent identifiers and must be unique."
-            )
-        if not isinstance(prerequisites, list) or not all(
-            isinstance(prerequisite, str) and prerequisite for prerequisite in prerequisites
-        ):
-            raise ValueError(
-                f"Check {code!r}: depends_on must be a list of check codes, got {prerequisites!r}. "
-                "A bare string is a list of its characters, which is never what you meant."
-            )
-        if not isinstance(default_enabled, bool):
-            raise ValueError(
-                f"Check {code!r}: default_enabled must be True or False, got {default_enabled!r}.")
+        _reject_bad_registration(
+            code, message, default_enabled, prerequisites,
+            where=f"{module}.{fn.__name__}" if module else fn.__name__,
+        )
 
-        module = getattr(fn, "__module__", None)
         if module:
             _REGISTERING_MODULES.add(module)
         CHECKS.append(
