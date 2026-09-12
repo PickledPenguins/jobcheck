@@ -8,13 +8,16 @@ import pandas as pd
 
 from jobcheck.registry import register_check
 from jobcheck.results import PASS, Status, CheckResult
+from jobcheck.tables import is_null
 
 
 def _number(value: Any) -> float | None:
-    """Value as a float, or ``None`` when it is missing or not numeric."""
+    """Value as a float, or `None` when it is not a number.
 
-    if value is None or not pd.api.types.is_scalar(value) or pd.isna(value):
-        return None
+    No missing-value guard: every check that calls this depends on AGE_PRESENT,
+    so it only ever runs on a row that has an age.
+    """
+
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -28,7 +31,7 @@ def age_present(row: "pd.Series[Any]") -> CheckResult:
     if "age" not in row.index:
         return CheckResult(Status.MISSING, {"reason": "no age column"})
     value = row["age"]
-    if value is None or (pd.api.types.is_scalar(value) and pd.isna(value)):
+    if is_null(value):
         return CheckResult(Status.MISSING)
     return PASS
 
