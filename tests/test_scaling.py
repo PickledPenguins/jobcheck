@@ -47,6 +47,23 @@ def seconds(work: Callable[[], Any]) -> float:
     return max(time.perf_counter() - started, 1e-6)
 
 
+def fastest(work: Callable[[], Any], repeats: int = 5) -> float:
+    """The best of several calls, after one warm-up call that is not timed.
+
+    Timing noise is additive -- another process or a scheduler steal makes a
+    call slower, never faster -- so the smallest of several runs is the one with
+    the least of it in, which is what makes a ratio between two of these stable
+    on a machine doing other work.
+
+    The warm-up matters as much as the repeats here: one-off costs (import
+    paths, first-touch allocation) land on whichever call runs first, and at
+    these sizes they were larger than the measurement itself.
+    """
+
+    work()
+    return min(seconds(work) for _ in range(repeats))
+
+
 def test_validating_twice_the_rows_costs_about_twice_as_much(example_checks: None) -> None:
     small = seconds(lambda: validate(frame(2_000)))
     large = seconds(lambda: validate(frame(8_000)))
@@ -92,7 +109,18 @@ def test_a_deep_dependency_chain_does_not_cost_more_than_a_flat_one(
 def test_building_a_report_scales_with_the_failures_not_the_rows(
     example_checks: None,
 ) -> None:
-    """A frame of passing rows costs the report almost nothing."""
+    """A frame of passing rows costs the report a fraction of a failing one.
+
+    A fraction rather than nothing: the same number of rows is still walked, and
+    their root causes still resolved, to produce no report lines at all. Measured
+    at about a quarter on 4,000 rows.
+
+    This asserted a bare ``quick < slow`` on two single measurements of about
+    50ms each, and failed on a machine running a second suite -- the warm-up cost
+    landed on ``quick``, which is measured first, and made the smaller number the
+    larger one. Both are the best of five runs now, and the bound is a ratio
+    with room in it, like every other check in this file.
+    """
 
     clean = pd.DataFrame([{"age": 34, "email": "a@b.com",
                            "start_date": "2024-01-01", "end_date": "2024-02-01"}] * 4_000)
@@ -100,12 +128,13 @@ def test_building_a_report_scales_with_the_failures_not_the_rows(
     clean_outcomes = validate(clean)
     messy_outcomes = validate(messy)
 
-    quick = seconds(lambda: rep.build_report(clean_outcomes, df=clean))
-    slow = seconds(lambda: rep.build_report(messy_outcomes, df=messy))
+    quick = fastest(lambda: rep.build_report(clean_outcomes, df=clean))
+    slow = fastest(lambda: rep.build_report(messy_outcomes, df=messy))
 
     assert len(rep.build_report(clean_outcomes, df=clean)) == 0
     assert len(rep.build_report(messy_outcomes, df=messy)) > 4_000
-    assert quick < slow
+    ratio = slow / quick
+    assert ratio > 2, f"a frame with no failures cost 1/{ratio:.1f} of a failing one"
 
 
 def test_row_by_row_holds_less_than_collecting_on_the_same_frame(
