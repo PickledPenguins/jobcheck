@@ -31,7 +31,7 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | Rule | Enforced by |
 |---|---|
 | The fast suite passes before every commit | `.git/hooks/pre-commit`, installed by `scripts/install-hooks.sh` |
-| 95% statements and branches | `./run-tests.sh cov`, through `coverage report --fail-under` |
+| 95% statements and branches | `./tests/run-tests.sh cov`, through `coverage report --fail-under` |
 | Every public name is exported, sorted, and documented | `tests/test_api_contract.py`, `tests/test_docs_unit.py` |
 | Every entry-point flag has a section in `docs/cli.md`, and every documented flag exists | `tests/test_readme.py` |
 | Every call shown in the docs matches the real signature | `tests/test_docs_unit.py` |
@@ -40,9 +40,9 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | Every catalog case documents itself and states its level, and each level keeps its floor | `tests/test_e2e_catalogs.py` |
 | The shipped rule files load together and name real codes and columns | `tests/test_shipped_examples_unit.py` |
 | The example data is what its generator produces | `tests/test_shipped_examples_unit.py` |
-| Timing has not regressed against this machine's baseline | `./run-tests.sh perf` |
-| Peak memory stays under its ceilings | `./run-tests.sh memory` |
-| Types check | `mypy`, run by `./run-tests.sh fast` and `types` |
+| Timing has not regressed against this machine's baseline | `./tests/run-tests.sh perf` |
+| Peak memory stays under its ceilings | `./tests/run-tests.sh memory` |
+| Types check | `mypy`, run by `./tests/run-tests.sh fast` and `types` |
 
 ## Style
 

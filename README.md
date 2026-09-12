@@ -32,7 +32,7 @@ pip install -e .
 - Then `import jobcheck`. Running from a clone without installing works
   too: the package lives in `src/`, so put that directory on `PYTHONPATH`.
 - To work on it: `pip install -e ".[dev]"`, `./scripts/install-hooks.sh`, then
-  `./run-tests.sh fast`.
+  `./tests/run-tests.sh fast`.
 
 ## Writing a check
 

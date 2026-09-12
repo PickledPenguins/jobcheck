@@ -162,7 +162,7 @@ def test_every_document_the_readme_links_to_exists(name: str) -> None:
 
 def test_the_readme_shell_commands_name_files_that_exist() -> None:
     text = README.read_text(encoding="utf-8")
-    for filename in ("scripts/install-hooks.sh", "run-tests.sh"):
+    for filename in ("scripts/install-hooks.sh", "tests/run-tests.sh"):
         assert filename in text
         assert (README.parent / filename).is_file()
     assert (README.parent / "pyproject.toml").is_file()

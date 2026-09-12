@@ -15,7 +15,8 @@ Two differences are already known and are not defects here:
 - the override rule format gained ``match:``. The check era took a single
   top-level ``column``/``pattern`` pair matched with ``fnmatchcase``; this tree
   takes a list of criteria matched as regular expressions (see
-  ``recovery/bytecode/jobcheck/rules.cpython-312.pyc``, whose ``RULE_KEYS`` is
+  ``recovery/bytecode/jobcheck/rules.cpython-312.pyc`` on ``main``, whose
+  ``RULE_KEYS`` is
   ``{name, action, codes, column, pattern}``).
 - ``ctx.count(column, value)`` is jobchain's own :class:`RowContext` subclass,
   not part of this library. The population is built here the same way.

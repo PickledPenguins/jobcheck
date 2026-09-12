@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 hook=".git/hooks/pre-commit"
-marker="run-tests.sh fast"
+marker="tests/run-tests.sh fast"
 
 # Never clobber someone else's hook silently: keep a copy and say so.
 if [ -e "$hook" ] && ! grep -q "$marker" "$hook"; then
@@ -23,7 +23,7 @@ cat > "$hook" <<'HOOK'
 # Fast suite gates every commit. Bypass with git commit --no-verify.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
-if ! ./run-tests.sh fast -q; then
+if ! ./tests/run-tests.sh fast -q; then
     echo "pre-commit: fast suite failed; commit blocked" >&2
     exit 1
 fi

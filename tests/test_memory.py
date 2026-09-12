@@ -2,7 +2,7 @@
 
 ``tracemalloc`` roughly triples the time of the code it watches, so these cannot
 share a run with the timing gates without making those meaningless. They are
-marked ``memory`` and run by ``./run-tests.sh memory``.
+marked ``memory`` and run by ``./tests/run-tests.sh memory``.
 
 The ceilings are absolute rather than baseline-relative, because peak memory is
 a property of the program rather than of the machine: the same frame allocates

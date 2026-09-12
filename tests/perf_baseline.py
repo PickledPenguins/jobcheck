@@ -1,7 +1,7 @@
 """The performance baseline: measured on this machine, compared against later.
 
 A baseline from another machine means nothing, so the file is gitignored and
-written by the first ``./run-tests.sh perf`` on a clone. What it stores per
+written by the first ``./tests/run-tests.sh perf`` on a clone. What it stores per
 measurement is the median of several repeats *and* the spread between them,
 because the spread is what decides an honest threshold: a machine whose repeats
 move 30% cannot police a 10% regression.
@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-BASELINE = Path(__file__).resolve().parent.parent / ".perf-baseline.json"
+BASELINE = Path(__file__).resolve().parent.parent / ".build" / "perf-baseline.json"
 
 #: Never police a regression smaller than this, whatever the machine's noise.
 MIN_TOLERANCE = 0.35

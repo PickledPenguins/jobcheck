@@ -1,24 +1,20 @@
 __pycache__/
 *.py[cod]
-.mypy_cache/
 .venv/
-.coverage
-.pytest_cache/
 build/
 dist/
 *.egg-info/
+
+# Every generated artifact lives under .build/ so the project root shows only
+# files a reader is looking for: the coverage data, the pytest and mypy caches,
+# the hypothesis database, the profile and the performance baseline.
+.build/
+
+# mutmut hardcodes Path('mutants') relative to the working directory, so this
+# one cannot be moved under .build/. It is transient: delete it after a run.
 mutants/
 .mutmut-cache
-.benchmarks
-.mutation
-reviews/
 
-# The pre-2026-09-09 bytecode under recovery/ is the only surviving copy of the
-# check-era sources, so it is tracked deliberately -- the two rules above would
-# otherwise ignore it.
-!recovery/bytecode/**/*.pyc
-
-# The performance baseline is measured on the machine that runs the suite, so it
-# is never shared: a number from another machine gates nothing.
-.perf-baseline.json
-.build/
+# Agent working files: saved review reports, written by creview and cleared by
+# caddressreview. The handoff record beside them is tracked.
+.agent/reviews/

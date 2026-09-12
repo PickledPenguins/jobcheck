@@ -37,12 +37,19 @@ jobcheck = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --strict-markers"
+# -p no:benchmark: pytest-benchmark is not used here, and merely loading it
+# creates a .benchmarks directory in the project root at configure time. It goes
+# in addopts rather than on the command line so the suites that spawn a pytest
+# subprocess block it too; blocking a plugin that is not installed is a no-op.
+addopts = "-q --strict-markers -p no:benchmark"
+# Every generated artifact belongs under .build/, so the project root stays
+# readable. Same reason as the mypy and coverage settings below.
+cache_dir = ".build/pytest"
 markers = [
     "fast: unit, smoke, interface, regression, cheap pathological. Gates every commit.",
     "long: integration, load, end-to-end, catalogs. Gates every release.",
-    "perf: timing against this machine's recorded baseline. Its own gate: ./run-tests.sh perf.",
-    "memory: peak-memory ceilings, measured under tracemalloc. Its own gate: ./run-tests.sh memory.",
+    "perf: timing against this machine's recorded baseline. Its own gate: tests/run-tests.sh perf.",
+    "memory: peak-memory ceilings, measured under tracemalloc. Its own gate: tests/run-tests.sh memory.",
 ]
 
 [tool.coverage.run]
@@ -50,6 +57,7 @@ markers = [
 # repository is responsible for, and a broken example should show as a gap.
 source = ["jobcheck", "main", "perf_baseline", "examples/checks"]
 branch = true
+data_file = ".build/coverage"
 
 [tool.coverage.report]
 show_missing = true
@@ -62,6 +70,7 @@ exclude_lines = [
 [tool.mypy]
 files = ["src", "examples", "scripts", "tests"]
 ignore_missing_imports = true
+cache_dir = ".build/mypy"
 # tests/ is not a package, and scripts/ imports its helpers by name, so the same
 # file can otherwise be reached under two module names.
 mypy_path = "src:tests"

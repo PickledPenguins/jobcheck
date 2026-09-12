@@ -15,17 +15,17 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./run-tests.sh fast` | 607 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 15s |
-| `./run-tests.sh long` | 231 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 320s |
-| `./run-tests.sh all` | 838 tests, then mypy and the profile | 350s |
-| `./run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 25s |
-| `./run-tests.sh perf` | timing against this machine's baseline; its own gate | 85s |
-| `./run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 72s |
-| `./run-tests.sh profile` | the example profile alone | 12s |
-| `./run-tests.sh types` | mypy alone | 8s |
+| `./tests/run-tests.sh fast` | 607 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 15s |
+| `./tests/run-tests.sh long` | 231 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 320s |
+| `./tests/run-tests.sh all` | 838 tests, then mypy and the profile | 350s |
+| `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 25s |
+| `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 85s |
+| `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 72s |
+| `./tests/run-tests.sh profile` | the example profile alone | 12s |
+| `./tests/run-tests.sh types` | mypy alone | 8s |
 
-Extra arguments pass through to pytest: `./run-tests.sh fast -k dependency`,
-`./run-tests.sh long tests/test_load.py`. Each mode exits non-zero on any failure and
+Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
+`./tests/run-tests.sh long tests/test_load.py`. Each mode exits non-zero on any failure and
 prints one summary line. `PYTHON=/path/to/python` selects the interpreter.
 
 Markers are `fast`, `long`, `perf` and `memory`; `--strict-markers` is on, so a typo
@@ -39,11 +39,11 @@ There is no CI. The pre-commit hook and the release gates below are what run the
 
 ## Gates
 
-- **Pre-commit** — `./run-tests.sh fast`, installed by `./scripts/install-hooks.sh` into
+- **Pre-commit** — `./tests/run-tests.sh fast`, installed by `./scripts/install-hooks.sh` into
   `.git/hooks/pre-commit`. Bypass with git's own `--no-verify`; there is no custom flag.
   Verified to block: breaking `format_table` and committing stops at the hook.
-- **Pre-release** — `./run-tests.sh all`, `./run-tests.sh cov`, `./run-tests.sh memory`
-  and `./run-tests.sh perf`. Coverage below 95% fails through
+- **Pre-release** — `./tests/run-tests.sh all`, `./tests/run-tests.sh cov`, `./tests/run-tests.sh memory`
+  and `./tests/run-tests.sh perf`. Coverage below 95% fails through
   `coverage report --fail-under`; a memory ceiling or a timing baseline exceeded fails
   its own run.
 
@@ -166,6 +166,13 @@ in `[tool.mutmut]`:
   survived; the other two assert on the module's own structure and on the doc tree,
   neither of which survives being copied into `mutants/`.
 
+**`mutants/` is the one artifact in the project root.** Every other generated file lives
+under `.build/` — the coverage data, the pytest and mypy caches, the hypothesis database,
+the profile and the performance baseline. `mutmut` hardcodes `Path('mutants')` relative to
+the working directory and takes no setting for it, so that tree appears beside the project
+and is gitignored. It is transient: `rm -rf mutants .mutmut-cache` when a run is finished,
+which is also what a stale tree needs before the next one.
+
 **A targeted re-run discards every other result.** `mutmut run <mutant-name>` re-runs that
 one mutant and drops the stored results for all the others, so the score it was being
 measured against is gone and the only way back to a number is a full run. Check individual
@@ -243,7 +250,8 @@ its regression test.
 
 ## Performance and profiling
 
-`./run-tests.sh perf` compares five timings against `.perf-baseline.json`, which is
+`./tests/run-tests.sh perf` compares five timings against `.build/perf-baseline.json`,
+which is
 **gitignored**: a baseline from another machine gates nothing. The first run on a clone
 records it and says so; later runs fail when a median moves past the machine's own
 measured noise (twice the observed spread, floored at 35% and capped at 150%).
@@ -260,7 +268,7 @@ Measured on 2026-09-10 after the simplification, Python 3.12.14, Linux 6.12 x86_
 | `summarize_outcomes/4000` | 0.020s | 4% |
 | `validate/1000-rows-50-rules` | 0.403s | 14% |
 
-`./run-tests.sh long` and `all` end by running `scripts/profile_examples.py`, which
+`./tests/run-tests.sh long` and `all` end by running `scripts/profile_examples.py`, which
 drives the same runs the catalog drives, in this process, and prints this project's own
 functions by cumulative time. It is a description, not a gate — the assertions live in
 `test_perf.py`. **It cannot see the catalog's own subprocesses:** interpreter start-up,
