@@ -35,11 +35,20 @@ src/jobcheck/   the package: the only thing that ships
 examples/                    two demo entry points, the rule files they load,
                              and checks/ -- the checks it runs
 docs/                        this and its siblings
-tests/                       the suites, the golden files, the catalogs
+tests/                       the suites, the golden files, the catalogs, and
+                             run-tests.sh: fast | long | all | cov
 scripts/                     hook installer and the two regenerators
 pyproject.toml               packaging, plus pytest, coverage and mypy config
-run-tests.sh                 fast | long | all | cov
+.build/                      every generated artifact, all gitignored
+.agent/, .claude/            the handoff record, saved reviews, agent guidance
 ```
+
+Nothing generated is written to the project root. `.build/` holds the coverage
+data, the pytest and mypy caches, the hypothesis database, the example profile
+and the machine's performance baseline, and `tests/run-tests.sh` runs from the
+root whichever directory it is invoked from. The one exception is `mutants/`,
+which `mutmut` writes beside the project because it hardcodes the path; delete
+it when a mutation run is finished.
 
 A src layout, so an installed copy and a clone behave the same: nothing imports
 the package by accident from the working directory. The demos add `src/` to
@@ -60,9 +69,8 @@ the package by accident from the working directory. The demos add `src/` to
 | `src/jobcheck/__init__.py` | Re-exports the public surface. Registers no checks, and ships none. |
 | `examples/checks/` | The example checks. Outside the package on purpose: nothing of ours should register in an adopter's registry. |
 | `examples/main.py` | Demo entry point and end-to-end driver: registry tables, the report, explanations, summaries. |
-| `tests/` | pytest suites, split `fast`/`long` by marker, plus the example and failure catalogs. |
-| `run-tests.sh`, `scripts/` | Suite entry points, the pre-commit hook installer, the catalog regenerator, and the bytecode interface reader. |
-| `recovery/` | The pre-2026-09-09 bytecode, tracked deliberately, and the interface read out of it. See `recovery/README.md`. |
+| `tests/` | pytest suites, split `fast`/`long` by marker, plus the example and failure catalogs and `run-tests.sh`, the entry point for every gate. |
+| `scripts/` | The pre-commit hook installer, the catalog regenerator, the example profiler and the bytecode interface reader. |
 
 ## Decisions
 

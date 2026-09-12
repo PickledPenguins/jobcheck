@@ -22,7 +22,7 @@ pytestmark = pytest.mark.fast
 
 @pytest.fixture
 def baseline_file(tmp_path: Path, monkeypatch: Any) -> Path:
-    path = tmp_path / ".perf-baseline.json"
+    path = tmp_path / "perf-baseline.json"
     monkeypatch.setattr(pb, "BASELINE", path)
     return path
 

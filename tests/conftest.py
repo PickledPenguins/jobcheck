@@ -23,6 +23,15 @@ sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "examples"))
 sys.path.insert(0, PROJECT_ROOT)
 
+# Hypothesis keeps its example database and its constants cache in .hypothesis
+# in the working directory. There is no pyproject setting for it, only this
+# environment variable, read the first time anything asks for the directory --
+# so it is set here, before a test imports hypothesis. setdefault, because a
+# caller who has pointed it somewhere meant it.
+os.environ.setdefault(
+    "HYPOTHESIS_STORAGE_DIRECTORY", os.path.join(PROJECT_ROOT, ".build", "hypothesis")
+)
+
 from jobcheck import engine as eng  # noqa: E402
 from jobcheck import registry as reg  # noqa: E402
 from jobcheck import results as res  # noqa: E402

@@ -7,28 +7,30 @@ what was **considered and deliberately not done**, with the reason. Without the 
 section every review re-proposes the same rejected idea and every session re-derives the
 same answer.
 
-Open findings live in `reviews/` when a review has run; what a session was in the middle
-of lives in `HANDOFF.md`. This file is for questions that are closed.
+Open findings live in `.agent/reviews/` when a review has run; what a session was in the
+middle of lives in `.agent/HANDOFF.md`. This file is for questions that are closed.
 
 ## Known gaps
 
 **F.1 — `lint`, `parallel` and `params` exist only as bytecode.** Three modules were lost
-when the repository was re-initialized on 2026-09-09 and survive only in
-`recovery/bytecode/`. `recovery/README.md` records what each did and the reason to
-rebuild it; none is rebuilt because nothing calls them today. `lint` is the one with
-obvious value — warnings about rule files that parse but can never fire, fire everywhere,
-or were superseded.
+when the repository was re-initialized on 2026-09-09. Their `.pyc` files, and the
+interface read out of them, are on `main`: `git show origin/main:recovery/README.md`
+records what each did and the reason to rebuild it, and
+`git restore --source=origin/main -- recovery` brings the whole directory back. None is
+rebuilt because nothing calls them today. `lint` is the one with obvious value — warnings
+about rule files that parse but can never fire, fire everywhere, or were superseded.
 
 **F.2 — Eleven check modules from the same era are also unrebuilt.**
-`recovery/recovered-checks-api.md` lists what each asserted, by name and docstring. The
-current suite covers most of the same surface; `test_error_messages` and `test_rules_unit`
-are the two whose subjects are now covered from a different angle rather than directly.
+`recovery/recovered-checks-api.md` on `main` lists what each asserted, by name and
+docstring. The current suite covers most of the same surface; `test_error_messages` and
+`test_rules_unit` are the two whose subjects are now covered from a different angle rather
+than directly.
 
 **F.3 — Dates dominate the profile.** `explain_row` is about 85% of a validation run, and
 inside it the example checks' `dates_present` and `dates_in_order` are roughly 40% of the
 total, because both call `pandas.to_datetime` per row. That is example code rather than
 library code, so it costs an adopter nothing — but it is what a reader of
-`./run-tests.sh profile` will see first, and it is worth knowing it is not the engine.
+`./tests/run-tests.sh profile` will see first, and it is worth knowing it is not the engine.
 
 ## Considered and deliberately not done
 
