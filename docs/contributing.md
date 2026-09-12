@@ -10,12 +10,11 @@ Changing this project itself: where a change goes, and what enforces what.
 |---|---|
 | A new test for row data | Your own package, not this one. This library ships no tests — see [writing-checks.md](writing-checks.md). |
 | What checks exist: registration, file loading, the dependency graph | `src/jobcheck/registry.py` |
-| What happens to a row: on/off state, evaluation order, outcomes, root causes | `src/jobcheck/engine.py` |
+| What happens to a row, and to a whole frame: on/off state, evaluation order, outcomes, root causes | `src/jobcheck/engine.py` |
 | How the registry and the rules are displayed | `src/jobcheck/registry_tables.py` |
-| The whole-frame entry point and what it returns | `src/jobcheck/run.py` |
 | Anything about the report: columns, formats, files | `src/jobcheck/report.py` |
 | The rule-file format and its parser | `src/jobcheck/rules.py` — it never reaches into the registry; the codes that exist are handed to it |
-| What a test may return, and the status vocabulary | `src/jobcheck/results.py` |
+| What a check may return, and the status vocabulary | `src/jobcheck/results.py` |
 | Table rendering and null handling | `src/jobcheck/tables.py` |
 | A demo of any of the above | `examples/`, never the package |
 | A dependency | `pyproject.toml` only — there is no requirements.txt to keep in step |
@@ -44,6 +43,23 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | Timing has not regressed against this machine's baseline | `./run-tests.sh perf` |
 | Peak memory stays under its ceilings | `./run-tests.sh memory` |
 | Types check | `mypy`, run by `./run-tests.sh fast` and `types` |
+
+## Style
+
+The bar is a junior developer reading this for the first time, and it is the
+reason several obvious-looking shortcuts are absent:
+
+- **No lambdas.** A named function says what it is for; there are none in the
+  package, and a new one is a review comment.
+- **No dense one-liners.** A comprehension with two conditions, or one indexing
+  into a nested structure, gets unpacked into a named value or a plain loop.
+- **Lines stay under 100 characters.** Nothing enforces it -- there is no linter
+  here -- but the package sits under it, and a long error message is wrapped as
+  adjacent string literals rather than run out to 120.
+- **A line is either obvious or carries a brief comment saying what it does.**
+  Docstrings say what a function is for and why it exists, in less space than the
+  function takes; the detail of arguments, return shapes and errors lives in
+  [interfaces.md](interfaces.md), which a test keeps in step with the code.
 
 ## Adding to the suite
 

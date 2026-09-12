@@ -11,6 +11,21 @@ and the rule file format in [configuration.md](configuration.md).
 between versions, while check codes, status values and the override YAML schema
 are treated as permanent.
 
+## The short list
+
+Writing checks and running them needs eight names, and nothing else here is
+required reading:
+
+`register_check`, `PASS`, `CheckResult`, `Status` for a check file;
+`load_checks`, `load_overrides`, `validate` and `build_report` for the pipeline
+that runs them. Add `RowContext` when a check needs per-row state the frame does
+not carry, and `validate_row` for a frame too large to keep every outcome.
+
+Everything below that is the tooling surface: printing, explaining, counting,
+inspecting the registry, and the pieces a wrapper around this library reaches
+for. It is exported and supported -- `~/work/ai/jobchain` builds on several of
+these names -- but a first check file needs none of it.
+
 ## Data types
 
 ### `Status`
@@ -122,6 +137,11 @@ including one living in a check file that was not loaded, deliberately as loud a
 a typo. A chain too deep for the ordering walk (thousands of checks, each
 registered before the prerequisite it names) raises `ValueError` naming the
 registry size, rather than a bare `RecursionError` naming nothing.
+
+`snapshot() -> dict` copies the whole registry and `restore(state)` puts it back,
+dropping whatever is there now. One place owns what registry state *is*, which is
+what a caller wanting a throwaway registry needs; the test suite takes one per
+test.
 
 `clear_registry` empties the registry and evicts the modules that registered
 checks from `sys.modules`, so a later `load_checks` re-registers rather than

@@ -1,16 +1,8 @@
 """The registry: what checks exist, how they depend on each other, and loading.
 
-Registration, file loading, dependency validation, ordering and layers --
-everything about the *set* of checks, and nothing about running them.
-:mod:`jobcheck.engine` evaluates a row against this registry,
-:mod:`jobcheck.registry_tables` displays it, the override rule format lives in
-:mod:`jobcheck.rules`, the value types a check returns in
-:mod:`jobcheck.results`, per-row metadata in :mod:`jobcheck.context`, and
-reporting in :mod:`jobcheck.report`.
-
-:func:`load_overrides` here is a thin wrapper over the parser in
-:mod:`jobcheck.rules`: it supplies the codes that exist, which is the only
-thing that module needs from this one.
+Everything about the *set* of checks -- registration, file loading, dependency
+validation, ordering and layers -- and nothing about running them, which is
+`engine.py`.
 """
 
 from __future__ import annotations
@@ -41,14 +33,11 @@ RunnerFn = Callable[["pd.Series[Any]", RowContext | None], Any]
 class Check:
     """One named validation rule.
 
-    ``code`` is a permanent identifier.  It is never renumbered and never
-    reused, even after the check it named is deleted: override YAML files
-    written by non-developers, saved reports and downstream tooling all refer
-    to codes, so a reused code silently changes the meaning of existing data.
+    `code` is permanent: never renumbered, never reused even after the check it
+    named is deleted, because rule files and saved reports refer to codes.
 
-    A check reads whatever columns it needs from the row itself, so there is no
-    ``column`` field: these rules are row-scoped, and many of them weigh several
-    columns together.
+    There is no `column` field -- a check reads whatever columns it needs from
+    the row, and many weigh several together.
     """
 
     __test__ = False  # not a pytest check class, despite the name
@@ -83,12 +72,9 @@ _TOPO_ORDER: list[Check] | None = None
 
 
 def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
-    """Wrap an author's function so the engine can always call ``fn(row, context)``.
+    """Wrap an author's function so the engine can always call `fn(row, context)`.
 
-    A check takes ``(row)`` or ``(row, context)``; the shape is settled once here,
-    at registration, rather than inspected on every row. Any other signature is
-    an authoring error and raises immediately -- a check that cannot be called is
-    worth failing the import for.
+    The shape is settled once, at registration, rather than inspected per row.
     """
 
     signature = inspect.signature(fn)
@@ -103,10 +89,17 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
             f"{', '.join(needed)} that the engine cannot supply. Give them defaults, "
             "or read them from the row or the context."
         )
+    def call_with_context(row: "pd.Series[Any]", context: RowContext | None) -> Any:
+        return fn(row, context)
+
+    def call_with_row_only(row: "pd.Series[Any]", context: RowContext | None) -> Any:
+        return fn(row)
+
+    # *args counts as taking the context: the author's function will accept it.
     if any(p.kind is p.VAR_POSITIONAL for p in parameters) or len(positional) == 2:
-        return lambda row, ctx: fn(row, ctx)
+        return call_with_context
     if len(positional) == 1:
-        return lambda row, ctx: fn(row)
+        return call_with_row_only
     raise ValueError(
         f"Check {code!r}: {fn.__name__}{signature} must take (row) or (row, context), "
         f"not {len(positional)} positional argument(s)."
@@ -118,14 +111,9 @@ def _reject_bad_registration(
 ) -> None:
     """Everything a `register_check` call can get wrong, in one place.
 
-    All of it raises at import, where the author is looking at the file that has
-    the mistake in it, rather than at the first row validated. *where* names the
-    function being registered, which is the only one of these facts the decorator
-    can see and this module cannot.
-
-    ``depends_on`` is checked for shape here and for existence in
-    :func:`validate_registry`: a prerequisite may live in a module not yet
-    imported, so only the shape can be judged this early.
+    `depends_on` is checked for shape here and for existence in
+    `validate_registry`: a prerequisite may live in a module not yet imported, so
+    only its shape can be judged this early.
     """
 
     if not isinstance(code, str) or not code:
@@ -155,20 +143,11 @@ def register_check(
     default_enabled: bool = True,
     depends_on: list[str] | None = None,
 ) -> Callable[[CheckFn], CheckFn]:
-    """Decorator registering one validation function into :data:`CHECKS`.
+    """Register one validation function: a function in a `check_*.py` file, and
+    no central list to edit.
 
-    Adding a check means adding a function to some ``check_*.py`` file and nothing
-    else: there is no central list to edit. The source file is captured
-    automatically from where the function lives.
-
-    The decorated function takes ``(row)`` or ``(row, context)`` and returns
-    :data:`~jobcheck.results.PASS` or a :class:`~jobcheck.results.CheckResult`
-    -- ``CheckResult(condition)`` wraps a bare comparison.
-
-    Everything that can be wrong here fails at import: a duplicate code, an
-    empty message, a signature the engine cannot call. ``depends_on`` is the one
-    exception -- the prerequisite may live in a module not yet imported, so it is
-    checked by :func:`validate_registry` once loading finishes.
+    Everything that can be wrong fails at import, where the author is looking at
+    the file with the mistake in it.
     """
 
     def decorator(fn: CheckFn) -> CheckFn:
@@ -205,10 +184,7 @@ def register_check(
 def clear_registry() -> None:
     """Drop every registered check and all loaded-file bookkeeping.
 
-    Exists for checks of the framework itself, which need to build small
-    throwaway registries (a dependency cycle, a dangling prerequisite) without
-    the example checks in the way, and for a process that validates several
-    runs in turn.
+    For a throwaway registry, and for a process validating several runs in turn.
     """
 
     global _TOPO_ORDER
@@ -223,6 +199,36 @@ def clear_registry() -> None:
     _TOPO_ORDER = None
 
 
+#: Everything `clear_registry` clears, as one value. A dict rather than four
+#: return values so adding registry state does not change this signature.
+RegistryState = dict[str, Any]
+
+
+def snapshot() -> RegistryState:
+    """Copy the whole registry, to be handed back to `restore` later.
+
+    One place owns what registry state *is*, so a caller cannot miss a piece.
+    """
+
+    return {
+        "checks": list(CHECKS),
+        "loaded_files": list(_LOADED_FILES),
+        "registering_modules": set(_REGISTERING_MODULES),
+        "topo_order": _TOPO_ORDER,
+    }
+
+
+def restore(state: RegistryState) -> None:
+    """Put back a registry :func:`snapshot` took, dropping whatever is there now."""
+
+    global _TOPO_ORDER
+    clear_registry()
+    CHECKS.extend(state["checks"])
+    _LOADED_FILES.extend(state["loaded_files"])
+    _REGISTERING_MODULES.update(state["registering_modules"])
+    _TOPO_ORDER = state["topo_order"]
+
+
 def loaded_check_files() -> list[str]:
     """Check files loaded so far, in load order (a copy)."""
 
@@ -232,14 +238,9 @@ def loaded_check_files() -> list[str]:
 def load_checks(paths: list[str]) -> None:
     """Import the named check files so their checks register themselves.
 
-    Every file is named explicitly, as a list of paths to ``.py`` files.
-    Nothing is discovered, and nothing is imported that was not asked for,
-    so two entry points in one codebase can run different sets of checks without
-    interfering with each other.
-
-    The files need not be a package and need no ``__init__.py``. A file listed
-    twice, or already loaded, is skipped. Dependencies are validated once every
-    file in the call has been loaded, so a prerequisite may live in any of them.
+    Every file is named explicitly and nothing is discovered, so two entry points
+    in one codebase can run different sets of checks without interfering. A file
+    listed twice, or already loaded, is skipped.
     """
 
     if isinstance(paths, str):
@@ -293,8 +294,8 @@ def load_checks(paths: list[str]) -> None:
 def _topological_order() -> list[Check]:
     """Order checks so every prerequisite precedes its dependents.
 
-    Depth-first search with a visiting set, which detects cycles as a side
-    effect -- so ordering and cycle detection share one traversal.
+    Depth-first, so a code met twice on one path is a cycle: ordering and cycle
+    detection share the traversal.
     """
 
     by_code = {check.code: check for check in CHECKS}
@@ -324,16 +325,12 @@ def _topological_order() -> list[Check]:
 
 
 def validate_registry() -> None:
-    """Check every ``depends_on`` edge and cache the evaluation order.
+    """Check every `depends_on` edge, compute each check's layer, and cache the
+    evaluation order so neither is recomputed inside the per-row loop.
 
-    A prerequisite code that is not registered raises -- including the case where
-    it merely lives in a check file this entry point did not load.  That is
-    deliberately as loud as a typo: silently skipping a dependent check because
-    its prerequisite's file is absent would change which checks run based on an
-    unrelated argument, with no diagnostic.
-
-    Also computes every check's :attr:`Check.layer` and caches the evaluation
-    order, so neither is recomputed inside the per-row loop.
+    An unregistered prerequisite raises, including one that merely lives in a
+    file this entry point did not load: skipping the dependent silently would
+    change which checks run based on an unrelated argument.
     """
 
     global _TOPO_ORDER
@@ -368,11 +365,9 @@ def validate_registry() -> None:
 
 
 def _get_topo_order() -> list[Check]:
-    """Return the cached evaluation order, computing it if the registry changed.
+    """The cached evaluation order, computed if the registry has changed since.
 
-    ``validate_registry`` always sets the cache, so the second read cannot be
-    ``None``; it is spelled as a local so mypy can see that without a branch
-    nothing can reach.
+    The local spelling is what lets mypy see the cache is set by then.
     """
 
     if _TOPO_ORDER is None:
@@ -382,13 +377,7 @@ def _get_topo_order() -> list[Check]:
 
 
 def load_overrides(paths: list[str]) -> list[OverrideRule]:
-    """Load override rules from the named YAML files, in the order given.
-
-    Named explicitly as a list, exactly as :func:`load_checks` names check files, and
-    precedence follows that order: for a given row, the last matching rule wins.
-
-    Load the check files first: a rule naming a code that is not registered is
-    an error, since it would otherwise sit in the file doing nothing.
-    """
+    """Load override rules from the named YAML files, in precedence order. Load
+    the check files first: a rule naming an unregistered code is an error."""
 
     return rules.load_overrides(paths, {check.code for check in CHECKS})

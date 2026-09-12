@@ -1,11 +1,8 @@
 """Override rules: the YAML format that switches checks on and off per row.
 
-The file format, its parser, and the matching it drives. Nothing here knows how a
-check is registered or evaluated -- the loaders are handed the set of codes that
-exist, so this module never reaches back into the registry.
-
-A rule file is a flat list of rules. Precedence is positional: for a given row,
-the last matching rule wins.
+Nothing here knows how a check is registered or evaluated -- the loaders are
+handed the codes that exist, so this module never reaches into the registry.
+A rule file is a flat list, and for a given row the last matching rule wins.
 """
 
 from __future__ import annotations
@@ -39,14 +36,10 @@ class MatchCriterion:
 class OverrideRule:
     """A non-developer instruction to enable or disable codes for matching rows.
 
-    ``match_all`` records that the YAML said ``match: all`` -- an explicit
-    opt-in wildcard.  It is a separate flag rather than "empty criteria list"
-    so that an accidentally empty list can never be mistaken for a deliberate
-    match-everything rule.
-
-    ``message`` is why the rule exists, in the author's words, and is required
-    for the same reason a check's message is: it is printed where somebody has
-    to decide whether the rule still makes sense.
+    `match_all` is a flag rather than "empty criteria list" so an accidentally
+    empty list can never be mistaken for a deliberate match-everything rule.
+    `message` is required, and printed, because a rule nobody can justify is a
+    rule nobody dares delete.
     """
 
     name: str
@@ -59,34 +52,41 @@ class OverrideRule:
 
 
 def parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[MatchCriterion], bool]:
-    """Parse a rule's ``match`` value into criteria plus a match-everything flag.
+    """Parse a rule's `match` value into criteria plus a match-everything flag.
 
-    ``match: all`` is the only accepted wildcard.  A bare ``match: []`` is
-    rejected rather than treated as "every row": an empty list is far more
-    likely to be an accidental omission (a criterion deleted, a template left
-    unfilled) than an intentional global rule, and getting that wrong silently
-    disables checks across a whole dataset.  A missing ``match`` key is
-    rejected for the same reason -- it defaults to nothing at all.
+    `match: all` is the only wildcard: an empty or missing `match` is rejected
+    rather than read as "every row", since it is far likelier to be an omission,
+    and getting that wrong disables checks across a whole dataset silently.
     """
 
     where = f"rule {rule_name!r} in {source_file}"
     if raw is None:
-        raise ValueError(f"{where}: missing 'match'. Use 'match: all' to apply the rule to every row.")
+        raise ValueError(
+            f"{where}: missing 'match'. Use 'match: all' to apply the rule to every row.")
     if isinstance(raw, str):
         if raw != "all":
-            raise ValueError(f"{where}: 'match' must be a list of criteria or the literal 'all', got {raw!r}.")
+            raise ValueError(
+                f"{where}: 'match' must be a list of criteria or the literal 'all', "
+                f"got {raw!r}.")
         return [], True
     if not isinstance(raw, list):
-        raise ValueError(f"{where}: 'match' must be a list of criteria or the literal 'all', got {type(raw).__name__}.")
+        raise ValueError(
+            f"{where}: 'match' must be a list of criteria or the literal 'all', "
+            f"got {type(raw).__name__}.")
     if not raw:
-        raise ValueError(f"{where}: 'match' is an empty list. Use 'match: all' if you really mean every row.")
+        raise ValueError(
+            f"{where}: 'match' is an empty list. Use 'match: all' if you really mean "
+            "every row.")
 
     criteria: list[MatchCriterion] = []
     for entry in raw:
         if not isinstance(entry, dict):
-            raise ValueError(f"{where}: each 'match' entry must be a mapping with 'column' and 'pattern'.")
+            raise ValueError(
+                f"{where}: each 'match' entry must be a mapping with 'column' and "
+                "'pattern'.")
         if "column" not in entry or "pattern" not in entry:
-            raise ValueError(f"{where}: 'match' entry {entry!r} needs both 'column' and 'pattern'.")
+            raise ValueError(
+                f"{where}: 'match' entry {entry!r} needs both 'column' and 'pattern'.")
         column = entry["column"]
         pattern = entry["pattern"]
         if not isinstance(column, str) or not isinstance(pattern, str):
@@ -94,19 +94,18 @@ def parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[MatchC
         try:
             regex = re.compile(pattern)
         except re.error as exc:
-            raise ValueError(f"{where}: invalid regex {pattern!r} for column {column!r}: {exc}") from exc
+            raise ValueError(
+                f"{where}: invalid regex {pattern!r} for column {column!r}: {exc}") from exc
         criteria.append(MatchCriterion(column=column, pattern=pattern, regex=regex))
     return criteria, False
 
 
 def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRule:
-    """Validate and build one rule, failing loudly at load time.
+    """Validate and build one rule, failing at load time rather than part-way
+    through a long run.
 
-    Every problem is raised here rather than when the rule is first applied to
-    a row, so a malformed YAML file is reported once at start-up instead of
-    part-way through a long pipeline run. That includes an unrecognized key: in
-    a file edited by hand, a misspelled key is a setting that silently does
-    nothing, which is worse than being told about it.
+    An unrecognized key is refused too: in a hand-edited file, a misspelled key
+    is a setting that silently does nothing.
     """
 
     if not isinstance(raw, dict):
@@ -124,11 +123,15 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRul
 
     action = raw.get("action")
     if action not in ("enable", "disable"):
-        raise ValueError(f"rule {name!r} in {source_file}: 'action' must be exactly 'enable' or 'disable', got {action!r}.")
+        raise ValueError(
+            f"rule {name!r} in {source_file}: 'action' must be exactly 'enable' or "
+            f"'disable', got {action!r}.")
 
     codes = raw.get("codes")
     if not isinstance(codes, list) or not codes or not all(isinstance(c, str) for c in codes):
-        raise ValueError(f"rule {name!r} in {source_file}: 'codes' must be a non-empty list of code strings.")
+        raise ValueError(
+            f"rule {name!r} in {source_file}: 'codes' must be a non-empty list of "
+            "code strings.")
 
     for code in codes:
         if code not in known_codes:
@@ -172,15 +175,12 @@ def parse_file(path: str, known_codes: set[str]) -> list[OverrideRule]:
 
 
 def load_overrides(paths: list[str], known_codes: set[str]) -> list[OverrideRule]:
-    """Parse the named YAML files into rules, in the order given.
+    """Parse the named YAML files into rules, in the order given, which is also
+    their precedence: for a given row, the last matching rule wins.
 
-    Duplicate rule names are caught across the whole load, not per file: the
-    name is how a person refers to a rule in error messages, so two rules
-    sharing one is ambiguous even when they came from different directories.
-
-    Precedence follows the order of *paths* -- for a given row, the last
-    matching rule wins -- so a caller that wants alphabetical order sorts the
-    list itself.
+    Duplicate names are caught across the whole load, not per file -- the name is
+    how a person refers to a rule, so two sharing one is ambiguous wherever they
+    came from.
     """
 
     if isinstance(paths, str):
@@ -216,8 +216,7 @@ def cell_text(row: "pd.Series[Any]", column: str) -> str | None:
 def rule_matches(rule: OverrideRule, row: "pd.Series[Any]") -> bool:
     """Whether every criterion of *rule* matches *row* (AND semantics).
 
-    A criterion naming a column the row does not have, or whose value is null,
-    does not match: an absent value cannot satisfy a pattern.
+    An absent or null value cannot satisfy a pattern, so it does not match.
     """
 
     if rule.match_all:
@@ -234,15 +233,8 @@ def check_override_columns(df: pd.DataFrame, overrides: list[OverrideRule]) -> l
 
     A criterion naming a column that is not there never matches, so the rule
     silently never applies -- the one rule mistake nothing else catches, since
-    the loader validates codes and patterns but has no data to compare against.
-
-    Returns one human-readable line per problem, empty when every criterion
-    column is present. It warns rather than raises: a rule file may deliberately
-    cover several data shapes, only some of which carry the column.
-
-    Checks are not checked here. They read the row themselves, so a missing field
-    raises from the check and is recorded as a :data:`Status.ERROR` outcome
-    naming the column, rather than passing silently.
+    the loader has no data to compare against. It warns rather than raises: one
+    rule file may deliberately cover several data shapes.
     """
 
     present = set(df.columns)

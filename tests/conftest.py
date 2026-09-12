@@ -33,19 +33,10 @@ from jobcheck.results import PASS
 def fresh_registry() -> Iterator[None]:
     """Give the check an empty registry and restore the previous one afterwards."""
 
-    saved_checks = list(reg.CHECKS)
-    saved_modules = set(reg._REGISTERING_MODULES)
-    saved_files = list(reg._LOADED_FILES)
-    saved_order = reg._TOPO_ORDER
-
+    saved = reg.snapshot()
     reg.clear_registry()
     yield
-
-    reg.clear_registry()
-    reg.CHECKS.extend(saved_checks)
-    reg._REGISTERING_MODULES.update(saved_modules)
-    reg._LOADED_FILES.extend(saved_files)
-    reg._TOPO_ORDER = saved_order
+    reg.restore(saved)
 
 
 #: The check files the shipped demo loads, as paths from the project root.
