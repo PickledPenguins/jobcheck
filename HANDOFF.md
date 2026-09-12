@@ -1,31 +1,29 @@
 # Handoff
 
-Written 2026-09-11. Branch `simplify`, commit `9fe2207`, 30 commits ahead of `main`, tree
+Written 2026-09-12. Branch `simplify`, commit `966c9ff`, 37 commits ahead of `main`, tree
 clean apart from this file. Start at `README.md` and the documents its index links;
-`CLAUDE.md` holds the project's own history, which is stranger than most, and its last two
-sections are what this branch changed.
+`CLAUDE.md` holds the project's own history, which is stranger than most. This session was
+a review-and-readability pass: six commits, no new features.
 
 ## State
 
-Measured at `9fe2207` on 2026-09-11 with the conda `pytesting` environment
+Measured at `966c9ff` on 2026-09-12 with the conda `pytesting` environment
 (`~/.conda/envs/pytesting/bin/python`, Python 3.12.14, pandas 3.0.5, PyYAML 6.0.3,
 pytest 9.1.1, coverage 7.16.0, mypy 2.3.1, hypothesis 6.167.1, mutmut 3.5.0).
 
 | Gate | Result |
 |---|---|
-| `./run-tests.sh` (fast, the commit gate) | 605 passed, 1 skipped, 19s, then mypy |
-| `./run-tests.sh long` | 231 passed, 280s |
-| `./run-tests.sh cov` | 100% of statements **and** branches (852 statements, 286 branches), floor 95 |
-| `./run-tests.sh memory` | 3 passed, 78s |
-| `./run-tests.sh perf` | 5 passed, 1 skipped, against `.perf-baseline.json`, 84s |
+| `./run-tests.sh` (fast, the commit gate) | 607 passed, 21s, then mypy |
+| `./run-tests.sh long` | 231 passed |
+| `./run-tests.sh all` | 838 passed, 305s |
+| `./run-tests.sh cov` | 100% of statements **and** branches (872 statements, 292 branches), floor 95 |
+| `./run-tests.sh memory` | 3 passed, 86s |
+| `./run-tests.sh perf` | 6 passed, 98s, against `.perf-baseline.json` |
 | `mypy` | clean, 57 source files |
-| Mutation | 1,278 mutants, **1,144 killed, 134 survived, 0 timeouts (89.5%)** |
+| Mutation | **not re-run this session.** The 89.5% in `docs/testing.md` was measured at `9fe2207`, five commits back, and the code under it has been rewritten since |
 
-Mutation was run against this tree, after the last test was added, so the score is the
-score rather than a floor. The classification of the survivors is in `docs/testing.md`.
-
-The package is 1,868 lines, 1,021 of them executable (`~/work/ai/skills/bin/pyloc`), across
-9 modules, exporting 47 names. 37 test modules.
+The package is 1,726 lines, 1,059 of them executable (`~/work/ai/skills/bin/pyloc`), across
+9 modules, exporting 48 names. 33 test modules.
 
 ```sh
 PYTHON=~/.conda/envs/pytesting/bin/python ./run-tests.sh fast    # the commit gate
@@ -44,157 +42,143 @@ want the tally out of it.
 
 ## What this session changed
 
-Two commits here, plus one in `~/work/ai/skills`.
+Six commits, all on `simplify`. A `/creview`, a `/caddressreview`, a second `/creview`
+weighted to maintainability, its `/caddressreview`, and a `/creadme` audit.
 
-- **`2bb4670` Cut the features and spellings that said one thing twice.** The feature and
-  naming pass catalogued in `CLAUDE.md` under "The second simplification pass": features
-  removed, `include` collapsed from three booleans to one three-level argument, `debug` and
-  `data_columns` collapsed into one `extra_columns` across all five tables, an override
-  rule's `description` became a required `message` that is actually printed, nine renames
-  so one concept has one word, and American spelling throughout (`normalize_result`,
-  `summarize_outcomes`). One behavior change: the report has its own `detail` column.
-- **`9fe2207` Cover the new extra_columns mechanism, and re-record the mutation score.**
-  The first mutation run after the pass scored 87.9%; 20 survivors were the new
-  `extra_columns` selection and the "(none available)" message, which no test read back.
-  Tests for those, for the refused bare-string paths, and for an unknown `include` level.
-  Back to 89.5%, and coverage back to 100%.
-- **`~/work/ai/skills`, branch `claude`, commit `d57f694`.** The American English rule is
-  now in `agent-config/claude/CLAUDE.md` — the file `~/.claude/CLAUDE.md` links to — worded
-  to cover identifiers and not only prose, because `normalise_result` and
-  `summarise_outcomes` had shipped as public names before the preference was written down
-  anywhere an agent reads.
+- **`cd4a05a` Close the review's findings: key labels, wrap width, deep chains.** A
+  duplicated `key_column` made `df[key_column]` a table, so every report line was labelled
+  with the column *name* and `zip` truncated the report — refused now. `wrap_width=0`
+  silently meant "do not wrap" while `-1` raised; both refused. A dependency chain too deep
+  for the ordering walk raised a bare `RecursionError`; it names the registry now. Also the
+  dead `KEY_SEPARATOR`, the `report.csv` a documentation run left in the root, and the
+  suite sizes and catalog counts in the docs, which had drifted by five, three, eight and
+  one — with a test that compares them against a collection so they cannot drift silently.
+- **`ef146ee` One registry printer, and a heading that fits its data.**
+  `print_registry_with_overrides` is gone; its `override_rules` and `effective_state` are
+  `print_registry` extras, and `could_be_overridden_by` names each rule with its action.
+  `default_state` is `default`.
+- **`3f1c2e4` Stop the report-scaling check failing on a busy machine.**
+  `test_building_a_report_scales_with_the_failures_not_the_rows` asserted `quick < slow` on
+  two single ~50ms measurements and failed twice under load. Best of five after a warm-up,
+  bound is `slow / quick > 2` against a measured 4.2.
+- **`a653ea5` Registration validation is one function, not a wall in the decorator.**
+  `_reject_bad_registration` holds the five guards; the decorator went 42 lines to 26.
+- **`8b0baa5` Make the package read the way its own standard says it should.**
+  `format_table` is two named passes with `_cell_lines` and `_padded_line`; the four lambdas
+  are named functions; `build_report`'s setup is `available` and `_extra_values`; docstrings
+  trimmed from 563 lines to about 340 beside 1,046 of code; `registry.snapshot`/`restore`
+  replace the four private globals `tests/conftest.py` was saving; the example checks use
+  the exported `is_null`; `docs/contributing.md` states the style rules.
+- **`966c9ff` Say which commit the mutation score describes, and what refuses a key
+  column.** Documentation only.
 
 ## Not addressed — the real to-do list
 
-- **jobchain's suite now fails against this branch.** `~/work/ai/jobchain` (branch
-  `simplify-port`) reads `~/work/ai/jobcheck/src` live rather than a pinned commit, and
-  five of its override-rule fixtures have no `message:` key, which this branch made
-  required: three inline YAML strings in `tests/test_checks_unit.py`, one in
-  `tests/examples/test_complex.py`, one in `tests/examples/test_moderate.py`. One line
-  each; grep for `action: disable` and `action: enable` to find them. Its check files need
-  nothing — they already return `PASS`/`CheckResult` only — and every name in
-  `jobchain/checks.py:_ENGINE_NAMES` survived the renames untouched.
-- **No review has run against this pass.** `reviews/` is empty. `/creview` then
-  `/caddressreview` is the obvious next move.
-- **`docs/*.md` code blocks are bound against real signatures but not executed.** Most are
-  fragments with an undefined `df`, so executing them means making each self-contained,
-  which would make them worse to read. The README's blocks *are* executed byte for byte.
-  Pre-existing; revisit only if a doc example breaks in a way neither catches.
-- **`recovery/README.md` is not reachable from the README index**, because the index test
-  only walks `docs/`. It documents a recovery archive rather than current behavior, so it
-  was left out deliberately rather than missed.
+- **Mutation has not run since `9fe2207`.** Five commits of source change later, the
+  recorded 89.5% and the per-module survivor counts in `docs/testing.md` describe code that
+  no longer exists. `rm -rf mutants .mutmut-cache` first, run the command in the State
+  block (~4 minutes), then rewrite that section with what comes back. The owner chose to
+  label the stale score rather than re-run it this session; the label says the same.
+- **The test suite has never been reviewed for readability.** It is 33 modules and about
+  three times the package, it is what a junior developer reads to learn what the code
+  promises, and both reviews this session judged only the package.
+  `tests/test_tables_unit.py` and `tests/test_report_unit.py` are the two to start with.
+- **`rules.py` matching has no timeout.** A rule file whose regex backtracks catastrophically
+  (`(a+)+$` against a long cell) runs inside `rule_matches` for every row with nothing to
+  stop it. `tests/test_fuzz.py` already throws 300 generated rule files at the parser; what
+  is missing is adversarial *regex* input. `ctesting` is the skill for it.
+- **`docs/testing.md` says the fast suite is 15s; it is 21s.** Measured end to end this
+  session. About 3.4s of the growth is the new suite-size test, which spawns two pytest
+  collections. The owner was asked and chose to leave the timing column alone.
+- **jobchain's suite still fails against this branch** — unchanged from the last handoff.
+  `~/work/ai/jobchain` (branch `simplify-port`) reads this `src` live, and five of its
+  override-rule fixtures have no `message:` key. One line each; grep for `action: disable`
+  and `action: enable`. Nothing this session touched changes that list, and
+  `jobchain/checks.py:_ENGINE_NAMES` names nothing that moved.
+- **`docs/*.md` code blocks are bound against real signatures but not executed.**
+  Pre-existing; the README's blocks *are* executed byte for byte.
 
-Settled by standing preference, not open: the work stays on the `simplify` branch and is
-not merged; breaking the CLI or the Python API is acceptable and no compatibility shims are
-wanted; there is no CI, and the pre-commit hook plus the release gates are what run the
-suites; there is no changelog, because `git log` is the record; the licence is the owner's
-to choose; **American English everywhere, identifiers included**.
+Settled by standing preference, not open: the work stays on `simplify` and is not merged;
+breaking the CLI or the Python API is acceptable and no compatibility shims are wanted;
+there is no CI; there is no changelog, because `git log` is the record; the license is the
+owner's to choose; **American English everywhere, identifiers included**.
 
 ## Considered and deliberately not done
 
-`docs/future-work.md` carries the older list with its evidence. What this session closed:
+`docs/future-work.md` carries the older list with its evidence, and gained three entries
+this session. What was closed here:
 
-- **Removing `extra_columns` from `build_report`** (it was `data_columns`). Proposed with
-  the measurement — ~45 source lines, 103 test lines, and a 24-line guard function whose
-  only job was catching ambiguity the feature itself creates — and **kept** by the owner.
-  Do not re-propose: it is the one way to get business context onto a failure line without
-  merging the report back to the frame.
-- **Removing `on_error="raise"`**, and **removing wrapping from `format_table`**. Both
-  measured (12 and 25 source lines) and kept. The wrapping removal would also have forced
-  every golden file and catalog case to be regenerated, which is the expensive half.
-- **Making `on_error` a bool.** Rejected: `fmt`, a rule's `action` and the new `include` are
-  all lowercase string choices validated at the boundary, so a bool would be the odd one
-  out.
-- **`context_type=RowContext`, constructed per row**, instead of keeping `context_builder`
-  as a callable. Rejected: jobchain deliberately builds **one** context outside the loop,
-  holding the whole file and a per-column value-count map, which is the difference between
-  linear and quadratic on a large file. A per-row class hook makes that pattern awkward.
-- **Making a rule's `message` optional.** Rejected: the instruction was to match
-  `Check.message`, which is required and non-empty. A rule nobody can justify is a rule
-  nobody dares delete, and the message is now printed beside it.
-- **Keeping `Check.description` alongside `message`.** Removed: it was the only thing in the
-  package carrying a second text field, and the registry table now shows `message`, which
-  every check must have anyway.
-- **Leaving `outcomes`/`outcomes_per_row` alone.** They are `row_outcomes` and
-  `frame_outcomes` now; the pair reads as deliberate rather than accidental.
-- **Splicing `detail` into `message` and `comments`.** That was the old behavior and it is
-  gone; see the decisions below.
-- **Chasing the remaining mutation survivors.** Unchanged: default-argument mutants mutmut's
-  trampoline cannot execute, platform equivalents, and print/message wording the catalog
-  pins where mutmut cannot run it.
+- **Narrowing the registry table by breaking long words** (138 columns) **or by replacing
+  the rule names with a count** (107). Both measured and rejected: a broken identifier
+  cannot be copied out of the output, and the names are the reason the column exists. A
+  `format_table` default wrap width was measured too and saves **nothing** — the binding
+  constraint is a 48-character rule name in `examples/rules/`, not the wrap. What was taken
+  was the free 6 columns from renaming `default_state`; the table is 150 wide.
+- **Shortening the demo rule names.** Not done, but worth remembering before concluding the
+  table cannot be narrower: the width comes from data in `examples/rules/`, not the library.
+- **Moving docstring rationale into `docs/architecture.md`.** Proposed by the review and
+  rejected by the owner: the rationale belongs next to the code as a brief comment, not in
+  a document. What was done instead is the trim — a docstring says what a thing is for and
+  why, in less room than the code takes, and `interfaces.md` owns arguments, return shapes
+  and errors.
+- **Splitting `explain_row`** (69 lines, the longest function). Left whole: it is the one
+  per-row algorithm read top to bottom, and breaking the four branches into helpers makes a
+  junior reader jump four times to follow one loop.
+- **A shared helper for the bare-string path guard** duplicated in `registry.load_checks`
+  and `rules.load_overrides`. Rejected: five lines saved, and the only module both can
+  import is `rules.py`, the rule-file parser, which is the wrong home.
+- **A shared helper for the empty-table print** at four sites. Rejected: about eight lines
+  saved for one more indirection between a reader and the output they are looking at.
 
 ## Decisions worth knowing before changing things
 
-**`CheckResult` resolves a bool before anything reads the value as an integer.** `True == 1
-== Status.MISSING` and `False == 0 == Status.PASS`, so the order of those branches in
-`__post_init__` is the whole reason `CheckResult(row["age"] > 0)` means what it says. Move
-the bool branch below the integer check and every wrapped comparison inverts silently.
+The decisions from the last handoff still hold — `CheckResult` resolving a bool before
+anything reads it as an integer, `code` as a check identifier against `status` as the
+integer, the report's own `detail` column, one key column, `RowContext` being bare. New
+ones:
 
-**A check returns `PASS` or a `CheckResult`, and nothing else.** Bare `True`, bare `False`
-and a bare `Status` all raise now, naming the check. `CheckResult(condition)` is how a
-comparison becomes a result, and `normalize_result` is a type check rather than a converter.
+**`print_registry` is the only registry printer, and `overrides` feeds exactly two optional
+columns.** Passing rules without asking for `could_be_overridden_by` or `effective_state`
+prints the same table as passing none. That surprised the owner this session and is worth
+stating: the table always prints, it is the rule columns that are opt-in.
 
-**`code` is a check identifier everywhere; `status` is the integer.** `CheckResult.status`
-used to be `.code`, colliding with `Check.code`, `CheckOutcome.code` and
-`register_check(code=)`. `CheckOutcome` already carried both correctly, which is what
-settled the vocabulary.
+**`registry.snapshot()` and `restore(state)` own what registry state *is*.** Four private
+globals were being saved by hand in `tests/conftest.py`, so a fifth piece of state would
+have been silently un-restored. Add to the snapshot dict, not to the fixture.
 
-**The report's `detail` column exists because `detail` used to be copied into `message`
-*and* `comments`** for any outcome that did not evaluate the row. The same string appeared
-in two columns and neither heading could be trusted. `message` is now empty for a check that
-did not run, and `detail` empty for one that did.
+**`format_table` renders in two passes on purpose.** Every cell is wrapped before anything
+is printed, because a column's width is not known until the last cell in it has been
+wrapped. `_cell_lines` never breaks inside a word, so a long identifier overflows its
+column rather than being mangled — that is what keeps codes greppable in saved output.
 
-**`extra_columns` is one argument with one meaning on five functions** — the report takes
-names of *your frame's* columns; the registry and rule tables take names of *their own*
-optional columns. `could_be_overridden_by` is only on offer where the rules were actually
-passed in, since no other table can answer it. An unknown name raises, naming the table and
-what is available. `_check_extra_columns` in `tables.py` is the shared validator and is
-private deliberately: `test_api_contract.py` fails on any public callable `__init__` does
-not export.
+**`_number` in `examples/checks/check_age.py` has no missing-value guard.** Every check that
+calls it depends on `AGE_PRESENT`, so it only runs on a row that has an age. The guard that
+used to be there became unreachable when the example switched to `is_null`, and coverage
+caught it.
 
-**`RowContext` is bare and has no `build` method.** The library defines the type and nothing
-else; `validate(context_builder=...)` takes any callable, so where the adopter's build
-method lives is their business. Without a builder every row is handed the same empty
-instance, built once rather than per row.
-
-**Both loaders refuse a bare string.** `load_checks("checks.py")` raises `TypeError` naming
-the list form, rather than iterating the string's characters and reporting a missing file
-called `c`.
-
-**One key column, not several.** The `|` join and its collision rule are gone; a composite
-key is a column the caller builds, where they decide how the parts join.
-
-**Every failure at the shallowest layer is a root cause.** Unchanged — but `root_cause`
-(singular) is gone. `root_causes(...)[0]` is the single label, and `tests/conftest.py` has a
-`first_cause` helper for the tests that want one.
-
-**`resolve_enabled_state` returns `(enabled, reason)` per code**, not a bool. The private
-`_resolve_state` it used to wrap is gone. `tests/conftest.py::enabled_only` drops the reason
-where a test only cares which codes are on.
+**The style rules are written down in `docs/contributing.md`:** no lambdas, no dense
+one-liners, lines under 100 columns, and a line is either obvious or carries a brief
+comment. The package has no lambdas left; a new one is a review comment.
 
 ## Measurements, so they are not re-derived
 
-- **The size change this pass bought**: 1,888 → 1,868 source lines, 1,052 → 1,021
-  executable, 51 → 47 exported names. Far less than the ~250 lines estimated up front: the
-  removals landed, but the `extra_columns` mechanism, the bare-`RowContext` documentation
-  and the `include` levels cost most of it back. **The win is in the surface, not the
-  size** — judge any further pass the same way.
-- **Mutation, first pass after the change: 87.9%** (1,278 mutants, 154 survived). Twenty of
-  those were genuinely untested new code, all in the `extra_columns` selection. After the
-  tests: **89.5%**. Survivors by module now: `report` 47, `registry_tables` 43, `engine` 18,
-  `registry` 14, `rules` 10, `tables` 2.
-- **Registry table widths, demo registry (11 checks, 3 rules)** — the measurement that
-  killed `debug`: `print_registry` was 106 columns at `debug=0`, 148 at `debug=1`, **216**
-  at `debug=2`, unreadable in any terminal. `debug=1` did nothing at all on three of the
-  four tables. `print_override_rules` is 141 columns now that `message` is a base column,
-  wrapped at 40.
-- **Performance baseline**, unchanged by this pass, 4,000-row frame, Python 3.12.14 on this
-  machine, in the gitignored `.perf-baseline.json`: `validate` 6.250s (spread 8%),
-  `validate_row` per row 6.174s (2%), `build_report` 0.048s (123%), `render_report` 0.048s
-  (8%), `summarize_outcomes` 0.020s (4%), `validate` with 50 rules over 1,000 rows 0.403s
-  (14%).
-- **Suite runtimes**: fast 19s, long 280s, cov 20s, memory 78s, perf 84s, a full mutation
-  run about four minutes at ~6 mutations/second.
+- **Registry table width**, demo registry, 11 checks and 3 rules: 105 columns before
+  `could_be_overridden_by` was asked for, 156 with it, 150 after `default_state` became
+  `default`. Breaking long words would give 138, a count column 107, a default wrap width
+  156 — no change, since a 48-character rule name is the constraint.
+- **`build_report` on 4,000 rows**: a frame with no failures costs about a quarter of a
+  failing one (measured 4.2x), best of five after a warm-up. Not "almost nothing" — the
+  rows are still walked and their root causes resolved to produce no lines at all.
+- **Docstrings**: 563 lines against 1,004 of code before the trim, about 340 against 1,046
+  after. Inline comments went from 54 lines to 67.
+- **Function lengths after the pass**: `explain_row` 69, `load_checks` 46, `parse_rule` 45,
+  `build_report` 44, `format_table` 35 across three functions now.
+- **Suite runtimes on this machine**: fast 21s, long ~290s, all 305s, cov 26s, memory 86s,
+  perf 98s, profile 9s.
+- **Performance baseline**, unchanged this session, 4,000-row frame, in the gitignored
+  `.perf-baseline.json`: `validate` 6.250s, `validate_row` per row 6.174s, `build_report`
+  0.048s, `render_report` 0.048s, `summarize_outcomes` 0.020s, `validate` with 50 rules over
+  1,000 rows 0.403s.
 
 ## Environment and housekeeping
 
@@ -205,53 +189,34 @@ where a test only cares which codes are on.
   `.pytest_cache/`, `.hypothesis/`, `.perf-baseline.json` (machine-specific by design),
   `reviews/`.
 - `scripts/install-hooks.sh` installs the fast suite as `.git/hooks/pre-commit`.
-- `pyproject.toml` is the one dependency list; the test that used to read the file reads the
-  metadata now, without `tomllib`, which arrived in 3.11 while the declared floor is 3.10.
+- `reviews/` is empty: both reviews this session were worked through and their reports
+  cleared.
 
 ## Things that will bite
 
-**A `@dataclass` defined *inside* a test function fails when that test uses
-`fresh_registry`.** The fixture's `clear_registry` evicts the registering module from
-`sys.modules`, and `dataclasses` resolves annotations by looking the class's module up
-there: `AttributeError: 'NoneType' object has no attribute '__dict__'`, raised from
-`dataclasses.py`, nowhere near the cause. Define the dataclass at module level, or use a
-plain subclass with an `__init__`. Cost this session twenty minutes.
+The traps from the last handoff all still apply: a `@dataclass` defined inside a test
+function fails under `fresh_registry`; `mutmut` needs pandas imported before it starts; a
+targeted `mutmut run <name>` throws away every other mutant's result; a stale `mutants/`
+tree lies about the score; `mutmut` runs the whole selected suite once per mutant, so the
+exclusions in `pyproject.toml` are load-bearing; `./run-tests.sh long` refuses to run
+without hypothesis; the catalog runs every case through a symlink of fixed length; and
+regenerating is not the same as fixing — read the diff. Added this session:
+
+**Do not run two suites at once.** `tests/test_scaling.py` failed twice this session purely
+because a second pytest was running beside it, and `perf` and `memory` are worse. The
+scaling check is noise-proof now (best of five after a warm-up) but the timing gates are
+not, and cannot be.
 
 **`.perf-baseline.json` still holds a stale `summarise_outcomes/4000` key** beside the new
 `summarize_outcomes/4000`. Harmless — the gate looks up by the current name — but anyone
-comparing keys will wonder. The file is gitignored and machine-local: delete it and
-re-record if it bothers you.
+comparing keys will wonder. Gitignored and machine-local: delete it and re-record if it
+bothers you.
+
+**A readability change can move coverage without changing behavior.** Switching
+`examples/checks/check_age.py` to `is_null` rerouted the non-scalar case from an `if` to the
+`except` below it and left the `if` unreachable, which showed up as 99% rather than as a
+failure. Coverage is the thing that noticed; run `cov` after a refactor, not just `fast`.
 
 **Long commands get killed at the foreground timeout.** `all`, the catalog, a mutation run
 and `regen_catalog.py` all exceed two minutes. Use `~/work/ai/skills/bin/bgrun`; do not
 write another loop that greps the log for a completion word.
-
-**`mutmut` needs pandas imported before it starts.** Plain `mutmut run` dies in stats
-collection with `RuntimeError: context has already been set` from `multiprocessing`. The
-command in the State block works.
-
-**A targeted `mutmut run <name>` throws away every other mutant's result.** Checking one
-mutant after writing a test for it is the right move; just expect the score to be gone until
-the next full run, and do not quote `mutmut results` in between.
-
-**A stale `mutants/` tree lies about the score.** `rm -rf mutants .mutmut-cache` whenever the
-package layout changes.
-
-**mutmut runs the *whole* selected suite once per mutant.** `pyproject.toml` excludes the
-files that shell out, the two that read `docs/`, and the slow suites; without those
-exclusions a run takes days rather than four minutes.
-
-**The perf gate fails if anything else is using the machine.** Run `perf` and `memory` in
-sequence, never concurrently.
-
-**`./run-tests.sh long` refuses to run without hypothesis.** Deliberate: a skipped property
-suite reads as a pass.
-
-**The catalog runs every case through a symlink** at `$TMPDIR/prv-catalog-root-<8-digit uid>`
-so column widths do not depend on the clone's path length. A filesystem without symlinks
-falls back to the real root, and one test skips.
-
-**Regenerating is not the same as fixing.** `scripts/regen_catalog.py`, `regen_golden.py` and
-`make_example_data.py` all rewrite files the suite compares byte for byte. Read the diff, or
-a defect becomes a recorded expectation. This pass regenerated all of them, for the `detail`
-column and the registry table's `message`; the diffs were read and held nothing else.
