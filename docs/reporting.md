@@ -56,6 +56,10 @@ Two conveniences: an integer key column that pandas widened to float still reads
 as `102`, not `102.0`, and a row whose key is missing reads `<no key>` rather
 than `nan`.
 
+A column the frame holds more than once is refused, naming how often it appears:
+`df[key_column]` is a table rather than a column then, and every line of the
+report would be labelled with the column's *name* instead of the row's key.
+
 ## Showing data alongside the failures
 
 `extra_columns` copies fields from the frame into the report, in the order given,

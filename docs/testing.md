@@ -177,8 +177,16 @@ Surviving mutants are a to-do list, not a failure: each one is a change to the c
 no test noticed.
 
 Measured on 2026-09-11 after the second simplification pass, on a tree cleaned first
-(`rm -rf mutants .mutmut-cache`): **1,278 mutants, 1,144 killed, 134 survived,
-0 timeouts — 89.5%.** The run takes about four minutes at ~6 mutations/second.
+(`rm -rf mutants .mutmut-cache`), at commit `9fe2207`: **1,278 mutants, 1,144 killed,
+134 survived, 0 timeouts — 89.5%.** The run takes about four minutes at ~6
+mutations/second.
+
+That is a record of one commit, not the current score. The readability pass that
+followed it rewrote `format_table`, replaced four lambdas with named functions, lifted
+`register_check`'s validation into its own function, removed `print_registry_with_overrides`
+and added `_extra_values`, so both the mutant count and the score have moved since. Re-run
+before quoting a number, and update this section with what comes back — the survivor
+counts by module below are from the same commit.
 
 The first run of that pass scored 87.9%: 20 of the survivors were the new
 `extra_columns` selection on the registry tables, where no test asked a table for
