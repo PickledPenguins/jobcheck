@@ -1,17 +1,12 @@
 """The registry, the rules, and the relationship between them, as tables.
 
-Printing is a separate job from registering and from evaluating, and it is the
-job that grows: every question a person asks about the configuration ("what is
-off by default?", "which rules could touch this code?", "where is this check
-defined?") becomes another column rather than another engine feature.
+Printing is kept apart from registering and evaluating because it is the job
+that grows: every question about the configuration becomes another column rather
+than another engine feature. Each table carries the columns a reader always
+wants and takes `extra_columns` for the ones only some readers do.
 
-Every function here returns the DataFrame it prints, so a caller can take the
-data without the output. :mod:`jobcheck.tables` does the rendering; this module
-decides what goes in the table.
-
-Each table has the columns a reader always wants, and takes ``extra_columns``
-for the ones only some readers do -- the same argument, with the same meaning,
-as :func:`jobcheck.build_report` takes for columns of the data.
+Every function returns the DataFrame it prints, so a caller can take the data
+without the output.
 """
 
 from __future__ import annotations
@@ -47,16 +42,11 @@ def _render_match(rule: OverrideRule) -> str:
 
 
 def get_registry_table(extra_columns: list[str] | None = None) -> pd.DataFrame:
-    """One row per registered check.
+    """One row per registered check, ordered layer then code, so the fundamental
+    checks read first.
 
-    ``layer`` and ``depends_on`` are base columns, not optional: what a check
-    requires, and how deep it sits in the dependency graph, change whether it
-    runs at all. Rows are ordered layer, then code, so the fundamental checks
-    read first. ``extra_columns`` accepts ``source_file``, which is long enough
-    to be worth asking for rather than always printing.
-
-    What a check is *for* is its message, printed wherever it fails; there is no
-    second description field to keep in step with it.
+    `layer` and `depends_on` are base columns, not optional: what a check
+    requires, and how deep it sits, decide whether it runs at all.
     """
 
     extra_columns = list(extra_columns or [])
@@ -88,18 +78,12 @@ def print_registry(
 ) -> pd.DataFrame:
     """Print the registry table and return the frame behind it.
 
-    ``extra_columns`` adds ``source_file``, or either of the two columns that
-    read the loaded rules: ``could_be_overridden_by``, the rules that
-    *reference* each code with the action each would take, and
-    ``effective_state``, which says ``DEFAULT (ON)`` for a code no rule
-    references and that the answer depends on the row for one that is.
+    `could_be_overridden_by` and `effective_state` are the two extra columns that
+    read the rules, and `overrides` feeds nothing else -- passing rules without
+    asking for either prints the same table as passing none.
 
-    Neither is called "was overridden by": whether a rule actually fires depends
-    on the row it is matched against, and this table has no row. Only
-    :func:`resolve_enabled_state` can answer that.
-
-    ``overrides`` feeds those two columns and nothing else, so passing rules
-    without asking for either prints the same table as passing none.
+    Neither is "was overridden by": whether a rule fires depends on the row it is
+    matched against, and this table has no row.
     """
 
     extra_columns = list(extra_columns or [])
@@ -132,13 +116,10 @@ def print_registry(
 def print_override_rules(
     overrides: list[OverrideRule], extra_columns: list[str] | None = None
 ) -> pd.DataFrame:
-    """Print one row per override rule (rather than per code).
+    """Print one row per override rule, rather than per code.
 
-    ``message`` is the rule author's line about why the rule exists, and is a
-    base column for the same reason a check's message is printed on failure: a
-    rule nobody can justify is a rule nobody dares delete. ``codes_hit_count``
-    is a count, not the code list, so a rule touching many codes does not blow
-    the table apart; :func:`list_rule_codes` gives the detail when it is wanted.
+    `codes_hit_count` is a count rather than the code list, so a rule touching
+    many codes does not blow the table apart; `list_rule_codes` gives the detail.
     """
 
     extra_columns = list(extra_columns or [])

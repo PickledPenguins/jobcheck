@@ -1,13 +1,9 @@
 """Turning outcomes into a report: the failure table, the summary, and rendering.
 
-Everything a caller needs to produce and save a report lives here -- building
-the long-format failure table from what :func:`jobcheck.validate` returned,
-rendering it as text or CSV, and writing it to a file. There is no command
-line: a pipeline calls these functions and decides where the output goes.
-
-The report is **long format**: one row per failed check per data row. That is the
-diagnostic unit, it is the only shape that survives being written as CSV, and it
-sorts and filters cleanly downstream.
+The report is **long format** -- one line per failed check per data row -- which
+is the diagnostic unit, survives being written as CSV, and sorts and filters
+cleanly downstream. There is no command line; a pipeline decides where output
+goes.
 """
 
 from __future__ import annotations
@@ -49,24 +45,15 @@ def _included(include: str) -> set[str]:
 
 
 def render_comments(comments: Mapping[str, Any]) -> str:
-    """Render a check's comments as ``key=value; key=value``, sorted by key.
-
-    Sorted so the same failure renders identically every run, which is what lets
-    reports be diffed and byte-compared in checks.
-    """
+    """Render a check's comments as `key=value; key=value`, sorted by key so the
+    same failure renders identically every run and reports can be diffed."""
 
     return "; ".join(f"{key}={comments[key]}" for key in sorted(comments))
 
 
 def _format_cell(value: Any, missing: str = "") -> str:
-    """Render a value copied from the data into a report column.
-
-    Whole floats lose their ``.0`` -- an integer id column that pandas widened to
-    float because one row is blank should still read as ``104``, not ``104.0``.
-    *missing* is what a null becomes: empty for a data column, where that is what
-    a person expects, and ``<no key>`` for the row key, where a missing value is
-    worth naming.
-    """
+    """Render a value from the data into a report column: whole floats lose their
+    `.0`, and a null becomes *missing* -- empty, or `<no key>` for a row key."""
 
     if value is None or (pd.api.types.is_scalar(value) and pd.isna(value)):
         return missing
@@ -78,9 +65,8 @@ def _format_cell(value: Any, missing: str = "") -> str:
 def _row_labels(df: pd.DataFrame, key_column: str | None) -> list[str]:
     """One label per row: the key column if given, else the frame's index.
 
-    One column, not several: two columns joined into one label are ambiguous
-    whenever a value carries the separator, and a caller with a composite key
-    can build the column it wants to be identified by.
+    One column, not several -- joined labels are ambiguous as soon as a value
+    carries the separator, so a composite key is a column the caller builds.
     """
 
     if key_column is None:
@@ -100,6 +86,23 @@ def _row_labels(df: pd.DataFrame, key_column: str | None) -> list[str]:
     return [_format_cell(value, missing="<no key>") for value in df[key_column]]
 
 
+def _extra_values(df: pd.DataFrame, extra_columns: list[str], rows: int) -> list[dict[str, str]]:
+    """One dict per row, holding the extra columns' values rendered as text.
+
+    Empty dicts when nothing was asked for, so the caller can merge the dict into
+    every report line either way rather than branching per line.
+    """
+
+    if not extra_columns:
+        return [{} for _ in range(rows)]
+
+    values = []
+    for row in df[extra_columns].itertuples(index=False, name=None):
+        values.append({column: _format_cell(value)
+                       for column, value in zip(extra_columns, row)})
+    return values
+
+
 def build_report(
     frame_outcomes: list[list[CheckOutcome]],
     df: pd.DataFrame,
@@ -107,36 +110,16 @@ def build_report(
     extra_columns: list[str] | None = None,
     include: str = "failures",
 ) -> pd.DataFrame:
-    """Build the long-format report: one row per failure.
+    """Build the long-format report: one line per failure, in evaluation order.
 
-    Columns are ``row``, ``code``, ``status`` (``INVALID (3)``), ``layer``,
-    ``outcome``, ``message``, ``detail``, ``comments``, ``is_root_cause``. Lines
-    keep evaluation order within each data row; the root cause is the line (or
-    lines) flagged by ``is_root_cause``, which is not necessarily the first --
-    an independent chain registered earlier can be printed above a shallower
-    failure. ``is_root_cause`` is True for **every** failure at the shallowest
-    failing layer, since two failures at the same depth are two root causes.
+    `message`, `detail` and `comments` each say one thing -- what the check says
+    on failure, why a check did not evaluate the row, and the evidence it
+    returned -- so a column heading can be trusted.
 
-    ``message`` is what the check says on failure, ``detail`` why a check did not
-    evaluate the row (the rule that disabled it, the prerequisites that blocked
-    it, the exception it raised) and ``comments`` the evidence it returned. Each
-    says one thing, so a column heading can be trusted.
-
-    ``key_column`` names the column that identifies a data row, which is what
-    makes a report readable once the frame has been filtered; without it the
-    frame's index is used.
-
-    ``extra_columns`` copies further columns from the frame into the report, in
-    the order given, immediately after ``row``. They carry the context a reader
-    needs to judge a failure without going back to the source file -- the source
-    system, the batch, the field the check was reading. A name that is not in the
-    frame, is in it more than once, is asked for twice, or collides with one of
-    the report's own columns is refused rather than quietly dropped.
-
-    ``include`` says how far down to go: ``"failures"`` is what failed or
-    errored, ``"blocked"`` adds the checks a failure or a rule stopped -- useful
-    when the question is "why did nothing fire?" -- and ``"all"`` adds the passes,
-    which turns the report into a full audit trail.
+    `is_root_cause` flags **every** failure at the shallowest failing layer, and
+    is not always the first line: an independent chain registered earlier can be
+    printed above a shallower failure. The columns, the `include` levels and what
+    `extra_columns` refuses are in `reporting.md`.
     """
 
     if len(df) != len(frame_outcomes):
@@ -146,20 +129,17 @@ def build_report(
         )
     wanted = _included(include)
     extra_columns = list(extra_columns or [])
+
+    # A column is on offer when the frame holds it exactly once -- a duplicated
+    # label would hand back a table rather than a column -- and when its name
+    # would not collide with one the report writes itself.
     labels = list(df.columns)
-    _check_extra_columns(
-        extra_columns,
-        [str(c) for c in df.columns if labels.count(c) == 1 and c not in REPORT_COLUMNS],
-        "the report",
-    )
+    available = [str(column) for column in labels
+                 if labels.count(column) == 1 and column not in REPORT_COLUMNS]
+    _check_extra_columns(extra_columns, available, "the report")
 
     row_labels = _row_labels(df, key_column)
-    extra = (
-        [{column: _format_cell(value) for column, value in zip(extra_columns, values)}
-         for values in df[extra_columns].itertuples(index=False, name=None)]
-        if extra_columns
-        else [{} for _ in frame_outcomes]
-    )
+    extra = _extra_values(df, extra_columns, len(frame_outcomes))
 
     rows: list[dict[str, Any]] = []
     for label, row_outcomes, context in zip(row_labels, frame_outcomes, extra):
@@ -196,14 +176,9 @@ def _looks_numeric(text: str) -> bool:
 
 
 def escape_for_spreadsheet(value: Any) -> Any:
-    """Prefix a cell a spreadsheet would run as a formula with an apostrophe.
-
-    Comments carry values taken from the data, and a report is meant to be opened
-    in a spreadsheet, so a field such as ``=cmd|'/c calc'!A1`` arriving in a row
-    would execute on open. The apostrophe is the standard neutralizer: the cell
-    displays as text. A negative number keeps its minus sign, since that is not
-    a formula.
-    """
+    """Prefix a cell a spreadsheet would run as a formula with an apostrophe, so
+    a value from the data such as `=cmd|'/c calc'!A1` displays as text instead of
+    executing. A negative number keeps its minus sign."""
 
     if not isinstance(value, str) or not value:
         return value
@@ -213,20 +188,12 @@ def escape_for_spreadsheet(value: Any) -> Any:
 
 
 def render_report(report: pd.DataFrame, fmt: str = "table", wrap_width: int = 48) -> str:
-    """Render a report as bordered text or as CSV.
+    """Render a report as bordered text, wrapped at *wrap_width*, or as CSV.
 
-    ``fmt="table"`` wraps ``message``, ``detail`` and ``comments`` at *wrap_width*
-    characters so a long explanation stays inside its column; ``fmt="csv"`` emits
-    the same columns unwrapped, for a spreadsheet or another tool.
-
-    CSV cells that a spreadsheet would run as a formula are neutralized with a
-    leading apostrophe -- see :func:`escape_for_spreadsheet` -- because comments
-    carry values that came from the data. That is not optional: a report is
-    written to be opened by a person.
-
-    Raises ``ValueError`` for a *wrap_width* that is not positive: 0 read as "do
-    not wrap" while -1 raised out of ``textwrap``, two spellings of nonsense with
-    two different behaviors.
+    CSV cells a spreadsheet would run as a formula are neutralized on the way
+    out, and that is not optional: a report is written to be opened by a person.
+    A *wrap_width* of zero or less is refused -- there is no spelling of "do not
+    wrap".
     """
 
     if wrap_width <= 0:
@@ -261,10 +228,8 @@ def print_report(report: pd.DataFrame, fmt: str = "table", wrap_width: int = 48)
 def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> pd.DataFrame:
     """One row per check, in evaluation order: what it did and why.
 
-    ``include`` is the same three levels the report takes: ``"all"`` is every
-    check, ``"blocked"`` drops the ones that simply passed -- usually what you
-    want when hunting one bad row -- and ``"failures"`` keeps only what failed or
-    errored.
+    `include` is the three levels the report takes; `"blocked"` drops the checks
+    that simply passed, which is usually what you want hunting one bad row.
     """
 
     wanted = _included(include)
@@ -290,11 +255,9 @@ def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> p
 def print_row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> pd.DataFrame:
     """Print what every check did on one row, then the row's root cause(s).
 
-    Reading order is evaluation order, and every ``skipped`` line names the
-    prerequisite that blocked it. The root cause is not always the first failing
-    line: two chains that do not touch can both fail, and the deeper one may be
-    evaluated first, so it is named explicitly at the end. Where two failures sit
-    at the same depth, both are named.
+    The cause is named at the end rather than left to the reader: it is not
+    always the first failing line, since two chains that do not touch can both
+    fail and the deeper one may be evaluated first.
     """
 
     table = row_explanation(row_outcomes, include=include)
@@ -308,10 +271,10 @@ def print_row_explanation(row_outcomes: list[CheckOutcome], include: str = "all"
 def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataFrame:
     """Count what happened to each check across many rows.
 
-    ``skipped`` is the column that matters when tuning layered checks: a high
-    count means a fundamental check is failing often and hiding everything below
-    it. ``errored`` is kept separate from ``failed`` so a broken check can never
-    be mistaken for bad data.
+    `skipped` is the column that matters when tuning layered checks -- a high
+    count means a fundamental check is failing often and hiding what is below it.
+    `errored` stays separate from `failed` so a broken check is never mistaken
+    for bad data.
     """
 
     counts: dict[str, dict[str, int]] = {}
@@ -346,19 +309,26 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
     )
 
 
+def _by_rows_then_code(entry: tuple[str, int]) -> tuple[int, str]:
+    """Sort key: most rows first, then code, so the tally reads worst-first and
+    two runs over the same data order it the same way."""
+
+    code, rows = entry
+    return (-rows, code)
+
+
 def root_cause_counts(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataFrame:
     """How many rows bottomed out at each code, worst first.
 
-    A row failing two chains at the same depth counts once against each: the
-    question this answers is "how many rows would this code explain", and both
-    codes explain that row.
+    A row failing two chains at the same depth counts against each: the question
+    is "how many rows would this code explain", and both explain that row.
     """
 
     causes: dict[str, int] = {}
     for row_outcomes in frame_outcomes:
         for cause in root_causes(row_outcomes):
             causes[cause] = causes.get(cause, 0) + 1
-    ranked = sorted(causes.items(), key=lambda item: (-item[1], item[0]))
+    ranked = sorted(causes.items(), key=_by_rows_then_code)
     return pd.DataFrame(
         [{"root_cause": code, "rows": count} for code, count in ranked],
         columns=["root_cause", "rows"],

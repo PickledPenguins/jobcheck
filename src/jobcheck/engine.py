@@ -1,16 +1,8 @@
 """What happens to one row: which checks run, in what order, and why.
 
-The registry says what checks *exist*; this module says what they *did*. It owns
-one algorithm -- resolve the per-row on/off state from the override rules, walk
-the checks in dependency order, and record an outcome for every one of them --
-and everything else here is a view over its result.
-
-:func:`explain_row` is that algorithm. :func:`validate` runs it over a whole
-frame, :func:`validate_row` filters it to the failures, :func:`root_causes`
-picks the ones that are not downstream of anything else, and
-:mod:`jobcheck.report` turns whole frames of it into tables. There is no second
-implementation: a view that disagreed with the engine would be worse than no
-view at all.
+The registry says what checks *exist*; this module says what they *did*.
+`explain_row` is the one algorithm -- everything else here is a view over its
+result, because a second implementation could disagree with it.
 """
 
 from __future__ import annotations
@@ -41,14 +33,8 @@ def resolve_enabled_state(
 ) -> dict[str, tuple[bool, str]]:
     """Effective on/off state of every registered code, for one row, and why.
 
-    Maps each code to ``(enabled, reason)``. Starts from each check's
-    ``default_enabled`` and applies every matching rule in list order, so the
-    last matching rule wins.  That precedence is positional only -- there is no
-    priority field -- which is why the order files are loaded in is documented
-    at each loader.
-
-    The reason is what an explanation prints: ``"default"``, ``"off by
-    default"``, or ``"rule 'name'"`` for the rule that decided it.
+    Precedence is positional -- there is no priority field -- so the last
+    matching rule wins, which is why the order rule files load in matters.
     """
 
     state = {
@@ -73,30 +59,13 @@ def explain_row(
 ) -> list[CheckOutcome]:
     """Run the checks against one row and report what *every* check did.
 
-    This is the root-cause tool, and the single implementation of the per-row
-    algorithm -- :func:`validate_row` is a filter over it. Outcomes come back in
-    evaluation order, so the first failure is the most fundamental one: a check
-    can only fail after all its prerequisites passed.
+    The root-cause tool, and the single implementation of the per-row algorithm.
+    Outcomes come back in evaluation order, so the first failure is the most
+    fundamental: a check runs only once every check it depends on has passed.
 
-    Outcomes are ``passed``; ``failed``; ``errored`` (the check raised);
-    ``disabled`` (off for this row, with the rule that decided it in ``detail``);
-    ``skipped`` (a prerequisite did not pass, with every blocking code in
-    ``detail``). Prerequisites are all-or-nothing: a check runs only when every
-    code in its ``depends_on`` passed on this row.
-
-    "Did not pass" deliberately covers a prerequisite that was *disabled* or
-    *errored* as well as one that failed. A check that never ran confirmed
-    nothing about the row, so it must not silently unlock a dependent.
-
-    ``on_error="record"`` turns an exception raised inside a check into a
-    :data:`Status.ERROR` outcome and carries on with the row; ``"raise"`` lets it
-    propagate, for a run that should stop at the first broken check. A check
-    returning something that is not a result at all always raises, whatever this
-    is set to: that is an authoring bug, not a data problem.
-
-    Raises ``ValueError`` when the row has duplicate column labels, before
-    running anything: ``row[column]`` would then hand a check a Series instead of
-    a value.
+    "Did not pass" covers a prerequisite that was *disabled* or *errored* as well
+    as one that failed -- a check that never ran confirmed nothing about the row,
+    so it must not unlock a dependent.
     """
 
     if on_error not in ("record", "raise"):
@@ -176,15 +145,10 @@ def validate_row(
     overrides: list[OverrideRule] | None = None,
     on_error: str = "record",
 ) -> list[CheckOutcome]:
-    """Run every enabled check against one row and return the failures.
+    """Run every enabled check against one row and return only the failures.
 
-    The failures come back in evaluation order, so the first is the most
-    fundamental: ``results[0]`` is the row's root cause. Checks that were disabled
-    or blocked by a failed prerequisite are absent entirely -- neither a pass nor
-    a failure -- which is what keeps one broken field from producing a page of
-    cascading errors. Use :func:`explain_row` to see them.
-
-    Does not mutate ``row`` or ``context``.
+    Dropping the checks that did not run is what keeps one broken field from
+    producing a page of cascading errors; `explain_row` shows them.
     """
 
     return [
@@ -197,15 +161,8 @@ def validate_row(
 def root_causes(row_outcomes: list[CheckOutcome]) -> list[str]:
     """Every failure at the shallowest failing layer, in evaluation order.
 
-    A row that fails a missing email and a malformed age has failed two things,
-    neither upstream of the other, and naming only the first one evaluated makes
-    registration order decide what a person reads as the cause. Both are
-    reported. A caller wanting a single label per row takes the first.
-
-    Deeper failures are excluded, not because they are unimportant but because
-    they are downstream: a check only runs once its prerequisites passed, so a
-    failure at layer 2 sits under whatever failed at layer 0 in the same chain.
-    Where nothing failed at all, this is empty.
+    Every one, not the first: two failures at the same depth are two causes.
+    Deeper failures are downstream of these, so they are left out.
     """
 
     failures = [outcome for outcome in row_outcomes if outcome.failed]
@@ -222,27 +179,21 @@ def validate(
     context_builder: ContextBuilder | None = None,
     on_error: str = "record",
 ) -> list[list[CheckOutcome]]:
-    """Run every check against every row of *df*, keeping all the outcomes.
+    """Run every check against every row: one list of outcomes per row, in frame
+    order.
 
-    The whole-frame entry point, and one call of :func:`explain_row` per row:
-    the outcomes come back one list per row, in frame order, which is what
-    :func:`jobcheck.build_report` and :func:`jobcheck.summarize_outcomes` take.
-
-    Keeps the checks that did not run as well as the ones that did, because
-    that is what the explanation and summary views are built from. A run keeps
-    one outcome per check per row, so for a frame large enough that the objects
-    matter, call :func:`validate_row` per row instead and skip the report.
-
-    ``context_builder`` is any callable taking a row and returning a
-    :class:`~jobcheck.RowContext`; without one every row is handed the same
-    empty context, since the base class carries no fields to fill in.
-
-    ``on_error`` is passed through to :func:`explain_row`.
+    Keeps the checks that did not run too, since the explanation and summary
+    views are built from them -- one outcome per check per row. For a frame large
+    enough that those objects matter, call `validate_row` per row instead.
     """
 
+    # Built once, not per row: without a builder every row is handed this same
+    # empty context, since the base class carries no fields to fill in.
     empty = RowContext()
-    build = context_builder if context_builder is not None else lambda row: empty
-    return [
-        explain_row(row, context=build(row), overrides=overrides, on_error=on_error)
-        for _, row in df.iterrows()
-    ]
+
+    frame_outcomes = []
+    for _, row in df.iterrows():
+        context = empty if context_builder is None else context_builder(row)
+        frame_outcomes.append(
+            explain_row(row, context=context, overrides=overrides, on_error=on_error))
+    return frame_outcomes

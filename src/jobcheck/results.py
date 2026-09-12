@@ -1,15 +1,5 @@
-"""What a check returns, and what the engine records about one check on one row.
-
-Two value types live here:
-
-* :class:`CheckResult` -- what a check function hands back: a status code and any
-  comments it wants carried into the report.
-* :class:`CheckOutcome` -- what the engine recorded for one check on one row,
-  including the checks that never ran and why.
-
-The status vocabulary is deliberately small and fixed: the four
-:class:`Status` members below are the only kinds a check can report.
-"""
+"""What a check returns (`CheckResult`), and what the engine records about one
+check on one row (`CheckOutcome`), plus the fixed status vocabulary both use."""
 
 from __future__ import annotations
 
@@ -54,17 +44,8 @@ def render_status(status: int) -> str:
 class CheckResult:
     """What a check function returns: a status, plus comments for the report.
 
-    ``status`` is 0 (:data:`Status.PASS`) for a pass and any other
-    :class:`Status` member for a failure. A bool is accepted in its place, so a
-    check can wrap a bare comparison -- ``CheckResult(row["age"] > 0)`` passes,
-    or fails as :data:`Status.INVALID`; a check wanting a more specific failure
-    names it. ``comments`` is free-form detail the report renders as
-    ``key=value; key=value`` -- the numbers a person needs to see why the row
-    was rejected, without re-running anything.
-
-    It is truthy when the check **passed**, so ``if result:`` reads as "if the
-    check was happy". Do not lean on the raw ``status`` for truthiness: 0 is a
-    pass but is falsy as an integer, which is the opposite meaning.
+    Truthy when the check **passed**, so `if result:` reads as "if the check was
+    happy" -- unlike the raw status, where 0 is a pass and falsy.
     """
 
     __test__ = False  # not a pytest check class, despite the name
@@ -119,11 +100,8 @@ PASS = CheckResult()
 def normalize_result(returned: Any, check_code: str) -> CheckResult:
     """Confirm a check returned a result, and hand it back.
 
-    A check returns :data:`PASS` or a :class:`CheckResult`, and one wrapping a
-    bare comparison -- ``CheckResult(row["age"] > 0)`` -- is how a condition
-    becomes a result. Anything else raises ``TypeError`` naming the check: a
-    check returning ``None`` by falling off the end, or handing back a bare bool
-    or status value, is an authoring bug and must not be quietly read as a pass.
+    A check falling off the end, or handing back a bare bool or status, is an
+    authoring bug: it must not be quietly read as a pass.
     """
 
     if isinstance(returned, CheckResult):
@@ -136,13 +114,9 @@ def normalize_result(returned: Any, check_code: str) -> CheckResult:
 
 @dataclass
 class CheckOutcome:
-    """What one check did on one row, including the checks that never ran.
-
-    ``outcome`` is one of ``passed``, ``failed``, ``disabled``, ``skipped``,
-    ``errored``. ``detail`` says why for the three that did not evaluate the
-    row: which rule disabled it, which prerequisites blocked it, or what the
-    check raised.
-    """
+    """What one check did on one row -- including the ones that never ran, where
+    `detail` says why: the rule that disabled it, the prerequisites that blocked
+    it, or what it raised."""
 
     __test__ = False  # not a pytest check class, despite the name
 
@@ -162,6 +136,6 @@ class CheckOutcome:
 
     @property
     def status_label(self) -> str:
-        """The status as a report renders it: ``INVALID (3)``."""
+        """The status as a report renders it: `INVALID (3)`."""
 
         return render_status(self.status)

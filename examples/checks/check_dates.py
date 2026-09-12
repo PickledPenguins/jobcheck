@@ -8,6 +8,7 @@ import pandas as pd
 
 from jobcheck.registry import register_check
 from jobcheck.results import PASS, Status, CheckResult
+from jobcheck.tables import is_null
 
 
 def _date(row: "pd.Series[Any]", column: str) -> pd.Timestamp | None:
@@ -16,7 +17,7 @@ def _date(row: "pd.Series[Any]", column: str) -> pd.Timestamp | None:
     if column not in row.index:
         return None
     value = row[column]
-    if value is None or (pd.api.types.is_scalar(value) and pd.isna(value)):
+    if is_null(value):
         return None
     parsed = pd.to_datetime(value, errors="coerce")
     return None if pd.isna(parsed) else pd.Timestamp(parsed)

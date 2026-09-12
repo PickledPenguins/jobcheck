@@ -1,17 +1,16 @@
 """Row-validation framework.
 
-Importing this package registers **no** checks. Each entry point calls
-:func:`jobcheck.load_checks` with the paths of the ``check_*.py`` files it
-wants, and :func:`jobcheck.load_overrides` with the rule files that switch
-individual checks off for chosen rows.
+Importing this package registers **no** checks: an entry point calls
+`load_checks` with the files it wants, and `load_overrides` with the rule files
+that switch individual checks off for chosen rows.
 """
 
 from __future__ import annotations
 
 __version__ = "0.2.0"
-"""Pre-1.0: the API may change between versions. Check codes, status values and the
-override YAML schema are the parts treated as permanent, since data written against
-them outlives the code."""
+"""Pre-1.0: the API may change between versions. Check codes, status values and
+the override YAML schema are permanent -- data written against them outlives the
+code."""
 
 from .context import RowContext
 from .registry import (
@@ -24,6 +23,8 @@ from .registry import (
     load_overrides,
     loaded_check_files,
     register_check,
+    restore,
+    snapshot,
     validate_registry,
 )
 from .engine import (
@@ -107,9 +108,11 @@ __all__ = [
     "render_report",
     "render_status",
     "resolve_enabled_state",
+    "restore",
     "root_cause_counts",
     "root_causes",
     "row_explanation",
+    "snapshot",
     "summarize_outcomes",
     "validate",
     "validate_registry",

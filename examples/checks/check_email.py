@@ -9,6 +9,7 @@ import pandas as pd
 
 from jobcheck.registry import register_check
 from jobcheck.results import PASS, Status, CheckResult
+from jobcheck.tables import is_null
 
 _DOMAIN = re.compile(r"^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$")
 
@@ -19,7 +20,7 @@ def _text(row: "pd.Series[Any]", column: str = "email") -> str | None:
     if column not in row.index:
         return None
     value = row[column]
-    if value is None or (pd.api.types.is_scalar(value) and pd.isna(value)):
+    if is_null(value):
         return None
     return str(value)
 
@@ -53,6 +54,8 @@ def email_missing_at(row: "pd.Series[Any]") -> CheckResult:
 def email_domain(row: "pd.Series[Any]") -> CheckResult:
     """Pass when the part after '@' looks like a dotted hostname."""
 
+    # EMAIL_MISSING_AT is a prerequisite and passed, so there is exactly one
+    # '@' here: a check runs only once every check it depends on has passed.
     domain = (_text(row) or "").split("@", 1)[1]
     if not _DOMAIN.match(domain):
         return CheckResult(Status.MALFORMED, {"domain": domain})
