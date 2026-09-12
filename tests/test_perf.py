@@ -2,11 +2,11 @@
 
 Marked ``perf`` and in neither commit suite: these repeat their work several
 times and would make every commit slower for a signal that belongs to a release.
-Run them with ``./run-tests.sh perf``; the first run on a machine records the
+Run them with ``./tests/run-tests.sh perf``; the first run on a machine records the
 baseline into a gitignored file and says so, and later runs fail when a median
 moves past the machine's measured noise.
 
-Memory ceilings live in ``./run-tests.sh memory`` instead: ``tracemalloc``
+Memory ceilings live in ``./tests/run-tests.sh memory`` instead: ``tracemalloc``
 roughly triples the time it measures, so a run that gates both at once gates
 neither honestly.
 """

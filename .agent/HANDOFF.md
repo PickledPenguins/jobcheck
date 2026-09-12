@@ -13,12 +13,12 @@ pytest 9.1.1, coverage 7.16.0, mypy 2.3.1, hypothesis 6.167.1, mutmut 3.5.0).
 
 | Gate | Result |
 |---|---|
-| `./run-tests.sh` (fast, the commit gate) | 607 passed, 21s, then mypy |
-| `./run-tests.sh long` | 231 passed |
-| `./run-tests.sh all` | 838 passed, 305s |
-| `./run-tests.sh cov` | 100% of statements **and** branches (872 statements, 292 branches), floor 95 |
-| `./run-tests.sh memory` | 3 passed, 86s |
-| `./run-tests.sh perf` | 6 passed, 98s, against `.perf-baseline.json` |
+| `./tests/run-tests.sh` (fast, the commit gate) | 607 passed, 21s, then mypy |
+| `./tests/run-tests.sh long` | 231 passed |
+| `./tests/run-tests.sh all` | 838 passed, 305s |
+| `./tests/run-tests.sh cov` | 100% of statements **and** branches (872 statements, 292 branches), floor 95 |
+| `./tests/run-tests.sh memory` | 3 passed, 86s |
+| `./tests/run-tests.sh perf` | 6 passed, 98s, against `.build/perf-baseline.json` |
 | `mypy` | clean, 57 source files |
 | Mutation | **not re-run this session.** The 89.5% in `docs/testing.md` was measured at `9fe2207`, five commits back, and the code under it has been rewritten since |
 
@@ -26,17 +26,17 @@ The package is 1,726 lines, 1,059 of them executable (`~/work/ai/skills/bin/pylo
 9 modules, exporting 48 names. 33 test modules.
 
 ```sh
-PYTHON=~/.conda/envs/pytesting/bin/python ./run-tests.sh fast    # the commit gate
-PYTHON=~/.conda/envs/pytesting/bin/python ./run-tests.sh all     # + long, then the profile
-PYTHON=~/.conda/envs/pytesting/bin/python ./run-tests.sh cov     # coverage against the floor
-PYTHON=~/.conda/envs/pytesting/bin/python ./run-tests.sh perf    # timing vs this machine
-PYTHON=~/.conda/envs/pytesting/bin/python ./run-tests.sh memory  # peak-memory ceilings
+PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh fast    # the commit gate
+PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh all     # + long, then the profile
+PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh cov     # coverage against the floor
+PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh perf    # timing vs this machine
+PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh memory  # peak-memory ceilings
 ~/.conda/envs/pytesting/bin/python -c "import pandas, sys; sys.argv=['mutmut','run']; \
     from mutmut.__main__ import cli; cli()"                      # mutation, see the traps
 ```
 
 **Run anything past the fast suite through `~/work/ai/skills/bin/bgrun`**, which waits on
-the process rather than on its log: `id=$(bgrun start -l long -- ./run-tests.sh long)` then
+the process rather than on its log: `id=$(bgrun start -l long -- ./tests/run-tests.sh long)` then
 `bgrun wait "$id"`. Its log is at `/tmp/bgrun-1000/<id>/log` when `wait` times out and you
 want the tally out of it.
 
@@ -176,7 +176,7 @@ comment. The package has no lambdas left; a new one is a review comment.
 - **Suite runtimes on this machine**: fast 21s, long ~290s, all 305s, cov 26s, memory 86s,
   perf 98s, profile 9s.
 - **Performance baseline**, unchanged this session, 4,000-row frame, in the gitignored
-  `.perf-baseline.json`: `validate` 6.250s, `validate_row` per row 6.174s, `build_report`
+  `.build/perf-baseline.json`: `validate` 6.250s, `validate_row` per row 6.174s, `build_report`
   0.048s, `render_report` 0.048s, `summarize_outcomes` 0.020s, `validate` with 50 rules over
   1,000 rows 0.403s.
 
@@ -185,12 +185,15 @@ comment. The package has no lambdas left; a new one is a review comment.
 - **Use `PYTHON=~/.conda/envs/pytesting/bin/python`** for anything but the fast suite. The
   default `python3` is anaconda 3.14.6 without hypothesis or mutmut.
 - **Never install anything without asking.** Test tooling belongs in the `pytesting` env.
-- Generated and gitignored: `mutants/` (19 MB after a run), `.build/`, `.mypy_cache/`,
-  `.pytest_cache/`, `.hypothesis/`, `.perf-baseline.json` (machine-specific by design),
-  `reviews/`.
+- Generated and gitignored: everything under `.build/` -- the coverage data, the pytest
+  and mypy caches, the hypothesis storage, `examples.prof` and `perf-baseline.json`
+  (machine-specific by design) -- plus `.agent/reviews/`, and `mutants/` (19 MB after a
+  run), the one artifact mutmut insists on writing beside the project.
 - `scripts/install-hooks.sh` installs the fast suite as `.git/hooks/pre-commit`.
-- `reviews/` is empty: both reviews this session were worked through and their reports
-  cleared.
+- `.agent/reviews/` is empty: both reviews this session were worked through and their
+  reports cleared.
+- The agent files are out of the project root: this record is `.agent/HANDOFF.md`, the
+  guidance is `.claude/CLAUDE.md`, and the test entry point is `tests/run-tests.sh`.
 
 ## Things that will bite
 
@@ -198,7 +201,7 @@ The traps from the last handoff all still apply: a `@dataclass` defined inside a
 function fails under `fresh_registry`; `mutmut` needs pandas imported before it starts; a
 targeted `mutmut run <name>` throws away every other mutant's result; a stale `mutants/`
 tree lies about the score; `mutmut` runs the whole selected suite once per mutant, so the
-exclusions in `pyproject.toml` are load-bearing; `./run-tests.sh long` refuses to run
+exclusions in `pyproject.toml` are load-bearing; `./tests/run-tests.sh long` refuses to run
 without hypothesis; the catalog runs every case through a symlink of fixed length; and
 regenerating is not the same as fixing — read the diff. Added this session:
 
@@ -207,7 +210,7 @@ because a second pytest was running beside it, and `perf` and `memory` are worse
 scaling check is noise-proof now (best of five after a warm-up) but the timing gates are
 not, and cannot be.
 
-**`.perf-baseline.json` still holds a stale `summarise_outcomes/4000` key** beside the new
+**`.build/perf-baseline.json` still holds a stale `summarise_outcomes/4000` key** beside the new
 `summarize_outcomes/4000`. Harmless — the gate looks up by the current name — but anyone
 comparing keys will wonder. Gitignored and machine-local: delete it and re-record if it
 bothers you.

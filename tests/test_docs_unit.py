@@ -326,10 +326,18 @@ def test_the_documented_suite_sizes_are_the_real_ones() -> None:
     anything compared them with a collection: they are the one documented
     surface nothing else gates."""
 
+    # The long suite's size includes the three property tests, which an
+    # interpreter without hypothesis does not collect at all -- so on that
+    # interpreter the documented number is right and the collection is short by
+    # three. The long suite refuses to run there for the same reason.
+    pytest.importorskip(
+        "hypothesis", reason="the long-suite size counts the property tests"
+    )
+
     table = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
     documented = {
         mode: int(size.replace(",", ""))
-        for mode, size in re.findall(r"\| `\./run-tests\.sh (\w+)` \| ([\d,]+) tests", table)
+        for mode, size in re.findall(r"\| `\./tests/run-tests\.sh (\w+)` \| ([\d,]+) tests", table)
     }
     fast, long = collected("fast"), collected("long")
     assert documented.get("fast") == fast, f"docs say {documented.get('fast')}, pytest collects {fast}"

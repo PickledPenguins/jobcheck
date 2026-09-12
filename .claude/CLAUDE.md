@@ -40,10 +40,14 @@ The first pass over this question concluded "nothing was lost". That was too str
 the fuller evidence is below. Read it before deciding anything about recovery.
 
 `src/jobcheck/` still exists on disk holding **only** `__pycache__`, and that bytecode is
-the whole of the record from before the rename. It is now copied into `recovery/bytecode/`
-and tracked (`.gitignore` has an exception for it), because the `*.pyc` rules meant one
-`git clean` would have destroyed the only copy. `recovery/README.md` is the entry point;
-`scripts/read_bytecode_api.py` regenerates `recovery/recovered-api.md`.
+the whole of the record from before the rename. It was copied into `recovery/bytecode/`
+and committed, because the `*.pyc` rules meant one `git clean` would have destroyed the
+only copy. **That directory lives on `main`, not on this branch**, where it was removed
+to keep the project root readable; `main` is pushed, so the copy is permanent. Bring it
+back with `git restore --source=origin/main -- recovery`, or read one file out of it with
+`git show origin/main:recovery/README.md`, which is its entry point.
+`scripts/read_bytecode_api.py` regenerates `recovery/recovered-api.md` from a restored
+copy.
 
 The bytecode is unusually informative, because a
 `.pyc` header stores the mtime **and the byte size of the source that produced it**, and
@@ -128,7 +132,8 @@ The bytecode is not a curiosity; it is the only copy. It contains every function
 their argument names, and their docstrings, for both generations. Two routes, in order of
 fidelity:
 
-1. **Decompile `recovery/bytecode/jobcheck/*.cpython-312.pyc`.** The 3.12 generation is the
+1. **Decompile `recovery/bytecode/jobcheck/*.cpython-312.pyc`** (on `main`). The 3.12
+   generation is the
    check-era source (09-03..09-07) and is far likelier to be supported by a decompiler
    than the 3.14 one. Ask before installing anything: `pycdc` builds from source, and
    `decompyle3`/`uncompyle6` support up to 3.8 only, so 3.12 needs `pycdc`.
@@ -138,9 +143,10 @@ fidelity:
    not the bodies. The signatures below were produced that way.
 
 `run` and `load_checks` have since been rebuilt this way (see below). `lint`, `parallel`
-and `params` have not, deliberately -- `recovery/README.md` records the decision and the
-reason to revisit each. **Do not delete `recovery/bytecode/`** while any of the three might
-be wanted; deleting it is the decision that they never come back.
+and `params` have not, deliberately -- `recovery/README.md` on `main` records the decision
+and the reason to revisit each. **Do not rewrite `main`'s history over those commits**
+while any of the three might be wanted: the branch is the only copy now, and losing it is
+the decision that they never come back.
 
 ## The check-era API, as jobchain records it
 
@@ -228,21 +234,30 @@ this repository (`check_rule_columns`) is deliberate and unrelated.
 ## Commands
 
 ```sh
-./run-tests.sh          # fast: unit, smoke, interface, regression, cheap pathological, plus mypy
-./run-tests.sh long     # integration, load, concurrency, faults, scaling, catalogs, then the profile
-./run-tests.sh all      # both, plus mypy and the profile
-./run-tests.sh cov      # the fast suite with coverage, gated at 95%
-./run-tests.sh perf     # timing against this machine's baseline (its own gate)
-./run-tests.sh memory   # peak-memory ceilings (its own gate)
-./run-tests.sh profile  # where the example runs spend their time
-./run-tests.sh types    # mypy alone
+tests/run-tests.sh          # fast: unit, smoke, interface, regression, cheap pathological, plus mypy
+tests/run-tests.sh long     # integration, load, concurrency, faults, scaling, catalogs, then the profile
+tests/run-tests.sh all      # both, plus mypy and the profile
+tests/run-tests.sh cov      # the fast suite with coverage, gated at 95%
+tests/run-tests.sh perf     # timing against this machine's baseline (its own gate)
+tests/run-tests.sh memory   # peak-memory ceilings (its own gate)
+tests/run-tests.sh profile  # where the example runs spend their time
+tests/run-tests.sh types    # mypy alone
 scripts/install-hooks.sh
 scripts/new_catalog_case.py <kind> <path> ...       # add one catalog case, output and all
 scripts/regen_catalog.py, scripts/regen_golden.py   # regenerate committed fixtures
 scripts/make_example_data.py                        # regenerate examples/data/*.csv
 scripts/profile_examples.py                         # the profile, alone
-scripts/read_bytecode_api.py <dir>                  # read the lost interface out of recovery/bytecode/
+scripts/read_bytecode_api.py <dir>                  # read the lost interface out of bytecode
 ```
+
+Every mode runs from the project root whichever directory it is invoked from. Generated
+files go under `.build/` -- coverage data, the pytest and mypy caches, the hypothesis
+storage, the example profile, the machine's performance baseline -- except `mutants/`,
+which `mutmut` hardcodes beside the project and which is transient.
+
+This file is `.claude/CLAUDE.md`, and the handoff record is `.agent/HANDOFF.md` beside
+saved reviews in `.agent/reviews/`. The project root carries source, docs and packaging
+only, deliberately.
 
 The long suite needs `hypothesis` and refuses to run without it rather than skipping the
 property tests quietly; `PYTHON=/path/to/python` picks the interpreter, and the conda
@@ -255,7 +270,7 @@ mutmut. Tests are split by pytest markers (`fast`, `long`), not by directory.
 ## The simplification, 2026-09-10, on branch `simplify`
 
 The owner asked for a version a junior developer can read. The analysis and the
-decisions are in `HANDOFF.md`; what actually changed:
+decisions are in `.agent/HANDOFF.md`; what actually changed:
 
 | Dropped | Replaced by |
 |---|---|

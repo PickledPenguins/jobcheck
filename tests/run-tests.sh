@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Test entry point. One mode per gate:
 #
-#   ./run-tests.sh fast    unit, smoke, interface, regression, cheap pathological
-#                          plus mypy -- the pre-commit gate
-#   ./run-tests.sh long    integration, load, concurrency, faults, scaling,
-#                          end-to-end catalogs, then the example profile
-#   ./run-tests.sh all     both, plus mypy
-#   ./run-tests.sh cov     fast suite with a coverage report, gated at 95%
-#   ./run-tests.sh perf    timing against this machine's baseline (its own gate)
-#   ./run-tests.sh memory  peak-memory ceilings under tracemalloc (its own gate)
-#   ./run-tests.sh profile the example profile alone, without the tests
-#   ./run-tests.sh types   mypy alone, for a CI step that has already run the tests
+#   tests/run-tests.sh fast    unit, smoke, interface, regression, cheap
+#                              pathological plus mypy -- the pre-commit gate
+#   tests/run-tests.sh long    integration, load, concurrency, faults, scaling,
+#                              end-to-end catalogs, then the example profile
+#   tests/run-tests.sh all     both, plus mypy
+#   tests/run-tests.sh cov     fast suite with a coverage report, gated at 95%
+#   tests/run-tests.sh perf    timing against this machine's baseline (own gate)
+#   tests/run-tests.sh memory  peak-memory ceilings under tracemalloc (own gate)
+#   tests/run-tests.sh profile the example profile alone, without the tests
+#   tests/run-tests.sh types   mypy alone, for a CI step that ran the tests
 #
 # Extra arguments are passed through to pytest.
 #
@@ -18,7 +18,9 @@
 # long suite needs hypothesis (the [dev] extra) and refuses to run without it
 # rather than skipping the property tests quietly.
 set -uo pipefail
-cd "$(dirname "$0")"
+# Every mode runs from the project root: pytest, coverage and mypy all read
+# their settings out of pyproject.toml there, and the script lives one down.
+cd "$(dirname "$0")/.."
 
 MODE="${1:-fast}"
 shift || true
