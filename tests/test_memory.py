@@ -15,7 +15,7 @@ import tracemalloc
 
 import pytest
 
-from jobcheck import validate, validate_row, registry as reg
+from jobcheck import validate, validate_row
 from jobcheck import report as rep
 from test_load import frame
 from jobcheck import engine

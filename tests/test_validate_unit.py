@@ -122,3 +122,19 @@ def test_a_bad_on_error_is_rejected_before_anything_runs(fresh_registry: None) -
     with pytest.raises(ValueError, match="on_error must be 'record' or 'raise'"):
         validate(frame(2), on_error="explode")
     assert calls == []
+
+
+def test_a_bad_on_error_is_refused_even_on_an_empty_frame(fresh_registry: None) -> None:
+    """The mode was only checked per row, so an empty frame let a typo through."""
+
+    make_check("CODE")
+    with pytest.raises(ValueError, match="on_error must be 'record' or 'raise'"):
+        validate(pd.DataFrame(columns=["age"]), on_error="ignore")
+
+
+def test_a_series_is_refused_with_a_pointer_to_the_per_row_functions(
+    fresh_registry: None,
+) -> None:
+    make_check("CODE")
+    with pytest.raises(TypeError, match="validate takes a DataFrame, got Series"):
+        validate(pd.Series({"age": 1}))  # type: ignore[arg-type]

@@ -70,11 +70,12 @@ def test_a_check_file_name_is_a_path_never_a_module_name(fresh_registry: None) -
     assert reg.CHECKS == []
 
 
-def test_a_catastrophic_regex_is_bounded_by_the_value_length(one_code: None, tmp_path: Path) -> None:
-    """A nested-quantifier pattern on a short value must not hang the run.
-
-    The framework does not sandbox regexes -- the guard is that criteria run
-    against single cell values, so the assertion is a wall-clock ceiling.
+def test_a_catastrophic_regex_on_a_short_value_finishes_in_seconds(one_code: None, tmp_path: Path) -> None:
+    """A nested-quantifier pattern on a 23-character value returns in under a
+    second here. Nothing bounds it: the framework does not sandbox regexes,
+    and the same pattern on 30 characters would take minutes -- see the
+    handoff's open item on regex timeouts. This pins that a cell-sized value
+    is survivable, not that the matcher is safe.
     """
 
     rule = reg.OverrideRule(

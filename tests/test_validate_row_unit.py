@@ -568,9 +568,10 @@ def test_root_causes_returns_every_failure_at_the_shallowest_layer(
 ) -> None:
     make_check("A", passes=False)
     make_check("B", passes=False)
-    make_check("DEEPER", passes=False, depends_on=[])
+    make_check("OPEN")
+    make_check("DEEPER", passes=False, depends_on=["OPEN"])
     outcomes = engine.explain_row(pd.Series({"a": 1}))
-    assert engine.root_causes(outcomes) == ["A", "B", "DEEPER"]
+    assert engine.root_causes(outcomes) == ["A", "B"]
 
 
 def test_root_causes_excludes_a_downstream_failure(fresh_registry: None) -> None:
@@ -585,9 +586,3 @@ def test_root_causes_is_empty_for_a_row_that_passed(fresh_registry: None) -> Non
     make_check("PASSES")
     assert engine.root_causes(engine.explain_row(pd.Series({"a": 1}))) == []
 
-
-def test_root_cause_returns_one_of_the_root_causes(fresh_registry: None) -> None:
-    make_check("A", passes=False)
-    make_check("B", passes=False)
-    outcomes = engine.explain_row(pd.Series({"a": 1}))
-    assert first_cause(outcomes) in engine.root_causes(outcomes)

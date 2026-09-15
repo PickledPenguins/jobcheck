@@ -1,0 +1,1 @@
+warning: rule 'skip_age_checks_for_archived_rows' matches on column 'archived', which is not in the data: the rule will never apply

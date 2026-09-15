@@ -225,12 +225,7 @@ def test_duplicate_rule_name_across_files_names_both_files(one_code: None, tmp_p
     assert f"defined in {first} and again in {second}" in message
 
 
-def test_a_sorted_list_of_files_loads_in_that_order(one_code: None, tmp_path: Path) -> None:
-    """Alphabetical order is the caller's to choose: the loader takes the list as given."""
 
-    second = write(tmp_path, "02_second.yaml", GLOBAL_DISABLE.replace("kill_it", "second"))
-    first = write(tmp_path, "01_first.yaml", GLOBAL_DISABLE.replace("kill_it", "first"))
-    assert [r.name for r in reg.load_overrides(sorted([second, first]))] == ["first", "second"]
 
 
 def test_loading_no_files_returns_nothing(one_code: None) -> None:

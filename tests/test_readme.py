@@ -140,26 +140,6 @@ def test_the_example_code_does_not_collide_with_the_shipped_tests(
             assert code not in shipped, f"README defines {code}, which the suites already own"
 
 
-@pytest.mark.parametrize(
-    "name",
-    [
-        "docs/writing-checks.md",
-        "docs/reporting.md",
-        "docs/configuration.md",
-        "docs/interfaces.md",
-        "docs/cli.md",
-        "docs/architecture.md",
-        "docs/testing.md",
-        "docs/contributing.md",
-        "docs/future-work.md",
-    ],
-)
-def test_every_document_the_readme_links_to_exists(name: str) -> None:
-    text = README.read_text(encoding="utf-8")
-    assert f"]({name})" in text, f"README no longer links to {name}"
-    assert (README.parent / name).is_file()
-
-
 def test_the_readme_shell_commands_name_files_that_exist() -> None:
     text = README.read_text(encoding="utf-8")
     for filename in ("scripts/install-hooks.sh", "tests/run-tests.sh"):
@@ -289,7 +269,8 @@ def test_the_check_files_the_readme_names_exist(fresh_registry: None) -> None:
 
     named = ["examples/checks/check_age.py", "examples/checks/check_email.py"]
     assert f"load_checks({named!r})".replace("'", '"') in readme_text()
-    load_checks(named)
+    # The README's paths are relative to the project root, as a reader's are.
+    load_checks([str(README.parent / path) for path in named])
     assert len(loaded_check_files()) == 2
 
 

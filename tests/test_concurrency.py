@@ -21,15 +21,12 @@ import sys
 import textwrap
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 import pytest
 
 from conftest import first_cause, PROJECT_ROOT
-from conftest import first_cause
 from jobcheck import validate, validate_row
-from jobcheck.results import CheckResult, PASS, Status
 
 pytestmark = pytest.mark.long
 

@@ -1,0 +1,9 @@
+- name: "skip_age_checks_for_archived_rows"
+  message: "Archived rows are kept for the record and never corrected"
+  action: disable
+  codes:
+    - AGE_NEGATIVE
+    - AGE_TOO_HIGH
+  match:
+    - column: archived
+      pattern: "^yes$"

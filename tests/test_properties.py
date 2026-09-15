@@ -28,9 +28,7 @@ from jobcheck import engine
 
 pytestmark = pytest.mark.long
 
-# A small alphabet of check codes, so generated dependency graphs actually overlap
-# instead of each check being an island -- overlap is where the invariants can break.
-CODES = st.sampled_from([f"T{i}" for i in range(6)])
+
 
 
 @st.composite
@@ -42,6 +40,8 @@ def dependency_graphs(draw: st.DrawFn) -> list[tuple[str, list[str], bool]]:
     not this generator's job to produce.
     """
 
+    # A small alphabet of codes, so generated graphs overlap instead of each
+    # check being an island -- overlap is where the invariants can break.
     size = draw(st.integers(min_value=1, max_value=6))
     codes = draw(st.permutations([f"T{i}" for i in range(6)]))[:size]
     checks = []

@@ -1,0 +1,6 @@
+- name: "legacy_rows_get_the_integer_check"
+  message: "Legacy batch rows carry ages copied by hand"
+  action: enable
+  codez:
+    - AGE_NOT_INTEGER
+  match: all
