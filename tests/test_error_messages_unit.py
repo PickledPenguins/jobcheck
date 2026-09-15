@@ -16,7 +16,6 @@ already compares them exactly, and the CLI's own messages in
 
 from __future__ import annotations
 
-from typing import Any
 
 import pandas as pd
 import pytest
@@ -30,7 +29,7 @@ from jobcheck import (
     render_report,
     validate_row,
 )
-from jobcheck.results import Status, CheckResult, normalize_result
+from jobcheck.results import CheckResult, normalize_result
 from jobcheck.results import PASS
 
 pytestmark = pytest.mark.fast

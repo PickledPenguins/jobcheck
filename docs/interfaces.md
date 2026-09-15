@@ -118,7 +118,11 @@ list of its characters. **Nothing is discovered**, which is what lets two entry
 points in one codebase run different sets of checks. A file already loaded, or listed twice,
 is skipped. `validate_registry` runs once the whole call has been imported, so a
 prerequisite may live in any of the files. Raises `ValueError` for a path that is
-not a file, and propagates whatever a file raises while importing.
+not a file, and propagates whatever a file raises while importing. A file that
+raises part-way registers nothing — the checks its earlier lines had registered
+are dropped again, so the registry and `loaded_check_files()` agree and the
+corrected file loads on the next call; files loaded before it in the same call
+stay loaded.
 
 Each file is given a unique module name, so two directories that each hold a
 `checks.py` both load. No `__pycache__` is written beside the file: a check file
@@ -153,7 +157,9 @@ silently doing nothing.
 `load_checks` does, and returns `list[OverrideRule]` in the order given — which is
 the precedence order, since the last matching rule wins. It raises `ValueError` at
 load time for every malformed rule, and for a rule name used twice anywhere in the
-call. It is a thin wrapper over `jobcheck.rules`, which holds the format and its
+call; a path that is not there raises `FileNotFoundError`, and a file that is not
+valid YAML raises `yaml.YAMLError`, both as the file layer reports them.
+It is a thin wrapper over `jobcheck.rules`, which holds the format and its
 parser and is handed the codes that exist rather than reaching into the registry.
 Load the check files first: a rule naming an unregistered code is an error. See
 [configuration.md](configuration.md).
@@ -213,6 +219,10 @@ outcomes per row, in frame order. That is the shape `build_report` and
 `context_builder` is called once per row and returns the `RowContext` handed to
 every check; hand back one shared object when a check needs the whole frame.
 Without one, every row is handed the same empty `RowContext`.
+
+An `on_error` that is neither `"record"` nor `"raise"` raises `ValueError` before
+any row is read, an empty frame included; anything but a `DataFrame` raises
+`TypeError` naming `validate_row` and `explain_row` as the per-row calls.
 
 It keeps one outcome per check per row, so for a frame where that will not fit in
 memory, call `validate_row(row)` per row instead and write the failures out as

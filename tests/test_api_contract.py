@@ -7,7 +7,9 @@ else's import fails.
 
 from __future__ import annotations
 
+import importlib
 import inspect
+import pkgutil
 import re
 from pathlib import Path
 from typing import Any
@@ -21,14 +23,20 @@ from jobcheck import registry_tables
 from jobcheck import report as rep
 from jobcheck import results as res
 from jobcheck import rules, tables
-from jobcheck.results import PASS, Status
 
 pytestmark = pytest.mark.fast
 
-MODULES = [res, reg, rep, tables, validation.context]
 # rules is a module the package deliberately does not re-export wholesale: the
 # registry wraps its loaders, and its parser entry points are for that wrapper.
 INTERNAL_MODULES = [rules]
+# Every other module, found rather than listed: a hand-kept list missed engine
+# and registry_tables, so a public function added to either could go unexported
+# without this noticing.
+MODULES = [
+    importlib.import_module(f"jobcheck.{info.name}")
+    for info in pkgutil.iter_modules(validation.__path__)
+    if f"jobcheck.{info.name}" not in {module.__name__ for module in INTERNAL_MODULES}
+]
 
 
 def test_every_exported_name_exists() -> None:
@@ -168,7 +176,7 @@ def test_load_checks_names_files_explicitly() -> None:
 
 
 def test_validate_row_returns_outcomes_not_a_separate_result_type(fresh_registry: None) -> None:
-    from conftest import first_cause, make_check
+    from conftest import make_check
 
     make_check("FAILS", passes=False)
     results = engine.validate_row(_row())

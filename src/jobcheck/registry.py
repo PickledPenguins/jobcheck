@@ -243,6 +243,7 @@ def load_checks(paths: list[str]) -> None:
     listed twice, or already loaded, is skipped.
     """
 
+    global _TOPO_ORDER
     if isinstance(paths, str):
         raise TypeError(
             f"load_checks takes a list of paths, not one string: pass [{paths!r}]. "
@@ -278,10 +279,20 @@ def load_checks(paths: list[str]) -> None:
         # name is unique per load, so a cached .pyc would never be reused anyway.
         writing_bytecode = sys.dont_write_bytecode
         sys.dont_write_bytecode = True
+        registered_before = len(CHECKS)
         try:
             spec.loader.exec_module(module)
         except Exception:
+            # The file's decorators ran up to the line that raised, so its
+            # earlier checks are in CHECKS while the file is not in
+            # _LOADED_FILES. Drop them: a file that failed to load loaded
+            # nothing, and the corrected file must not be refused as a
+            # duplicate of itself. Files loaded before it stay -- loading is
+            # per file, not per call.
+            del CHECKS[registered_before:]
+            _REGISTERING_MODULES.discard(module_name)
             sys.modules.pop(module_name, None)
+            _TOPO_ORDER = None
             raise
         finally:
             sys.dont_write_bytecode = writing_bytecode

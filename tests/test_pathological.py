@@ -59,9 +59,9 @@ def test_directory_passed_where_a_file_is_expected(one_code: None, tmp_path: Pat
 def test_utf8_content_survives_the_round_trip(one_code: None, tmp_path: Path) -> None:
     path = write(
         tmp_path, "u.yaml",
-        '- name: "rÃ¨gle_Ã©tÃ©"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
+        '- name: "règle_été"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
     )
-    assert reg.load_overrides([path])[0].name == "rÃ¨gle_Ã©tÃ©"
+    assert reg.load_overrides([path])[0].name == "règle_été"
 
 
 def test_a_pattern_matching_a_unicode_value(fresh_registry: None, tmp_path: Path) -> None:
@@ -69,10 +69,10 @@ def test_a_pattern_matching_a_unicode_value(fresh_registry: None, tmp_path: Path
     path = write(
         tmp_path, "u.yaml",
         '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n'
-        '  match:\n    - column: city\n      pattern: "^MÃ¼nchen$"\n',
+        '  match:\n    - column: city\n      pattern: "^München$"\n',
     )
     rules = reg.load_overrides([path])
-    assert enabled_only(engine.resolve_enabled_state(pd.Series({"city": "MÃ¼nchen"}), rules))["A_CODE"] is False
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"city": "München"}), rules))["A_CODE"] is False
 
 
 def test_a_thousand_rules_load_and_the_last_wins(fresh_registry: None, tmp_path: Path) -> None:
@@ -251,10 +251,10 @@ def test_a_very_long_comment_value_overflows_rather_than_being_mangled(
 def test_unicode_survives_both_formats(fresh_registry: None) -> None:
     from jobcheck import render_report
 
-    report = one_row_report({"ville": "MÃ¼nchen"}, message="Ã©chec de la rÃ¨gle")
+    report = one_row_report({"ville": "München"}, message="échec de la règle")
     for fmt in ("table", "csv"):
         text = render_report(report, fmt=fmt)
-        assert "MÃ¼nchen" in text and "Ã©chec" in text
+        assert "München" in text and "échec" in text
 
 
 @pytest.mark.parametrize(

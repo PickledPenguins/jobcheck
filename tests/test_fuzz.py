@@ -53,27 +53,38 @@ def random_name(rng: random.Random) -> str:
     return "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 12)))
 
 
+#: For each key, what the parser accepts and what it refuses. A rule is built by
+#: drawing each key valid with high odds, so that whole rules come out valid
+#: often enough to reach the matcher and the regex -- five keys each valid one
+#: time in three would make a valid rule a one-in-two-hundred event.
+VALID: dict[str, list[Any]] = {
+    "name": ["r", "rule_one", "a b"],
+    "action": ["enable", "disable"],
+    "codes": [["A_CODE"], ["A_CODE", "B_CODE"]],
+    "match": ["all", [{"column": "age", "pattern": "^1$"}],
+              [{"column": "age", "pattern": "x"}, {"column": "email", "pattern": "@"}]],
+    "message": ["why the rule exists", "kept for the audit"],
+}
+INVALID: dict[str, list[Any]] = {
+    "name": ["", 7, None],
+    "action": ["Enable", "toggle", 7, None],
+    "codes": [["NOPE"], [], "A_CODE", [7]],
+    "match": ["al", [], [{"column": "age"}], [{"column": 7, "pattern": "x"}],
+              [{"column": "age", "pattern": "([unclosed"}], 7, None],
+    "message": ["", 7, None],
+}
+
+
 def random_rule(rng: random.Random) -> Any:
-    """A rule-shaped mapping, valid about as often as not."""
+    """A rule-shaped mapping: every key valid four times in five, each key
+    missing one time in twenty, an unknown key added one time in ten."""
 
     rule: dict[str, Any] = {}
-    for key in ("name", "action", "codes", "match", "description"):
-        if rng.random() < 0.15:
+    for key in VALID:
+        if rng.random() < 0.05:
             continue
-        if key == "name":
-            rule[key] = random_name(rng) or "r"
-        elif key == "action":
-            rule[key] = rng.choice(["enable", "disable", "Enable", "toggle", 7, None])
-        elif key == "codes":
-            rule[key] = rng.choice([["A_CODE"], ["A_CODE", "B_CODE"], ["NOPE"], [], "A_CODE", [7]])
-        elif key == "match":
-            rule[key] = rng.choice([
-                "all", "al", [], [{"column": "age", "pattern": "^1$"}],
-                [{"column": "age"}], [{"column": 7, "pattern": "x"}],
-                [{"column": "age", "pattern": "([unclosed"}], 7, None,
-            ])
-        else:
-            rule[key] = rng.choice([random_name(rng), 7, None])
+        pool = VALID[key] if rng.random() < 0.8 else INVALID[key]
+        rule[key] = rng.choice(pool)
     if rng.random() < 0.1:
         rule[random_name(rng) or "extra"] = 1
     return rule
@@ -85,7 +96,7 @@ def test_the_rule_parser_either_loads_or_raises_valueerror(
     rng = random.Random(SEED)
     make_check("A_CODE")
     make_check("B_CODE")
-    accepted = rejected = 0
+    accepted_rules = rejected = 0
 
     for case in range(CASES):
         path = tmp_path / f"rules_{case}.yaml"
@@ -97,13 +108,20 @@ def test_the_rule_parser_either_loads_or_raises_valueerror(
             rejected += 1
             assert str(path) in str(exc), f"seed {SEED} case {case}: error omits the file"
             continue
-        accepted += 1
+        accepted_rules += len(loaded)
         for rule in loaded:
             assert rule.action in ("enable", "disable")
             assert rule.codes
             assert rule.match_all or rule.criteria
 
-    assert accepted and rejected, f"seed {SEED}: the generator stopped covering both outcomes"
+    # Rules accepted, not files: an empty file loads as zero rules, so counting
+    # files let a generator whose every rule was refused -- one required key
+    # misspelled -- pass this for months while exercising nothing past the key
+    # check. The floor is far below what the seed produces (about 40).
+    assert accepted_rules >= 20, (
+        f"seed {SEED}: only {accepted_rules} generated rules were accepted; "
+        "the generator no longer produces valid rules")
+    assert rejected, f"seed {SEED}: the generator stopped producing invalid rules"
 
 
 def random_frame(rng: random.Random) -> pd.DataFrame:

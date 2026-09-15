@@ -1,0 +1,1 @@
+python3 examples/main.py --rules tests/failures/rule-without-a-message/rules.yaml

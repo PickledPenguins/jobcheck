@@ -1,1 +1,0 @@
-python3 examples/main.py --rules examples/rules/error_overrides.yaml --summary

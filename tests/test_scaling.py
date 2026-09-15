@@ -173,16 +173,25 @@ def test_row_by_row_holds_less_than_collecting_on_the_same_frame(
 def test_row_by_row_memory_does_not_grow_with_the_frame(example_checks: None) -> None:
     """Twice the rows, the same peak: nothing accumulates between rows."""
 
-    def peak_for(rows: int) -> int:
+    def peak_for(df: pd.DataFrame) -> int:
         tracemalloc.start()
-        for _, row in frame(rows).iterrows():
+        for _, row in df.iterrows():
             validate_row(row)
         peak = tracemalloc.get_traced_memory()[1]
         tracemalloc.stop()
         return peak
 
-    small = peak_for(2_000)
-    large = peak_for(8_000)
-    # The frame itself is four times bigger, so the peak may not be flat -- but
-    # it must not carry the outcomes, which would be four times as many objects.
-    assert large < small * 4, f"peak went {small / 1e6:.1f} MB to {large / 1e6:.1f} MB"
+    # Both frames are built before anything is traced: with the frame inside
+    # the measurement, a peak four times larger was explained by the frame alone
+    # and the bound below could not fail -- an engine leaking every outcome
+    # passed it.
+    small_frame = frame(2_000)
+    large_frame = frame(8_000)
+    small = peak_for(small_frame)
+    large = peak_for(large_frame)
+    # One row's worth of work at a time, whatever the frame. The peaks are
+    # under a megabyte and iterrows' own bookkeeping grows a little with the
+    # frame, so the bound is absolute: 6,000 more rows of retained outcomes
+    # would be well over ten megabytes, and this allows two.
+    assert large - small < 2 * 1024 * 1024, (
+        f"peak went {small / 1e6:.1f} MB to {large / 1e6:.1f} MB")

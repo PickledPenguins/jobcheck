@@ -187,6 +187,16 @@ def validate(
     enough that those objects matter, call `validate_row` per row instead.
     """
 
+    # Checked here, not only in explain_row: an empty frame never reaches it,
+    # and a mistyped mode would otherwise pass unnoticed until the first run
+    # with rows in it.
+    if on_error not in ("record", "raise"):
+        raise ValueError(f"on_error must be 'record' or 'raise', got {on_error!r}.")
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError(
+            f"validate takes a DataFrame, got {type(df).__name__}; for one row, call "
+            "validate_row or explain_row.")
+
     # Built once, not per row: without a builder every row is handed this same
     # empty context, since the base class carries no fields to fill in.
     empty = RowContext()

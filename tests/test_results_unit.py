@@ -18,7 +18,6 @@ def test_pass_is_zero_and_every_other_builtin_is_not() -> None:
 def test_a_passing_result_is_truthy() -> None:
     result = CheckResult()
     assert bool(result) is True
-    assert bool(result) is True
     assert result.failed is False
 
 
@@ -45,12 +44,7 @@ def test_comments_are_copied_and_frozen() -> None:
         result.comments["actual"] = 9  # type: ignore[index]
 
 
-def test_an_unregistered_status_is_rejected(fresh_registry: None) -> None:
-    with pytest.raises(ValueError, match="Unknown status 4"):
-        CheckResult(4)
-
-
-def test_a_test_cannot_return_status_error(fresh_registry: None) -> None:
+def test_a_check_cannot_return_status_error() -> None:
     """Regression: it recorded as a failure carrying ERROR (9), which broke the
     summary's split between broken checks and bad data."""
 
@@ -60,7 +54,7 @@ def test_a_test_cannot_return_status_error(fresh_registry: None) -> None:
         res.normalize_result(Status.ERROR, "CODE")
 
 
-def test_the_engine_can_still_record_an_error_outcome(fresh_registry: None) -> None:
+def test_the_engine_can_still_record_an_error_outcome() -> None:
     """The status stays usable where it belongs -- on an outcome, not a result."""
 
     outcome = res.CheckOutcome("CODE", res.ERRORED, status=Status.ERROR)
@@ -91,9 +85,10 @@ def test_every_status_renders_as_name_and_number() -> None:
     assert res.render_status(0) == "PASS (0)"
 
 
-def test_a_value_outside_the_vocabulary_is_refused() -> None:
-    with pytest.raises(ValueError, match="Unknown status 77"):
-        res.CheckResult(77)
+@pytest.mark.parametrize("value", [4, 77, -1])
+def test_a_value_outside_the_vocabulary_is_refused(value: int) -> None:
+    with pytest.raises(ValueError, match=f"Unknown status {value}"):
+        res.CheckResult(value)
 
 
 # --- normalizing what a check returned --------------------------------------
@@ -119,7 +114,7 @@ def test_a_bool_is_never_read_as_an_integer_status() -> None:
     assert CheckResult(False).status == Status.INVALID
 
 
-def test_numpy_scalars_are_accepted(fresh_registry: None) -> None:
+def test_numpy_scalars_are_accepted() -> None:
     """A comparison against a pandas value returns np.bool_, not bool."""
 
     import numpy
@@ -140,7 +135,3 @@ def test_anything_else_raises_naming_the_test(returned: object) -> None:
     with pytest.raises(TypeError, match=r"Check 'CODE' returned"):
         res.normalize_result(returned, "CODE")
 
-
-def test_an_unregistered_status_raises() -> None:
-    with pytest.raises(ValueError, match="Unknown status 42"):
-        CheckResult(42)

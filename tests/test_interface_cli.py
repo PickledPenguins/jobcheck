@@ -7,9 +7,17 @@ from typing import Any
 import pytest
 
 import main
-from conftest import run_cli
+from conftest import CommandResult, run_cli
 
 pytestmark = pytest.mark.fast
+
+
+@pytest.fixture(scope="module")
+def default_run() -> CommandResult:
+    """The entry point with no arguments, run once: nine tests read the same
+    output, and each subprocess costs more than the rest of this file."""
+
+    return run_cli("examples/main.py")
 
 
 # --- argument parsing -------------------------------------------------------
@@ -36,29 +44,31 @@ def test_passing_rules_replaces_the_default_rather_than_extending_it() -> None:
 # --- exit codes -------------------------------------------------------------
 
 
-def test_success_exits_zero() -> None:
-    assert run_cli("examples/main.py").returncode == 0
+def test_success_exits_zero(default_run: CommandResult) -> None:
+    assert default_run.returncode == 0
 
 
-def test_failing_rows_still_exit_zero() -> None:
+def test_failing_rows_still_exit_zero(default_run: CommandResult) -> None:
     """Validation failures are data, not a process error."""
 
-    result = run_cli("examples/main.py")
+    result = default_run
     assert "AGE_NEGATIVE" in result.stdout
     assert result.returncode == 0
 
 
-def test_the_report_names_each_row_by_its_key_column_and_root_cause() -> None:
-    failures = run_cli("examples/main.py").stdout.split("== Failures ==")[1]
+def test_the_report_names_each_row_by_its_key_column_and_root_cause(
+    default_run: CommandResult,
+) -> None:
+    failures = default_run.stdout.split("== Failures ==")[1]
     assert "2        | AGE_NEGATIVE" in failures
     assert "minimum=0; value=-5.0" in failures
     assert "<no key>" in failures
 
 
-def test_cascading_checks_are_absent_from_the_report() -> None:
+def test_cascading_checks_are_absent_from_the_report(default_run: CommandResult) -> None:
     """Row 5 has no age at all: only AGE_PRESENT is reported for it."""
 
-    failures = run_cli("examples/main.py").stdout.split("== Failures ==")[1]
+    failures = default_run.stdout.split("== Failures ==")[1]
     age_lines = [line for line in failures.splitlines() if line.startswith("5 ")]
     assert [line.split("|")[1].strip() for line in age_lines] == [
         "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"
@@ -125,8 +135,8 @@ def test_missing_override_file_exits_one() -> None:
 # --- output routing and shape ----------------------------------------------
 
 
-def test_results_go_to_stdout_and_nothing_to_stderr() -> None:
-    result = run_cli("examples/main.py")
+def test_results_go_to_stdout_and_nothing_to_stderr(default_run: CommandResult) -> None:
+    result = default_run
     assert result.stdout.startswith("Loaded 3 override rule(s) from 1 file(s)")
     assert result.stderr == ""
 
@@ -137,8 +147,8 @@ def test_errors_go_to_stderr_and_leave_stdout_clean() -> None:
     assert "== Registry ==" not in result.stdout
 
 
-def test_the_default_run_prints_the_registry_and_the_failures() -> None:
-    out = run_cli("examples/main.py").stdout
+def test_the_default_run_prints_the_registry_and_the_failures(default_run: CommandResult) -> None:
+    out = default_run.stdout
     assert "== Registry ==" in out
     assert "== Failures ==" in out
 

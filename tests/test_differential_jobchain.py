@@ -40,7 +40,6 @@ from jobcheck import (
     load_checks,
     validate,
 )
-from jobcheck.results import CheckResult, PASS, Status
 
 pytestmark = pytest.mark.fast
 

@@ -16,7 +16,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from jobcheck.results import CheckResult, PASS, Status
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"

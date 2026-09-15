@@ -1,0 +1,8 @@
+- name: "no_email_checks_for_test_accounts"
+  action: disable
+  codes:
+    - EMAIL_MISSING_AT
+    - EMAIL_DOMAIN_INVALID
+  match:
+    - column: email
+      pattern: "@internal\\.test$"

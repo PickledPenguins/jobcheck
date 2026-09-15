@@ -103,6 +103,7 @@ def test_cases_run_through_a_root_of_a_fixed_length() -> None:
         pytest.skip("this filesystem refuses symlinks")
     assert root == STABLE_ROOT
     assert root.readlink() == ROOT
-    # The name is fixed-width: a different user id is the same number of
-    # characters, so two accounts on one machine still agree.
-    assert len(STABLE_ROOT.name) == len("prv-catalog-root-") + 8
+    # The name is fixed-width: a different user id or a different clone path is
+    # the same number of characters, so two accounts, or two clones of one
+    # account, on one machine still agree.
+    assert len(STABLE_ROOT.name) == len("prv-catalog-root-") + 8 + 1 + 8

@@ -27,13 +27,10 @@ from jobcheck import (
     build_report,
     validate,
     load_overrides,
-    load_overrides,
-    load_overrides,
     load_checks,
     registry as reg,
     write_report,
 )
-from jobcheck.results import PASS
 
 pytestmark = pytest.mark.long
 
@@ -209,10 +206,13 @@ def test_writing_into_a_read_only_directory_raises(fresh_registry: None, tmp_pat
         locked.chmod(stat.S_IRWXU)
 
 
-def test_a_write_that_fails_midway_leaves_no_half_report(fresh_registry: None,
-                                                         tmp_path: Path,
-                                                         monkeypatch: Any) -> None:
-    """A full disk is an OSError from write(); the caller must see it, not a short file."""
+def test_a_write_that_fails_reaches_the_caller_as_the_os_error(fresh_registry: None,
+                                                               tmp_path: Path,
+                                                               monkeypatch: Any) -> None:
+    """A full disk is an OSError from write(); the caller must see it, not a
+    silent short file. The fake refuses the first write, so the file it leaves
+    is empty; write_report writes in place, so a real mid-write failure leaves
+    whatever got written -- this pins the error, not the file's contents."""
 
     report = report_of(fresh_registry)
     target = tmp_path / "report.csv"

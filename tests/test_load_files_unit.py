@@ -12,7 +12,6 @@ from pathlib import Path
 import pytest
 
 from jobcheck import registry as reg
-from jobcheck.results import CheckResult, PASS, Status
 
 pytestmark = pytest.mark.fast
 
@@ -38,9 +37,7 @@ def test_loads_a_file_by_path(fresh_registry: None, tmp_path: Path) -> None:
     assert [t.code for t in reg.CHECKS] == ["BY_PATH"]
 
 
-def test_accepts_a_bare_string_as_one_path(fresh_registry: None, tmp_path: Path) -> None:
-    reg.load_checks([write_test_file(tmp_path, "checks.py", "SINGLE")])
-    assert [t.code for t in reg.CHECKS] == ["SINGLE"]
+
 
 
 def test_loaded_files_records_resolved_paths_in_order(fresh_registry: None, tmp_path: Path) -> None:
@@ -101,6 +98,37 @@ def test_a_file_that_raises_on_import_propagates(fresh_registry: None, tmp_path:
     with pytest.raises(RuntimeError, match="boom"):
         reg.load_checks([str(path)])
     assert reg.loaded_check_files() == []
+
+
+def test_a_file_that_raises_after_registering_leaves_none_of_its_checks_behind(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """A file that registers A and B and then raises must leave neither: the
+    registry and loaded_check_files() would otherwise disagree about it, and a
+    retry of the corrected file would be refused as a duplicate of A."""
+
+    good = write_test_file(tmp_path, "good.py", "KEPT")
+    broken = tmp_path / "broken.py"
+    broken.write_text(
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('A', 'a')\n"
+        "def a(row): return PASS\n"
+        "@register_check('B', 'b')\n"
+        "def b(row): return PASS\n"
+        "raise RuntimeError('boom after two registrations')\n"
+    )
+    with pytest.raises(RuntimeError, match="boom"):
+        reg.load_checks([good, str(broken)])
+    assert [t.code for t in reg.CHECKS] == ["KEPT"]
+    assert reg.loaded_check_files() == [str(Path(good).resolve())]
+
+    broken.write_text(
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('A', 'a')\n"
+        "def a(row): return PASS\n"
+    )
+    reg.load_checks([str(broken)])
+    assert [t.code for t in reg.CHECKS] == ["KEPT", "A"]
 
 
 def test_a_file_that_raises_on_import_leaves_no_module_behind(

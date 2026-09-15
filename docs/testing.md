@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 619 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 21s |
-| `./tests/run-tests.sh long` | 231 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 290s |
-| `./tests/run-tests.sh all` | 850 tests, then mypy and the profile | 305s |
+| `./tests/run-tests.sh fast` | 610 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 21s |
+| `./tests/run-tests.sh long` | 235 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 290s |
+| `./tests/run-tests.sh all` | 845 tests, then mypy and the profile | 305s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 26s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 98s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 86s |
@@ -105,7 +105,7 @@ Own gates:
 ## The example catalog
 
 `tests/examples/` holds 42 cases at three levels — 17 simple, 15 moderate, 10 complex —
-and `tests/failures/` holds 17, each asserting the exact message and exit code a user
+and `tests/failures/` holds 19, each asserting the exact message and exit code a user
 sees. Both run through the real entry point in a subprocess, so the documentation cannot
 drift from the behavior.
 
@@ -136,7 +136,9 @@ catalog was rebuilt by hand.
 widths are computed *before* `<project>` replaces them, so a clone at a longer path would
 produce the same words with different padding and fail for no reason anybody could act
 on. `tests/catalog.py` therefore runs every case through a symlink at
-`$TMPDIR/prv-catalog-root-<8-digit uid>`, which is the same length on every machine. A
+`$TMPDIR/prv-catalog-root-<8-digit uid>-<8-hex-digit hash of the clone's path>`, which is
+the same length on every machine and distinct per clone, so two clones run at once by
+one user do not flip each other's link. A
 filesystem that refuses symlinks falls back to the real root, and the one test that
 depends on the arrangement skips.
 

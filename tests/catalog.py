@@ -26,6 +26,7 @@ widths a property of the catalog rather than of where the repository was cloned.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shlex
 import subprocess
@@ -40,9 +41,14 @@ CASE_FILES = ("expected_stdout.txt", "expected_stderr.txt", "exit_code")
 # A fixed-length stand-in for the project root, so rendered paths -- and the
 # column widths computed from them -- are the same on every clone. The user id is
 # zero-padded rather than merely included, because two users on one machine need
-# different links and the length has to stay constant. Recreated per run: it
-# costs nothing and a stale link from a moved clone would be worse.
-STABLE_ROOT = Path(tempfile.gettempdir()) / f"prv-catalog-root-{os.getuid():08d}"
+# different links and the length has to stay constant; the clone's path is
+# hashed in for the same reason, because one user running the suite in two
+# clones at once would otherwise flip a shared link under each other's cases.
+# Recreated per run: it costs nothing and a stale link from a moved clone would
+# be worse.
+STABLE_ROOT = Path(tempfile.gettempdir()) / (
+    f"prv-catalog-root-{os.getuid():08d}-{hashlib.sha1(str(ROOT).encode()).hexdigest()[:8]}"
+)
 
 
 @dataclass

@@ -35,7 +35,6 @@ os.environ.setdefault(
 from jobcheck import engine as eng  # noqa: E402
 from jobcheck import registry as reg  # noqa: E402
 from jobcheck import results as res  # noqa: E402
-from jobcheck.results import PASS
 
 
 @pytest.fixture
