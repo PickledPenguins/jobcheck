@@ -143,7 +143,7 @@ is discovered. `load_overrides(paths)` reads the rule files the same way, in the
 order given, so the last matching rule wins.
 
 For a frame too large to keep every outcome, call `validate_row(row)` per row
-instead: it returns that row's failures and allocates nothing for the rest.
+instead: it returns that row's failures and retains nothing for the rest.
 
 ## Documentation
 

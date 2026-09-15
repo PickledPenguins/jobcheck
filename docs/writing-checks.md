@@ -35,15 +35,16 @@ codes, so a reused code silently changes the meaning of data already written.
 |---|---|
 | `PASS` | The check is happy with the row. |
 | `CheckResult(Status.X, {...})` | Failed, with a kind and comments for the report. |
-| `True` / `False` | Passed / failed as `Status.INVALID`. Fine for a one-liner. |
-| `Status.MISSING` (etc.) | Failed with that kind and no comments. |
+| `CheckResult(condition)` | Wraps a bare comparison: a pass, or an `INVALID` failure with no comments. |
+| `CheckResult(Status.MISSING)` (etc.) | Failed with that kind and no comments. |
 
-Anything else — including falling off the end of the function and returning
-`None` — raises, naming the check. A check that forgets to return must never be
-read as a pass.
+Anything else — a bare `True`, a bare `Status` value, or falling off the end of
+the function and returning `None` — raises `TypeError` naming the check. A check
+that forgets to return must never be read as a pass, and a bare bool is refused
+rather than guessed at, since `True == 1 == Status.MISSING`.
 
 `CheckResult` is truthy when the check **passed**, so `if result:` reads as "if the
-test was happy". Do not lean on the raw `code` for truthiness: `0` is a pass but
+check was happy". Do not lean on the raw `status` for truthiness: `0` is a pass but
 is falsy as an integer, which is the opposite meaning.
 
 ### Reading a value safely
@@ -54,9 +55,9 @@ passes on exactly the rows it exists to catch. The library exports the check it
 uses internally:
 
 ```python
-from jobcheck import is_null
+from jobcheck import PASS, Status, CheckResult, is_null, register_check
 
-@group("EMAIL_PRESENT", "Email is missing")
+@register_check("EMAIL_PRESENT", "Email is missing")
 def email_present(row):
     return CheckResult(Status.MISSING) if is_null(row["email"]) else PASS
 ```

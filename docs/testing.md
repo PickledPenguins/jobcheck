@@ -15,13 +15,13 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 607 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 15s |
-| `./tests/run-tests.sh long` | 231 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 320s |
-| `./tests/run-tests.sh all` | 838 tests, then mypy and the profile | 350s |
-| `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 25s |
-| `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 85s |
-| `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 72s |
-| `./tests/run-tests.sh profile` | the example profile alone | 12s |
+| `./tests/run-tests.sh fast` | 619 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 21s |
+| `./tests/run-tests.sh long` | 231 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 290s |
+| `./tests/run-tests.sh all` | 850 tests, then mypy and the profile | 305s |
+| `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 26s |
+| `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 98s |
+| `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 86s |
+| `./tests/run-tests.sh profile` | the example profile alone | 9s |
 | `./tests/run-tests.sh types` | mypy alone | 8s |
 
 Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
@@ -63,7 +63,7 @@ Fast:
 | `tests/test_validate_unit.py` | The whole-frame entry point: one list of outcomes per row **in its own position**, the checks that did not run kept, overrides and the context builder passed through, and both `on_error` modes. |
 | `tests/test_overrides_unit.py` | Every rule-file rejection (19 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
 | `tests/test_results_unit.py` | The fixed status vocabulary, `CheckResult` truthiness and validation, and normalizing whatever a check returned. |
-| `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `check_override_columns`, root cause, layers, and the shipped tests at their boundaries. |
+| `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `check_override_columns`, root cause, layers, and the shipped checks at their boundaries. |
 | `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys, `include` levels, table and CSV rendering, writing files, explanations and summaries. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artefact: every rule file loads alone and together, every rule names a real code and a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
@@ -71,7 +71,7 @@ Fast:
 | `tests/test_error_messages_unit.py` | Every message the library raises, compared word for word rather than by keyword: registration, loading, per-row evaluation, reporting and the whole-frame entry point. |
 | `tests/test_perf_baseline_unit.py` | The baseline arithmetic itself: recording, comparing, the tolerance floor and cap, and discarding a baseline from another machine. |
 | `tests/test_readme.py` | The README executed, plus the prose claims and the two-way CLI documentation contract: every flag has a section in `docs/cli.md`, and every documented flag exists. |
-| `tests/test_docs_unit.py` | The rest of `docs/`, both directions: every call shown binds against the real signature and names something this package, pandas or the builtins provides, every exported name appears in `interfaces.md` and nothing documented there is gone, every check code a document shows is one that exists, every exit code the entry point can return has a row in `docs/cli.md` and no row describes one it cannot, the README stays an index and links every document, no internal link or anchor is dead, the rule keys, statuses and outcome names are documented where they belong, and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. |
+| `tests/test_docs_unit.py` | The rest of `docs/`, both directions: every code block runs, in a working directory holding the demo frame, outcomes, rules and the check files the blocks name; every call shown binds against the real signature and names something this package, pandas or the builtins provides; no document says a bare bool or status return is converted; every exported name appears in `interfaces.md` and nothing documented there is gone, every check code a document shows is one that exists, every exit code the entry point can return has a row in `docs/cli.md` and no row describes one it cannot, the README stays an index and links every document, no internal link or anchor is dead, the rule keys, statuses and outcome names are documented where they belong, and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. |
 | `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
 | `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
 | `tests/test_tables_unit.py` | `format_table` rendering, wrapping and empty frames; every column of the three registry tables. |
@@ -88,9 +88,9 @@ Long:
 | `tests/test_e2e_catalogs.py` | Every catalog case through the real entry point, plus the catalog's own rules: each case documents itself, states its level, and the level counts stay above their floors. |
 | `tests/test_integration.py` | Real rule files on disk driving a whole DataFrame, precedence across directories, CSV export, a check file written at runtime and loaded by path, a written report re-read as a spreadsheet reader would. |
 | `tests/test_concurrency.py` | Threads sharing one registry agree with one thread; separate processes do not share one; several processes loading the same file all succeed and leave no bytecode; a crashing process does not affect its neighbor. |
-| `tests/test_faults.py` | The filesystem failing underneath: unreadable rule and test files, a directory where a file was expected, symlinks pointing nowhere, NUL bytes, a full disk mid-write, and a read-only output directory. |
-| `tests/test_scaling.py` | The *shape* of the cost: four times the rows or the tests costs under eight times the time, a 100-deep dependency chain does not cost more than a flat registry, a frame with no failures costs the report a fraction of a failing one, and going row by row holds a quarter of what collecting holds. Every timing here is a ratio with room in it, and the one that compares two small measurements takes the best of five runs after a warm-up, so a busy machine does not fail a run. |
-| `tests/test_load.py` | 20,000 rows within a time ceiling, correctness at volume, 500 tests × 200 rows, 500 rules × 200 rows, and a guard that the topological sort never runs inside the row loop. |
+| `tests/test_faults.py` | The filesystem failing underneath: unreadable rule and check files, a directory where a file was expected, symlinks pointing nowhere, NUL bytes, a full disk mid-write, and a read-only output directory. |
+| `tests/test_scaling.py` | The *shape* of the cost: four times the rows or the checks costs under eight times the time, a 100-deep dependency chain does not cost more than a flat registry, a frame with no failures costs the report a fraction of a failing one, and going row by row holds a quarter of what collecting holds. Every timing here is a ratio with room in it, and the one that compares two small measurements takes the best of five runs after a warm-up, so a busy machine does not fail a run. |
+| `tests/test_load.py` | 20,000 rows within a time ceiling, correctness at volume, 500 checks × 200 rows, 500 rules × 200 rows, and a guard that the topological sort never runs inside the row loop. |
 | `tests/test_packaging.py` | What an adopter gets: the package ships no tests of its own, `py.typed` is there, every module imports on its own, and a scratch adopter package outside this repository loads its check file and writes a report. |
 | `tests/test_fuzz.py` | Generated input from a fixed seed: 300 rule files, 300 frames, 100 hostile comment payloads. |
 | `tests/test_properties.py` | The same invariants explored by Hypothesis, which shrinks a failure to the smallest reproducing case. |
@@ -158,13 +158,17 @@ here: mutmut runs pytest in its own process, and importing pandas inside that ru
 before mutmut starts settles the context first. Two other things about the configuration
 in `[tool.mutmut]`:
 
-- `also_copy = ["examples/"]` — mutmut runs the suite against a copy of the tree under
-  `mutants/`, and the entry point and example check files the tests load live in `examples/`.
-- `pytest_add_cli_args_test_selection` excludes six test files **from mutmut's runs
+- `also_copy = ["examples/", "scripts/"]` — mutmut runs the suite against a copy of the
+  tree under `mutants/`; the entry point and example check files the tests load live in
+  `examples/`, and one test regenerates the example data from `scripts/` and compares.
+- `pytest_add_cli_args_test_selection` excludes fourteen test files **from mutmut's runs
   only** — they still run in every normal suite. Four of them shell out to a subprocess,
   which never loads mutmut's instrumentation, so a mutant would always look like it
-  survived; the other two assert on the module's own structure and on the doc tree,
-  neither of which survives being copied into `mutants/`.
+  survived; three assert on the module's own structure and on the doc tree, neither of
+  which survives being copied into `mutants/`; the remaining seven (load, scaling, perf,
+  memory, concurrency, property, fuzz) are excluded for cost, since mutmut runs the
+  whole selection once per mutant and each of those is covered by a faster test of the
+  same behavior. The list, with a reason beside each entry, is in `pyproject.toml`.
 
 **`mutants/` is the one artifact in the project root.** Every other generated file lives
 under `.build/` — the coverage data, the pytest and mypy caches, the hypothesis database,
@@ -225,7 +229,7 @@ into four groups, none of them a missing assertion:
   mutated default in the mutant body is never evaluated. Verified by hand on
   `validate(on_error="XXrecordXX")`, which behaves exactly like the original.
 - **Unreachable branches.** `state.get(check.code, <default>)` in `explain_row`
-  cannot miss: `_resolve_state` builds an entry for every registered check.
+  cannot miss: `resolve_enabled_state` builds an entry for every registered check.
   `passed.get(code, False)` cannot miss either, because the topological order
   evaluates prerequisites first and `validate_registry` rejects dangling ones.
 - **Equivalent mutants.** `False` swapped for `None` where the value is only ever

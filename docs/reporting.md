@@ -91,18 +91,23 @@ overwriting the report's own data.
 ```python
 from jobcheck import explain_row, print_row_explanation
 
-print_row_explanation(explain_row(row, overrides=overrides))
+print_row_explanation(explain_row(row, overrides=overrides), include="blocked")
 ```
 
+For a row with no age, against the shipped age checks and no rules:
+
 ```
-layer | code                 | outcome  | status      | detail
-------+----------------------+----------+-------------+-------------------------------------------
-0     | AGE_PRESENT          | failed   | MISSING (1) | Age is missing
-1     | AGE_NOT_A_NUMBER     | skipped  | PASS (0)    | prerequisite did not pass: AGE_PRESENT
-2     | AGE_NEGATIVE         | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER
-2     | AGE_NOT_INTEGER      | disabled | PASS (0)    | disabled by rule 'whole_ages_for_legacy'
+layer | code             | outcome  | status      | detail
+------+------------------+----------+-------------+--------------------------------------------
+0     | AGE_PRESENT      | failed   | MISSING (1) | Age is missing
+1     | AGE_NOT_A_NUMBER | skipped  | PASS (0)    | prerequisite did not pass: AGE_PRESENT
+2     | AGE_NEGATIVE     | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER
+2     | AGE_TOO_HIGH     | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER
+2     | AGE_NOT_INTEGER  | disabled | PASS (0)    | disabled by off by default
 root cause: AGE_PRESENT
 ```
+
+A check a rule switched off reads `disabled by rule '<name>'` instead.
 
 Reading order is evaluation order, so every `skipped` line names what blocked it.
 The root cause printed at the end is the row's **shallowest** failure, and there
@@ -174,4 +179,6 @@ choice is a depth rather than a set of switches:
 `validate` keeps one object per check per row, because that is what the
 explanation and summary views are built from. For a frame large enough that this
 matters, call `validate_row` per row instead and skip the report: it returns only
-the failures and allocates nothing for the checks that passed.
+the failures and retains nothing for the checks that passed. It still evaluates
+every check — it is `explain_row` filtered, not a second algorithm — so the saving
+is what is held, not what is computed.
