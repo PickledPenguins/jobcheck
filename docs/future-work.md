@@ -40,7 +40,7 @@ the summary and the explanation all need them; `validate_row` keeps one row's wo
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
 
-**A `load_checks` alias for `load_checks`.** Rejected 2026-09-10. The vocabulary here
+**A `load_tests` alias for `load_checks`.** Rejected 2026-09-10. The vocabulary here
 is "check"; an alias in the old vocabulary would outlive its reason, and the one caller
 that needed it (jobchain) was ported in the same pass.
 

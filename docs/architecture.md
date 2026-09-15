@@ -4,19 +4,20 @@ Back to the [README](../README.md).
 
 ## Shape
 
-One module holds the engine. Checks are ordinary functions that register themselves into a
-process-global list when their module is imported; which modules get imported is the
-loading mechanism. Everything else reads that list: rule files are validated against it,
-the tables render it, and `validate_row` walks it once per row in a precomputed order.
+One process-global list of checks, `CHECKS`, is the center. Checks are ordinary functions
+that register themselves into it when their module is imported; which modules get
+imported is the loading mechanism. Everything else reads that list: rule files are
+validated against it, the tables render it, and `explain_row` walks it once per row in a
+precomputed order.
 
 ```
 entry point
   |
   +-- load_checks([...]) -> imports the named .py files by path
-  |                             -> @register_check / a group appends to TESTS
+  |                             -> @register_check appends to CHECKS
   |                             -> validate_registry(): depends_on, cycles, layers, topo order
   |
-  +-- load_overrides*(...)  -> parse YAML -> validate each rule against TESTS -> [OverrideRule]
+  +-- load_overrides(...)   -> parse YAML -> validate each rule against CHECKS -> [OverrideRule]
   |
   +-- validate(df)          -> explain_row per row
   |       resolve state (defaults, then matching rules, last wins)
@@ -32,12 +33,13 @@ entry point
 
 ```
 src/jobcheck/   the package: the only thing that ships
-examples/                    two demo entry points, the rule files they load,
-                             and checks/ -- the checks it runs
+examples/                    the demo entry point main.py, the rule files and
+                             data it loads, and checks/ -- the checks it runs
 docs/                        this and its siblings
 tests/                       the suites, the golden files, the catalogs, and
-                             run-tests.sh: fast | long | all | cov
-scripts/                     hook installer and the two regenerators
+                             run-tests.sh, the entry point for every gate
+scripts/                     hook installer, the data, catalog and golden
+                             regenerators, the profiler, the bytecode reader
 pyproject.toml               packaging, plus pytest, coverage and mypy config
 .build/                      every generated artifact, all gitignored
 .agent/, .claude/            the handoff record, saved reviews, agent guidance
@@ -65,7 +67,7 @@ the package by accident from the working directory. The demos add `src/` to
 | `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `CheckResult`, `CheckOutcome`. |
 | `src/jobcheck/rules.py` | The override rule file format and its parser. Knows nothing about the registry. |
 | `src/jobcheck/tables.py` | Table rendering and null handling, shared by every view. |
-| `src/jobcheck/context.py` | The per-row metadata type and its builder — the one adopter-supplied hook. |
+| `src/jobcheck/context.py` | The per-row metadata type — the one adopter-supplied hook. |
 | `src/jobcheck/__init__.py` | Re-exports the public surface. Registers no checks, and ships none. |
 | `examples/checks/` | The example checks. Outside the package on purpose: nothing of ours should register in an adopter's registry. |
 | `examples/main.py` | Demo entry point and end-to-end driver: registry tables, the report, explanations, summaries. |
@@ -84,11 +86,7 @@ consumer whenever a check is inserted.
 because checks are added constantly. Rejected: an explicit registry list, which is a merge
 conflict on every addition and drifts from the files it names.
 
-**Suite is inferred from the module path, never passed.** A check file cannot then
-disagree with where it lives. `jobcheck.hard_checks.check_age` gives `hard_checks`; a
-module directly in the package gives `base`.
-
-**Loading is explicit per entry point, not an eager auto-import.** Importing `validation`
+**Loading is explicit per entry point, not an eager auto-import.** Importing `jobcheck`
 registers nothing. Several entry points in one process space can each opt into a different
 subset without interfering. Rejected: importing every `check_*.py` on package import, which
 makes the set of active checks a property of the codebase rather than of the script.
@@ -151,13 +149,16 @@ would catch it.
 
 **A check returns a status and comments, not a bool.** "Age is out of range" is
 not actionable without the value and the limit, and threading that into the
-report through anything but the return value meant per-row state. Bare bools
-still work for one-liners, normalized at the boundary.
+report through anything but the return value meant per-row state. A bare bool
+return is refused at the boundary rather than converted: `True == 1 ==
+Status.MISSING`, so a guess would invert the meaning. `CheckResult(condition)` is
+the one-liner form.
 
-**Failure kinds are one small shared vocabulary, extensible from 10.** A fixed
-set can be grouped and counted across every check in a summary, which per-check
-enums could not. Reserving 0-9 leaves the built-ins room to grow without
-colliding with a project's own codes.
+**Failure kinds are one small fixed vocabulary.** Five statuses, `PASS` and four
+failure kinds, and a `CheckResult` carrying anything else is refused at
+construction. A fixed set can be grouped and counted across every check in a
+summary, which per-check enums could not; what varies between projects is the
+codes, not the kinds.
 
 **`explain_row` is the algorithm; `validate_row` filters it.** Root-cause
 reporting needs to know why a check did *not* run, which means recording disabled,
@@ -176,15 +177,12 @@ authoring bug, and recording it would hide it.
 which they know; how deep that makes it is arithmetic, and a declared depth would
 go stale the moment a prerequisite moved.
 
-**A group's prerequisites are unconditional.** "Everything in this file waits for
-X" would be worthless if any check could quietly opt out; a check that must run
-regardless belongs outside the group. The cost is that a presence check cannot sit
-in the group that waits on it -- that is a cycle, and it fails at load.
+
 
 **The rule format is its own module, and knows nothing about the registry.** A
 rule file changes for reasons the engine does not share -- a new key, a new
 matcher -- and the only thing the parser needs from the registry is the set of
-codes that exist, which the registry's three loader wrappers hand it. That keeps
+codes that exist, which the registry's `load_overrides` wrapper hands it. That keeps
 the import one-directional and lets the format be read, tested and changed on its
 own.
 
@@ -195,10 +193,14 @@ their rows. It also makes the path list on `load_checks` required rather than
 defaulted, which is the honest signature -- the checks being loaded are always
 someone else's.
 
-**One module for the engine.** Registration, ordering, rules, and rendering all read the
-same registry; splitting them into four files would spread one concept across four imports
-without decoupling anything. `context.py` is separate because it is the adopter's hook,
-and the `check_*.py` files are separate because the entry point names which of them to load.
+**One module per question, and the questions are few.** `registry.py` answers what
+checks exist, `engine.py` what happened to a row, `rules.py` what a rule file means,
+`report.py` and `registry_tables.py` how to show it, `results.py` and `tables.py` the
+values and the rendering they share. Each imports only what sits below it, and the
+import graph is one-directional, so the rule format can be read and changed without
+touching the engine. `context.py` is separate because it is the adopter's hook, and the
+`check_*.py` files are outside the package because the entry point names which of them
+to load.
 
 ## Extension points
 
@@ -212,15 +214,17 @@ and the `check_*.py` files are separate because the entry point names which of t
 ## Dependencies
 
 `pandas` for the row and table types; `PyYAML` (`yaml.safe_load`) for rule files. Nothing
-else at runtime — table rendering uses `textwrap`, discovery uses `pkgutil` and
-`importlib`, `source_file` uses `inspect`. `mypy` and `types-PyYAML` are development-only.
+else at runtime — table rendering uses `textwrap`, file loading uses `importlib`,
+`source_file` and signature adaptation use `inspect`. `mypy` and `types-PyYAML` are
+development-only.
 
 ## Limitations
 
 - The registry is process-global. Two sets of check files cannot be active in one process at once;
   entry points are separate processes.
-- `df.apply(..., axis=1)` is row-at-a-time Python, not vectorized. Large frames are slow by
-  construction; the design buys per-row rule resolution and dependency logic with that.
+- `validate` iterates the frame row by row in Python (`iterrows`), not vectorized. Large
+  frames are slow by construction; the design buys per-row rule resolution and dependency
+  logic with that.
 - Rules can only enable and disable existing codes. They cannot define checks, change
   messages, or parameterize thresholds.
 - Regex matching stringifies values, so numeric or datetime criteria match the text of the
@@ -229,4 +233,4 @@ else at runtime — table rendering uses `textwrap`, discovery uses `pkgutil` an
   outcome per row rather than being caught once before the run; nothing declares which
   columns a check reads, so nothing can check them up front.
 - Collecting outcomes keeps an object per check per row, so the report path costs memory
-  proportional to checks x rows; `validate_row` alone does not.
+  proportional to checks x rows; `validate_row` retains only one row's failures at a time.

@@ -36,9 +36,9 @@ fixed: these five are the whole of it, and a value outside them is refused.
 
 - `render_status(code) -> str` (`"INVALID (3)"`).
 - `normalize_result(returned, code) -> CheckResult` — the boundary the engine puts
-  every return value through: a `CheckResult` passes straight back, a bool or a
-  status value is converted, anything else raises naming the check. Exported so a
-  wrapper around checks can accept the same shapes.
+  every return value through: a `CheckResult` passes straight back; anything
+  else — a bare bool, a bare `Status` value, `None` — raises `TypeError` naming
+  the check. Exported so a wrapper around checks can apply the same rule.
 
 ### `CheckResult`
 

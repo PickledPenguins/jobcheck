@@ -8,7 +8,7 @@ Changing this project itself: where a change goes, and what enforces what.
 
 | Change | Where |
 |---|---|
-| A new test for row data | Your own package, not this one. This library ships no tests — see [writing-checks.md](writing-checks.md). |
+| A new check for row data | Your own package, not this one. This library ships no checks — see [writing-checks.md](writing-checks.md). |
 | What checks exist: registration, file loading, the dependency graph | `src/jobcheck/registry.py` |
 | What happens to a row, and to a whole frame: on/off state, evaluation order, outcomes, root causes | `src/jobcheck/engine.py` |
 | How the registry and the rules are displayed | `src/jobcheck/registry_tables.py` |
@@ -34,7 +34,7 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | 95% statements and branches | `./tests/run-tests.sh cov`, through `coverage report --fail-under` |
 | Every public name is exported, sorted, and documented | `tests/test_api_contract.py`, `tests/test_docs_unit.py` |
 | Every entry-point flag has a section in `docs/cli.md`, and every documented flag exists | `tests/test_readme.py` |
-| Every call shown in the docs matches the real signature | `tests/test_docs_unit.py` |
+| Every code block in `docs/` runs, and every call shown matches the real signature | `tests/test_docs_unit.py` |
 | The README runs and prints exactly what it shows | `tests/test_readme.py` |
 | The README stays an index (300 lines), every document is reachable from it, no dead link or anchor | `tests/test_docs_unit.py` |
 | Every catalog case documents itself and states its level, and each level keeps its floor | `tests/test_e2e_catalogs.py` |
@@ -42,7 +42,7 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | The example data is what its generator produces | `tests/test_shipped_examples_unit.py` |
 | Timing has not regressed against this machine's baseline | `./tests/run-tests.sh perf` |
 | Peak memory stays under its ceilings | `./tests/run-tests.sh memory` |
-| Types check | `mypy`, run by `./tests/run-tests.sh fast` and `types` |
+| Types check | `mypy`, run by `./tests/run-tests.sh fast`, `all` and `types` |
 
 ## Style
 
@@ -69,8 +69,8 @@ Two conventions worth stating here:
 - **Assert the value, not that something happened.** A test that only proves a call
   returned is worth nothing; check that it would fail if the code were wrong.
 - **A bug gets a test named for the bug**, committed with the fix. Several tests in
-  `tests/test_run_unit.py` and `tests/test_load_files_unit.py` say in their docstring which
-  surviving mutant or which defect they were written against; that is the pattern.
+  `tests/test_load_files_unit.py` and `tests/test_error_messages_unit.py` say in their docstring
+  which surviving mutant or which defect they were written against; that is the pattern.
 
 ## Regenerating what is committed
 
