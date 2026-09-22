@@ -4,4 +4,4 @@
 
 Level:    simple
 Input:    the demo frame
-Expected: the same columns, comma separated and unwrapped
+Expected: the same columns, comma separated and unwrapped; exit 0

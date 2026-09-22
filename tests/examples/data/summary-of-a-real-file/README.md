@@ -4,4 +4,4 @@ Where the summary earns its place: 49 rows are too many to read one line at a ti
 
 Level:    simple
 Input:    `examples/data/customers.csv`
-Expected: per-check counts over 49 rows, worst first
+Expected: per-check counts over 49 rows, worst first; exit 0

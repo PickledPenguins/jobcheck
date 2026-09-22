@@ -4,4 +4,4 @@
 
 Level:    simple
 Input:    row 4 of the demo frame
-Expected: one line per check for that row, then its root cause; nothing else
+Expected: one line per check for that row, then its root cause; nothing else; exit 0
