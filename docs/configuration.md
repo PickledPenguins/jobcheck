@@ -4,6 +4,11 @@ The only configuration this project has is the override YAML. There are no envir
 variables and no settings file: check files and rule paths are chosen by the entry point, on
 the command line or in code.
 
+A relative path is resolved against the working directory, or against the `base_dir` the
+call names — an entry point passes the directory its own files sit in, a wrapper passes
+the directory of the configuration the paths were read from. Nothing is searched for: a
+path that is not a file is an error naming the absolute path that was tried.
+
 Override rules let a non-developer enable a normally-off code, or disable a normally-on
 code, **for specific rows**, without touching Python. They cannot define new checks,
 change a message, or alter what a check does.

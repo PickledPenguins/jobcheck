@@ -10,7 +10,11 @@ import argparse
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+#: The clone this script lives in. Its own files are named relative to it, so a
+#: run does not depend on the directory it was started from.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
 
 import pandas as pd
 
@@ -35,7 +39,10 @@ CHECK_FILES = [
     "examples/checks/check_email.py",
 ]
 
-DEFAULT_RULES = ["examples/rules/error_overrides.yaml"]
+#: The rule files a run applies when --rules names none. Absolute, because it
+#: is this script's own file rather than something the user typed: a path on
+#: the command line still means what it means from where the user is standing.
+DEFAULT_RULES = [os.path.join(PROJECT_ROOT, "examples/rules/error_overrides.yaml")]
 
 #: The column that identifies a row in the report. Every demo data file has it.
 KEY_COLUMN = "id"
@@ -111,7 +118,7 @@ def main(argv: list[str] | None = None) -> None:
 
     args = build_parser().parse_args(argv)
 
-    load_checks(CHECK_FILES)
+    load_checks(CHECK_FILES, base_dir=PROJECT_ROOT)
     overrides = load_overrides(args.rules)
     print(f"Loaded {len(overrides)} override rule(s) from {len(args.rules)} file(s)\n")
 

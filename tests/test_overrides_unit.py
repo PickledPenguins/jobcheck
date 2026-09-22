@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -97,6 +98,24 @@ def test_every_documented_key_is_accepted(one_code: None, tmp_path: Path) -> Non
 
 def test_empty_file_contributes_no_rules(one_code: None, tmp_path: Path) -> None:
     assert reg.load_overrides([write(tmp_path, "empty.yaml", "")]) == []
+
+
+def test_base_dir_anchors_a_relative_rule_path(one_code: None, tmp_path: Path,
+                                               monkeypatch: Any) -> None:
+    write(tmp_path, "rules.yaml", GLOBAL_DISABLE)
+    started_in = tmp_path / "started-in"
+    started_in.mkdir()
+    monkeypatch.chdir(started_in)
+    assert [rule.name for rule in reg.load_overrides(["rules.yaml"], base_dir=tmp_path)] == ["kill_it"]
+
+
+def test_a_rule_records_the_path_the_caller_wrote(one_code: None, tmp_path: Path) -> None:
+    """source_file is printed beside the rule, so it stays the caller's own
+    text: an absolute path resolved out of base_dir would be this machine's."""
+
+    write(tmp_path, "rules.yaml", GLOBAL_DISABLE)
+    rule = reg.load_overrides(["rules.yaml"], base_dir=tmp_path)[0]
+    assert rule.source_file == "rules.yaml"
 
 
 def test_missing_file_is_refused_the_way_a_missing_check_file_is(one_code: None,
