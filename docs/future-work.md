@@ -47,10 +47,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.13 — Seven `large-export` catalog cases are 1.1 MB of the catalog's 1.6.**
-`tests/examples/data/large-export-*` and `complex/large-export-*` over the 2,000-row file.
-Options: keep two and drop five, or truncate the recorded output. Volume is the point of
-those cases, which is the argument for leaving them.
+
 
 **F.14 — `scripts/new_catalog_case.py` refuses a duplicate command but not a duplicate
 output.** Two cases with different commands and byte-identical recorded output are one
@@ -73,6 +70,16 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**Cutting or truncating the `large-export` catalog cases (was F.13).** Rejected
+2026-09-22. The premise does not hold: measured that day the catalog is 1.18 MB and the
+seven cases over `customers_large.csv` are 328 KB of it, 28% — not 1.1 MB of 1.6. Beyond
+that, volume is the only thing those cases demonstrate (every other case runs 24 or 49
+rows), and two of them are `complex/`, a level with exactly 10 cases against a floor of 10
+in `test_the_catalog_has_enough_of_each_level`, so dropping either fails that test.
+Truncating the recorded output was rejected for a different reason: a catalog case pins
+every byte the entry point prints, and a case that stops comparing part of its output
+stops being evidence about that part.
 
 **Example READMEs omitting the exit code (was F.12).** Fixed 2026-09-22. Thirty of the
 42 `tests/examples/` READMEs did not name one; the twelve that did used `; exit 0` at the
