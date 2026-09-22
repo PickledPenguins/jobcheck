@@ -58,6 +58,16 @@ def fastest(work: Callable[[], Any], repeats: int = 5) -> float:
     The warm-up matters as much as the repeats here: one-off costs (import
     paths, first-touch allocation) land on whichever call runs first, and at
     these sizes they were larger than the measurement itself.
+
+    ``repeats=1`` is the warm-up alone, and it is what the three ratios below
+    use. Each of them measures the cheaper side first, so an unwarmed run
+    inflates the denominator and pushes the ratio *down* -- toward passing, not
+    toward a spurious failure -- which is why they ran on single measurements
+    for so long without flaking. Measured 2026-09-22 over repeated trials, the
+    rows ratio spreads 3.66-4.56 unwarmed, 4.04-4.28 warmed and 4.05-4.22 at
+    best-of-five, against a bound of 8: the warm-up removes the bias for about
+    six seconds, and the other twenty that best-of-five costs would only pay off
+    by tightening the bounds, which this file deliberately keeps loose.
     """
 
     work()
@@ -65,8 +75,8 @@ def fastest(work: Callable[[], Any], repeats: int = 5) -> float:
 
 
 def test_validating_twice_the_rows_costs_about_twice_as_much(example_checks: None) -> None:
-    small = seconds(lambda: validate(frame(2_000)))
-    large = seconds(lambda: validate(frame(8_000)))
+    small = fastest(lambda: validate(frame(2_000)), repeats=1)
+    large = fastest(lambda: validate(frame(8_000)), repeats=1)
     ratio = large / small
     # Four times the rows: linear is 4, quadratic is 16.
     assert ratio < 8, f"4x the rows cost {ratio:.1f}x the time"
@@ -76,10 +86,10 @@ def test_twice_the_tests_costs_about_twice_as_much(fresh_registry: None) -> None
     df = frame(500)
     for index in range(50):
         make_check(f"CODE_{index}")
-    small = seconds(lambda: validate(df))
+    small = fastest(lambda: validate(df), repeats=1)
     for index in range(50, 200):
         make_check(f"CODE_{index}")
-    large = seconds(lambda: validate(df))
+    large = fastest(lambda: validate(df), repeats=1)
     ratio = large / small
     # Four times the checks: linear is 4. A per-row topological sort over a
     # growing registry would show here as well above that.
@@ -95,13 +105,13 @@ def test_a_deep_dependency_chain_does_not_cost_more_than_a_flat_one(
     df = frame(500)
     for index in range(100):
         make_check(f"FLAT_{index}")
-    flat = seconds(lambda: validate(df))
+    flat = fastest(lambda: validate(df), repeats=1)
 
     reg.clear_registry()
     make_check("DEEP_0")
     for index in range(1, 100):
         make_check(f"DEEP_{index}", depends_on=[f"DEEP_{index - 1}"])
-    deep = seconds(lambda: validate(df))
+    deep = fastest(lambda: validate(df), repeats=1)
 
     assert deep / flat < 5, f"a 100-deep chain cost {deep / flat:.1f}x a flat registry"
 

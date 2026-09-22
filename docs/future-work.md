@@ -51,10 +51,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.15 — Three timing ratios in `tests/test_scaling.py` use a single measurement.**
-`tests/test_scaling.py:67`; the file's own `fastest` helper exists for the one that compares
-two small measurements. Fix: best-of-N for the other three, at a cost of one to two
-minutes on the long suite. They have not flaked; the ratios have room.
+
 
 **F.16 — 55 test names and several helpers still say `test` where the vocabulary is
 `check`.** Suite-wide, since the 2026-09-10 rename. A mechanical rename in one commit;
@@ -67,6 +64,19 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**Best-of-N for the three single-measurement scaling ratios (was F.15).** Half taken
+2026-09-22: all three now warm up each side with the `fastest` helper at `repeats=1`, and
+best-of-five
+is rejected. Why they had not flaked, which F.15 did not record: each measures the cheaper
+side first, so an unwarmed run inflates the denominator and pushes the ratio down, toward
+passing rather than toward a spurious failure. The warm-up removes that bias for about six
+seconds of long-suite time. Best-of-five costs about twenty more (the rows ratio alone is
+17s a side at best-of-five) and buys accuracy -- rows ratio 4.05-4.22 against 4.04-4.28
+warmed and 3.66-4.56 unwarmed -- that is only worth paying for if the bounds are tightened
+from 8, and this file's own docstring argues against tightening them on a shared machine.
+F.15's cost estimate of one to two minutes predates the date-parsing fix of the same day,
+which made every validation 7.6x cheaper.
 
 **Duplicate recorded output going unnoticed (was F.14).** Fixed 2026-09-22, as a test
 rather than as a check in `scripts/new_catalog_case.py`: the generator is the narrow
