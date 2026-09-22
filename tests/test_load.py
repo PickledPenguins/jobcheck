@@ -99,7 +99,7 @@ def test_topological_order_is_not_recomputed_per_row(fresh_registry: None) -> No
     assert calls == monkeyed, "the sort ran inside the per-row loop"
 
 
-def test_many_registered_tests_still_validate_quickly(fresh_registry: None) -> None:
+def test_many_registered_checks_still_validate_quickly(fresh_registry: None) -> None:
     for i in range(500):
         make_check(f"CODE_{i:04d}", passes=True)
     row = pd.Series({"age": 1})

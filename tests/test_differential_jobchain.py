@@ -173,7 +173,7 @@ def test_the_shallowest_failure_is_the_root_cause(
     assert first_cause(row) == "B_POSITIVE"
 
 
-def test_a_cross_row_test_sees_the_whole_file(fresh_registry: None, tmp_path: Path) -> None:
+def test_a_cross_row_check_sees_the_whole_file(fresh_registry: None, tmp_path: Path) -> None:
     load_checks([write_file(tmp_path, CROSS_ROW)])
     data = frame({"a": "dup", "b": "1"}, {"a": "dup", "b": "2"})
     rows = validate(data, context_builder=counting_builder(data))
@@ -193,7 +193,7 @@ def test_the_population_can_come_from_rows_that_are_not_being_validated(
     assert failures(rows[0])[0].code == "A_UNIQUE"
 
 
-def test_a_test_that_raises_is_recorded_as_errored_and_keeps_the_exception(
+def test_a_check_that_raises_is_recorded_as_errored_and_keeps_the_exception(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     load_checks([write_file(tmp_path, CRASHES)])
@@ -208,7 +208,7 @@ def test_the_checks_that_raised_can_be_counted(fresh_registry: None, tmp_path: P
     assert sum(o.outcome == ERRORED for row in rows for o in row) == 2
 
 
-def test_a_rule_file_switches_a_test_off_for_chosen_rows(
+def test_a_rule_file_switches_a_check_off_for_chosen_rows(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     load_checks([write_file(tmp_path, SIMPLE)])
@@ -227,7 +227,7 @@ def test_a_rule_file_switches_a_test_off_for_chosen_rows(
     assert failures(rows[1])[0].code == "B_INT"
 
 
-def test_a_test_file_that_does_not_import_raises(fresh_registry: None, tmp_path: Path) -> None:
+def test_a_check_file_that_does_not_import_raises(fresh_registry: None, tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="boom at import"):
         load_checks([write_file(tmp_path, "raise RuntimeError('boom at import')")])
 

@@ -88,7 +88,7 @@ def test_a_non_boolean_default_enabled_names_the_value(fresh_registry: None) -> 
         "Check 'CODE': default_enabled must be True or False, got 'yes'.")
 
 
-def test_a_three_argument_test_is_rejected_with_its_signature(fresh_registry: None) -> None:
+def test_a_three_argument_check_is_rejected_with_its_signature(fresh_registry: None) -> None:
     with pytest.raises(ValueError) as raised:
         @reg.register_check(code="CODE", message="m")
         def check(row, ctx, extra):  # type: ignore[no-untyped-def]
@@ -140,7 +140,7 @@ def test_a_bare_string_path_is_refused_by_both_loaders(fresh_registry: None) -> 
     )
 
 
-def test_a_missing_test_file_says_nothing_is_discovered(fresh_registry: None) -> None:
+def test_a_missing_check_file_says_nothing_is_discovered(fresh_registry: None) -> None:
     with pytest.raises(ValueError) as raised:
         reg.load_checks(["/no/such/file.py"])
     assert message_of(raised) == (
@@ -152,7 +152,7 @@ def test_a_missing_test_file_says_nothing_is_discovered(fresh_registry: None) ->
 # --- per-row evaluation -----------------------------------------------------
 
 
-def test_duplicate_column_labels_say_what_a_test_would_receive(fresh_registry: None) -> None:
+def test_duplicate_column_labels_say_what_a_check_would_receive(fresh_registry: None) -> None:
     make_check("CODE")
     row = pd.Series([1, 2], index=["age", "age"])
     with pytest.raises(ValueError) as raised:
@@ -171,7 +171,7 @@ def test_an_unknown_on_error_names_the_two_that_work(fresh_registry: None) -> No
     assert message_of(raised) == "on_error must be 'record' or 'raise', got 'explode'."
 
 
-def test_a_test_returning_nonsense_says_what_it_may_return(fresh_registry: None) -> None:
+def test_a_check_returning_nonsense_says_what_it_may_return(fresh_registry: None) -> None:
     with pytest.raises(TypeError) as raised:
         normalize_result(object(), "CODE")
     assert message_of(raised).startswith("Check 'CODE' returned ")

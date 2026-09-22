@@ -90,7 +90,7 @@ def test_a_thousand_rules_load_and_the_last_wins(fresh_registry: None, tmp_path:
 # --- hostile rows -----------------------------------------------------------
 
 
-def test_empty_row_reports_the_presence_tests_and_nothing_below_them(
+def test_empty_row_reports_the_presence_checks_and_nothing_below_them(
     example_checks: None,
 ) -> None:
     assert [r.code for r in engine.validate_row(pd.Series(dtype=object))] == [
@@ -137,7 +137,7 @@ def test_a_very_long_string_value_is_matched_not_truncated(fresh_registry: None)
     assert enabled_only(engine.resolve_enabled_state(row, [rule]))["A_CODE"] is False
 
 
-def test_a_test_that_raises_is_recorded_as_an_error_not_a_pass(fresh_registry: None) -> None:
+def test_a_check_that_raises_is_recorded_as_an_error_not_a_pass(fresh_registry: None) -> None:
     """A broken check must never be mistaken for a happy one."""
 
     @reg.register_check(code="EXPLODES", message="m")
@@ -150,7 +150,7 @@ def test_a_test_that_raises_is_recorded_as_an_error_not_a_pass(fresh_registry: N
     assert outcome.detail == "RuntimeError: check is broken"
 
 
-def test_a_raising_test_can_be_made_fatal(fresh_registry: None) -> None:
+def test_a_raising_check_can_be_made_fatal(fresh_registry: None) -> None:
     @reg.register_check(code="EXPLODES", message="m")
     def check(row: "pd.Series[Any]") -> bool:
         raise RuntimeError("check is broken")
@@ -159,7 +159,7 @@ def test_a_raising_test_can_be_made_fatal(fresh_registry: None) -> None:
         engine.validate_row(pd.Series({"age": 1}), on_error="raise")
 
 
-def test_a_test_reading_a_column_that_is_absent_errors_naming_it(fresh_registry: None) -> None:
+def test_a_check_reading_a_column_that_is_absent_errors_naming_it(fresh_registry: None) -> None:
     """Checks read the row themselves, so a typo surfaces as a KeyError outcome."""
 
     @reg.register_check(code="TYPO", message="m")
@@ -171,7 +171,7 @@ def test_a_test_reading_a_column_that_is_absent_errors_naming_it(fresh_registry:
     assert "agee" in outcome.detail
 
 
-def test_a_test_returning_nothing_raises_even_when_errors_are_recorded(
+def test_a_check_returning_nothing_raises_even_when_errors_are_recorded(
     fresh_registry: None,
 ) -> None:
     """A bad return is an authoring bug, not a data problem, so it is never recorded."""

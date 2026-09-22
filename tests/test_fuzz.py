@@ -167,7 +167,7 @@ def test_the_engine_holds_its_invariants_on_generated_frames(example_checks: Non
                 assert cause == tied[0], f"seed {SEED} case {case}: tie broken arbitrarily"
 
 
-def test_rendering_survives_whatever_a_test_puts_in_its_comments(
+def test_rendering_survives_whatever_a_check_puts_in_its_comments(
     example_checks: None,
 ) -> None:
     """Comments carry data, and data is hostile: the renderer must not raise, and

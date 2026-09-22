@@ -37,7 +37,7 @@ pytestmark = pytest.mark.long
 
 RULE = ("- name: r\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n")
 
-TEST_FILE = (
+CHECK_FILE = (
     "from jobcheck import PASS, register_check\n"
     "@register_check('FROM_FILE', 'from file')\n"
     "def rule(row):\n"
@@ -131,17 +131,17 @@ def test_a_rule_file_holding_nul_bytes_is_rejected(fresh_registry: None, tmp_pat
 
 
 @unwritable_as_root
-def test_an_unreadable_test_file_raises_and_registers_nothing(fresh_registry: None,
+def test_an_unreadable_check_file_raises_and_registers_nothing(fresh_registry: None,
                                                               tmp_path: Path) -> None:
     path = tmp_path / "checks.py"
-    path.write_text(TEST_FILE)
+    path.write_text(CHECK_FILE)
     unreadable(path)
     with pytest.raises(PermissionError):
         load_checks([str(path)])
     assert reg.CHECKS == []
 
 
-def test_a_test_file_symlink_pointing_nowhere_is_reported_as_missing(fresh_registry: None,
+def test_a_check_file_symlink_pointing_nowhere_is_reported_as_missing(fresh_registry: None,
                                                                      tmp_path: Path) -> None:
     link = tmp_path / "checks.py"
     link.symlink_to(tmp_path / "gone.py")
@@ -149,7 +149,7 @@ def test_a_test_file_symlink_pointing_nowhere_is_reported_as_missing(fresh_regis
         load_checks([str(link)])
 
 
-def test_a_test_file_holding_a_syntax_error_propagates_it(fresh_registry: None,
+def test_a_check_file_holding_a_syntax_error_propagates_it(fresh_registry: None,
                                                           tmp_path: Path) -> None:
     path = tmp_path / "checks.py"
     path.write_text("def rule(row:\n")
@@ -167,7 +167,7 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
     """
 
     good = tmp_path / "good.py"
-    good.write_text(TEST_FILE)
+    good.write_text(CHECK_FILE)
     broken = tmp_path / "broken.py"
     broken.write_text("raise RuntimeError('boom')\n")
     with pytest.raises(RuntimeError):

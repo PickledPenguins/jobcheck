@@ -108,7 +108,7 @@ CHILD = textwrap.dedent(
     """
 )
 
-TEST_FILE = textwrap.dedent(
+CHECK_FILE = textwrap.dedent(
     """
     from jobcheck import PASS, Status, CheckResult, register_check
 
@@ -131,8 +131,8 @@ def test_two_processes_loading_the_same_file_do_not_share_a_registry(tmp_path: P
     src = str(Path(PROJECT_ROOT) / "src")
     left = tmp_path / "left.py"
     right = tmp_path / "right.py"
-    left.write_text(TEST_FILE.format(code="LEFT_ONLY"))
-    right.write_text(TEST_FILE.format(code="RIGHT_ONLY"))
+    left.write_text(CHECK_FILE.format(code="LEFT_ONLY"))
+    right.write_text(CHECK_FILE.format(code="RIGHT_ONLY"))
 
     first = run_child(CHILD.format(src=src, path=str(left)))
     second = run_child(CHILD.format(src=src, path=str(right)))
@@ -148,7 +148,7 @@ def test_many_processes_loading_the_same_file_all_succeed(tmp_path: Path) -> Non
 
     src = str(Path(PROJECT_ROOT) / "src")
     shared = tmp_path / "shared.py"
-    shared.write_text(TEST_FILE.format(code="SHARED"))
+    shared.write_text(CHECK_FILE.format(code="SHARED"))
     source = CHILD.format(src=src, path=str(shared))
 
     with ThreadPoolExecutor(max_workers=4) as pool:
@@ -165,7 +165,7 @@ def test_a_second_process_is_unaffected_by_a_crashing_one(tmp_path: Path) -> Non
     broken = tmp_path / "broken.py"
     broken.write_text("raise RuntimeError('boom')\n")
     good = tmp_path / "good.py"
-    good.write_text(TEST_FILE.format(code="GOOD"))
+    good.write_text(CHECK_FILE.format(code="GOOD"))
 
     failed = run_child(CHILD.format(src=src, path=str(broken)))
     survived = run_child(CHILD.format(src=src, path=str(good)))

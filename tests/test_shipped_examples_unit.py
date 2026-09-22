@@ -101,7 +101,7 @@ def test_each_data_file_is_the_size_its_documentation_claims(name: str, rows: in
     assert len(frame) == rows
 
 
-def test_the_messy_file_exercises_every_shipped_test(example_checks: None) -> None:
+def test_the_messy_file_exercises_every_shipped_check(example_checks: None) -> None:
     """Data that stopped failing anything would make the whole catalog vacuous."""
 
     frame = pd.read_csv(DATA_DIR / "customers.csv", dtype=str)

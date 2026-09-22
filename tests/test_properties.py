@@ -57,7 +57,7 @@ def dependency_graphs(draw: st.DrawFn) -> list[tuple[str, list[str], bool]]:
 
 @given(dependency_graphs())
 @settings(max_examples=200, suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_a_test_never_runs_unless_every_prerequisite_passed(
+def test_a_check_never_runs_unless_every_prerequisite_passed(
     fresh_registry: None, graph: list[tuple[str, list[str], bool]]
 ) -> None:
     reg.clear_registry()

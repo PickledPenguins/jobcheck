@@ -53,9 +53,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.16 — 55 test names and several helpers still say `test` where the vocabulary is
-`check`.** Suite-wide, since the 2026-09-10 rename. A mechanical rename in one commit;
-no behavior changes.
+
 
 ## Considered and deliberately not done
 
@@ -64,6 +62,17 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**Test names left in the `test` vocabulary (was F.16).** Fixed 2026-09-22. 53 test
+function names (F.16 counted 55; the suite has moved) plus five helpers and constants
+said `test` where they meant a registered check: the check-file template constant in
+`test_concurrency.py`, `test_faults.py` and `test_load_files_unit.py`, the helper that
+writes one, and the inner function of `conftest.make_check`. Renamed segment by segment,
+keeping every `test_`
+prefix pytest collects on and every `test` that means a pytest test — the `Tests that
+want a single label per row` in `conftest.first_cause` is one of those and stayed. No
+document named any of them, so nothing outside `tests/` moved. 18 files, 85 lines, no
+behavior change.
 
 **Best-of-N for the three single-measurement scaling ratios (was F.15).** Half taken
 2026-09-22: all three now warm up each side with the `fastest` helper at `repeats=1`, and

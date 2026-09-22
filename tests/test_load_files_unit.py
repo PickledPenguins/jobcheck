@@ -15,7 +15,7 @@ from jobcheck import registry as reg
 
 pytestmark = pytest.mark.fast
 
-FILE_WITH_ONE_TEST = '''
+FILE_WITH_ONE_CHECK = '''
 from jobcheck import PASS, Status, CheckResult, register_check
 
 @register_check("{code}", "{code} failed")
@@ -24,16 +24,16 @@ def rule(row):
 '''
 
 
-def write_test_file(directory: Path, name: str, code: str) -> str:
+def write_check_file(directory: Path, name: str, code: str) -> str:
     """A one-check file on disk, named as a caller's pipeline would name it."""
 
     path = directory / name
-    path.write_text(FILE_WITH_ONE_TEST.format(code=code))
+    path.write_text(FILE_WITH_ONE_CHECK.format(code=code))
     return str(path)
 
 
 def test_loads_a_file_by_path(fresh_registry: None, tmp_path: Path) -> None:
-    reg.load_checks([write_test_file(tmp_path, "checks.py", "BY_PATH")])
+    reg.load_checks([write_check_file(tmp_path, "checks.py", "BY_PATH")])
     assert [t.code for t in reg.CHECKS] == ["BY_PATH"]
 
 
@@ -41,26 +41,26 @@ def test_loads_a_file_by_path(fresh_registry: None, tmp_path: Path) -> None:
 
 
 def test_loaded_files_records_resolved_paths_in_order(fresh_registry: None, tmp_path: Path) -> None:
-    first = write_test_file(tmp_path, "first.py", "FIRST")
-    second = write_test_file(tmp_path, "second.py", "SECOND")
+    first = write_check_file(tmp_path, "first.py", "FIRST")
+    second = write_check_file(tmp_path, "second.py", "SECOND")
     reg.load_checks([first, second])
     assert reg.loaded_check_files() == [str(Path(first).resolve()), str(Path(second).resolve())]
 
 
 def test_loaded_files_is_a_copy(fresh_registry: None, tmp_path: Path) -> None:
-    reg.load_checks([write_test_file(tmp_path, "checks.py", "COPY")])
+    reg.load_checks([write_check_file(tmp_path, "checks.py", "COPY")])
     reg.loaded_check_files().append("invented")
     assert len(reg.loaded_check_files()) == 1
 
 
 def test_the_same_file_twice_in_one_call_is_loaded_once(fresh_registry: None, tmp_path: Path) -> None:
-    path = write_test_file(tmp_path, "checks.py", "ONCE")
+    path = write_check_file(tmp_path, "checks.py", "ONCE")
     reg.load_checks([path, path])
     assert [t.code for t in reg.CHECKS] == ["ONCE"]
 
 
 def test_reloading_a_file_is_a_no_op(fresh_registry: None, tmp_path: Path) -> None:
-    path = write_test_file(tmp_path, "checks.py", "AGAIN")
+    path = write_check_file(tmp_path, "checks.py", "AGAIN")
     reg.load_checks([path])
     reg.load_checks([path])
     assert [t.code for t in reg.CHECKS] == ["AGAIN"]
@@ -74,20 +74,20 @@ def test_two_files_of_the_same_name_in_different_directories_both_load(
     left.mkdir()
     right.mkdir()
     reg.load_checks([
-        write_test_file(left, "checks.py", "LEFT"),
-        write_test_file(right, "checks.py", "RIGHT"),
+        write_check_file(left, "checks.py", "LEFT"),
+        write_check_file(right, "checks.py", "RIGHT"),
     ])
     assert sorted(t.code for t in reg.CHECKS) == ["LEFT", "RIGHT"]
 
 
 def test_a_missing_path_raises_and_registers_nothing(fresh_registry: None, tmp_path: Path) -> None:
-    good = write_test_file(tmp_path, "checks.py", "GOOD")
+    good = write_check_file(tmp_path, "checks.py", "GOOD")
     with pytest.raises(ValueError, match="No check file at"):
         reg.load_checks([good, str(tmp_path / "absent.py")])
     assert reg.CHECKS == []
 
 
-def test_a_directory_is_not_a_test_file(fresh_registry: None, tmp_path: Path) -> None:
+def test_a_directory_is_not_a_check_file(fresh_registry: None, tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="No check file at"):
         reg.load_checks([str(tmp_path)])
 
@@ -107,7 +107,7 @@ def test_a_file_that_raises_after_registering_leaves_none_of_its_checks_behind(
     registry and loaded_check_files() would otherwise disagree about it, and a
     retry of the corrected file would be refused as a duplicate of A."""
 
-    good = write_test_file(tmp_path, "good.py", "KEPT")
+    good = write_check_file(tmp_path, "good.py", "KEPT")
     broken = tmp_path / "broken.py"
     broken.write_text(
         "from jobcheck import PASS, register_check\n"
@@ -147,7 +147,7 @@ def test_a_prerequisite_may_live_in_another_file_of_the_same_call(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     base = tmp_path / "base.py"
-    base.write_text(FILE_WITH_ONE_TEST.format(code="BASE"))
+    base.write_text(FILE_WITH_ONE_CHECK.format(code="BASE"))
     dependent = tmp_path / "dependent.py"
     dependent.write_text(
         "from jobcheck import PASS, register_check\n"
@@ -174,26 +174,26 @@ def test_a_dangling_prerequisite_raises_at_the_end_of_the_call(
 
 
 def test_clear_registry_forgets_loaded_files(fresh_registry: None, tmp_path: Path) -> None:
-    path = write_test_file(tmp_path, "checks.py", "FORGOTTEN")
+    path = write_check_file(tmp_path, "checks.py", "FORGOTTEN")
     reg.load_checks([path])
     reg.clear_registry()
     assert reg.loaded_check_files() == []
 
 
 def test_a_file_can_be_loaded_again_after_clear_registry(fresh_registry: None, tmp_path: Path) -> None:
-    path = write_test_file(tmp_path, "checks.py", "RELOADED")
+    path = write_check_file(tmp_path, "checks.py", "RELOADED")
     reg.load_checks([path])
     reg.clear_registry()
     reg.load_checks([path])
     assert [t.code for t in reg.CHECKS] == ["RELOADED"]
 
 
-def test_path_loaded_tests_run(fresh_registry: None, tmp_path: Path) -> None:
+def test_path_loaded_checks_run(fresh_registry: None, tmp_path: Path) -> None:
     import pandas as pd
 
     from jobcheck import validate_row
 
-    reg.load_checks([write_test_file(tmp_path, "checks.py", "RUNS")])
+    reg.load_checks([write_check_file(tmp_path, "checks.py", "RUNS")])
     failures = validate_row(pd.Series({"value": 2}))
     assert [f.code for f in failures] == ["RUNS"]
 
@@ -201,7 +201,7 @@ def test_path_loaded_tests_run(fresh_registry: None, tmp_path: Path) -> None:
 def test_no_bytecode_is_left_beside_a_loaded_file(fresh_registry: None, tmp_path: Path) -> None:
     # The file comes from a caller's data directory, which is a record of what
     # was read rather than somewhere this library may write to.
-    reg.load_checks([write_test_file(tmp_path, "checks.py", "NO_PYC")])
+    reg.load_checks([write_check_file(tmp_path, "checks.py", "NO_PYC")])
     assert not (tmp_path / "__pycache__").exists()
 
 
@@ -209,7 +209,7 @@ def test_the_process_bytecode_setting_is_restored(fresh_registry: None, tmp_path
     import sys
 
     before = sys.dont_write_bytecode
-    reg.load_checks([write_test_file(tmp_path, "checks.py", "RESTORED")])
+    reg.load_checks([write_check_file(tmp_path, "checks.py", "RESTORED")])
     assert sys.dont_write_bytecode is before
 
 
@@ -233,7 +233,7 @@ def test_the_loaded_module_is_registered_under_its_generated_name(
 
     import sys
 
-    reg.load_checks([write_test_file(tmp_path, "checks.py", "IN_SYS_MODULES")])
+    reg.load_checks([write_check_file(tmp_path, "checks.py", "IN_SYS_MODULES")])
     names = [name for name in sys.modules
              if name.startswith("jobcheck_check_file_")]
     assert len(names) == 1
@@ -250,7 +250,7 @@ def test_clear_registry_evicts_the_module_it_registered(fresh_registry: None,
 
     import sys
 
-    reg.load_checks([write_test_file(tmp_path, "checks.py", "EVICTED")])
+    reg.load_checks([write_check_file(tmp_path, "checks.py", "EVICTED")])
     name = next(n for n in sys.modules if n.startswith("jobcheck_check_file_"))
     reg.clear_registry()
     assert name not in sys.modules
@@ -279,7 +279,7 @@ def test_a_module_that_registered_by_plain_import_is_evicted_too(
     import sys
 
     path = tmp_path / "shared_checks.py"
-    path.write_text(FILE_WITH_ONE_TEST.format(code="IMPORTED"), encoding="utf-8")
+    path.write_text(FILE_WITH_ONE_CHECK.format(code="IMPORTED"), encoding="utf-8")
     spec = importlib.util.spec_from_file_location("shared_checks_by_import", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -301,7 +301,7 @@ def test_the_bytecode_setting_is_restored_to_its_exact_value(fresh_registry: Non
     import sys
 
     assert sys.dont_write_bytecode is False
-    reg.load_checks([write_test_file(tmp_path, "checks.py", "EXACT")])
+    reg.load_checks([write_check_file(tmp_path, "checks.py", "EXACT")])
     assert sys.dont_write_bytecode is False
 
 

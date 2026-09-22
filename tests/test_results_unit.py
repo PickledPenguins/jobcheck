@@ -129,7 +129,7 @@ def test_numpy_scalars_are_accepted() -> None:
                  pytest.param([], id="list"), pytest.param(True, id="bare-bool"),
                  pytest.param(Status.MALFORMED, id="bare-status")],
 )
-def test_anything_else_raises_naming_the_test(returned: object) -> None:
+def test_anything_else_raises_naming_the_check(returned: object) -> None:
     """A check falling off the end must not be read as a pass."""
 
     with pytest.raises(TypeError, match=r"Check 'CODE' returned"):

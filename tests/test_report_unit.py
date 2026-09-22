@@ -257,7 +257,7 @@ def test_the_key_column_may_also_be_shown_as_a_data_column(two_layers: None) -> 
     assert list(report["row"]) == list(report["id"])
 
 
-def test_include_skipped_adds_the_blocked_tests_with_their_reason(two_layers: None) -> None:
+def test_include_skipped_adds_the_blocked_checks_with_their_reason(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id", include="blocked")
     skipped = report[report["outcome"] == "skipped"]
     assert list(skipped["code"]) == ["AGE_IN_RANGE"]
@@ -270,7 +270,7 @@ def test_include_passed_turns_the_report_into_an_audit_trail(two_layers: None) -
     assert set(report["outcome"]) == {"passed", "failed", "skipped"}
 
 
-def test_an_errored_test_appears_in_the_report(fresh_registry: None) -> None:
+def test_an_errored_check_appears_in_the_report(fresh_registry: None) -> None:
     make_check("BOOM", raises=RuntimeError("boom"))
     report = report_for(pd.DataFrame([{"age": 1}]))
     assert list(report["outcome"]) == ["errored"]
@@ -342,13 +342,13 @@ def test_print_report_says_so_when_nothing_failed(
 # --- explanations and summaries --------------------------------------------
 
 
-def test_row_explanation_lists_every_test_in_order(two_layers: None) -> None:
+def test_row_explanation_lists_every_check_in_order(two_layers: None) -> None:
     table = rep.row_explanation(outcomes()[2])
     assert list(table.columns) == ["layer", "code", "outcome", "status", "detail"]
     assert list(table["code"]) == ["AGE_PRESENT", "AGE_IN_RANGE"]
 
 
-def test_only_relevant_hides_the_tests_that_passed(two_layers: None) -> None:
+def test_only_relevant_hides_the_checks_that_passed(two_layers: None) -> None:
     table = rep.row_explanation(outcomes()[1], include="blocked")
     assert list(table["code"]) == ["AGE_IN_RANGE"]
 
