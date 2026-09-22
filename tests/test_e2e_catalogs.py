@@ -48,6 +48,12 @@ def test_every_case_documents_itself(case: Path) -> None:
     assert readme.startswith("# ")
     assert "Input:" in readme
     assert "Expected:" in readme
+    # The exit code is part of what a case promises, and the one part a reader
+    # cannot see in expected_stdout.txt. Enforced rather than asked for: 30 of
+    # the 42 example READMEs had drifted without it.
+    expected = readme.split("Expected:", 1)[1]
+    assert f"exit {(case / 'exit_code').read_text().strip()}" in expected, (
+        f"{case.name}: README's Expected: block does not name the exit code")
 
 
 @pytest.mark.parametrize("case", case_dirs("examples"), ids=case_id)

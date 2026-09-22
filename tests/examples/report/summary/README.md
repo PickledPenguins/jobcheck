@@ -4,4 +4,4 @@
 
 Level:    simple
 Input:    the demo frame
-Expected: the failure table, then per-check counts and the root cause of each failing row
+Expected: the failure table, then per-check counts and the root cause of each failing row; exit 0

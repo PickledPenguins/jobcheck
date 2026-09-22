@@ -4,4 +4,4 @@ The row that fails the most: the explanation is the only view that shows all of 
 
 Level:    moderate
 Input:    row 1 of the demo frame
-Expected: three separate chains failing in one row, and every root cause named
+Expected: three separate chains failing in one row, and every root cause named; exit 0

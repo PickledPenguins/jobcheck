@@ -4,4 +4,4 @@ The combination a scheduled job uses: a real file in, CSV out.
 
 Level:    simple
 Input:    `examples/data/customers.csv`
-Expected: a CSV report of 49 rows' failures
+Expected: a CSV report of 49 rows' failures; exit 0

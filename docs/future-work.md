@@ -45,8 +45,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.12 — 33 of 42 example READMEs omit the exit code from `Expected:`.** The other nine
-state it. Fix: add the line to the 33, in the wording the nine use.
+
 
 **F.13 — Seven `large-export` catalog cases are 1.1 MB of the catalog's 1.6.**
 `tests/examples/data/large-export-*` and `complex/large-export-*` over the 2,000-row file.
@@ -74,6 +73,15 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**Example READMEs omitting the exit code (was F.12).** Fixed 2026-09-22. Thirty of the
+42 `tests/examples/` READMEs did not name one; the twelve that did used `; exit 0` at the
+end of the `Expected:` block, and the twenty `tests/failures/` READMEs all name theirs
+because there the code is the point. All 42 now say `exit 0`, and
+`test_every_case_documents_itself` asserts that every case's `Expected:` block names the
+code in its `exit_code` file, so the drift this item recorded cannot come back. (F.12
+counted 33 of 42 with nine naming it; two more had been reworded the same day for F.4 and
+F.11.)
 
 **The internal-test exemption case showing nothing (was F.11).** Fixed 2026-09-22. Row
 1018's address in `scripts/make_example_data.py` is now `load-test@@internal.test`: two
