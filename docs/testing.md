@@ -16,12 +16,12 @@ pip install -e ".[dev]"
 | Command | Runs | Time |
 |---|---|---|
 | `./tests/run-tests.sh fast` | 612 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 235 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 294s |
-| `./tests/run-tests.sh all` | 847 tests, then mypy and the profile | 305s |
+| `./tests/run-tests.sh long` | 235 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 847 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
-| `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 91s |
-| `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 80s |
-| `./tests/run-tests.sh profile` | the example profile alone | 9s |
+| `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
+| `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
+| `./tests/run-tests.sh profile` | the example profile alone | 3s |
 | `./tests/run-tests.sh types` | mypy alone | 8s |
 
 Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
@@ -269,17 +269,19 @@ which is
 records it and says so; later runs fail when a median moves past the machine's own
 measured noise (twice the observed spread, floored at 35% and capped at 150%).
 
-Measured on 2026-09-10 after the simplification, Python 3.12.14, Linux 6.12 x86_64,
-4,000-row frame:
+Measured on 2026-09-21, Python 3.12.14, pandas 3.0.5, Linux 6.12 x86_64, 4,000-row
+frame, after the example date checks stopped calling the scalar `pandas.to_datetime`
+(on 2026-09-10 `validate/4000` was 6.250s and `validate_row/4000` 6.174s — 87% of it
+date parsing in example code, which left the gate nearly blind to the engine):
 
 | Measurement | Median | Spread |
 |---|---|---|
-| `validate/4000` | 6.250s | 8% |
-| `validate_row/4000` | 6.174s | 2% |
-| `build_report/4000` | 0.048s | 123% |
-| `render_report/4000` | 0.048s | 8% |
-| `summarize_outcomes/4000` | 0.020s | 4% |
-| `validate/1000-rows-50-rules` | 0.403s | 14% |
+| `validate/4000` | 1.340s | 16% |
+| `validate_row/4000` | 1.245s | 20% |
+| `build_report/4000` | 0.070s | 98% |
+| `render_report/4000` | 0.061s | 37% |
+| `summarize_outcomes/4000` | 0.024s | 19% |
+| `validate/1000-rows-50-rules` | 0.501s | 35% |
 
 `./tests/run-tests.sh long` and `all` end by running `scripts/profile_examples.py`, which
 drives the same runs the catalog drives, in this process, and prints this project's own
@@ -287,9 +289,11 @@ functions by cumulative time. It is a description, not a gate — the assertions
 `test_perf.py`. **It cannot see the catalog's own subprocesses:** interpreter start-up,
 imports and argument parsing per case are outside the measurement.
 
-Where the time goes today: `explain_row` at 85% of the total, and inside it the example
-check files' own functions — `dates_present` and `dates_in_order` together are about 40%,
-because both parse dates with `pandas.to_datetime` per row.
+Where the time goes today (2026-09-21): `explain_row` at 63% of the total, and inside it
+the example check files' own functions — `row_not_all_null` alone is 23%, the four date
+parses per row 8%. Until 2026-09-21 the date checks called the scalar
+`pandas.to_datetime` per cell, which costs about 300 times `pandas.Timestamp` on the same
+string and was 87% of a run; the example now uses `pandas.Timestamp`.
 
 ## Golden files
 
