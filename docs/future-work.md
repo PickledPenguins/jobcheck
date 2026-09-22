@@ -39,15 +39,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.9 — Regex matching has no bound.** `src/jobcheck/rules.py:226`. A rule pattern with a
-nested quantifier (`(a+)+$`) on a 30-character cell runs for minutes inside `rule_matches`
-with nothing to stop it and no message naming the rule; `tests/test_safety.py` pins that a
-23-character value returns in under five seconds, and says so. Rule files are the owner's
-configuration, so the exposure is a hung run, not an attack. Two shapes: a load-time
-refusal in `parse_match` of patterns with a nested quantifier, naming the rule (about 15
-lines, one rejection case in `tests/test_overrides_unit.py`, one case in
-`tests/failures/`), or a stated non-goal in [configuration.md](configuration.md) with the
-30-character figure beside it.
+
 
 **F.10 — `register_check` records the registering module for `clear_registry` to evict.**
 `src/jobcheck/registry.py:167`. Every module that registers a check by plain import is
@@ -95,6 +87,16 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**Refusing patterns that backtrack catastrophically (was F.9).** Rejected 2026-09-22;
+[configuration.md](configuration.md) states the cost and the non-goal instead, with the
+measured curve for `(a+)+$` (20 characters 0.16s, 24 2.5s, 26 11s, 28 42s -- doubling per
+character, per row). A load-time refusal cannot be drawn accurately: rejecting "a
+quantifier inside a quantified group" also rejects `^(\d+,)+$`, an ordinary
+comma-separated-list pattern, while `(a|a)+$` still gets through, so the owner loses
+working configuration with no way to override and the catastrophic case survives anyway.
+Bounding it at match time needs a timeout `re` does not have -- the third-party `regex`
+module has one, and the library takes no runtime dependencies.
 
 **The deep-chain error reporting width as depth (was F.8).** Fixed 2026-09-22. The
 message said `deepest declared depends_on: N`, which is `max(len(check.depends_on))` --
