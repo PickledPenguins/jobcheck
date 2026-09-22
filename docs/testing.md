@@ -15,12 +15,12 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 610 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 21s |
-| `./tests/run-tests.sh long` | 235 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 290s |
-| `./tests/run-tests.sh all` | 845 tests, then mypy and the profile | 305s |
-| `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 26s |
-| `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 98s |
-| `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 86s |
+| `./tests/run-tests.sh fast` | 612 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 235 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 294s |
+| `./tests/run-tests.sh all` | 847 tests, then mypy and the profile | 305s |
+| `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
+| `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 91s |
+| `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 80s |
 | `./tests/run-tests.sh profile` | the example profile alone | 9s |
 | `./tests/run-tests.sh types` | mypy alone | 8s |
 
@@ -189,24 +189,33 @@ read `mutmut results` in between as the suite's score.
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
 
-Measured on 2026-09-11 after the second simplification pass, on a tree cleaned first
-(`rm -rf mutants .mutmut-cache`), at commit `9fe2207`: **1,278 mutants, 1,144 killed,
-134 survived, 0 timeouts — 89.5%.** The run takes about four minutes at ~6
-mutations/second.
+Measured on 2026-09-21 on a tree cleaned first (`rm -rf mutants .mutmut-cache`), at
+commit `b648bcf`: **1,304 mutants, 1,175 killed, 129 survived, 0 timeouts — 90.1%.**
+The run takes about three and a half minutes at ~6 mutations/second.
 
-That is a record of one commit, not the current score. The readability pass that
-followed it rewrote `format_table`, replaced four lambdas with named functions, lifted
-`register_check`'s validation into its own function, removed `print_registry_with_overrides`
-and added `_extra_values`, so both the mutant count and the score have moved since. Re-run
-before quoting a number, and update this section with what comes back — the survivor
-counts by module below are from the same commit.
+That is a record of one commit, not the current score. Re-run before quoting a number,
+and update this section with what comes back — the survivor counts by module below are
+from the same commit.
 
-The first run of that pass scored 87.9%: 20 of the survivors were the new
+Survivors by module: `report` 52, `registry_tables` 30, `engine` 20, `registry` 15,
+`rules` 10, `tables` 2. The 47 outside the two print modules were read one by one: 7 are
+default-argument mutants, 9 unreachable, 14 equivalent (the groups below), and 17 are
+assertions the suite does not make — the second sentence of the bare-string-path
+message in both loaders and the tail of `validate`'s non-DataFrame error, pinned by
+substring rather than word for word; the separator between two unknown rule keys and
+the rule-name prefix on match-block errors, pinned only through the failure catalog's
+subprocess; the module bookkeeping `register_check` does for `clear_registry`; and the
+order cache after a check file fails part-way, where no test validates a row afterward.
+The 82 in `report` and `registry_tables` are print wording. Each is listed with its
+fix in the review report of the same date.
+
+The earlier runs, for the shape of what a survivor tends to be. The 2026-09-11 run at
+`9fe2207` scored 89.5%; its first pass scored 87.9%, and 20 of the survivors were the new
 `extra_columns` selection on the registry tables, where no test asked a table for
 `source_file` and read it back, and the report's "(none available)" message for a
 frame with nothing left to offer. Both are covered now. The four extra survivors in `rules` are the
-wording of the new `message` and bare-string-path errors, the same class as the
-rest of the survivors below.
+wording of the new `message` and bare-string-path errors — the same gap the 2026-09-21
+run still lists.
 
 The 2026-09-10 run scored 89.2% on its first pass, and the difference then was
 nine mutants that were real gaps, all in code the simplification had just
@@ -222,9 +231,7 @@ rewritten. What they were:
   decides which code a row reports as its root cause, so a check that raised at
   the wrong layer changes the answer rather than the wording.
 
-Survivors by module: `report` 47, `registry_tables` 43, `engine` 18,
-`registry` 14, `rules` 10, `tables` 2. Sampled and classified, the remainder fall
-into four groups, none of them a missing assertion:
+The other four groups, which no assertion can reach:
 
 - **Default-argument mutants — unkillable here.** mutmut's trampoline keeps the
   *original* function's defaults and forwards the caller's arguments, so a
