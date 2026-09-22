@@ -360,11 +360,18 @@ def validate_registry() -> None:
         # The walk is recursive, so its depth is the depth of the chain when a
         # prerequisite is registered after its dependents. A bare RecursionError
         # names neither the registry nor the chain, which is no help at all.
-        deepest = max((len(check.depends_on) for check in CHECKS), default=0)
+        # The chain's own length is what ran out of stack, and it is not known
+        # here -- the walk that would measure it is the one that just failed --
+        # so the message names the limit it ran into instead. The widest
+        # declared depends_on is a different number, and said so wrongly until
+        # 2026-09-22.
+        widest = max((len(check.depends_on) for check in CHECKS), default=0)
         raise ValueError(
-            f"Dependency chain too deep to resolve among {len(CHECKS)} checks "
-            f"(deepest declared depends_on: {deepest}). Shorten the chain, or "
-            "register prerequisites before the checks that depend on them."
+            f"Dependency chain too deep to resolve among {len(CHECKS)} checks: the "
+            f"ordering walk is recursive and gives out near Python's recursion limit "
+            f"of {sys.getrecursionlimit()} (widest declared depends_on: {widest}). "
+            "Shorten the chain, or register prerequisites before the checks that "
+            "depend on them."
         ) from None
     by_code = {check.code: check for check in CHECKS}
     for check in order:

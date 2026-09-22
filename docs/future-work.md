@@ -37,10 +37,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.8 — The deep-chain error reports width, not depth.** `src/jobcheck/registry.py:352`.
-`deepest declared depends_on: N` is `max(len(check.depends_on))`, the widest fan-in, not
-the longest chain. Fix: report the deepest layer, or reword to `widest`; one exact-text
-test in `tests/test_error_messages_unit.py` moves with it.
+
 
 **F.9 — Regex matching has no bound.** `src/jobcheck/rules.py:226`. A rule pattern with a
 nested quantifier (`(a+)+$`) on a 30-character cell runs for minutes inside `rule_matches`
@@ -98,6 +95,19 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**The deep-chain error reporting width as depth (was F.8).** Fixed 2026-09-22. The
+message said `deepest declared depends_on: N`, which is `max(len(check.depends_on))` --
+the widest fan-in of one check. Its own test proves how useless that is: a 2,000-link
+chain reported `1`. It now names the constraint the walk actually hit, Python's recursion
+limit (about 900 links at the default 1,000), and labels the fan-in `widest`. The chain's
+real length is not reported: measuring it means a second traversal that must itself be
+cycle-safe, since `_topological_order` finds cycles and orders in one pass and has not
+finished when this fires. Rewriting that walk iteratively -- no recursion limit, and a
+cycle longer than the limit reported as a cycle rather than as depth -- was rejected for
+now: it changes the ordering every validation run goes through, to remove an error no
+real suite reaches (the example suite's deepest layer is 2), and costs the readable
+recursive version.
 
 **A cell's own line breaks corrupting the bordered table (was F.7).** Fixed 2026-09-22.
 `_cell_lines` returned `str(value)` unchanged for a column with no wrap width, so a row

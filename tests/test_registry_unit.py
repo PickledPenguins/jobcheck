@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 import pandas as pd
@@ -182,9 +183,10 @@ def test_a_chain_too_deep_to_walk_names_the_registry_rather_than_the_recursion(
     with pytest.raises(ValueError) as excinfo:
         reg.validate_registry()
     assert str(excinfo.value) == (
-        f"Dependency chain too deep to resolve among {depth} checks "
-        "(deepest declared depends_on: 1). Shorten the chain, or register "
-        "prerequisites before the checks that depend on them."
+        f"Dependency chain too deep to resolve among {depth} checks: the ordering walk "
+        f"is recursive and gives out near Python's recursion limit of "
+        f"{sys.getrecursionlimit()} (widest declared depends_on: 1). Shorten the chain, "
+        "or register prerequisites before the checks that depend on them."
     )
 
 
