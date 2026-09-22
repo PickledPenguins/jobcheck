@@ -78,6 +78,12 @@ def test_an_unknown_key_is_rejected_rather_than_silently_ignored(
     assert "unknown key(s) bogus_key" in str(excinfo.value)
     assert "Allowed: action, codes, match, message, name." in str(excinfo.value)
 
+    # Two typos are listed together, sorted, so one run reports both.
+    path = write(tmp_path, "r2.yaml", GLOBAL_DISABLE + "  zzz: 1\n  bogus_key: 1\n")
+    with pytest.raises(ValueError) as excinfo:
+        reg.load_overrides([path])
+    assert "unknown key(s) bogus_key, zzz." in str(excinfo.value)
+
 
 def test_every_documented_key_is_accepted(one_code: None, tmp_path: Path) -> None:
     path = write(
@@ -208,6 +214,10 @@ def test_malformed_rule_is_rejected_at_load_time(
         reg.load_overrides([path])
     assert expected in str(excinfo.value)
     assert path in str(excinfo.value)
+    # A rule that got as far as having a name is named in the message, so the
+    # reader can find it in a file of many.
+    if 'name: "r"' in body:
+        assert str(excinfo.value).startswith(f"rule 'r' in {path}: ")
 
 
 def test_duplicate_rule_name_within_one_file_is_rejected(one_code: None, tmp_path: Path) -> None:

@@ -25,6 +25,7 @@ import pytest
 from conftest import make_check
 from jobcheck import (
     build_report,
+    explain_row,
     validate,
     load_overrides,
     load_checks,
@@ -173,6 +174,9 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
         load_checks([str(good), str(broken)])
     assert [t.code for t in reg.CHECKS] == ["FROM_FILE"]
     assert reg.loaded_check_files() == [str(good.resolve())]
+    # And the survivor runs: the failure path must leave the evaluation order
+    # recomputed, not a stale cache that would validate a row against nothing.
+    assert [o.code for o in explain_row(pd.Series({"id": 1}))] == ["FROM_FILE"]
 
 
 # --- writing reports --------------------------------------------------------

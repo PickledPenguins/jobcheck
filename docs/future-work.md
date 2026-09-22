@@ -32,6 +32,95 @@ total, because both call `pandas.to_datetime` per row. That is example code rath
 library code, so it costs an adopter nothing — but it is what a reader of
 `./tests/run-tests.sh profile` will see first, and it is worth knowing it is not the engine.
 
+The items below were raised by the 2026-09-15 and 2026-09-21 reviews, each sniff-tested
+against the code and, where a behavior is involved, reproduced. The owner chose on
+2026-09-21 to record them here rather than build any of them yet. Each says what the fix
+would be, so a later session can take one without re-deriving it.
+
+**F.4 — `print_report(fmt="csv")` on an empty report prints `No failures.`, not a CSV
+header.** `src/jobcheck/report.py:219`. Two catalog READMEs
+(`tests/examples/data/clean-file-as-csv`, `complex/clean-file-every-rule-csv`) promise the
+header and their recorded output shows the prose. Fix: print the header line alone in CSV
+mode, so a piped CSV is always a valid file; regenerate the two cases and read the diff.
+The alternative is to correct the two READMEs.
+
+**F.5 — A rule pattern never matches an integer column once the frame has a float
+column.** `src/jobcheck/rules.py:213`. Reproduced on pandas 3.0.5: `iterrows` upcasts the
+row to float when any column is float (an integer column with one blank is enough), so
+`cell_text` sees `101.0` and `^102$` fails silently. An all-integer frame is unaffected.
+Fix: render whole floats without the `.0` in `cell_text` (sharing `report._format_cell`
+through `tables.py`), document it in [configuration.md](configuration.md), and add the
+regression test through `validate` on a numeric frame — the existing matching test builds
+its `Series` by hand, which is why this escaped.
+
+**F.6 — `validate` hands checks `RowContext()`; `validate_row` and `explain_row` hand
+`None`.** `src/jobcheck/engine.py:113`. Reproduced: the same check sees `RowContext` from
+`validate` and `NoneType` from the per-row calls. Both sides are pinned
+(`test_ctx_defaults_to_none`, `test_validate_without_a_builder_hands_every_row_a_bare_context`).
+Fix: substitute `RowContext()` for `None` in `explain_row`, flip the one test, and note it
+in [interfaces.md](interfaces.md).
+
+**F.7 — A newline inside an unwrapped cell breaks the bordered table.**
+`src/jobcheck/tables.py:47`. `_cell_lines` returns `str(value)` unchanged for a column
+with no wrap width, so a row key or an `extra_columns` value holding `\n` prints as a
+broken row. Wrapped columns are immune because `textwrap` collapses whitespace; CSV is
+immune because pandas quotes. Fix: split on newlines in `_cell_lines` so the value
+renders as a tall cell, as a wrapped one does.
+
+**F.8 — The deep-chain error reports width, not depth.** `src/jobcheck/registry.py:352`.
+`deepest declared depends_on: N` is `max(len(check.depends_on))`, the widest fan-in, not
+the longest chain. Fix: report the deepest layer, or reword to `widest`; one exact-text
+test in `tests/test_error_messages_unit.py` moves with it.
+
+**F.9 — Regex matching has no bound.** `src/jobcheck/rules.py:226`. A rule pattern with a
+nested quantifier (`(a+)+$`) on a 30-character cell runs for minutes inside `rule_matches`
+with nothing to stop it and no message naming the rule; `tests/test_safety.py` pins that a
+23-character value returns in under five seconds, and says so. Rule files are the owner's
+configuration, so the exposure is a hung run, not an attack. Two shapes: a load-time
+refusal in `parse_match` of patterns with a nested quantifier, naming the rule (about 15
+lines, one rejection case in `tests/test_overrides_unit.py`, one case in
+`tests/failures/`), or a stated non-goal in [configuration.md](configuration.md) with the
+30-character figure beside it.
+
+**F.10 — `register_check` records the registering module for `clear_registry` to evict.**
+`src/jobcheck/registry.py:167`. Every module that registers a check by plain import is
+popped from `sys.modules` on `clear_registry`, which is why a `@dataclass` defined inside
+a test function under `fresh_registry` fails (the test module itself is evicted). No test
+pins the behavior; a mutant that records `None` instead survives. Fix: either pin it with
+a test that imports a module by hand, registers, clears and asserts the eviction — which
+makes the trap a decision — or drop the line and evict only what `load_checks` imported,
+which removes the trap and is a behavior change for an adopter who relies on a re-import
+re-registering.
+
+**F.11 — The internal-test exemption case shows nothing.**
+`tests/examples/overrides/internal-test-accounts-exempted` is byte-identical to
+`data/validate-a-csv-file` because `qa@internal.test` passes both email checks on its
+own. Fix: in `scripts/make_example_data.py`, give one internal row a domain the check
+rejects, regenerate the data, the catalog and the golden files, and read the diff —
+roughly twenty expected outputs move.
+
+**F.12 — 33 of 42 example READMEs omit the exit code from `Expected:`.** The other nine
+state it. Fix: add the line to the 33, in the wording the nine use.
+
+**F.13 — Seven `large-export` catalog cases are 1.1 MB of the catalog's 1.6.**
+`tests/examples/data/large-export-*` and `complex/large-export-*` over the 2,000-row file.
+Options: keep two and drop five, or truncate the recorded output. Volume is the point of
+those cases, which is the argument for leaving them.
+
+**F.14 — `scripts/new_catalog_case.py` refuses a duplicate command but not a duplicate
+output.** Two cases with different commands and byte-identical recorded output are one
+case filed twice; one such pair got in that way. Fix: compare the recorded stdout against
+every existing case before accepting.
+
+**F.15 — Three timing ratios in `tests/test_scaling.py` use a single measurement.**
+`tests/test_scaling.py:67`; the file's own `fastest` helper exists for the one that compares
+two small measurements. Fix: best-of-N for the other three, at a cost of one to two
+minutes on the long suite. They have not flaked; the ratios have room.
+
+**F.16 — 55 test names and several helpers still say `test` where the vocabulary is
+`check`.** Suite-wide, since the 2026-09-10 rename. A mechanical rename in one commit;
+no behavior changes.
+
 ## Considered and deliberately not done
 
 **A whole-frame `validate` that streams by default.** Rejected: the two ways to spend

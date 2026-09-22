@@ -25,6 +25,7 @@ from jobcheck import (
     build_report,
     validate,
     explain_row,
+    load_overrides,
     registry as reg,
     render_report,
     validate_row,
@@ -124,6 +125,21 @@ def test_a_dangling_prerequisite_lists_the_loaded_files(fresh_registry: None) ->
     )
 
 
+def test_a_bare_string_path_is_refused_by_both_loaders(fresh_registry: None) -> None:
+    with pytest.raises(TypeError) as raised:
+        reg.load_checks("checks.py")  # type: ignore[arg-type]
+    assert message_of(raised) == (
+        "load_checks takes a list of paths, not one string: pass ['checks.py']. "
+        "A bare string would be read as a list of its characters."
+    )
+    with pytest.raises(TypeError) as raised:
+        load_overrides("rules.yaml")  # type: ignore[arg-type]
+    assert message_of(raised) == (
+        "load_overrides takes a list of paths, not one string: pass ['rules.yaml']. "
+        "A bare string would be read as a list of its characters."
+    )
+
+
 def test_a_missing_test_file_says_nothing_is_discovered(fresh_registry: None) -> None:
     with pytest.raises(ValueError) as raised:
         reg.load_checks(["/no/such/file.py"])
@@ -168,6 +184,16 @@ def test_a_result_with_an_unknown_status_names_the_registered_ones(fresh_registr
     with pytest.raises(ValueError) as raised:
         CheckResult(99)
     assert message_of(raised).startswith("Unknown status 99.")
+
+
+def test_a_frame_that_is_not_a_frame_points_at_the_per_row_calls(fresh_registry: None) -> None:
+    make_check("CODE")
+    with pytest.raises(TypeError) as raised:
+        validate(FRAME.iloc[0])  # type: ignore[arg-type]
+    assert message_of(raised) == (
+        "validate takes a DataFrame, got Series; for one row, call "
+        "validate_row or explain_row."
+    )
 
 
 # --- reporting --------------------------------------------------------------
