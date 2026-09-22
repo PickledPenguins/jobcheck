@@ -219,13 +219,15 @@ def test_table_rendering_of_a_cell_containing_a_pipe(fresh_registry: None) -> No
 
 
 def test_a_newline_in_a_message_does_not_break_the_table(fresh_registry: None) -> None:
-    """textwrap collapses it, so every rendered line stays the same width."""
+    """It renders as a tall cell: every line stays the same width, and the break
+    the author wrote is kept rather than collapsed into a space."""
 
     from jobcheck import render_report
 
     lines = render_report(one_row_report({}, message="line one\nline two")).splitlines()
     assert len({len(line) for line in lines}) == 1
-    assert "line one line two" in lines[2]
+    assert "line one" in lines[2] and "line two" not in lines[2]
+    assert "line two" in lines[3]
 
 
 def test_a_newline_in_a_comment_value_does_not_break_the_table(fresh_registry: None) -> None:
