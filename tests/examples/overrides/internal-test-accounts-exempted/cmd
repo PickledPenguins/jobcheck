@@ -1,1 +1,1 @@
-python3 examples/main.py --data examples/data/customers.csv --rules examples/rules/error_overrides.yaml
+python3 examples/main.py --data examples/data/customers.csv --rules examples/rules/split_by_topic/02_email_rules.yaml

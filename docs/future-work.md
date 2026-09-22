@@ -49,10 +49,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.14 — `scripts/new_catalog_case.py` refuses a duplicate command but not a duplicate
-output.** Two cases with different commands and byte-identical recorded output are one
-case filed twice; one such pair got in that way. Fix: compare the recorded stdout against
-every existing case before accepting.
+
 
 **F.15 — Three timing ratios in `tests/test_scaling.py` use a single measurement.**
 `tests/test_scaling.py:67`; the file's own `fastest` helper exists for the one that compares
@@ -70,6 +67,20 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**Duplicate recorded output going unnoticed (was F.14).** Fixed 2026-09-22, as a test
+rather than as a check in `scripts/new_catalog_case.py`: the generator is the narrow
+door, and a hand-made directory or a regeneration after a behavior change goes round it.
+`test_no_two_cases_record_the_same_output` compares every case's recorded stdout, stderr
+and exit code across both trees. Two pairs were identical when it was written:
+`overrides/internal-test-accounts-exempted` ran `--rules examples/rules/error_overrides.yaml`,
+which is exactly what `--rules` defaults to, so it printed what `data/validate-a-csv-file`
+prints — the command guard could never have caught that, since the commands differ. It
+now runs the email-only rule file, so the exemption is the only rule in force and the
+output differs from both neighbors. The second pair, `data/a-file-with-nothing-wrong` and
+`data/clean-file-as-csv`, is allowed by name in the test with its reason: an empty report
+is prose in both formats (the F.4 decision), so no command can separate them, and both
+are worth keeping.
 
 **Cutting or truncating the `large-export` catalog cases (was F.13).** Rejected
 2026-09-22. The premise does not hold: measured that day the catalog is 1.18 MB and the
