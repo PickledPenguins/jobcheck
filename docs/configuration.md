@@ -92,6 +92,34 @@ Two shapes are rejected rather than treated as match-everything:
 
 `match: al` and any other bare string is rejected as a typo.
 
+### What a pattern costs, and what is not bounded
+
+A pattern runs once per criterion per row, so a 4,000-row frame runs it 4,000 times.
+Anchored literals — what every rule here uses — cost nothing worth measuring.
+
+**A pattern that backtracks catastrophically is not bounded, and that is deliberate.**
+A quantifier applied to a group that is itself quantified (`(a+)+$`), or alternation
+whose branches can match the same text (`(a|a)+$`), takes time that doubles with each
+character of the value. Measured with `(a+)+$` against a value of *n* `a`s and one
+character that cannot match: 20 characters 0.16s, 24 characters 2.5s, 26 characters
+11s, 28 characters 42s. A 35-character cell would take hours, per row, with nothing to
+interrupt it and no message naming the rule.
+
+Nothing in the loader refuses such a pattern, and nothing times one out at match time:
+
+- Python's `re` has no timeout. The third-party `regex` module has one, and a runtime
+  dependency is not something this library takes.
+- A load-time heuristic cannot be drawn accurately. Refusing "a quantifier inside a
+  quantified group" also refuses `^(\d+,)+$`, an ordinary comma-separated-list pattern,
+  while still passing `(a|a)+$` — a rule file that worked yesterday failing to load, and
+  the catastrophic case getting through anyway.
+
+Rule files are the owner's own configuration, so the exposure is a run that hangs, not an
+untrusted input. Keep patterns anchored and simple; if a run stops making progress, the
+rule file is the first place to look. `tests/test_safety.py` pins that a cell-sized value
+(23 characters) survives, which is a statement about the value's length, not about the
+matcher being safe.
+
 ## Precedence: last rule wins
 
 For a given row, the state of a code starts at the check's `default_enabled`, then every

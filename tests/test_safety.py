@@ -72,10 +72,11 @@ def test_a_check_file_name_is_a_path_never_a_module_name(fresh_registry: None) -
 
 def test_a_catastrophic_regex_on_a_short_value_finishes_in_seconds(one_code: None, tmp_path: Path) -> None:
     """A nested-quantifier pattern on a 23-character value returns in under a
-    second here. Nothing bounds it: the framework does not sandbox regexes,
-    and the same pattern on 30 characters would take minutes -- see the
-    handoff's open item on regex timeouts. This pins that a cell-sized value
-    is survivable, not that the matcher is safe.
+    second here. Nothing bounds it: the framework does not sandbox regexes, and
+    the same pattern on 28 characters takes 42s -- the cost doubles with each
+    character, and `configuration.md` says why nothing refuses or interrupts
+    such a pattern. This pins that a cell-sized value is survivable, not that
+    the matcher is safe.
     """
 
     rule = reg.OverrideRule(
