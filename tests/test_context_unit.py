@@ -65,6 +65,25 @@ def test_validate_without_a_builder_hands_every_row_a_bare_context(
     assert all(isinstance(context, RowContext) for context in seen)
 
 
+def test_a_builder_that_returns_none_gets_the_empty_context_too(
+    fresh_registry: None,
+) -> None:
+    """``ContextBuilder`` may return None; the checks still see a context."""
+
+    from jobcheck import PASS, CheckResult, validate
+    from jobcheck import registry as reg
+
+    seen: list[RowContext | None] = []
+
+    @reg.register_check(code="SEES_CONTEXT", message="never fails")
+    def check(row: "pd.Series[Any]", context: RowContext | None) -> CheckResult:
+        seen.append(context)
+        return PASS
+
+    validate(pd.DataFrame([{"a": 1}]), context_builder=lambda row: None)
+    assert seen == [RowContext()]
+
+
 def test_a_caller_supplied_builder_is_what_reaches_the_checks(fresh_registry: None) -> None:
     """The documented replacement path, exercised rather than described."""
 

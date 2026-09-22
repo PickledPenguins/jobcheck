@@ -98,7 +98,10 @@ def test_a_two_argument_test_receives_the_context(fresh_registry: None) -> None:
     assert seen == [context]
 
 
-def test_ctx_defaults_to_none(fresh_registry: None) -> None:
+def test_an_unnamed_context_is_an_empty_one_not_none(fresh_registry: None) -> None:
+    """The per-row calls hand what `validate` hands: a check taking
+    ``(row, context)`` sees a ``RowContext`` whichever entry point ran it."""
+
     seen: list[Any] = []
 
     @reg.register_check(code="NO_CTX", message="m")
@@ -107,7 +110,10 @@ def test_ctx_defaults_to_none(fresh_registry: None) -> None:
         return PASS
 
     engine.validate_row(ROW)
-    assert seen == [None]
+    engine.explain_row(ROW)
+    engine.explain_row(ROW, context=None)
+    assert seen == [RowContext(), RowContext(), RowContext()]
+    assert all(isinstance(ctx, RowContext) for ctx in seen)
 
 
 @pytest.mark.parametrize(

@@ -33,12 +33,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.6 — `validate` hands checks `RowContext()`; `validate_row` and `explain_row` hand
-`None`.** `src/jobcheck/engine.py:113`. Reproduced: the same check sees `RowContext` from
-`validate` and `NoneType` from the per-row calls. Both sides are pinned
-(`test_ctx_defaults_to_none`, `test_validate_without_a_builder_hands_every_row_a_bare_context`).
-Fix: substitute `RowContext()` for `None` in `explain_row`, flip the one test, and note it
-in [interfaces.md](interfaces.md).
+
 
 **F.7 — A newline inside an unwrapped cell breaks the bordered table.**
 `src/jobcheck/tables.py:47`. `_cell_lines` returns `str(value)` unchanged for a column
@@ -108,6 +103,18 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**Checks seeing two context types, one per entry point (was F.6).** Fixed 2026-09-22.
+`validate` handed every row an empty `RowContext`; `explain_row` and `validate_row`
+handed `None`, so the same check saw two types depending on which call ran it, and
+`writing-checks.md` worked around it by passing `context=RowContext()` by hand. The
+normalization now lives in `explain_row` — the single implementation of the per-row
+algorithm — so it covers `validate_row`, a `context_builder` that returns `None`, and
+`validate` at once, from one module-level empty context rather than one per row. The
+boundary types stay `RowContext | None`: a caller may still pass `None`, it is what a
+check receives that is guaranteed. A check written `if context is None:` to skip
+cross-row logic on the per-row path loses that signal; nothing shipped did it, and under
+`validate` it never worked anyway.
 
 **A rule pattern matching a whole number pandas holds as float (was F.5).** Fixed
 2026-09-21. `cell_text` now renders a cell through the same `_format_cell` the report

@@ -181,6 +181,10 @@ not a result always raises — that is an authoring bug, not a data problem.
 Raises `ValueError` when the row has duplicate column labels, before running
 anything.
 
+A `context` of `None` — the default — becomes an empty `RowContext`, so a check
+taking `(row, context)` is handed the same type here, in `validate_row` and in
+`validate`.
+
 ### `validate_row(row, context=None, overrides=None, on_error="record") -> list[CheckOutcome]`
 
 The failing outcomes from `explain_row`, in evaluation order. Does not mutate `row`
@@ -218,7 +222,8 @@ outcomes per row, in frame order. That is the shape `build_report` and
 
 `context_builder` is called once per row and returns the `RowContext` handed to
 every check; hand back one shared object when a check needs the whole frame.
-Without one, every row is handed the same empty `RowContext`.
+Without one, and for a builder that returns `None`, every row is handed the same
+empty `RowContext`.
 
 An `on_error` that is neither `"record"` nor `"raise"` raises `ValueError` before
 any row is read, an empty frame included; anything but a `DataFrame` raises

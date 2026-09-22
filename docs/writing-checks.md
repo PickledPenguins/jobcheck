@@ -201,7 +201,9 @@ a total) cheap: the counts are built once, not per row. Where the context really
 is per row, a `build` classmethod on your subclass is the tidy place for it:
 `validate(df, context_builder=FileContext.build)`.
 
-Without a `context_builder` every row is handed the same empty `RowContext`.
+Without a `context_builder` every row is handed the same empty `RowContext`, and so
+is every row of `validate_row` and `explain_row` called without one: a check taking
+`(row, context)` never sees `None`.
 
 Metadata that is not tabular — flags, computed paths, pipeline state — goes in
 `RowContext`, not in extra DataFrame columns, which cause dtype churn and end up
@@ -212,7 +214,7 @@ in exports. Take `(row, context)` in the checks that need it.
 ```python
 import pandas as pd
 from jobcheck import (
-    RowContext, build_report, check_override_columns, load_checks,
+    build_report, check_override_columns, load_checks,
     load_overrides, root_causes, validate, validate_row, write_report,
 )
 
@@ -230,7 +232,7 @@ write_report(build_report(outcomes, df=df, key_column="id"), "report.csv")
 
 # Or just the failures per row, when you only need to gate:
 df["errors"] = df.apply(
-    lambda row: validate_row(row, context=RowContext(), overrides=overrides), axis=1
+    lambda row: validate_row(row, overrides=overrides), axis=1
 )
 df["root_cause"] = df["errors"].apply(lambda results: "; ".join(root_causes(results)))
 clean = df[df["errors"].str.len() == 0]
