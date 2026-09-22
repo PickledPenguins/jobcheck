@@ -20,17 +20,9 @@ records what each did and the reason to rebuild it, and
 rebuilt because nothing calls them today. `lint` is the one with obvious value — warnings
 about rule files that parse but can never fire, fire everywhere, or were superseded.
 
-**F.2 — Eleven check modules from the same era are also unrebuilt.**
-`recovery/recovered-checks-api.md` on `main` lists what each asserted, by name and
-docstring. The current suite covers most of the same surface; `test_error_messages` and
-`test_rules_unit` are the two whose subjects are now covered from a different angle rather
-than directly.
 
-**F.3 — Dates dominate the profile.** `explain_row` is about 85% of a validation run, and
-inside it the example checks' `dates_present` and `dates_in_order` are roughly 40% of the
-total, because both call `pandas.to_datetime` per row. That is example code rather than
-library code, so it costs an adopter nothing — but it is what a reader of
-`./tests/run-tests.sh profile` will see first, and it is worth knowing it is not the engine.
+
+
 
 The items below were raised by the 2026-09-15 and 2026-09-21 reviews, each sniff-tested
 against the code and, where a behavior is involved, reproduced. The owner chose on
@@ -128,6 +120,34 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**Parsing dates in the engine or the loader instead of in the check (was F.3).** Closed
+2026-09-21. The example date checks called the scalar `pandas.to_datetime` per cell, which
+on pandas 3.0.5 costs 455 µs against 1.5 µs for `pandas.Timestamp` on the same string;
+measured over 4,000 rows, `validate` took 9.65s against 1.28s with identical outcomes, so
+date parsing was 87% of every run and the perf gate could barely see the engine. Fixed in
+the example by swapping the call. Converting date columns up front was rejected: the
+engine has no column types, and a `datetime64` column changes what `cell_text` hands
+override patterns (`2024-01-01 00:00:00` where the file said `2024-01-01`) and what the
+report prints, so a rule that matched the input text silently stops matching. A check
+converts the cell it reads; at 1.5 µs a cell there is nothing left to save.
+
+**Rebuilding the eleven test modules that exist only as bytecode (was F.2).** Closed
+2026-09-21. `recovery/recovered-tests-api.md` on `main` lists every test by name and
+docstring (`git show origin/main:recovery/recovered-tests-api.md`). Six of the eleven
+test code this branch does not have: `test_lint_unit` (76 tests), `test_parallel_unit`
+(45), `test_parallel_integration` (7) and `test_params_unit` (26) cover the three modules
+of F.1; `test_run_unit` (36) covers `ValidationRun`, `iter_traces` and the progress
+callback, rebuilt at `c2a3851` and cut again at `fab967a`; `test_groups_unit` (20)
+covers `check_group`, cut in the same pass. They come back only with the code. The other
+five are superseded by name: `test_engine_unit` by `test_validate_unit` and
+`test_validate_row_unit`; `test_error_messages` by `test_error_messages_unit` and
+`test_report_unit` (its other fifteen tests are parallel, params and run messages);
+`test_rules_unit` by `test_overrides_unit`, with its nine glob-matching tests obsolete
+since `match` became regex; `test_benchmarks` by `test_perf` and `test_scaling`;
+`test_examples` by `test_shipped_examples_unit`. Two individual tests have no successor:
+a number is matched on how it prints (the F.5 regression test, written with F.5) and
+matching is case-sensitive.
 
 **A `load_tests` alias for `load_checks`.** Rejected 2026-09-10. The vocabulary here
 is "check"; an alias in the old vocabulary would outlive its reason, and the one caller

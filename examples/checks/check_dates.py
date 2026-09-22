@@ -19,8 +19,13 @@ def _date(row: "pd.Series[Any]", column: str) -> pd.Timestamp | None:
     value = row[column]
     if is_null(value):
         return None
-    parsed = pd.to_datetime(value, errors="coerce")
-    return None if pd.isna(parsed) else pd.Timestamp(parsed)
+    # pd.Timestamp, not pd.to_datetime: the scalar to_datetime carries the
+    # frame-level machinery and costs ~300x more per cell. Both accept the
+    # same strings; this one raises where that one returned NaT.
+    try:
+        return pd.Timestamp(value)
+    except (ValueError, TypeError):
+        return None
 
 
 @register_check(code="DATES_PRESENT", message="Both start_date and end_date are needed")
