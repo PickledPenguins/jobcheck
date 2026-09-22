@@ -16,7 +16,7 @@ id,name,age,email,start_date,end_date,source_system,record_type,region
 1015,Fan Chung,74.0,fan@example.com,2024-06-01,2024-07-01,LEGACY_B,BATCH,US
 1016,"Sun Microsystems, Inc.",41,ops@example.com,2024-02-02,2024-03-02,LEGACY_B,STREAM,US
 1017,QA Account,33,qa@internal.test,2024-01-01,2024-02-01,MODERN,STREAM,US
-1018,Load Test,34,load-test@internal.test,2024-01-01,2024-02-01,MODERN,STREAM,US
+1018,Load Test,34,load-test@@internal.test,2024-01-01,2024-02-01,MODERN,STREAM,US
 1019,=SUM(A1:A9),29,sheet-example.com,2024-03-15,2024-04-15,MODERN,STREAM,EU
 1020,  Padded Name  , 44 , spaced@example.com ,2024-01-11,2024-02-11,MODERN,STREAM,EU
 1021,,,,,,,,
