@@ -14,7 +14,7 @@ from typing import Any
 import pandas as pd
 import yaml
 
-from .tables import is_null
+from .tables import _format_cell, is_null
 
 
 
@@ -203,14 +203,15 @@ def load_overrides(paths: list[str], known_codes: set[str]) -> list[OverrideRule
 
 
 def cell_text(row: "pd.Series[Any]", column: str) -> str | None:
-    """Row value as text for regex matching; ``None`` when absent or null."""
+    """Row value as text for regex matching, rendered as the report prints it;
+    ``None`` when absent or null."""
 
     if column not in row.index:
         return None
     value = row[column]
     if value is None or is_null(value):
         return None
-    return str(value)
+    return _format_cell(value)
 
 
 def rule_matches(rule: OverrideRule, row: "pd.Series[Any]") -> bool:
