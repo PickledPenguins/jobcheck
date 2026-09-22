@@ -27,6 +27,12 @@ from .rules import OverrideRule, rule_matches
 
 ContextBuilder = Callable[["pd.Series[Any]"], RowContext | None]
 
+# What a check is handed when the caller names no context, or a builder returns
+# None. Shared rather than built per row: the base class carries no fields, so
+# every empty context is the same object anyway, and a frame does not pay for
+# one allocation a row.
+_EMPTY_CONTEXT = RowContext()
+
 
 def resolve_enabled_state(
     row: "pd.Series[Any]", overrides: list[OverrideRule]
@@ -66,6 +72,9 @@ def explain_row(
     "Did not pass" covers a prerequisite that was *disabled* or *errored* as well
     as one that failed -- a check that never ran confirmed nothing about the row,
     so it must not unlock a dependent.
+
+    A `context` of `None` becomes an empty `RowContext`, so a check taking
+    `(row, context)` is handed the same type whichever entry point ran it.
     """
 
     if on_error not in ("record", "raise"):
@@ -77,6 +86,9 @@ def explain_row(
             "would be handed a Series instead of a value. Rename or drop the duplicate "
             "columns before validating."
         )
+
+    if context is None:
+        context = _EMPTY_CONTEXT
 
     state = resolve_enabled_state(row, overrides or [])
     passed: dict[str, bool] = {}
@@ -197,13 +209,9 @@ def validate(
             f"validate takes a DataFrame, got {type(df).__name__}; for one row, call "
             "validate_row or explain_row.")
 
-    # Built once, not per row: without a builder every row is handed this same
-    # empty context, since the base class carries no fields to fill in.
-    empty = RowContext()
-
     frame_outcomes = []
     for _, row in df.iterrows():
-        context = empty if context_builder is None else context_builder(row)
+        context = None if context_builder is None else context_builder(row)
         frame_outcomes.append(
             explain_row(row, context=context, overrides=overrides, on_error=on_error))
     return frame_outcomes
