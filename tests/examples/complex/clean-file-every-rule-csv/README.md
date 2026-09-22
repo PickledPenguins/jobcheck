@@ -6,5 +6,6 @@ difference is the data rather than the invocation.
 
 Level:    complex
 Input:    `examples/data/customers_clean.csv` under all four rule files
-Expected: a CSV report holding its header and nothing else, then counts that are
-          all passes and `Root causes: none - every row passed.`; exit 0
+Expected: `No failures.` where the CSV rows would go (no header row: the console
+          report is prose when empty in both formats), then counts that are all
+          passes and `Root causes: none - every row passed.`; exit 0
