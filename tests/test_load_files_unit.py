@@ -256,6 +256,43 @@ def test_clear_registry_evicts_the_module_it_registered(fresh_registry: None,
     assert name not in sys.modules
 
 
+def test_a_module_that_registered_by_plain_import_is_evicted_too(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """`load_checks` records the modules it imports itself, so the line in
+    `register_check` that records `fn.__module__` is what covers every other
+    route in: a check file importing a shared module of its own, which Python
+    would otherwise keep cached and which would register nothing on the next
+    load.
+
+    The cost of that decision, and why it is pinned rather than dropped: the
+    module a check registers from is evicted whatever it is, a test module
+    included, and after eviction ``sys.modules[name]`` is None. A dataclass
+    whose annotations have to be resolved -- ``ClassVar``, ``InitVar``, or
+    anything calling ``get_type_hints`` -- then raises ``AttributeError:
+    'NoneType' object has no attribute '__dict__'`` from ``dataclasses``, which
+    looks its module up there. Define such a class at module level, or before
+    the clear.
+    """
+
+    import importlib.util
+    import sys
+
+    path = tmp_path / "shared_checks.py"
+    path.write_text(FILE_WITH_ONE_TEST.format(code="IMPORTED"), encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("shared_checks_by_import", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["shared_checks_by_import"] = module
+    try:
+        spec.loader.exec_module(module)
+        assert [check.code for check in reg.CHECKS] == ["IMPORTED"]
+        reg.clear_registry()
+        assert "shared_checks_by_import" not in sys.modules
+    finally:
+        sys.modules.pop("shared_checks_by_import", None)
+
+
 def test_the_bytecode_setting_is_restored_to_its_exact_value(fresh_registry: None,
                                                              tmp_path: Path) -> None:
     """`is False`, not merely falsy: a mutant setting it to None passed a
