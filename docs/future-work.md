@@ -41,15 +41,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.10 — `register_check` records the registering module for `clear_registry` to evict.**
-`src/jobcheck/registry.py:167`. Every module that registers a check by plain import is
-popped from `sys.modules` on `clear_registry`, which is why a `@dataclass` defined inside
-a test function under `fresh_registry` fails (the test module itself is evicted). No test
-pins the behavior; a mutant that records `None` instead survives. Fix: either pin it with
-a test that imports a module by hand, registers, clears and asserts the eviction — which
-makes the trap a decision — or drop the line and evict only what `load_checks` imported,
-which removes the trap and is a behavior change for an adopter who relies on a re-import
-re-registering.
+
 
 **F.11 — The internal-test exemption case shows nothing.**
 `tests/examples/overrides/internal-test-accounts-exempted` is byte-identical to
@@ -87,6 +79,20 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**Dropping the registering module `clear_registry` evicts (was F.10).** Rejected
+2026-09-22; the behavior is pinned instead, by
+`test_a_module_that_registered_by_plain_import_is_evicted_too`, and the trap is written
+down in [architecture.md](architecture.md). `load_checks` records the modules it imports
+itself, so the line in `register_check` covers only the other routes in — a check file
+importing a shared module of its own, which Python would keep cached and which would
+register nothing on the next load, leaving a silently empty registry. That is the worse
+failure of the two: the trap it costs is loud. The trap's exact rule, which had been
+recorded as "a `@dataclass` under `fresh_registry` fails": after eviction
+`sys.modules[name]` is `None`, and a dataclass whose annotations must be resolved
+(`ClassVar`, `InitVar`, `get_type_hints`) raises `AttributeError: 'NoneType' object has
+no attribute '__dict__'` from `dataclasses`. A dataclass with none of those is fine,
+which is why it looked intermittent.
 
 **Refusing patterns that backtrack catastrophically (was F.9).** Rejected 2026-09-22;
 [configuration.md](configuration.md) states the cost and the non-goal instead, with the

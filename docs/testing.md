@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 620 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 621 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 235 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 855 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 856 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -204,7 +204,7 @@ assertions the suite does not make — the second sentence of the bare-string-pa
 message in both loaders and the tail of `validate`'s non-DataFrame error, pinned by
 substring rather than word for word; the separator between two unknown rule keys and
 the rule-name prefix on match-block errors, pinned only through the failure catalog's
-subprocess; the module bookkeeping `register_check` does for `clear_registry`; and the
+subprocess; and the
 order cache after a check file fails part-way, where no test validates a row afterward.
 The 82 in `report` and `registry_tables` are print wording. Each is listed with its
 fix in the review report of the same date.

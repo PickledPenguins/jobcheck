@@ -138,7 +138,13 @@ not effect, and `effective_state` says "depends on row" instead of picking an an
 after its first import, so clearing the list alone would make the next `load_checks` a
 silent no-op. Eviction is recorded at registration rather than at import, so a module
 pulled in by any route — a check file importing it directly, for instance — is still
-tracked.
+tracked. The price is that *whatever* module a check registers from is evicted, a test
+module included, and `sys.modules[name]` is then `None`: a dataclass whose annotations
+have to be resolved (`ClassVar`, `InitVar`, `get_type_hints`) raises `AttributeError:
+'NoneType' object has no attribute '__dict__'` from `dataclasses` afterwards. Define such
+a class at module level, or before the clear. Dropping the registration-time record would
+remove that, and reintroduce the silent empty registry for a shared module two check files
+import.
 
 **Checks read the row; there is no declared column.** These rules are row-scoped
 and many weigh several fields together, so a single "the" column was a fiction.
