@@ -128,8 +128,8 @@ def test_rules_with_no_paths_applies_no_overrides() -> None:
 def test_missing_override_file_exits_one() -> None:
     result = run_cli("examples/main.py", "--rules", "no_such_file.yaml")
     assert result.returncode == 1
-    assert "FileNotFoundError" in result.stderr
-    assert "no_such_file.yaml" in result.stderr
+    assert "No override file at 'no_such_file.yaml'" in result.stderr
+    assert "load_overrides() names files explicitly" in result.stderr
 
 
 # --- output routing and shape ----------------------------------------------

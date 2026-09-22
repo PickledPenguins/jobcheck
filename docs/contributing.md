@@ -16,6 +16,7 @@ Changing this project itself: where a change goes, and what enforces what.
 | The rule-file format and its parser | `src/jobcheck/rules.py` — it never reaches into the registry; the codes that exist are handed to it |
 | What a check may return, and the status vocabulary | `src/jobcheck/results.py` |
 | Table rendering and null handling | `src/jobcheck/tables.py` |
+| How a named path becomes a file, and what a missing one says | `src/jobcheck/paths.py` |
 | A demo of any of the above | `examples/`, never the package |
 | A dependency | `pyproject.toml` only — there is no requirements.txt to keep in step |
 

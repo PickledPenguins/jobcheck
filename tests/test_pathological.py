@@ -52,7 +52,7 @@ def test_a_list_of_nulls_is_rejected_as_a_non_mapping_rule(one_code: None, tmp_p
 
 
 def test_directory_passed_where_a_file_is_expected(one_code: None, tmp_path: Path) -> None:
-    with pytest.raises(IsADirectoryError):
+    with pytest.raises(ValueError, match="is a directory, so name the file in it"):
         reg.load_overrides([str(tmp_path)])
 
 

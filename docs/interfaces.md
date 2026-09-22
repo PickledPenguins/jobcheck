@@ -118,7 +118,9 @@ list of its characters. **Nothing is discovered**, which is what lets two entry
 points in one codebase run different sets of checks. A file already loaded, or listed twice,
 is skipped. `validate_registry` runs once the whole call has been imported, so a
 prerequisite may live in any of the files. Raises `ValueError` for a path that is
-not a file, and propagates whatever a file raises while importing. A file that
+not a file -- naming the absolute path it tried, since a relative one is resolved
+against the working directory -- and propagates whatever a file raises while
+importing. A file that
 raises part-way registers nothing — the checks its earlier lines had registered
 are dropped again, so the registry and `loaded_check_files()` agree and the
 corrected file loads on the next call; files loaded before it in the same call
@@ -158,8 +160,10 @@ silently doing nothing.
 `load_checks` does, and returns `list[OverrideRule]` in the order given — which is
 the precedence order, since the last matching rule wins. It raises `ValueError` at
 load time for every malformed rule, and for a rule name used twice anywhere in the
-call; a path that is not there raises `FileNotFoundError`, and a file that is not
-valid YAML raises `yaml.YAMLError`, both as the file layer reports them.
+call; a path that is not a file raises `ValueError` naming it, the way
+`load_checks` does, and a file that is not valid YAML raises `yaml.YAMLError`, as
+the file layer reports it. A relative path is resolved against the working
+directory, and the error prints the absolute path it tried.
 It is a thin wrapper over `jobcheck.rules`, which holds the format and its
 parser and is handed the codes that exist rather than reaching into the registry.
 Load the check files first: a rule naming an unregistered code is an error. See

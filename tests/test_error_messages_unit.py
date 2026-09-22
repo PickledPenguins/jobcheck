@@ -16,6 +16,7 @@ already compares them exactly, and the CLI's own messages in
 
 from __future__ import annotations
 
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -146,6 +147,30 @@ def test_a_missing_check_file_says_nothing_is_discovered(fresh_registry: None) -
     assert message_of(raised) == (
         "No check file at '/no/such/file.py'. load_checks() names files "
         "explicitly; nothing is discovered."
+    )
+
+
+def test_a_missing_override_file_says_it_the_same_way(fresh_registry: None) -> None:
+    """The two loaders are one mistake apart, so they are one message apart."""
+
+    with pytest.raises(ValueError) as raised:
+        load_overrides(["/no/such/rules.yaml"])
+    assert message_of(raised) == (
+        "No override file at '/no/such/rules.yaml'. load_overrides() names files "
+        "explicitly; nothing is discovered."
+    )
+
+
+def test_a_missing_relative_path_prints_where_it_looked(fresh_registry: None) -> None:
+    """A relative path that is not there is unreadable without the directory it
+    was joined to: the reader cannot see the process's working directory."""
+
+    with pytest.raises(ValueError) as raised:
+        reg.load_checks(["checks.py"])
+    assert message_of(raised) == (
+        f"No check file at 'checks.py': nothing at {Path.cwd() / 'checks.py'}, where "
+        "a relative path is resolved against the working directory. load_checks() "
+        "names files explicitly; nothing is discovered."
     )
 
 

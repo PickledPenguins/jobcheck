@@ -22,13 +22,15 @@ from jobcheck import engine
 from jobcheck import registry_tables
 from jobcheck import report as rep
 from jobcheck import results as res
-from jobcheck import rules, tables
+from jobcheck import paths, rules, tables
 
 pytestmark = pytest.mark.fast
 
 # rules is a module the package deliberately does not re-export wholesale: the
 # registry wraps its loaders, and its parser entry points are for that wrapper.
-INTERNAL_MODULES = [rules]
+# paths is below both loaders: what a caller sees of it is the message a bad
+# path raises, not a function to call.
+INTERNAL_MODULES = [paths, rules]
 # Every other module, found rather than listed: a hand-kept list missed engine
 # and registry_tables, so a public function added to either could go unexported
 # without this noticing.

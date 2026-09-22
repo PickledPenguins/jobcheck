@@ -71,18 +71,25 @@ def test_an_unreadable_rule_file_raises_permission_error(fresh_registry: None,
     assert str(path) in str(raised.value)
 
 
-def test_a_rule_path_that_is_a_directory_raises(fresh_registry: None, tmp_path: Path) -> None:
+def test_a_rule_path_that_is_a_directory_says_to_name_the_file(fresh_registry: None,
+                                                               tmp_path: Path) -> None:
+    """Pointing the list at the directory holding the rule files is the likely
+    mistake, so it is named rather than left to the file layer's errno."""
+
     make_check("A_CODE")
-    with pytest.raises(IsADirectoryError):
+    with pytest.raises(ValueError, match="is a directory, so name the file in it"):
         load_overrides([str(tmp_path)])
 
 
-def test_a_rule_symlink_pointing_nowhere_raises_file_not_found(fresh_registry: None,
-                                                               tmp_path: Path) -> None:
+def test_a_rule_symlink_pointing_nowhere_is_refused_as_a_missing_file(fresh_registry: None,
+                                                                      tmp_path: Path) -> None:
+    """The link resolves to a target that is not there, so it is the same
+    mistake as naming the target, and says so."""
+
     link = tmp_path / "rules.yaml"
     link.symlink_to(tmp_path / "gone.yaml")
     make_check("A_CODE")
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ValueError, match="No override file at"):
         load_overrides([str(link)])
 
 
@@ -103,7 +110,7 @@ def test_a_missing_file_in_a_list_names_that_file(fresh_registry: None, tmp_path
     make_check("A_CODE")
     good = tmp_path / "01.yaml"
     good.write_text(RULE)
-    with pytest.raises(FileNotFoundError) as raised:
+    with pytest.raises(ValueError) as raised:
         load_overrides([str(good), str(tmp_path / "02.yaml")])
     assert "02.yaml" in str(raised.value)
 
