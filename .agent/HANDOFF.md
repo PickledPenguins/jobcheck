@@ -1,23 +1,28 @@
 # Handoff
 
-Written 2026-09-15. Branch `simplify`, commit `b648bcf`, 41 commits ahead of `main`, tree
-clean apart from this file. Start at `README.md` and the documents its index links; `.claude/CLAUDE.md` holds the
-project's history, which is stranger than most. This session was a review session: four
-`creview` passes (package, tests twice, catalog), one `creadme` audit, one `caddressreview`
-run. Two commits, no new features.
+Written 2026-09-21. Branch `simplify`, commit `3500999`, 42 commits ahead of `main`, tree
+clean. Start at `README.md` and the documents its index links; `.claude/CLAUDE.md` holds the
+project's history, which is stranger than most. This session was a gate-and-ledger session:
+one `creview` (of the uncommitted handoff), one `ctesting` audit with every gate run and
+mutation re-measured, one `creadme` audit, one `caddressreview` that worked all six reports
+to an outcome. One commit, no new features.
 
 ## State
 
-Measured with the conda `pytesting` environment (`~/.conda/envs/pytesting/bin/python`,
-Python 3.12.14, pandas 3.0.5, pytest 9.1.1, mypy 2.3.1, hypothesis 6.167.1).
+Measured 2026-09-21 against `b648bcf` (and the fast and long suites again against the
+working tree that became `3500999`) with the conda `pytesting` environment
+(`~/.conda/envs/pytesting/bin/python`, Python 3.12.14, pandas 3.0.5, pytest 9.1.1,
+mypy 2.3.1, hypothesis 6.167.1, mutmut 3.5.0), one gate at a time.
 
 | Gate | Result | Observed |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 610 passed, 18s, then mypy clean (57 files) | 2026-09-15 against `b648bcf` |
-| `./tests/run-tests.sh long` | 235 passed, 289s, 56 pandas `RuntimeWarning`s from `test_fuzz.py` datetime casts (benign) | 2026-09-15 against `b648bcf` |
-| `cov`, `perf`, `memory` | **not run this session**; the 2026-09-12 handoff recorded 100% / passing at `966c9ff` | unverified since |
-| Mutation | **not run**; `docs/testing.md` records 89.5% at `9fe2207`, now seven source commits back | stale, labeled as such in the doc |
-| pyflakes | clean on `tests/`, `examples/`, `scripts/`; one hit in `src/jobcheck/registry.py:24`, a deliberate re-export of `MatchCriterion` | 2026-09-15 |
+| `./tests/run-tests.sh fast` | 612 passed, 17.8s, mypy clean (57 files) | 2026-09-21, tree of `3500999` (610 at `b648bcf`) |
+| `./tests/run-tests.sh cov` | 100% lines and branches: 880 statements, 296 branches, 0 missed; floor 95 | 2026-09-21 at `b648bcf` |
+| `./tests/run-tests.sh long` | 235 passed, 299s, 56 pandas `RuntimeWarning`s from `test_fuzz.py` (benign); profile printed | 2026-09-21, tree of `3500999` (294s at `b648bcf`) |
+| `./tests/run-tests.sh perf` | 6 passed, 91s, against `.build/perf-baseline.json` | 2026-09-21 at `b648bcf` |
+| `./tests/run-tests.sh memory` | 3 passed, 80s | 2026-09-21 at `b648bcf` |
+| Mutation | 1,304 mutants, 1,175 killed, 129 survived, 0 timeouts — 90.1%, 208s at 6.0/s | 2026-09-21 at `b648bcf`; the new assertions in `3500999` kill at least four more (each checked with `breaks-it`), not re-run |
+| pyflakes | clean on the three test files touched | 2026-09-21 at `3500999` |
 
 ```sh
 PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh fast    # the commit gate
@@ -25,174 +30,171 @@ PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh long    # + the p
 PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh cov
 PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh perf
 PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh memory
-~/.conda/envs/pytesting/bin/python -c "import pandas, sys; sys.argv=['mutmut','run']; \
-    from mutmut.__main__ import cli; cli()"                      # mutation, see the traps
+rm -rf mutants .mutmut-cache && ~/.conda/envs/pytesting/bin/python -c \
+    "import pandas, sys; sys.argv=['mutmut','run']; from mutmut.__main__ import cli; cli()"
 ```
 
 Run anything past the fast suite through `~/work/ai/skills/bin/bgrun` and wait on the
 process: `id=$(bgrun start -l long -- env PYTHON=... ./tests/run-tests.sh long); bgrun wait "$id" -t 900`.
-Its log is at `/tmp/bgrun-1000/<id>/log`.
+Its log is at `/tmp/bgrun-1000/<id>/log`. Never two timing suites at once: this session ran
+long, then mutation, then perf, then memory, in sequence.
 
 ## What this session changed
 
-- **`ac773d9` Make the docs say what the code does, and run their blocks to keep it so.**
-  Three documents described the pre-rename design: bare bool/`Status` returns "converted"
-  (`normalize_result` refuses both), statuses "extensible from 10" (fixed at five), groups,
-  suites inferred from module paths, a "one module" engine. `writing-checks.md` showed
-  `@group(...)`, which raises `NameError`. Every `docs/*.md` Python block now executes
-  inside a seeded world (`tests/test_docs_unit.py::documented_world`: demo frame, outcomes,
-  rules, the illustrative check paths written as copies of shipped checks); a second test
-  pins that a bare bool return raises and no document says otherwise.
-- **`b648bcf` A failed check file registers nothing, and the tests that could not fail
-  now can.** Package: `load_checks` drops a failing file's own registrations (per file,
-  not per call — `test_faults.py::test_the_good_files_of_a_failed_call_still_registered`
-  pins that earlier files stay); `validate` refuses a bad `on_error` before the loop and a
-  non-DataFrame with a pointer to the per-row calls. Suite: the rule fuzzer had generated
-  a `description` key and accepted zero rules in 300 cases — it now draws each key valid
-  four times in five and asserts on rules accepted (36 with the seed); the export guard
-  walks the package instead of a hand list that missed `engine` and `registry_tables`;
-  two ordering tests, one memory test and one misnamed test that could not fail now can;
-  `test_pathological.py` had six double-encoded UTF-8 strings; the catalog symlink is per
-  clone as well as per user; two catalog cases pointed at rows their rules did not touch;
-  one byte-identical case dropped, three added (misspelled key, missing message,
-  column-not-in-data warning). 25 unused imports removed.
+- **`3500999` Pin four messages word for word, and the checks that survive a failed
+  load.** Suite: `test_error_messages_unit.py` gains the bare-string-path message of both
+  loaders and `validate`'s non-DataFrame error in full; `test_overrides_unit.py` asserts two
+  unknown keys as a sorted comma list and every match-block rejection opening with
+  `rule 'r' in <path>: `; `test_faults.py`'s partial-load test calls `explain_row` afterward
+  so a stale order cache on the failure path would show as zero checks run. Each new
+  assertion was checked with `breaks-it` against the mutant it was written for. Docs:
+  `testing.md` carries the 2026-09-21 mutation figures, per-module survivors, the
+  classification of the 47 non-print survivors, the measured gate timings and the suite
+  sizes 612/847; `future-work.md` gains F.4 through F.16. The 2026-09-15 handoff, which had
+  never been committed, went in with three wording fixes.
 
 ## In flight — where the session stopped
 
-Nothing mid-edit. The session ended with `caddressreview` having applied every silent fix
-and the owner deciding to **leave all eleven held findings open in the reports**. The next
-concrete step is that decision: read the four reports in `.agent/reviews/` and approve or
-decline each held item. Nothing is tentative in the code.
+Nothing mid-edit. `.agent/reviews/` is empty: every finding in all six reports has an
+outcome (fixed at `b648bcf`, fixed at `3500999`, rejected, or recorded in `future-work.md`
+by the owner's decision). The next concrete step is whichever of F.4–F.16 the owner picks;
+each entry says where to start.
 
 ## Not addressed — the real to-do list
 
-The eleven held findings, all still in `.agent/reviews/` with their evidence. The owner has
-seen the list and chose to hold, not decline, so they are open rather than rejected:
-
-- **`print_report(fmt="csv")` on an empty report prints `No failures.`, not a CSV header.**
-  `report.py:219`. Two catalog READMEs (`data/clean-file-as-csv`,
-  `complex/clean-file-every-rule-csv`) promise the header and their recorded output shows
-  the prose. Decide which is right; the catalog cases are the test either way.
-- **Rule patterns never match an integer column in an all-numeric frame.** `rules.py:213`.
-  `iterrows` upcasts to float, `cell_text` sees `102.0`, `^102$` fails silently. Fix shape:
-  render whole floats without `.0` in `cell_text` (share `report._format_cell` via
-  `tables.py`), document in `configuration.md`, and add the regression test through
-  `validate` on a numeric frame — `test_non_string_values_are_matched_as_text` builds its
-  Series by hand, which is why this escaped.
-- **`validate` hands checks `RowContext()`; `validate_row`/`explain_row` hand `None`.**
-  `engine.py:113`. `test_ctx_defaults_to_none` (`test_validate_row_unit.py:101`) and
-  `test_context_unit.py:48` pin both sides. Fix: substitute in `explain_row`, flip the one
-  test, note in `interfaces.md`.
-- **The internal-test exemption case shows nothing.** `qa@internal.test` passes both email
-  checks on its own, so `overrides/internal-test-accounts-exempted` is byte-identical to
-  `data/validate-a-csv-file`. Fix is in `scripts/make_example_data.py` (give one internal
-  row a domain the check rejects), then regenerate the data, the catalog and the golden
-  files and read the diff — roughly twenty expected outputs move.
-- Lows: newline inside an unwrapped cell breaks the table (`tables.py:47`); the deep-chain
-  error's `deepest declared depends_on: N` is width, not depth (`registry.py:352`, one
-  exact-text test); `test_scaling.py:67` uses single measurements where `fastest()` exists
-  (+1–2 min long suite); 55 test names still say `test` for check; example READMEs are
-  split on stating `exit 0`; seven large-export catalog cases (1.1 MB of 1.6); and
-  `scripts/new_catalog_case.py` dedupes commands but not outputs.
-- **Mutation has not run since `9fe2207`.** Seven source commits later. The first test
-  review found the fast gate blind to `root_cause_counts` ordering — that would have been
-  a survivor nobody classified. Read the survivors in `report.py` and `engine.py` as logic,
-  not wording.
-- **`rules.py` matching has no timeout** (carried from the last handoff).
-  `test_safety.py` now says plainly that its regex test pins survivability of a 23-char
-  value, not safety.
-- **jobchain's suite still fails against this branch** (carried; unchanged): five of its
-  override-rule fixtures lack `message:`.
+- **`docs/future-work.md` F.4–F.16** are the thirteen items the owner chose on 2026-09-21
+  to record rather than build: csv header on an empty report (F.4), the float-upcast id
+  match (F.5, reproduced: any float column makes `iterrows` render an int id as `101.0`;
+  an all-int frame is fine), `RowContext()` vs `None` (F.6, reproduced), newline in an
+  unwrapped cell (F.7), deep-chain width vs depth (F.8), the regex bound (F.9, two shapes
+  given), `clear_registry` eviction of plain-import modules (F.10, root of the dataclass
+  trap), the internal-test catalog case (F.11), exit codes in 33 READMEs (F.12),
+  large-export size (F.13), output dedupe in `new_catalog_case.py` (F.14), single-measure
+  ratios in `test_scaling.py` (F.15), 55 `test`-vocabulary names (F.16). Each has the fix
+  written beside it; F.5 and F.6 are the two a user can hit.
+- **Mutation survivors still worth a look: the 82 in `report` and `registry_tables`.**
+  Classified by function name this session (print wording, catalog-pinned), not read one
+  by one. Of the 17 real gaps among the 47 read, `3500999` closes four; the rest are F.10
+  and message wording.
+- **jobchain's suite still fails against this branch** — not checked this session;
+  recorded 2026-09-12 at `966c9ff`: `~/work/ai/jobchain` (branch `simplify-port`) reads
+  this `src` live and five of its override-rule fixtures lack `message:`. One line each;
+  grep for `action: disable` and `action: enable`.
 - **`test_docs_unit.py` is 473 lines carrying six concerns** — the next split candidate.
+  Unchanged this session.
+- **No gate on the mutation score.** `docs/testing.md`'s section is the only record and no
+  test covers it, so it drifts again after the next source change. A floor in the runner
+  would be a release gate (208s), not a commit one. Raised by the ctesting audit; not
+  decided.
 
 Settled by standing preference, not open: work stays on `simplify` and is not merged;
 breaking the CLI or the Python API is acceptable, no shims; no CI; no changelog; the
-license is the owner's; **American English everywhere, identifiers included**.
+license is the owner's; **American English everywhere, identifiers included**; held
+review findings go to `future-work.md`, not into code, until the owner names one.
 
 ## Considered and deliberately not done
 
-- **Whole-call rollback in `load_checks`** (snapshot before the loop, restore on any
-  failure). Proposed by the package review, rejected on the sniff test because
-  `test_the_good_files_of_a_failed_call_still_registered` pins that files loaded before a broken one stay loaded — "loading is
-  not transactional, and the loaded files say so". The fix landed per file instead.
-- **Adding `pyflakes tests` to the fast gate.** Not done; the imports were cleaned once.
-  Reopen if they come back.
-- **`docs/*.md` blocks as a cumulative session like the README's.** Rejected: the blocks
-  are independent fragments (two load `check_age.py`), so each runs standalone in a fresh
-  registry inside the seeded world.
-- The earlier handoff's closed items still hold: no narrowing of the registry table by
-  breaking words or counting rules, no docstring rationale moved to `architecture.md`, no
-  `explain_row` split, no shared path-guard helper, no shared empty-table print.
+- **A fifth whole-tree `creview` at `b648bcf`.** Not run: four reports at that commit were
+  still open with eleven held findings, so the review scoped itself to the one dirty file
+  (the handoff) and said so. Reopen after F.4–F.16 move the code.
+- **Silently fixing F.7 (newline cell) and F.5 (float id).** Both have one obvious fix
+  shape and a wrong output, which is the silent column — but the owner had held them on
+  2026-09-15 and on 2026-09-21 chose future-work for everything non-silent. Not a
+  rejection of the fixes; a rejection of building them unasked.
+- **Deleting the 2026-09-10/09-11 mutation history from `docs/testing.md`.** Reworded to
+  read as history and kept; `creadme` does not own records and removing them is the
+  owner's call.
+- Carried from 2026-09-15 and 2026-09-12, still closed: whole-call rollback in
+  `load_checks` (per-file landed instead; `test_the_good_files_of_a_failed_call_still_registered`
+  pins it); `pyflakes tests` in the fast gate; `docs/*.md` blocks as one cumulative
+  session; narrowing the registry table by breaking words or counting rules; docstring
+  rationale moved to `architecture.md`; an `explain_row` split; a shared path-guard
+  helper; a shared empty-table print. `future-work.md` "Considered and deliberately not
+  done" holds the evidence for each.
 
 ## Decisions worth knowing before changing things
 
-- **A failed check file loads nothing; earlier files in the same call stay.** Both halves
-  are tested (`test_load_files_unit.py::test_a_file_that_raises_after_registering_leaves_none_of_its_checks_behind`,
-  `test_faults.py::test_the_good_files_of_a_failed_call_still_registered`).
-- **The suite was right and the docs were wrong about bare returns.** `test_results_unit.py`
-  had always pinned that `True` and `Status.MISSING` raise; three documents said otherwise.
-  When a document and a test disagree here, check the test first.
-- **`documented_world` lays down the files the docs name.** `my_checks/check_age.py` and
-  `runs/2026-09-10/inputs/checks.py` do not exist in the repository; the test writes copies
-  of shipped checks at those paths in a tmp cwd so the blocks run rather than being
-  excused. Add a new illustrative path to `ILLUSTRATIVE_CHECK_FILES` when a doc uses one.
-- **Catalog stable root is `prv-catalog-root-<uid>-<8-hex sha1 of the clone path>`.**
-  Fixed length still; `test_cases_run_through_a_root_of_a_fixed_length` asserts 17+8+1+8.
-- **The rule fuzzer's `VALID`/`INVALID` tables are the schema, restated.** A new rule key
-  must be added to both or every generated rule fails on it and the accepted-rules floor
-  (20) trips — which is the point.
+- **A failed check file loads nothing; earlier files in the same call stay, and they
+  run.** Pinned by `test_a_file_that_raises_after_registering_leaves_none_of_its_checks_behind`
+  and `test_the_good_files_of_a_failed_call_still_registered` (which since `3500999` also
+  validates a row afterward).
+- **Library error messages are pinned word for word in `tests/test_error_messages_unit.py`.**
+  A new message goes there in full, not as a substring elsewhere — the three from
+  `b648bcf` were the substring kind and survived nine mutants until this session.
+- **`_get_topo_order` tests `is None`** (`registry.py:384`), so every path that
+  invalidates the cache must set `None`, not a falsy value. The failed-load path is now
+  the one that is pinned.
+- **The suite was right and the docs were wrong about bare returns** (2026-09-15). When a
+  document and a test disagree, check the test first.
+- **`documented_world` lays down the files the docs name** (2026-09-15). Add a new
+  illustrative path to `ILLUSTRATIVE_CHECK_FILES` when a doc uses one.
+- **Catalog stable root is `prv-catalog-root-<uid>-<8-hex sha1 of the clone path>`**
+  (2026-09-15); `test_cases_run_through_a_root_of_a_fixed_length` asserts 17+8+1+8.
+- **The rule fuzzer's `VALID`/`INVALID` tables are the schema, restated** (2026-09-15). A
+  new rule key must be added to both.
 
 ## Measurements, so they are not re-derived
 
-- **Fuzzer, seed 20260902, 300 files**: before the fix 0 rules accepted (138 files rejected
-  for the `description` key); after, 36 rules accepted, 186 files rejected across nine
-  distinct messages including the regex branch.
-- **`test_row_by_row_memory_does_not_grow_with_the_frame`**, frames built outside the trace:
-  clean engine peaks 0.2 MB (2,000 rows) and 0.6 MB (8,000); an engine leaking every
-  outcome peaks 5.0 MB and 19.8 MB. Bound is `large - small < 2 MB`.
-- **`test_interface_cli.py`**: nine identical default subprocess runs at ~0.6s each
-  replaced by one module fixture; fast suite 21s → 18s.
-- **Catalog**: 61 cases (42 examples: 17 simple, 15 moderate, 10 complex; 19 failures),
-  1.6 MB, 1.1 MB of it the seven `large-export` cases.
-- Suite runtimes this session: fast 18s, long 289s. `cov`, `perf`, `memory` not measured.
+- **Mutation survivors at `b648bcf`, 129**: `report` 52, `registry_tables` 30, `engine` 20,
+  `registry` 15, `rules` 10, `tables` 2. Of the 47 outside the print modules, read as
+  diffs: 7 default-argument (unkillable through the trampoline), 9 unreachable, 14
+  equivalent, 17 real assertion gaps — four of which `3500999` closes (messages ×9
+  mutants, unknown-keys join, match-block rule name, failed-load cache); the rest are
+  F.10 and print wording.
+- **Float upcast** (F.5): on pandas 3.0.5, `pd.DataFrame({"id":[101,102],"age":[1,2]})`
+  keeps `id` as `101` through `iterrows`; adding one float or one blank to `age` makes it
+  `101.0` and `^102$` stops matching.
+- **Context types** (F.6): the same check sees `RowContext` from `validate` and `NoneType`
+  from `validate_row` and `explain_row`.
+- Gate runtimes 2026-09-21: fast 17.8s, cov 23s, long 294–299s, perf 91s, memory 80s,
+  mutation 208s.
+- Carried from 2026-09-15 at `b648bcf`: fuzzer seed 20260902, 300 files, 36 rules
+  accepted, 186 files rejected across nine messages; memory test clean engine 0.2 MB
+  (2,000 rows) / 0.6 MB (8,000), leaking engine 5.0 / 19.8 MB, bound `large - small < 2 MB`;
+  catalog 61 cases (42 examples: 17 simple, 15 moderate, 10 complex; 19 failures), 1.6 MB,
+  1.1 MB in the seven `large-export` cases.
+- Carried from 2026-09-12 at `966c9ff`: perf baseline on a 4,000-row frame, `validate`
+  6.250s, `validate_row` 6.174s, `build_report` 0.048s, `render_report` 0.048s,
+  `summarize_outcomes` 0.020s, `validate` with 50 rules over 1,000 rows 0.403s. The
+  baseline file still holds a stale `summarise_outcomes/4000` key beside the current one
+  (seen 2026-09-21); harmless, gitignored.
 
 ## Environment and housekeeping
 
 - **Use `PYTHON=~/.conda/envs/pytesting/bin/python`** for anything but the fast suite. The
   default `python3` is anaconda 3.14.6 without hypothesis or mutmut; the pre-commit hook
-  runs the fast suite under it (one test skips there).
+  runs the fast suite under it (one test skips there — observed 2026-09-21 at the
+  `3500999` commit).
 - **Never install anything without asking.**
-- Generated and gitignored: everything under `.build/`, plus `.agent/reviews/` and
-  `mutants/`.
-- **`.agent/reviews/` holds four reports**, all with open held findings; `caddressreview`
-  keeps a report until every finding in it has an outcome. Newest first:
-  `2026-09-15T10-57-59` (catalog), `10-38-42` (tests pass 2), `02-44-26` (tests pass 1),
-  `00-46-18` (package). Eleven held items across the four, some cited in two reports;
-  the silent fixes in each are already applied at `b648bcf`.
-- A sibling clone `~/work/ai/jobcheck-main/` exists; the catalog symlink change is what
-  makes running both suites at once safe for the catalog (timing gates still are not).
+- Generated and gitignored: everything under `.build/`, plus `.agent/reviews/` (empty
+  now) and `mutants/` (removed after this session's run).
+- A sibling clone `~/work/ai/jobcheck-main/` exists; the catalog symlink is per clone,
+  so both suites can run at once for the catalog (timing gates still cannot).
+- Tools used this session from `~/work/ai/skills/bin/`: `bgrun` for every long run,
+  `subst` for every doc and test edit, `breaks-it` to confirm each new assertion fails on
+  its mutant.
 
 ## Things that will bite
 
-Every trap from the 2026-09-12 handoff still applies: a `@dataclass` defined inside a test
-function under `fresh_registry` (the docs-block test registers a throwaway module in
-`sys.modules` for exactly this reason); `mutmut` needs pandas imported first; a targeted
-`mutmut run <name>` discards every other result; a stale `mutants/` lies; the exclusions in
-`pyproject.toml` are load-bearing; `long` refuses to run without hypothesis; regenerating
-is not fixing — read the diff; do not run two timing suites at once; long commands die at
-the foreground timeout — use `bgrun`. Added this session:
+Every trap from the 2026-09-15 and 2026-09-12 handoffs still applies: a `@dataclass`
+defined inside a test function under `fresh_registry` fails because `clear_registry`
+evicts the test module (now F.10); `mutmut` needs pandas imported first; a targeted
+`mutmut run <name>` discards every other result; a stale `mutants/` lies; the exclusions
+in `pyproject.toml` are load-bearing; `long` refuses to run without hypothesis;
+regenerating is not fixing — read the diff; do not run two timing suites at once; long
+commands die at the foreground timeout — use `bgrun`;
+`scripts/new_catalog_case.py` runs the case immediately and refuses an existing
+directory; `test_the_documented_suite_sizes_are_the_real_ones` fails on any test count
+change (edit the fast and all rows in `docs/testing.md`); sniff-test findings against the
+file, not remembered output; `pytest -p no:cacheprovider` prints a harmless
+`Unknown config option: cache_dir` warning; 33 catalog READMEs state no exit code (F.12).
+Added this session:
 
-- **`scripts/new_catalog_case.py` runs the case immediately.** Write the fixture
-  `rules.yaml` *before* creating a case that names it, or the recorded output is a
-  `FileNotFoundError` and the exit code is wrong; `regen_catalog.py <substring>` repairs it.
-  Also refuses an existing directory, so do not `mkdir` the case first.
-- **`test_the_documented_suite_sizes_are_the_real_ones` fails on any test count change.**
-  Every test added or removed means editing the two rows in `docs/testing.md` (fast, long,
-  all). It is doing its job; it is also the first thing to break after any suite edit.
-- **Sniff-test findings against the file, not against remembered output.** One finding
-  this session (`test_context_unit.py:68` "asserts the registry is empty") came from
-  reading two concatenated command outputs as one; the test was fine.
-- **`pytest -p no:cacheprovider` prints an `Unknown config option: cache_dir` warning** —
-  harmless, but noisy in `tail -1` checks. Leave the cache plugin on.
-- **`grep -o "exit [0-9]"` on catalog READMEs** matched nothing for 33 examples: they do
-  not state an exit code. That is the open low, not a broken test.
+- **`test_no_document_names_a_public_function_that_is_gone` rejects any backticked
+  `name()` in `docs/` that is not a package, pandas or builtin name** — a test helper
+  such as `fastest()` fails it. Write `fastest` helper, without the parentheses.
+- **`mutmut results` output is 1,304 lines; `mutmut show <name>` is one process each.**
+  Filter `results` to `survived`, strip `__mutmut_N` and `uniq -c` to get survivors by
+  function before opening any; showing the 47 logic-module diffs took a few minutes.
+- **The pytest tally in `bgrun wait` output can be lost by `tail -N`** on the long suite:
+  the profile prints after pytest's summary line. Grep the log for `passed` instead.
