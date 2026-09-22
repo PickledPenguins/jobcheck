@@ -67,6 +67,7 @@ the package by accident from the working directory. The demos add `src/` to
 | `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `CheckResult`, `CheckOutcome`. |
 | `src/jobcheck/rules.py` | The override rule file format and its parser. Knows nothing about the registry. |
 | `src/jobcheck/tables.py` | Table rendering and null handling, shared by every view. |
+| `src/jobcheck/paths.py` | The path a caller named, turned into a file on disk, and the error when it is not one. Used by both loaders. |
 | `src/jobcheck/context.py` | The per-row metadata type — the one adopter-supplied hook. |
 | `src/jobcheck/__init__.py` | Re-exports the public surface. Registers no checks, and ships none. |
 | `examples/checks/` | The example checks. Outside the package on purpose: nothing of ours should register in an adopter's registry. |

@@ -17,6 +17,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from .context import RowContext
+from .paths import resolve_input_file
 from . import rules
 # MatchCriterion and OverrideRule are re-exported from here for
 # __init__.py, which imports the public rule types from the registry
@@ -251,13 +252,7 @@ def load_checks(paths: list[str]) -> None:
         )
     resolved: list[str] = []
     for path in list(paths):
-        candidate = Path(path).resolve()
-        if not candidate.is_file():
-            raise ValueError(
-                f"No check file at {path!r}. load_checks() names files explicitly; "
-                "nothing is discovered."
-            )
-        name = str(candidate)
+        name = str(resolve_input_file(path, "check file", "load_checks()"))
         if name not in _LOADED_FILES and name not in resolved:
             resolved.append(name)
 

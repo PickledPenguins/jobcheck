@@ -107,5 +107,5 @@ argparse's.
 | Code | Meaning |
 |---|---|
 | 0 | Ran to completion. Rows failing validation still exit 0 — failures are data, printed per row, not a process error. |
-| 1 | An uncaught exception, with traceback. In practice a load-time `ValueError` (bad rule file, dependency problem) or `FileNotFoundError` for a missing override path. |
+| 1 | An uncaught exception, with traceback. In practice a load-time `ValueError`: a bad rule file, a dependency problem, or a check or override path that is not a file. |
 | 2 | argparse rejected the command line (unknown flag, missing value); `--explain` named a row outside the frame; or `--data` named a path that is missing, a directory, empty, unreadable or not CSV. |

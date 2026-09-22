@@ -14,6 +14,7 @@ from typing import Any
 import pandas as pd
 import yaml
 
+from .paths import resolve_input_file
 from .tables import _format_cell, is_null
 
 
@@ -160,9 +161,15 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRul
 
 
 def parse_file(path: str, known_codes: set[str]) -> list[OverrideRule]:
-    """Parse one YAML file into rules. The file is a flat top-level list."""
+    """Parse one YAML file into rules. The file is a flat top-level list.
 
-    with open(path, "r", encoding="utf-8") as handle:
+    The rules record the path as the caller wrote it, relative or not: it is
+    printed beside a rule wherever the rules are listed, and an absolute path
+    there would be this machine's, not the one the caller would recognize.
+    """
+
+    with open(resolve_input_file(path, "override file", "load_overrides()"),
+              "r", encoding="utf-8") as handle:
         raw = yaml.safe_load(handle)
     if raw is None:
         return []

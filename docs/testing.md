@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 621 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 630 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 236 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 857 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 866 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -76,6 +76,7 @@ Fast:
 | `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
 | `tests/test_tables_unit.py` | `format_table` rendering, wrapping and empty frames; every column of the three registry tables. |
 | `tests/test_context_unit.py` | `RowContext` as the base type an adopter subclasses. |
+| `tests/test_paths_unit.py` | The step both loaders take before they open anything: an existing file resolved, a symlink followed, and each way a path that is not a file is refused -- relative, absolute and a directory -- word for word. |
 | `tests/test_smoke.py` | The entry point starts, exits 0, and produces its main output. |
 | `tests/test_interface_cli.py` | The CLI contract as a user meets it, in subprocesses: defaults, exit codes 0/1/2, stdout vs stderr routing, and the data-file flag. |
 | `tests/test_pathological.py` | Malformed YAML, unicode, 1000 rules, empty and wide rows, duplicate column labels, a 200-deep dependency chain, a check that raises. |

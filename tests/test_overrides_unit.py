@@ -99,8 +99,9 @@ def test_empty_file_contributes_no_rules(one_code: None, tmp_path: Path) -> None
     assert reg.load_overrides([write(tmp_path, "empty.yaml", "")]) == []
 
 
-def test_missing_file_raises_file_not_found(one_code: None, tmp_path: Path) -> None:
-    with pytest.raises(FileNotFoundError):
+def test_missing_file_is_refused_the_way_a_missing_check_file_is(one_code: None,
+                                                                 tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="No override file at"):
         reg.load_overrides([str(tmp_path / "absent.yaml")])
 
 
