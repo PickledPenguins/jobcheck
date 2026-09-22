@@ -83,7 +83,7 @@ def make_check(
         default_enabled=default_enabled,
         depends_on=depends_on,
     )
-    def _test(row: "pd.Series[Any]") -> res.CheckResult:
+    def _check(row: "pd.Series[Any]") -> res.CheckResult:
         if calls is not None:
             calls.append(code)
         if raises is not None:

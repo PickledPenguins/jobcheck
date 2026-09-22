@@ -106,7 +106,7 @@ def test_a_later_block_only_uses_names_an_earlier_one_defined(fresh_registry: No
     assert len(namespace["outcomes"]) == len(namespace["df"])
 
 
-def test_the_writing_a_test_block_registers_a_working_test(fresh_registry: None) -> None:
+def test_the_writing_a_check_block_registers_a_working_check(fresh_registry: None) -> None:
     """The template block is checked on its own: it produces a check that runs, not
     just one that imports."""
 
@@ -127,7 +127,7 @@ def test_the_writing_a_test_block_registers_a_working_test(fresh_registry: None)
     assert "AGE_ABOVE_LIMIT" in [outcome.code for outcome in engine.validate_row(row)]
 
 
-def test_the_example_code_does_not_collide_with_the_shipped_tests(
+def test_the_example_code_does_not_collide_with_the_shipped_checks(
     fresh_registry: None,
 ) -> None:
     """A README example that duplicated a shipped code would fail on import for

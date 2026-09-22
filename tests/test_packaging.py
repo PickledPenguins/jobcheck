@@ -99,7 +99,7 @@ def adopter_package(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_an_adopter_gets_only_their_own_tests(tmp_path: Path) -> None:
+def test_an_adopter_gets_only_their_own_checks(tmp_path: Path) -> None:
     """Regression: a consumer's registry picked up ROW_ALL_NULL, our example."""
 
     home = adopter_package(tmp_path)

@@ -82,7 +82,7 @@ def test_validating_twice_the_rows_costs_about_twice_as_much(example_checks: Non
     assert ratio < 8, f"4x the rows cost {ratio:.1f}x the time"
 
 
-def test_twice_the_tests_costs_about_twice_as_much(fresh_registry: None) -> None:
+def test_twice_the_checks_costs_about_twice_as_much(fresh_registry: None) -> None:
     df = frame(500)
     for index in range(50):
         make_check(f"CODE_{index}")

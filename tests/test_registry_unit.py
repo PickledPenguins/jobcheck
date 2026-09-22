@@ -16,19 +16,19 @@ from jobcheck.results import CheckResult, PASS, Status
 pytestmark = pytest.mark.fast
 
 
-def test_register_test_captures_code_and_message(fresh_registry: None) -> None:
+def test_register_check_captures_code_and_message(fresh_registry: None) -> None:
     make_check("A_CODE")
     check = reg.CHECKS[0]
     assert (check.code, check.message) == ("A_CODE", "A_CODE failed")
 
 
-def test_register_test_defaults_are_enabled_with_no_dependencies(fresh_registry: None) -> None:
+def test_register_check_defaults_are_enabled_with_no_dependencies(fresh_registry: None) -> None:
     make_check("A_CODE")
     check = reg.CHECKS[0]
     assert (check.default_enabled, check.depends_on) == (True, [])
 
 
-def test_register_test_returns_the_undecorated_function(fresh_registry: None) -> None:
+def test_register_check_returns_the_undecorated_function(fresh_registry: None) -> None:
     @reg.register_check(code="RETURNED", message="m")
     def check(row: "pd.Series[Any]") -> CheckResult:
         return CheckResult(Status.INVALID)
@@ -36,7 +36,7 @@ def test_register_test_returns_the_undecorated_function(fresh_registry: None) ->
     assert bool(check(pd.Series(dtype=object))) is False
 
 
-def test_register_test_copies_depends_on_so_caller_list_cannot_mutate_it(fresh_registry: None) -> None:
+def test_register_check_copies_depends_on_so_caller_list_cannot_mutate_it(fresh_registry: None) -> None:
     codes = ["FIRST"]
     make_check("FIRST")
     make_check("SECOND", depends_on=codes)
@@ -200,7 +200,7 @@ def test_topological_order_puts_a_diamond_in_dependency_order(fresh_registry: No
     assert order.index("D_RIGHT") < order.index("D_TOP")
 
 
-def test_registering_a_test_invalidates_the_cached_order(fresh_registry: None) -> None:
+def test_registering_a_check_invalidates_the_cached_order(fresh_registry: None) -> None:
     make_check("FIRST")
     assert len(reg._get_topo_order()) == 1
     make_check("SECOND")

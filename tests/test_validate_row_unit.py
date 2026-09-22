@@ -73,7 +73,7 @@ def test_several_failures_are_all_reported(fresh_registry: None) -> None:
 # --- what a check receives and may return ------------------------------------
 
 
-def test_a_one_argument_test_receives_the_row(fresh_registry: None) -> None:
+def test_a_one_argument_check_receives_the_row(fresh_registry: None) -> None:
     seen: list[Any] = []
 
     @reg.register_check(code="ONE_ARG", message="m")
@@ -85,7 +85,7 @@ def test_a_one_argument_test_receives_the_row(fresh_registry: None) -> None:
     assert seen[0]["email"] == "a@b.com"
 
 
-def test_a_two_argument_test_receives_the_context(fresh_registry: None) -> None:
+def test_a_two_argument_check_receives_the_context(fresh_registry: None) -> None:
     seen: list[Any] = []
 
     @reg.register_check(code="TWO_ARG", message="m")
@@ -129,7 +129,7 @@ def test_a_signature_the_engine_cannot_call_is_rejected_at_registration(
         reg.register_check(code="BAD_SIGNATURE", message="m")(namespace["check"])
 
 
-def test_a_starargs_test_is_accepted(fresh_registry: None) -> None:
+def test_a_starargs_check_is_accepted(fresh_registry: None) -> None:
     @reg.register_check(code="STAR", message="m")
     def check(*args: Any) -> CheckResult:
         return PASS
@@ -166,19 +166,19 @@ def test_validate_row_does_not_mutate_the_row_or_the_context(fresh_registry: Non
 # --- enabled state ----------------------------------------------------------
 
 
-def test_a_test_off_by_default_does_not_run(fresh_registry: None) -> None:
+def test_a_check_off_by_default_does_not_run(fresh_registry: None) -> None:
     calls: list[str] = []
     make_check("OFF", passes=False, default_enabled=False, calls=calls)
     assert engine.validate_row(ROW) == []
     assert calls == []
 
 
-def test_an_override_can_enable_an_off_by_default_test(fresh_registry: None) -> None:
+def test_an_override_can_enable_an_off_by_default_check(fresh_registry: None) -> None:
     make_check("OFF", passes=False, default_enabled=False)
     assert codes(engine.validate_row(ROW, overrides=[enable("OFF")])) == ["OFF"]
 
 
-def test_an_override_can_disable_an_on_by_default_test(fresh_registry: None) -> None:
+def test_an_override_can_disable_an_on_by_default_check(fresh_registry: None) -> None:
     calls: list[str] = []
     make_check("ON", passes=False, calls=calls)
     assert engine.validate_row(ROW, overrides=[disable("ON")]) == []
@@ -199,18 +199,18 @@ def test_an_override_applies_only_to_matching_rows(fresh_registry: None) -> None
 # --- explanations -----------------------------------------------------------
 
 
-def test_explain_row_reports_every_registered_test(fresh_registry: None) -> None:
+def test_explain_row_reports_every_registered_check(fresh_registry: None) -> None:
     make_check("ONE")
     make_check("TWO", passes=False)
     assert statuses(engine.explain_row(ROW)) == {"ONE": PASSED, "TWO": FAILED}
 
 
-def test_a_test_off_by_default_says_so(fresh_registry: None) -> None:
+def test_a_check_off_by_default_says_so(fresh_registry: None) -> None:
     make_check("OFF", default_enabled=False)
     assert detail(engine.explain_row(ROW), "OFF") == "disabled by off by default"
 
 
-def test_a_test_disabled_by_a_rule_names_the_rule(fresh_registry: None) -> None:
+def test_a_check_disabled_by_a_rule_names_the_rule(fresh_registry: None) -> None:
     make_check("ON")
     outcomes = engine.explain_row(ROW, overrides=[disable("ON", name="suppress_for_test_accounts")])
     assert detail(outcomes, "ON") == "disabled by rule 'suppress_for_test_accounts'"
@@ -356,7 +356,7 @@ def test_an_errored_outcome_carries_the_layer_and_the_message(fresh_registry: No
     assert outcome.detail == "RuntimeError: boom"
 
 
-def test_an_errored_test_can_be_the_root_cause(fresh_registry: None) -> None:
+def test_an_errored_check_can_be_the_root_cause(fresh_registry: None) -> None:
     make_check("BROKEN", raises=RuntimeError("boom"))
     assert first_cause(engine.explain_row(ROW)) == "BROKEN"
 
@@ -389,7 +389,7 @@ def test_outcomes_carry_the_layer(fresh_registry: None) -> None:
 # --- duplicate labels -------------------------------------------------------
 
 
-def test_duplicate_labels_raise_before_any_test_runs(fresh_registry: None) -> None:
+def test_duplicate_labels_raise_before_any_check_runs(fresh_registry: None) -> None:
     calls: list[str] = []
     make_check("CODE", calls=calls)
     with pytest.raises(ValueError, match=r"duplicate column labels \['age'\]"):
@@ -423,13 +423,13 @@ def test_duplicate_labels_raise_before_any_test_runs(fresh_registry: None) -> No
                       "end_date": "2024-02-01"}, ["AGE_PRESENT"], id="missing-age"),
     ],
 )
-def test_example_tests_report_the_expected_codes(
+def test_example_checks_report_the_expected_codes(
     example_checks: None, row: dict[str, Any], expected: list[str]
 ) -> None:
     assert codes(engine.validate_row(pd.Series(row))) == expected
 
 
-def test_a_missing_field_reports_once_not_from_every_test_that_reads_it(
+def test_a_missing_field_reports_once_not_from_every_check_that_reads_it(
     example_checks: None,
 ) -> None:
     """The whole point of layering: one complaint about a blank age."""
@@ -449,14 +449,14 @@ def test_failure_comments_carry_the_numbers_a_reader_needs(example_checks: None)
     assert dict(outcome.comments) == {"value": 200.0, "maximum": 130}
 
 
-def test_the_off_by_default_integer_test_once_enabled(example_checks: None) -> None:
+def test_the_off_by_default_integer_check_once_enabled(example_checks: None) -> None:
     row = pd.Series({"age": 41.5, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
     assert codes(engine.validate_row(row)) == []
     assert codes(engine.validate_row(row, overrides=[enable("AGE_NOT_INTEGER")])) == ["AGE_NOT_INTEGER"]
 
 
-def test_disabling_a_presence_test_hides_everything_below_it(example_checks: None) -> None:
+def test_disabling_a_presence_check_hides_everything_below_it(example_checks: None) -> None:
     row = pd.Series({"age": None, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
     assert codes(engine.validate_row(row, overrides=[disable("AGE_PRESENT")])) == []
@@ -520,13 +520,13 @@ def test_check_rule_columns_ignores_a_match_all_rule(fresh_registry: None) -> No
                      ["DATES_PRESENT"], id="no-start-date-column"),
     ],
 )
-def test_example_tests_handle_edge_values(
+def test_example_checks_handle_edge_values(
     example_checks: None, row: dict[str, Any], expected: list[str]
 ) -> None:
     assert codes(engine.validate_row(pd.Series(row))) == expected
 
 
-def test_the_integer_test_passes_a_whole_number_once_enabled(example_checks: None) -> None:
+def test_the_integer_check_passes_a_whole_number_once_enabled(example_checks: None) -> None:
     row = pd.Series({"age": 41.0, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
     assert codes(engine.validate_row(row, overrides=[enable("AGE_NOT_INTEGER")])) == []
