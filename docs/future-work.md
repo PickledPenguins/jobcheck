@@ -55,7 +55,38 @@ would be, so a later session can take one without re-deriving it.
 
 
 
+**F.17 — no search path for check and rule files.** `base_dir` (2026-09-22) anchors a
+relative path to one directory the caller names. What it does not serve is the
+deployment case: check files installed in a shared location, named bare by a run
+configuration that does not know where they were installed. That wants a list of
+directories tried in order -- an environment variable, or an argument -- and first match
+wins. Not built, because it is discovery, which this library refuses everywhere else: two
+files of one name in two entries means the wrong checks run and nothing says so, and an
+environment variable makes a run irreproducible from its command line. Estimated ~45
+source and ~130 test lines. Decide it deliberately if the deployment case turns up; do
+not add it as a convenience.
+
 ## Considered and deliberately not done
+
+**Anchoring relative paths on the caller's script directory, automatically** (considered
+2026-09-22, when `base_dir` was built). Frame inspection -- `sys._getframe(1)` --
+reads the directory of whoever *called* the loader, which is not whoever wrote the paths:
+jobchain calls `load_checks` from `jobchain/checks.py`, so every relative path in a user's
+run configuration would have anchored to jobchain's own library directory. It also has no
+answer under `-c`, a REPL, `exec` or a frozen application. `base_dir` says the same thing
+at the call site, where a reader can see it.
+
+**Anchoring on a discovered project root** (`.git`, `pyproject.toml`), same session. The
+marker does not exist in the deployment case -- an installed tool run over a data
+directory has neither -- so the rule would silently fall back to the working directory and
+behave differently in production than on the machine it was written on.
+
+**Accepting importable module names, `load_checks(["mypkg.checks.age"])`**, same session.
+It is the literal reading of "use the Python path" and it collides with `clear_registry`,
+which drops every module that registered a check out of `sys.modules`: doing that to a
+real package module leaves other holders of it stale and re-imports it as a second,
+distinct module -- a new way to get the silently empty registry the eviction exists to
+prevent.
 
 **A whole-frame `validate` that streams by default.** Rejected: the two ways to spend
 memory are genuinely different jobs. `validate` keeps every outcome because the report,
