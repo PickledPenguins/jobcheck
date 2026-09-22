@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import pytest
 
 import main
-from conftest import CommandResult, run_cli
+from conftest import PROJECT_ROOT, CommandResult, run_cli
 
 pytestmark = pytest.mark.fast
 
@@ -26,7 +27,7 @@ def default_run() -> CommandResult:
 def test_defaults_when_no_flags_are_given() -> None:
     args = main.build_parser().parse_args([])
     assert args.data is None
-    assert args.rules == ["examples/rules/error_overrides.yaml"]
+    assert args.rules == [os.path.join(PROJECT_ROOT, "examples/rules/error_overrides.yaml")]
     assert args.report == "table"
     assert args.explain is None
     assert args.summary is False
@@ -39,6 +40,16 @@ def test_rules_takes_several_files_in_the_order_given() -> None:
 
 def test_passing_rules_replaces_the_default_rather_than_extending_it() -> None:
     assert main.build_parser().parse_args(["--rules", "a.yaml"]).rules == ["a.yaml"]
+
+
+def test_the_entry_point_runs_from_any_directory(tmp_path: Any) -> None:
+    """Its check files and its default rule file are named relative to the
+    clone it lives in, not to wherever it was started."""
+
+    result = run_cli(os.path.join(PROJECT_ROOT, "examples/main.py"), cwd=str(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("Loaded 3 override rule(s) from 1 file(s)")
+    assert "== Failures ==" in result.stdout
 
 
 # --- exit codes -------------------------------------------------------------

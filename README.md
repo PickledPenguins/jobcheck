@@ -140,7 +140,9 @@ EMAIL_MISSING_AT | 1
 Checks are loaded by path: `load_checks(paths)` imports the named `.py` files —
 what a pipeline that writes check files into a run directory needs — and nothing
 is discovered. `load_overrides(paths)` reads the rule files the same way, in the
-order given, so the last matching rule wins.
+order given, so the last matching rule wins. A relative path is resolved against
+the working directory, or against a `base_dir` the call names — the directory an
+entry point lives in, or the one a configuration file was read from.
 
 For a frame too large to keep every outcome, call `validate_row(row)` per row
 instead: it returns that row's failures and retains nothing for the rest.

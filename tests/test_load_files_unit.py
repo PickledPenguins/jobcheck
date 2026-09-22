@@ -8,6 +8,7 @@ nothing, and that a bad path is loud rather than silently empty.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -38,6 +39,34 @@ def test_loads_a_file_by_path(fresh_registry: None, tmp_path: Path) -> None:
 
 
 
+
+
+def test_base_dir_anchors_the_relative_paths_of_one_call(fresh_registry: None,
+                                                         tmp_path: Path,
+                                                         monkeypatch: Any) -> None:
+    """What an entry point beside its check files needs: the same run whatever
+    directory it was started from."""
+
+    write_check_file(tmp_path, "checks.py", "ANCHORED")
+    started_in = tmp_path / "started-in"
+    started_in.mkdir()
+    monkeypatch.chdir(started_in)
+    reg.load_checks(["checks.py"], base_dir=tmp_path)
+    assert [t.code for t in reg.CHECKS] == ["ANCHORED"]
+    assert reg.loaded_check_files() == [str((tmp_path / "checks.py").resolve())]
+
+
+def test_an_absolute_path_is_loaded_whatever_base_dir_says(fresh_registry: None,
+                                                           tmp_path: Path) -> None:
+    path = write_check_file(tmp_path, "checks.py", "ABSOLUTE")
+    reg.load_checks([path], base_dir=tmp_path / "no-such-directory")
+    assert [t.code for t in reg.CHECKS] == ["ABSOLUTE"]
+
+
+def test_a_missing_file_under_base_dir_names_that_directory(fresh_registry: None,
+                                                            tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match=f"resolved against base_dir {tmp_path}"):
+        reg.load_checks(["absent.py"], base_dir=tmp_path)
 
 
 def test_loaded_files_records_resolved_paths_in_order(fresh_registry: None, tmp_path: Path) -> None:

@@ -44,6 +44,35 @@ def test_a_symlink_comes_back_as_its_target(tmp_path: Path) -> None:
     assert resolve_input_file(str(link), "check file", "load_checks()") == target.resolve()
 
 
+def test_base_dir_anchors_a_relative_path(tmp_path: Path, monkeypatch: Any) -> None:
+    """The point of the argument: the caller's directory decides, not the
+    directory the process happens to have been started in."""
+
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    (tmp_path / "checks.py").write_text("")
+    assert resolve_input_file("checks.py", "check file", "load_checks()", tmp_path) == (
+        (tmp_path / "checks.py").resolve())
+
+
+def test_an_absolute_path_ignores_base_dir(tmp_path: Path) -> None:
+    target = tmp_path / "checks.py"
+    target.write_text("")
+    assert resolve_input_file(str(target), "check file", "load_checks()",
+                              tmp_path / "nowhere") == target.resolve()
+
+
+def test_a_missing_path_under_base_dir_says_which_directory_it_used(tmp_path: Path) -> None:
+    with pytest.raises(ValueError) as raised:
+        resolve_input_file("checks.py", "check file", "load_checks()", tmp_path)
+    assert str(raised.value) == (
+        f"No check file at 'checks.py': nothing at {tmp_path.resolve() / 'checks.py'}, "
+        f"where a relative path is resolved against base_dir {tmp_path}. "
+        "load_checks() names files explicitly; nothing is discovered."
+    )
+
+
 def test_a_missing_relative_path_says_what_it_looked_at(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
     with pytest.raises(ValueError) as raised:

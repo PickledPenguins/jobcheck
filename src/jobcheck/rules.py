@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -160,7 +161,8 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRul
     )
 
 
-def parse_file(path: str, known_codes: set[str]) -> list[OverrideRule]:
+def parse_file(path: str, known_codes: set[str],
+               base_dir: str | Path | None = None) -> list[OverrideRule]:
     """Parse one YAML file into rules. The file is a flat top-level list.
 
     The rules record the path as the caller wrote it, relative or not: it is
@@ -168,7 +170,7 @@ def parse_file(path: str, known_codes: set[str]) -> list[OverrideRule]:
     there would be this machine's, not the one the caller would recognize.
     """
 
-    with open(resolve_input_file(path, "override file", "load_overrides()"),
+    with open(resolve_input_file(path, "override file", "load_overrides()", base_dir),
               "r", encoding="utf-8") as handle:
         raw = yaml.safe_load(handle)
     if raw is None:
@@ -181,13 +183,14 @@ def parse_file(path: str, known_codes: set[str]) -> list[OverrideRule]:
     return [parse_rule(entry, path, known_codes) for entry in raw]
 
 
-def load_overrides(paths: list[str], known_codes: set[str]) -> list[OverrideRule]:
+def load_overrides(paths: list[str], known_codes: set[str],
+                   base_dir: str | Path | None = None) -> list[OverrideRule]:
     """Parse the named YAML files into rules, in the order given, which is also
     their precedence: for a given row, the last matching rule wins.
 
     Duplicate names are caught across the whole load, not per file -- the name is
     how a person refers to a rule, so two sharing one is ambiguous wherever they
-    came from.
+    came from. *base_dir* anchors relative paths, as in `registry.load_checks`.
     """
 
     if isinstance(paths, str):
@@ -198,7 +201,7 @@ def load_overrides(paths: list[str], known_codes: set[str]) -> list[OverrideRule
     seen: dict[str, str] = {}
     loaded: list[OverrideRule] = []
     for path in list(paths):
-        for rule in parse_file(path, known_codes):
+        for rule in parse_file(path, known_codes, base_dir):
             if rule.name in seen:
                 raise ValueError(
                     f"Duplicate override rule name {rule.name!r}: defined in "

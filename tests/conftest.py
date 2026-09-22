@@ -122,12 +122,16 @@ class CommandResult:
     returncode: int
 
 
-def run_cli(*args: str) -> CommandResult:
-    """Run an entry point in a subprocess from the project root."""
+def run_cli(*args: str, cwd: str = PROJECT_ROOT) -> CommandResult:
+    """Run an entry point in a subprocess, from the project root by default.
+
+    *cwd* is what a test uses to show that a run does not depend on where it
+    was started: the entry point's own paths are anchored to its clone.
+    """
 
     completed = subprocess.run(
         [sys.executable, *args],
-        cwd=PROJECT_ROOT,
+        cwd=cwd,
         capture_output=True,
         text=True,
         timeout=120,

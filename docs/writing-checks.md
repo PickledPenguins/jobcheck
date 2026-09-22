@@ -108,7 +108,18 @@ loaded_check_files()           # the two resolved paths, in load order
 ```
 
 Files are named explicitly and **nothing is discovered** — no directory scan, no
-package convention, no import of anything that was not asked for. A file listed
+package convention, no import of anything that was not asked for. A relative path
+is resolved against the working directory unless the call names a `base_dir`:
+
+```python
+import os
+load_checks(["check_age.py"], base_dir=os.path.join(os.getcwd(), "my_checks"))
+```
+
+That is how a script keeps naming the files that sit beside it while being run
+from anywhere: it passes its own directory, `os.path.dirname(os.path.abspath(
+__file__))`, and `examples/main.py` does exactly that. An absolute path ignores
+`base_dir`. A file listed
 twice, or already loaded, is skipped; prerequisites may live in any file of one
 call, since the dependency graph is validated once the whole call has been
 imported.

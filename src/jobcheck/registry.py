@@ -236,12 +236,18 @@ def loaded_check_files() -> list[str]:
     return list(_LOADED_FILES)
 
 
-def load_checks(paths: list[str]) -> None:
+def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     """Import the named check files so their checks register themselves.
 
     Every file is named explicitly and nothing is discovered, so two entry points
     in one codebase can run different sets of checks without interfering. A file
     listed twice, or already loaded, is skipped.
+
+    A relative path is resolved against *base_dir* when one is given and
+    against the working directory otherwise. An entry point whose check files
+    sit beside it passes its own directory, so the run does not depend on where
+    it was started from; a wrapper reading paths out of a configuration file
+    passes that file's directory, so they mean what their author meant.
     """
 
     global _TOPO_ORDER
@@ -252,7 +258,7 @@ def load_checks(paths: list[str]) -> None:
         )
     resolved: list[str] = []
     for path in list(paths):
-        name = str(resolve_input_file(path, "check file", "load_checks()"))
+        name = str(resolve_input_file(path, "check file", "load_checks()", base_dir))
         if name not in _LOADED_FILES and name not in resolved:
             resolved.append(name)
 
@@ -389,8 +395,11 @@ def _get_topo_order() -> list[Check]:
     return order
 
 
-def load_overrides(paths: list[str]) -> list[OverrideRule]:
+def load_overrides(paths: list[str],
+                   base_dir: str | Path | None = None) -> list[OverrideRule]:
     """Load override rules from the named YAML files, in precedence order. Load
-    the check files first: a rule naming an unregistered code is an error."""
+    the check files first: a rule naming an unregistered code is an error.
 
-    return rules.load_overrides(paths, {check.code for check in CHECKS})
+    *base_dir* anchors relative paths exactly as it does in `load_checks`."""
+
+    return rules.load_overrides(paths, {check.code for check in CHECKS}, base_dir)
