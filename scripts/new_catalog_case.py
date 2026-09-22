@@ -18,6 +18,12 @@ duplicate is invisible in a directory listing because the names differ. The
 first version of this catalog had three of them, made by a throwaway generator
 that had no such check.
 
+The command is only the narrow door. Two cases can spell the same run
+differently -- passing the rule file `--rules` already defaults to, say -- and
+print the same bytes; `tests/test_e2e_catalogs.py::test_no_two_cases_record_the_same_output`
+catches those whatever route they came in by, including a hand-made directory
+and a regeneration after a behavior change.
+
 Exit codes: 0 written; 1 the case already exists or duplicates another's command;
 2 usage error.
 """

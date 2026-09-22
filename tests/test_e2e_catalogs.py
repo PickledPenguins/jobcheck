@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from catalog import ROOT, case_dirs, run_case, stderr_tail
+from catalog import CASE_FILES, ROOT, case_dirs, run_case, stderr_tail
 
 pytestmark = pytest.mark.long
 
@@ -54,6 +54,40 @@ def test_every_case_documents_itself(case: Path) -> None:
     expected = readme.split("Expected:", 1)[1]
     assert f"exit {(case / 'exit_code').read_text().strip()}" in expected, (
         f"{case.name}: README's Expected: block does not name the exit code")
+
+
+#: Cases whose recorded output is allowed to match another's, with the reason.
+#: An empty report is prose in both formats (`print_report` prints "No failures."
+#: whatever `fmt` is, which `future-work.md` records as decided), so the CSV case
+#: on a clean file cannot differ from the table one -- and both are worth keeping,
+#: since a reader asks what `--report csv` does on a clean file.
+DUPLICATE_OUTPUT_ALLOWED = {
+    frozenset({"data/a-file-with-nothing-wrong", "data/clean-file-as-csv"}),
+}
+
+
+def test_no_two_cases_record_the_same_output() -> None:
+    """Two cases printing the same bytes are one case filed twice, whatever their
+    commands say. `new_catalog_case.py` refuses a duplicate *command*, which
+    misses a case that spells the same run differently -- passing the rule file
+    `--rules` already defaults to, say, which is how one such pair got in.
+    """
+
+    seen: dict[str, str] = {}
+    duplicates: list[frozenset[str]] = []
+    for kind in ("examples", "failures"):
+        for case in case_dirs(kind):
+            name = f"{case.parent.name}/{case.name}"
+            recorded = "".join(
+                (case / file).read_text(encoding="utf-8") if (case / file).exists() else ""
+                for file in CASE_FILES
+            )
+            if recorded in seen:
+                duplicates.append(frozenset({seen[recorded], name}))
+            else:
+                seen[recorded] = name
+    unexpected = [sorted(pair) for pair in duplicates if pair not in DUPLICATE_OUTPUT_ALLOWED]
+    assert unexpected == [], f"cases recording identical output: {unexpected}"
 
 
 @pytest.mark.parametrize("case", case_dirs("examples"), ids=case_id)
