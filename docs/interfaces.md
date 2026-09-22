@@ -138,9 +138,10 @@ The resolved paths loaded that way, in load order. A copy.
 `validate_registry` checks every `depends_on` edge, detects cycles, computes
 layers, and caches the evaluation order. An unregistered prerequisite raises —
 including one living in a check file that was not loaded, deliberately as loud as
-a typo. A chain too deep for the ordering walk (thousands of checks, each
-registered before the prerequisite it names) raises `ValueError` naming the
-registry size, rather than a bare `RecursionError` naming nothing.
+a typo. A chain too deep for the ordering walk — it is recursive, so it gives out
+near Python's own recursion limit, around 900 links deep at the default 1000 —
+raises `ValueError` naming the registry size and that limit, rather than a bare
+`RecursionError` naming nothing.
 
 `snapshot() -> dict` copies the whole registry and `restore(state)` puts it back,
 dropping whatever is there now. One place owns what registry state *is*, which is
