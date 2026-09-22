@@ -130,6 +130,7 @@ def test_the_messy_file_still_holds_the_awkward_values_the_catalog_relies_on() -
     assert "Karen Spärck Jones" in text, "the non-ASCII name"
     assert "Sun Microsystems, Inc." in text, "the value holding a comma"
     assert "qa@internal.test" in text, "the exempted internal account"
+    assert "load-test@@internal.test" in text, "the internal account the exemption rescues"
     assert "LEGACY_A" in text, "the legacy source system the rules select on"
     assert ",,,,,,,," in text, "the entirely blank row"
 

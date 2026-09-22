@@ -30,6 +30,7 @@ row      | code                 | status        | layer | outcome | message     
 1010     | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | failed  | start_date is after end_date            |        | end_date=2024-03-01; start_date=2024-09-01 | True         
 1011     | DATES_PRESENT        | MISSING (1)   | 0     | failed  | Both start_date and end_date are needed |        | columns=start_date                         | True         
 1012     | DATES_PRESENT        | MISSING (1)   | 0     | failed  | Both start_date and end_date are needed |        | columns=end_date                           | True         
+1018     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | failed  | Email has no '@'                        |        | at_signs=2; value=load-test@@internal.test | True         
 1019     | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | failed  | Email has no '@'                        |        | at_signs=0; value=sheet-example.com        | True         
 1020     | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | failed  | Email domain looks malformed            |        | domain=example.com                         | True         
 1021     | AGE_PRESENT          | MISSING (1)   | 0     | failed  | Age is missing                          |        |                                            | True         

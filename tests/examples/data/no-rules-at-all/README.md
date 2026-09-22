@@ -4,4 +4,7 @@ The baseline every rule file is a deviation from: the checks as their authors wr
 
 Level:    simple
 Input:    `examples/data/customers.csv` with `--rules` and no paths
-Expected: every check at its default state; `AGE_NOT_INTEGER`, off by default, never reported; exit 0
+Expected: every check at its default state; `AGE_NOT_INTEGER`, off by default, never
+          reported; row 1018 reported for `EMAIL_MISSING_AT`, which the shipped rule file
+          would have exempted (`overrides/internal-test-accounts-exempted` is the same run
+          with it); exit 0

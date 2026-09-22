@@ -43,12 +43,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.11 — The internal-test exemption case shows nothing.**
-`tests/examples/overrides/internal-test-accounts-exempted` is byte-identical to
-`data/validate-a-csv-file` because `qa@internal.test` passes both email checks on its
-own. Fix: in `scripts/make_example_data.py`, give one internal row a domain the check
-rejects, regenerate the data, the catalog and the golden files, and read the diff —
-roughly twenty expected outputs move.
+
 
 **F.12 — 33 of 42 example READMEs omit the exit code from `Expected:`.** The other nine
 state it. Fix: add the line to the 33, in the wording the nine use.
@@ -79,6 +74,19 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**The internal-test exemption case showing nothing (was F.11).** Fixed 2026-09-22. Row
+1018's address in `scripts/make_example_data.py` is now `load-test@@internal.test`: two
+`@` signs, so `EMAIL_MISSING_AT` fails on it, and the address still ends `@internal.test`,
+so the shipped rule exempts it. Three catalog outputs moved — the runs where that rule is
+not in force (`data/no-rules-at-all`, `data/legacy-rows-get-a-stricter-check`,
+`overrides/a-rule-on-a-column-the-data-lacks`), each gaining exactly the one failure line;
+the thirteen runs that do apply the rule are unchanged, which is the demonstration. The
+two READMEs now name each other as the diff to read. The case was identical to
+`data/validate-a-csv-file` for a second reason F.11 did not record: `--rules` defaults to
+that same rule file, so the two commands were the same invocation. Changing the domain to
+one the check rejects, as F.11 proposed, would not have worked -- the domain regex accepts
+`internal.test`, and a subdomain address stops matching the rule's `@internal\.test$`.
 
 **Dropping the registering module `clear_registry` evicts (was F.10).** Rejected
 2026-09-22; the behavior is pinned instead, by
