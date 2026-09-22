@@ -29,12 +29,7 @@ against the code and, where a behavior is involved, reproduced. The owner chose 
 2026-09-21 to record them here rather than build any of them yet. Each says what the fix
 would be, so a later session can take one without re-deriving it.
 
-**F.4 — `print_report(fmt="csv")` on an empty report prints `No failures.`, not a CSV
-header.** `src/jobcheck/report.py:219`. Two catalog READMEs
-(`tests/examples/data/clean-file-as-csv`, `complex/clean-file-every-rule-csv`) promise the
-header and their recorded output shows the prose. Fix: print the header line alone in CSV
-mode, so a piped CSV is always a valid file; regenerate the two cases and read the diff.
-The alternative is to correct the two READMEs.
+
 
 **F.5 — A rule pattern never matches an integer column once the frame has a float
 column.** `src/jobcheck/rules.py:213`. Reproduced on pandas 3.0.5: `iterrows` upcasts the
@@ -120,6 +115,17 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**Printing a CSV header from `print_report` on an empty report (was F.4).** Rejected
+2026-09-21; the two catalog READMEs that promised the header were corrected instead
+(`tests/examples/data/clean-file-as-csv`, `complex/clean-file-every-rule-csv`). The
+argument for the header was that a piped CSV should always be a valid file, and it does
+not hold: the CLI prints the registry above the report and the summary below it, so its
+stdout is never a CSV file, empty or not, and `write_report` — the call that does produce
+a file — already writes the header alone (`render_report` never short-circuits;
+`print_report` is the console path). Printing the header only in CSV mode would have
+left the two console formats disagreeing on an empty report, cost a downstream `grep
+"No failures."` its match, and moved two catalog cases and the suite counts for it.
 
 **Parsing dates in the engine or the loader instead of in the check (was F.3).** Closed
 2026-09-21. The example date checks called the scalar `pandas.to_datetime` per cell, which
