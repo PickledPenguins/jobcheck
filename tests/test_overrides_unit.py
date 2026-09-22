@@ -11,6 +11,7 @@ from conftest import enabled_only, make_check
 from jobcheck import registry as reg
 from jobcheck import engine
 from jobcheck import registry_tables
+from jobcheck.results import DISABLED, PASSED
 
 pytestmark = pytest.mark.fast
 
@@ -348,6 +349,41 @@ def test_non_string_values_are_matched_as_text(fresh_registry: None) -> None:
     make_check("A_CODE")
     numeric = rule("r", "disable", ["A_CODE"], [("age", "^41$")])
     assert enabled_only(engine.resolve_enabled_state(pd.Series({"age": 41}), [numeric]))["A_CODE"] is False
+
+
+def test_a_whole_number_is_matched_as_the_report_prints_it(fresh_registry: None) -> None:
+    """Two ways pandas turns 41 into 41.0 before a rule sees it: a column with
+    one blank is read as float, and `iterrows` upcasts a row to float when every
+    column is numeric. The report prints both as `41`, so `^41$` must match.
+    Through `validate`, because a hand-built Series never goes through either.
+    """
+
+    from io import StringIO
+
+    make_check("A_CODE")
+    on_age = rule("r", "disable", ["A_CODE"], [("age", "^41$")])
+    blank_in_column = pd.read_csv(StringIO("id,name,age\n1,a,41\n2,b,\n"))
+    assert str(blank_in_column.dtypes["age"]) == "float64"
+    outcomes = engine.validate(blank_in_column, overrides=[on_age])
+    assert [row[0].outcome for row in outcomes] == [DISABLED, PASSED]
+
+    on_id = rule("r", "disable", ["A_CODE"], [("id", "^102$")])
+    all_numeric = pd.DataFrame({"id": [101, 102], "age": [1.5, 2.0]})
+    outcomes = engine.validate(all_numeric, overrides=[on_id])
+    assert [row[0].outcome for row in outcomes] == [PASSED, DISABLED]
+
+
+def test_a_fraction_keeps_its_decimals(fresh_registry: None) -> None:
+    make_check("A_CODE")
+    on_age = rule("r", "disable", ["A_CODE"], [("age", "^41$")])
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"age": 41.5}), [on_age]))["A_CODE"] is True
+
+
+def test_matching_is_case_sensitive(fresh_registry: None) -> None:
+    make_check("A_CODE")
+    lower = rule("r", "disable", ["A_CODE"], [("kind", "^batch$")])
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"kind": "BATCH"}), [lower]))["A_CODE"] is True
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"kind": "batch"}), [lower]))["A_CODE"] is False
 
 
 def test_last_matching_rule_wins(fresh_registry: None) -> None:

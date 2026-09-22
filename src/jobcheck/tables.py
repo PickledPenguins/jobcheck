@@ -21,6 +21,24 @@ def is_null(value: Any) -> bool:
     return bool(pd.isna(value))
 
 
+def _format_cell(value: Any, missing: str = "") -> str:
+    """Render one data cell as text: whole floats lose their `.0`, and a null
+    becomes *missing*.
+
+    Shared by the report and by rule matching so both see the same text. pandas
+    holds an integer column as float as soon as one cell is blank, and
+    `iterrows` upcasts a whole row to float when every column is numeric; a
+    rule written against what the report prints (`41`) must match that cell
+    (`41.0`).
+    """
+
+    if value is None or is_null(value):
+        return missing
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
 def _check_extra_columns(requested: list[str], available: list[str], subject: str) -> None:
     """Reject `extra_columns` names that are not on offer, or asked for twice.
 

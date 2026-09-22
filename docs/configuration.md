@@ -72,7 +72,11 @@ easier for non-developers to get right than two.
 
 Each criterion is a mapping with both `column` and `pattern`. The pattern is a Python
 regular expression applied with `re.search`, so it matches anywhere in the value unless
-anchored with `^`/`$`. Values are compared as text (`str(value)`).
+anchored with `^`/`$`. Values are compared as the text the report prints for them: a
+whole number is `41` even when pandas holds it as `41.0` — which it does for an integer
+column with one blank cell, and for every column of an all-numeric frame — and a fraction
+keeps its decimals. Anything else is `str(value)`. (Checks still receive the cell as
+pandas holds it; only matching and the report render it.)
 
 A rule applies to a row only when **every** criterion matches (AND). A criterion whose
 column is absent from the row, or whose value is null, does not match.

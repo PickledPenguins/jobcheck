@@ -31,14 +31,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.5 — A rule pattern never matches an integer column once the frame has a float
-column.** `src/jobcheck/rules.py:213`. Reproduced on pandas 3.0.5: `iterrows` upcasts the
-row to float when any column is float (an integer column with one blank is enough), so
-`cell_text` sees `101.0` and `^102$` fails silently. An all-integer frame is unaffected.
-Fix: render whole floats without the `.0` in `cell_text` (sharing `report._format_cell`
-through `tables.py`), document it in [configuration.md](configuration.md), and add the
-regression test through `validate` on a numeric frame — the existing matching test builds
-its `Series` by hand, which is why this escaped.
+
 
 **F.6 — `validate` hands checks `RowContext()`; `validate_row` and `explain_row` hand
 `None`.** `src/jobcheck/engine.py:113`. Reproduced: the same check sees `RowContext` from
@@ -115,6 +108,17 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**A rule pattern matching a whole number pandas holds as float (was F.5).** Fixed
+2026-09-21. `cell_text` now renders a cell through the same `_format_cell` the report
+uses (moved to `tables.py`), so `^41$` matches `41.0` — which is what an integer column
+with one blank becomes on `read_csv`, and what `iterrows` makes of every column when the
+frame is all numeric (the second is the rarer of the two; any string column stops it).
+The report had printed `41` all along, so the rule format caught up with what the user
+sees. A pattern written against the float text (`^41\.0$`) no longer matches; nothing
+shipped did that. Checks still receive the float: the engine's row type is unchanged.
+Pinned through `validate` on both frame shapes, since a hand-built `Series` goes through
+neither.
 
 **Printing a CSV header from `print_report` on an empty report (was F.4).** Rejected
 2026-09-21; the two catalog READMEs that promised the header were corrected instead

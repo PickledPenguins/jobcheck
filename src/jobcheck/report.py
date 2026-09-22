@@ -14,7 +14,7 @@ import pandas as pd
 
 from .engine import root_causes
 from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, render_status
-from .tables import _check_extra_columns, format_table
+from .tables import _check_extra_columns, _format_cell, format_table
 
 REPORT_COLUMNS = ["row", "code", "status", "layer", "outcome", "message", "detail", "comments",
                   "is_root_cause"]
@@ -51,15 +51,7 @@ def render_comments(comments: Mapping[str, Any]) -> str:
     return "; ".join(f"{key}={comments[key]}" for key in sorted(comments))
 
 
-def _format_cell(value: Any, missing: str = "") -> str:
-    """Render a value from the data into a report column: whole floats lose their
-    `.0`, and a null becomes *missing* -- empty, or `<no key>` for a row key."""
 
-    if value is None or (pd.api.types.is_scalar(value) and pd.isna(value)):
-        return missing
-    if isinstance(value, float) and value.is_integer():
-        return str(int(value))
-    return str(value)
 
 
 def _row_labels(df: pd.DataFrame, key_column: str | None) -> list[str]:
