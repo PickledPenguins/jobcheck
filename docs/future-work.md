@@ -35,12 +35,7 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.7 — A newline inside an unwrapped cell breaks the bordered table.**
-`src/jobcheck/tables.py:47`. `_cell_lines` returns `str(value)` unchanged for a column
-with no wrap width, so a row key or an `extra_columns` value holding `\n` prints as a
-broken row. Wrapped columns are immune because `textwrap` collapses whitespace; CSV is
-immune because pandas quotes. Fix: split on newlines in `_cell_lines` so the value
-renders as a tall cell, as a wrapped one does.
+
 
 **F.8 — The deep-chain error reports width, not depth.** `src/jobcheck/registry.py:352`.
 `deepest declared depends_on: N` is `max(len(check.depends_on))`, the widest fan-in, not
@@ -103,6 +98,17 @@ memory are genuinely different jobs. `validate` keeps every outcome because the 
 the summary and the explanation all need them; `validate_row` keeps one row's worth for a
 frame that will not fit. A single call that guessed would make the cheap case expensive or
 the expensive case impossible.
+
+**A cell's own line breaks corrupting the bordered table (was F.7).** Fixed 2026-09-22.
+`_cell_lines` returned `str(value)` unchanged for a column with no wrap width, so a row
+key or an `extra_columns` value holding a newline emitted its own line break and slid
+every column after it — a quoted multi-line CSV field is the ordinary way one arrives,
+and `read_csv` accepts those. It now splits on `\r\n`, `\r`, `\n` and `\f` and expands
+tabs (`len()` counts one character where a terminal draws eight), in the wrapped branch
+as well as the unwrapped one, so the two agree on what a line is; a wrapped column used
+to collapse a newline to a space. Deliberately not `str.splitlines()`: it also splits on
+`\x0b`, `\x1c` and ` `, which draw as nothing, and a cell going tall for an
+invisible character is its own bug. CSV output was never affected — pandas quotes.
 
 **Checks seeing two context types, one per entry point (was F.6).** Fixed 2026-09-22.
 `validate` handed every row an empty `RowContext`; `explain_row` and `validate_row`

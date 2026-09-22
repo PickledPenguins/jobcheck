@@ -269,7 +269,10 @@ rather than ignored when the name is not on offer.
 - `print_override_rules(overrides, extra_columns=None)` — one row per rule:
   `name`, `action`, `codes_hit_count`, `match`, `message`. Offers `source_file`.
 
-`format_table(table, wrap_columns=None)` renders any frame as bordered text;
+`format_table(table, wrap_columns=None)` renders any frame as bordered text. A cell
+holding line breaks (`\n`, `\r\n` or `\r`) renders as a tall cell rather than breaking
+the row, wrapped column or not, and tabs are expanded — a quoted multi-line CSV field
+reaching the row key or an `extra_columns` value is the usual way one arrives.
 `is_null(value)` is the null check both the engine and the renderer use — reach for
 it in your own checks too, since `NaN` is truthy and `pd.isna` returns an array for
 list-like values.

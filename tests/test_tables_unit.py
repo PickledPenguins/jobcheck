@@ -334,6 +334,46 @@ def test_an_empty_cell_wraps_to_one_blank_line() -> None:
     assert len(rendered.splitlines()) == 3
 
 
+def test_a_cell_holding_a_newline_renders_tall_instead_of_breaking_the_row() -> None:
+    """A quoted multi-line CSV field reaches an unwrapped column -- the row key
+    and every extra_column -- and the renderer pads with len(), so a cell that
+    emits its own newline slides every column after it."""
+
+    frame = pd.DataFrame([{"id": "a\nb", "note": "one"}, {"id": "c", "note": "two"}])
+    lines = tables.format_table(frame).splitlines()
+    widths = {len(line.split(" | ")) for line in lines[2:]}
+    assert widths == {2}
+    assert [line.split(" | ")[0].rstrip() for line in lines[2:]] == ["a", "b", "c"]
+
+
+def test_the_same_cell_renders_tall_in_a_wrapped_column() -> None:
+    """Wrapped and unwrapped columns agree on what a line is; textwrap on its
+    own collapses the newline to a space."""
+
+    frame = pd.DataFrame([{"note": "a\nb"}])
+    body = tables.format_table(frame, wrap_columns={"note": 10}).splitlines()[2:]
+    assert [line.rstrip() for line in body] == ["a", "b"]
+
+
+def test_a_carriage_return_is_a_line_break_and_a_tab_is_expanded() -> None:
+    """Neither is a newline, and both corrupt a row: a terminal draws \\r over
+    the line it is on and a tab eight columns wide where len() counted one."""
+
+    frame = pd.DataFrame([{"x": "a\tb", "y": "p\rq"}])
+    lines = tables.format_table(frame).splitlines()
+    assert [line.split(" | ")[1].rstrip() for line in lines[2:]] == ["p", "q"]
+    assert lines[2].startswith("a       b")
+
+
+def test_a_character_that_draws_as_nothing_does_not_split_a_cell() -> None:
+    """str.splitlines would split on \\u2028 and \\x1c; the cell would go tall
+    for a character the reader cannot see."""
+
+    frame = pd.DataFrame([{"x": "a b\x1cc"}])
+    # Counted with "\n", not splitlines(), which splits on both of them itself.
+    assert tables.format_table(frame).count("\n") == 2
+
+
 # --- extra_columns, the one argument every table takes ----------------------
 
 

@@ -6,6 +6,7 @@ library would be a runtime dependency for formatting alone.
 
 from __future__ import annotations
 
+import re
 import textwrap
 from typing import Any
 
@@ -58,14 +59,32 @@ def _check_extra_columns(requested: list[str], available: list[str], subject: st
         )
 
 
+# The breaks a terminal acts on. Not `str.splitlines`, which also splits on
+# \x0b, \x1c and   -- characters that draw as nothing, so a cell would go
+# tall for no visible reason.
+_LINE_BREAKS = re.compile(r"\r\n|[\r\n\f]")
+
+
 def _cell_lines(value: Any, width: int | None) -> list[str]:
     """One cell as the lines it occupies. Wrapping never breaks inside a word, so
-    a long code or rule name overflows its width rather than being mangled."""
+    a long code or rule name overflows its width rather than being mangled.
+
+    A value holding its own line breaks renders as a tall cell rather than
+    breaking the row: the renderer pads with `len()`, so a cell that emits a
+    newline of its own slides every column after it. Tabs are expanded for the
+    same reason -- `len()` counts one character where a terminal draws eight.
+    """
 
     text = "" if value is None or is_null(value) else str(value)
+    segments = [segment.expandtabs() for segment in _LINE_BREAKS.split(text)]
     if width is None:
-        return [text]
-    return textwrap.wrap(text, width, break_long_words=False, break_on_hyphens=False) or [""]
+        return segments
+    return [
+        line
+        for segment in segments
+        for line in (textwrap.wrap(segment, width, break_long_words=False,
+                                   break_on_hyphens=False) or [""])
+    ]
 
 
 def _padded_line(texts: list[str], widths: list[int]) -> str:
