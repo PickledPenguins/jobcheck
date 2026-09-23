@@ -61,28 +61,6 @@ a design call the owner has not made. The reviews' own fixes to the same commit 
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
 
-**F.19 — `restore` puts back the registry but not the module cache.** `restore` calls
-`clear_registry` first, which pops every recorded module out of `sys.modules`, then
-re-declares those same names from the snapshot without re-importing anything. Probed
-2026-09-23: after a load of `examples/checks/check_age.py`, a `snapshot`, a
-`clear_registry` and a `restore`, the registry holds all five age checks and the module
-set names `jobcheck_check_file_check_age_0`, while `sys.modules` holds nothing at all. The
-checks still run, because the runners are closures over the author's functions. Gain:
-`restore` would match its docstring, "Put back a registry `snapshot` took". Loss if left:
-anything that resolves a check function's module after a restore gets a `KeyError` or the
-wrong answer — `pickle` for a worker pool, `inspect.getmodule`, and the `dataclasses`
-annotation resolution `architecture.md` already documents as a trap for `clear_registry`;
-`fresh_registry` runs this pattern around most of the suite, so the state is common.
-Loss if fixed by behavior: `restore` would have to either keep the modules alive across
-the clear (a second eviction rule to explain) or re-import the files (which re-runs
-arbitrary user code inside what is documented as a pure state swap, and would double-
-register). Doc-only: 3 lines. Behavior: ~15 source lines and a new rule about what
-`restore` may execute. Priority: medium. Blast radius: `restore` is public and used by
-every test that takes `fresh_registry`. Recommendation: document it — say the module cache
-is not restored and point at the `clear_registry` note in `architecture.md`. Re-importing
-inside `restore` is the wrong shape; keeping modules alive is worth considering only if
-someone actually pickles a check.
-
 **F.20 — `examples/bundle_main.py` has no argument parsing.** It reads `sys.argv[1:]` and
 takes element zero as a bundle path, so `python3 examples/bundle_main.py --help` exits 1
 with `ValueError: No check file at '--help'`, and a second path argument is dropped with
@@ -222,20 +200,31 @@ would also cost the sentence every failure prints, "load_checks() names files ex
 nothing is discovered", which is pinned in eleven places and is the invariant the whole
 loader is built on.
 
-**Carrying the in-progress load stack through `snapshot` and `restore`** (F.18, decided
-2026-09-23). The registry's frame stack -- the check files whose import is in progress,
-each with the checks it registered -- is the one piece of registry-module state the
-snapshot dict does not copy, and `clear_registry` does not clear it either. Carrying it
-was rejected: `restore` would then reinstate a *mid-load* registry, a state the rest of
-the module assumes it never sees. The stack is read by `register_check` and by the
-per-file rollback, so a frame put back from a load that has since finished would take the
-blame for the next file's checks, and that file's rollback would drop checks belonging to
-somebody else -- a worse failure than the one being fixed, and one that needs a decision
-nobody has had to make about what a restore *means* during a load. The docstrings on
-`snapshot`, `restore`, `clear_registry` and `RegistryState` now say the supported case
-instead: a registry between loads, never during one, and a check file that snapshots while
-a bundle above it is still importing is unsupported. The rest of F.18 -- the load-sequence
-counter, which is registry state with no mid-load meaning -- was built in the same change.
+**Registry snapshot and restore as library API** (F.18 and F.19, decided 2026-09-23).
+`snapshot` and `restore` copied the registry's module globals and put them back. Both were
+public, exported and documented beside `load_checks`, and nothing outside the test suite
+ever called them: measured across both suites, 525 restores, of which exactly one put back
+a non-empty registry -- a test of `restore` itself. Every production shape is served by
+something else. A long-lived process clears and loads a different set between runs; two
+sets of check files active in one process is what `architecture.md` already refuses, entry
+points being separate processes; a failed load rolls back per file on its own, so a
+snapshot is not the transaction it looks like; and swapping the registry per request under
+threads is a race, not isolation. The rule the removal follows: an installed package
+carries what a user could call, not what a test needs. The capability is real for a
+*test* -- an inner scope that loads check files and must hand back exactly what it found,
+which `clear_registry` cannot do because it hands back nothing -- so it moved to
+`tests/registry_state.py` as `SavedRegistry`.
+
+That closes both entries that were open against it. F.18 asked whether the in-progress
+load stack should be carried: it is not, and the reason survives the move -- the stack
+belongs to the `load_checks` call that is running, so a frame put back from a load that
+has since finished would take the blame for the next file's checks, and that file's
+rollback would drop checks belonging to somebody else. F.19 asked whether putting a
+registry back should restore `sys.modules` too: it does not, because re-importing inside a
+state swap would re-run a user's check file and double-register. The two consequences F.19
+listed do not reproduce either -- `pickle` fails on a check's runner before any restore,
+the runner being a closure, and `inspect.getmodule` answers `jobcheck.registry` either
+way.
 
 **Anchoring relative paths on the caller's script directory, automatically** (considered
 2026-09-22, when `base_dir` was built). Frame inspection -- `sys._getframe(1)` --

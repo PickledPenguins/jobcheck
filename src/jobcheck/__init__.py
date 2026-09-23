@@ -23,8 +23,6 @@ from .registry import (
     load_overrides,
     loaded_check_files,
     register_check,
-    restore,
-    snapshot,
     validate_registry,
 )
 from .engine import (
@@ -108,11 +106,9 @@ __all__ = [
     "render_report",
     "render_status",
     "resolve_enabled_state",
-    "restore",
     "root_cause_counts",
     "root_causes",
     "row_explanation",
-    "snapshot",
     "summarize_outcomes",
     "validate",
     "validate_registry",

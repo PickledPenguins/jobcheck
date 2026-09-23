@@ -36,16 +36,17 @@ from jobcheck import engine as eng  # noqa: E402
 from jobcheck import registry as reg  # noqa: E402
 from jobcheck import report  # noqa: E402
 from jobcheck import results as res  # noqa: E402
+from registry_state import SavedRegistry  # noqa: E402
 
 
 @pytest.fixture
 def fresh_registry() -> Iterator[None]:
-    """Give the check an empty registry and restore the previous one afterwards."""
+    """Give the check an empty registry and put the previous one back afterwards."""
 
-    saved = reg.snapshot()
+    saved = SavedRegistry()
     reg.clear_registry()
     yield
-    reg.restore(saved)
+    saved.restore()
 
 
 #: The check files the shipped demo loads, as paths from the project root.

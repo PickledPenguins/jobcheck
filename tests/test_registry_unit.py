@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from conftest import EXAMPLE_CHECK_FILES, make_check
+from registry_state import SavedRegistry
 from jobcheck import registry as reg
 from jobcheck import engine
 from jobcheck.results import CheckResult, PASS, Status
@@ -271,40 +272,55 @@ def _check_file(path: Any, code: str) -> str:
     return str(path)
 
 
-def test_snapshot_carries_every_piece_clear_registry_clears(fresh_registry: None) -> None:
-    """The dict is the definition of registry state, so a piece added to the
-    module and not to the dict is a snapshot that silently loses it -- which is
+def test_saving_the_registry_copies_every_global_clear_registry_clears(
+    fresh_registry: None,
+) -> None:
+    """The suite's own isolation depends on it: a registry global added to the
+    module and not to SavedRegistry is state every test silently loses. That is
     what happened to the load sequence."""
 
-    assert set(reg.snapshot()) == {
-        "checks",
-        "loaded_files",
-        "loaded_modules",
-        "topo_order",
-        "load_sequence",
-    }
+    saved = set(SavedRegistry.__slots__)
+    cleared = {"checks", "loaded_files", "loaded_modules", "topo_order", "load_sequence"}
+    assert saved == cleared
 
 
-def test_snapshot_leaves_out_the_in_progress_load_stack(fresh_registry: None) -> None:
+def test_saving_the_registry_leaves_out_the_in_progress_load_stack() -> None:
     """Deliberate, not an oversight: the stack belongs to the `load_checks`
-    call that is running, and a restored frame from a finished load would take
+    call that is running, and a frame put back from a finished load would take
     the blame for the next file's checks."""
 
-    assert "loading" not in reg.snapshot()
+    assert not any("loading" in name for name in SavedRegistry.__slots__)
 
 
-def test_restore_puts_back_the_load_sequence_rather_than_zero(
+def test_putting_the_registry_back_keeps_the_load_sequence_rather_than_zeroing_it(
     fresh_registry: None, tmp_path: Any
 ) -> None:
-    """A module name is numbered by the load sequence. restore() calls
-    clear_registry(), which zeroes it, so without carrying it the next load
-    would be handed a number an earlier one already used."""
+    """A module name is numbered by the load sequence, and restore() clears the
+    registry first, which zeroes it. Without carrying it the next load would be
+    handed a number an earlier one already used."""
 
     reg.load_checks([_check_file(tmp_path / "first.py", "FIRST")])
     assert "jobcheck_check_file_first_0" in reg._LOADED_MODULES
-    saved = reg.snapshot()
+    saved = SavedRegistry()
     reg.clear_registry()
-    reg.restore(saved)
+    saved.restore()
 
     reg.load_checks([_check_file(tmp_path / "second.py", "SECOND")])
     assert "jobcheck_check_file_second_1" in reg._LOADED_MODULES
+
+
+def test_putting_the_registry_back_restores_checks_that_still_run(
+    fresh_registry: None, tmp_path: Any
+) -> None:
+    """The nesting case the suite relies on: an inner scope loads a file and
+    hands back exactly what it found, checks included, runnable."""
+
+    reg.load_checks([_check_file(tmp_path / "outer.py", "OUTER")])
+    saved = SavedRegistry()
+    reg.load_checks([_check_file(tmp_path / "inner.py", "INNER")])
+    assert sorted(c.code for c in reg.CHECKS) == ["INNER", "OUTER"]
+
+    saved.restore()
+    assert [c.code for c in reg.CHECKS] == ["OUTER"]
+    outcomes = engine.explain_row(pd.Series({"a": 1}))
+    assert [o.code for o in outcomes] == ["OUTER"]
