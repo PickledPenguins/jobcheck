@@ -7,7 +7,9 @@ One directory per case: `cmd` (run from the project root), `README.md`,
 Dimensions covered: the data (the built-in demo frame and all three shipped CSV
 files), rule loading (the shipped file, topic files, files from unrelated
 directories, and both orderings of the same three), the report format (table and
-CSV), one row explained, and the summary.
+CSV), one row explained, and the summary. The `bundles/` cases run
+`examples/bundle_main.py` instead, and carry their own check files: a bundle is
+read together with the files beside it.
 
 Overlap is deliberate — several cases differ only in one flag, and each stands
 alone as a copyable reference.

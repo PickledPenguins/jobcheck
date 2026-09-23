@@ -132,6 +132,35 @@ Each file is given a unique module name, so two directories that each hold a
 comes from wherever the caller names, which is a record of what was read rather
 than somewhere to write to.
 
+A check file may call `load_checks` itself — a **bundle**, one path standing for
+the files it collects:
+
+```python
+# my_checks/all_checks.py -- inside the file, base_dir is
+# os.path.dirname(os.path.abspath(__file__))
+import os
+from jobcheck import load_checks
+
+load_checks(["check_age.py", "check_email.py"],
+            base_dir=os.path.join(os.getcwd(), "my_checks"))
+```
+
+The members are loaded files in their own right: each appears in
+`loaded_check_files()`, before the bundle that pulled it in, and each is skipped
+if the caller also names it. `validate_registry` runs as the *outermost* call
+returns, so a prerequisite may live in a bundle, in another bundle, or in a file
+the caller names after the bundle. A file already being imported further up the
+call is skipped, so a bundle naming itself, or two naming each other, finish
+rather than recursing. A failure stays per file at every depth: the file that
+raises drops its own checks, its completed members keep theirs, and the bundle is
+not recorded as loaded, so the corrected bundle loads on the next call.
+
+Importing the members instead — `sys.path.insert` and `import check_age` — also
+registers them, but they are then ordinary modules: two bundles holding a
+same-named member silently load only the first, since the second import finds the
+name in `sys.modules` and does nothing. Nesting `load_checks` has no such
+collision, and records every member.
+
 ### `loaded_check_files() -> list[str]`
 
 The resolved paths loaded that way, in load order. A copy.

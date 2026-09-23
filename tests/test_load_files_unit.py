@@ -379,3 +379,170 @@ def test_a_bare_string_path_is_refused_by_load_checks(fresh_registry: None) -> N
 def test_a_bare_string_path_is_refused_by_load_overrides(fresh_registry: None) -> None:
     with pytest.raises(TypeError, match=r"load_overrides takes a list of paths"):
         reg.load_overrides("rules.yaml")  # type: ignore[arg-type]
+
+
+# --- bundles: a check file that loads check files ----------------------------
+#
+# One path in the caller's list, ten files behind it. What this has to get right
+# is the boundary between the bundle and its members: when the dependency graph
+# is validated, and whose checks a failure drops.
+
+
+BUNDLE = '''
+import os
+from jobcheck import load_checks
+
+load_checks({members!r}, base_dir=os.path.dirname(os.path.abspath(__file__)))
+'''
+
+
+def write_bundle(directory: Path, name: str, members: list[str]) -> str:
+    """A check file whose whole job is to load the files beside it."""
+
+    path = directory / name
+    path.write_text(BUNDLE.format(members=members))
+    return str(path)
+
+
+def test_a_bundle_loads_the_files_it_names(fresh_registry: None, tmp_path: Path) -> None:
+    write_check_file(tmp_path, "check_first.py", "FIRST")
+    write_check_file(tmp_path, "check_second.py", "SECOND")
+    bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py", "check_second.py"])
+
+    reg.load_checks([bundle])
+
+    assert [t.code for t in reg.CHECKS] == ["FIRST", "SECOND"]
+    # The members are loaded files in their own right, and they finish first.
+    assert reg.loaded_check_files() == [
+        str((tmp_path / "check_first.py").resolve()),
+        str((tmp_path / "check_second.py").resolve()),
+        str(Path(bundle).resolve()),
+    ]
+
+
+def test_a_member_is_not_loaded_twice_when_the_caller_names_it_too(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    member = write_check_file(tmp_path, "check_first.py", "FIRST")
+    bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py"])
+    reg.load_checks([member, bundle])
+    assert [t.code for t in reg.CHECKS] == ["FIRST"]
+
+
+def test_a_prerequisite_may_arrive_after_the_bundle_that_needs_it(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """Validation waits for the outermost call, so the order the caller wrote
+    its list in is not a constraint on where a prerequisite lives."""
+
+    dependent = tmp_path / "check_dependent.py"
+    dependent.write_text(
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
+        "def needs_base(row): return PASS\n"
+    )
+    bundle = write_bundle(tmp_path, "all_checks.py", ["check_dependent.py"])
+    base = write_check_file(tmp_path, "check_base.py", "BASE")
+
+    reg.load_checks([bundle, base])
+
+    assert sorted(t.code for t in reg.CHECKS) == ["BASE", "NEEDS_BASE"]
+
+
+def test_a_prerequisite_nothing_provides_still_fails_the_whole_load(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """Deferring the validation must not lose it: the outermost call runs it."""
+
+    dependent = tmp_path / "check_dependent.py"
+    dependent.write_text(
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
+        "def needs_base(row): return PASS\n"
+    )
+    bundle = write_bundle(tmp_path, "all_checks.py", ["check_dependent.py"])
+    with pytest.raises(ValueError, match="depends on 'BASE', which is not registered"):
+        reg.load_checks([bundle])
+
+
+def test_a_member_that_raises_leaves_the_earlier_members_loaded(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """Loading is per file at every depth. The registry and the loaded-file
+    list have to agree afterwards, or the corrected bundle is skipped as
+    already loaded and its missing checks never come back."""
+
+    write_check_file(tmp_path, "check_first.py", "FIRST")
+    broken = tmp_path / "check_broken.py"
+    broken.write_text(
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('BROKEN', 'broken')\n"
+        "def broken(row): return PASS\n"
+        "raise RuntimeError('boom half way through the bundle')\n"
+    )
+    bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py", "check_broken.py"])
+
+    with pytest.raises(RuntimeError, match="boom half way through the bundle"):
+        reg.load_checks([bundle])
+
+    assert [t.code for t in reg.CHECKS] == ["FIRST"]
+    assert reg.loaded_check_files() == [str((tmp_path / "check_first.py").resolve())]
+
+    # The author fixes the member and runs the same command again.
+    broken.write_text(
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('BROKEN', 'broken')\n"
+        "def broken(row): return PASS\n"
+    )
+    reg.load_checks([bundle])
+    assert [t.code for t in reg.CHECKS] == ["FIRST", "BROKEN"]
+
+
+def test_a_bundle_that_raises_drops_its_own_checks_and_keeps_its_members(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    write_check_file(tmp_path, "check_first.py", "FIRST")
+    bundle = tmp_path / "all_checks.py"
+    bundle.write_text(
+        "import os\n"
+        "from jobcheck import PASS, load_checks, register_check\n"
+        "@register_check('BUNDLE_OWN', 'the bundle registered this itself')\n"
+        "def own(row): return PASS\n"
+        "load_checks(['check_first.py'], base_dir=os.path.dirname(os.path.abspath(__file__)))\n"
+        "raise RuntimeError('boom after the members loaded')\n"
+    )
+
+    with pytest.raises(RuntimeError, match="boom after the members loaded"):
+        reg.load_checks([str(bundle)])
+
+    assert [t.code for t in reg.CHECKS] == ["FIRST"]
+    assert reg.loaded_check_files() == [str((tmp_path / "check_first.py").resolve())]
+    assert reg._LOADING == []
+
+
+def test_a_bundle_that_names_itself_is_skipped_rather_than_recursing(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """Without the in-progress guard this is a RecursionError, which says
+    nothing about the file that caused it."""
+
+    write_check_file(tmp_path, "check_first.py", "FIRST")
+    bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py", "all_checks.py"])
+    reg.load_checks([bundle])
+    assert [t.code for t in reg.CHECKS] == ["FIRST"]
+    assert len(reg.loaded_check_files()) == 2
+
+
+def test_two_bundles_that_name_each_other_both_load(fresh_registry: None,
+                                                    tmp_path: Path) -> None:
+    for name, code, other in (("left.py", "LEFT", "right.py"),
+                              ("right.py", "RIGHT", "left.py")):
+        (tmp_path / name).write_text(
+            "import os\n"
+            "from jobcheck import PASS, load_checks, register_check\n"
+            f"@register_check({code!r}, 'from {name}')\n"
+            "def check(row): return PASS\n"
+            f"load_checks([{other!r}], base_dir=os.path.dirname(os.path.abspath(__file__)))\n"
+        )
+    reg.load_checks([str(tmp_path / "left.py")])
+    assert sorted(t.code for t in reg.CHECKS) == ["LEFT", "RIGHT"]

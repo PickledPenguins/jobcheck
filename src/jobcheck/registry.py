@@ -66,6 +66,13 @@ _LOADED_FILES: list[str] = []
 # and the registry would silently stay empty. Recorded at registration rather
 # than at import, so a module pulled in by any route is still tracked.
 _REGISTERING_MODULES: set[str] = set()
+# The check files whose import is in progress, innermost last, each with the
+# checks that file has registered directly. A check file may itself call
+# load_checks -- a bundle naming the files it collects -- and what that costs is
+# knowing which file a check belongs to: a bundle that fails must drop its own
+# checks and keep the ones its completed members registered. A nested member
+# pushes its own frame, so it is never in its bundle's.
+_LOADING: list[tuple[str, list["Check"]]] = []
 # Cached topological order over depends_on edges.  The graph only changes when
 # the registry changes, so it is computed once per registry state and never
 # inside the per-row loop.
@@ -166,16 +173,17 @@ def register_check(
 
         if module:
             _REGISTERING_MODULES.add(module)
-        CHECKS.append(
-            Check(
-                code=code,
-                message=message,
-                fn=_make_runner(fn, code),
-                source_file=inspect.getsourcefile(fn) or "<unknown>",
-                default_enabled=default_enabled,
-                depends_on=list(dict.fromkeys(prerequisites)),
-            )
+        check = Check(
+            code=code,
+            message=message,
+            fn=_make_runner(fn, code),
+            source_file=inspect.getsourcefile(fn) or "<unknown>",
+            default_enabled=default_enabled,
+            depends_on=list(dict.fromkeys(prerequisites)),
         )
+        CHECKS.append(check)
+        if _LOADING:
+            _LOADING[-1][1].append(check)
         _TOPO_ORDER = None
         return fn
 
@@ -241,7 +249,14 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
 
     Every file is named explicitly and nothing is discovered, so two entry points
     in one codebase can run different sets of checks without interfering. A file
-    listed twice, or already loaded, is skipped.
+    listed twice, already loaded, or already being loaded further up the call is
+    skipped.
+
+    A check file may call this itself -- a bundle file naming the files it
+    collects, so a caller loads one path instead of ten. The dependency graph is
+    then validated once, as the outermost call returns, since a prerequisite may
+    arrive in any file of any of the calls; and a file that raises drops its own
+    checks alone, leaving whatever its completed members registered.
 
     A relative path is resolved against *base_dir* when one is given and
     against the working directory otherwise. An entry point whose check files
@@ -256,10 +271,14 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
             f"load_checks takes a list of paths, not one string: pass [{paths!r}]. "
             "A bare string would be read as a list of its characters."
         )
+    in_progress = [name for name, _ in _LOADING]
     resolved: list[str] = []
     for path in list(paths):
         name = str(resolve_input_file(path, "check file", "load_checks()", base_dir))
-        if name not in _LOADED_FILES and name not in resolved:
+        # in_progress is what stops a bundle that names itself, or two bundles
+        # that name each other, from recursing until the interpreter gives up:
+        # the file is mid-import, so its checks are on their way.
+        if name not in _LOADED_FILES and name not in resolved and name not in in_progress:
             resolved.append(name)
 
     for name in resolved:
@@ -280,7 +299,7 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
         # name is unique per load, so a cached .pyc would never be reused anyway.
         writing_bytecode = sys.dont_write_bytecode
         sys.dont_write_bytecode = True
-        registered_before = len(CHECKS)
+        _LOADING.append((name, []))
         try:
             spec.loader.exec_module(module)
         except Exception:
@@ -289,18 +308,24 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
             # _LOADED_FILES. Drop them: a file that failed to load loaded
             # nothing, and the corrected file must not be refused as a
             # duplicate of itself. Files loaded before it stay -- loading is
-            # per file, not per call.
-            del CHECKS[registered_before:]
+            # per file, not per call, at every depth: a bundle keeps what its
+            # completed members registered, which is what _LOADING separates.
+            mine = {id(check) for check in _LOADING[-1][1]}
+            CHECKS[:] = [check for check in CHECKS if id(check) not in mine]
             _REGISTERING_MODULES.discard(module_name)
             sys.modules.pop(module_name, None)
             _TOPO_ORDER = None
             raise
         finally:
+            _LOADING.pop()
             sys.dont_write_bytecode = writing_bytecode
         _REGISTERING_MODULES.add(module_name)
         _LOADED_FILES.append(name)
 
-    validate_registry()
+    # Nested calls leave it to the outermost one: a bundle's members may depend
+    # on each other in any order, and on files the caller names after the bundle.
+    if not _LOADING:
+        validate_registry()
 
 
 def _topological_order() -> list[Check]:

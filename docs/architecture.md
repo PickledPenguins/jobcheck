@@ -72,6 +72,7 @@ the package by accident from the working directory. The demos add `src/` to
 | `src/jobcheck/__init__.py` | Re-exports the public surface. Registers no checks, and ships none. |
 | `examples/checks/` | The example checks. Outside the package on purpose: nothing of ours should register in an adopter's registry. |
 | `examples/main.py` | Demo entry point and end-to-end driver: registry tables, the report, explanations, summaries. |
+| `examples/bundle_main.py` | Second demo entry point: loads one bundle, prints what it loaded. `examples/checks/all_checks.py` is the bundle it loads by default. |
 | `tests/` | pytest suites, split `fast`/`long` by marker, plus the example and failure catalogs and `run-tests.sh`, the entry point for every gate. |
 | `scripts/` | The pre-commit hook installer, the catalog regenerator, the example profiler and the bytecode interface reader. |
 
@@ -106,6 +107,17 @@ registered by a module not yet imported, so the check belongs at the end of
 `load_checks`. An unloaded prerequisite raises rather than silently skipping its
 dependent: otherwise which checks ran would change with an unrelated CLI flag, with no
 diagnostic.
+
+**A check file may call `load_checks` itself, and the outermost call owns the
+validation.** That is a bundle: one path in the caller's list, the files it collects
+behind it. Validating at the end of every call would refuse a bundle whose prerequisite
+the caller names after it — a constraint on the order of a list, for no gain, since the
+whole load is still one moment. The registry tracks which file is being imported, so
+loading stays per file at every depth: a file that raises drops the checks *it*
+registered and keeps whatever its completed members did, leaving the registry and
+`loaded_check_files()` agreeing. A file already being imported further up the call is
+skipped like one already loaded, which is what makes a bundle that names itself, or two
+that name each other, finish instead of exhausting the stack.
 
 **A disabled prerequisite counts as "did not pass", not as vacuously satisfied.** A check
 that did not run confirmed nothing about the row. The alternative would let a rule

@@ -55,7 +55,7 @@ markers = [
 [tool.coverage.run]
 # The library, and the example checks the tests drive: both are code this
 # repository is responsible for, and a broken example should show as a gap.
-source = ["jobcheck", "main", "perf_baseline", "examples/checks"]
+source = ["jobcheck", "main", "bundle_main", "perf_baseline", "examples/checks"]
 branch = true
 data_file = ".build/coverage"
 
