@@ -23,6 +23,7 @@ prints the registry table followed by the failure report.
 ```
 usage: main.py [-h] [--data PATH] [--rules PATH [PATH ...]]
                [--report {table,csv}] [--explain ROW] [--summary]
+               [--rules-table] [--write PATH]
 ```
 
 No positional arguments. Nothing is read from stdin. Results go to stdout; column
@@ -98,6 +99,31 @@ Optional, off by default. After the report, print per-check counts (`failed`, `e
 out at. A high `skipped` count means a fundamental check is failing often and hiding the
 layer below it.
 
+### `--rules-table`
+
+Optional, off by default. Before the registry table, print one row per loaded override
+rule: its name, action, how many codes it touches, what it matches, and its message. The
+registry table is one row per *code*, so a rule touching eight codes is eight lines there
+and one line here — this is the view that answers "what did this rule file actually say".
+`codes_hit_count` is a count rather than the codes themselves, so a broad rule does not
+widen the table; `jobcheck.list_rule_codes` gives the detail.
+
+With `--rules` passed no paths, there are no rules and the table is empty.
+
+### `--write PATH`
+
+Optional. After printing the report, also write it to *PATH* in the `--report` format,
+creating or replacing the file, then print how many rows were written. It is the same
+report frame that was printed, so the file and the terminal cannot disagree — `--report
+csv --write out.csv` is the pairing that gets the failures into a spreadsheet, and the CSV
+is written with the leading-formula guard `jobcheck.escape_for_spreadsheet` applies.
+
+The directory is checked before anything is loaded or validated: `--write` into a
+directory that does not exist prints `error: cannot write <path>: no directory <dir>` to
+stderr and exits 2 immediately, rather than after the run, so nothing reaches stdout that
+the file was meant to hold. A write that fails anyway — a read-only file, a full disk —
+prints `error: cannot write <path>: <reason>` after the report and exits 2.
+
 ### `-h`, `--help`
 
 Prints usage and exits 0.
@@ -126,4 +152,4 @@ argparse's.
 |---|---|
 | 0 | Ran to completion. Rows failing validation still exit 0 — failures are data, printed per row, not a process error. |
 | 1 | An uncaught exception, with traceback. In practice a load-time `ValueError`: a bad rule file, a dependency problem, or a check or override path that is not a file. |
-| 2 | argparse rejected the command line (unknown flag, missing value); `--explain` named a row outside the frame; or `--data` named a path that is missing, a directory, empty, unreadable or not CSV. |
+| 2 | argparse rejected the command line (unknown flag, missing value); `--explain` named a row outside the frame; `--data` named a path that is missing, a directory, empty, unreadable or not CSV; or `--write` named a path that could not be opened. |

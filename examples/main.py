@@ -23,11 +23,13 @@ from jobcheck import (
     check_override_columns,
     load_checks,
     load_overrides,
+    print_override_rules,
     print_registry,
     print_report,
     print_row_explanation,
     print_summary,
     validate,
+    write_report,
 )
 
 #: The check files this entry point runs. Named one by one, rather than
@@ -72,6 +74,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Print what every check did on one row, by position, and exit.")
     parser.add_argument("--summary", action="store_true",
                         help="Print per-check counts and the root cause of each failing row.")
+    parser.add_argument("--rules-table", action="store_true",
+                        help="Print one row per loaded override rule before the registry.")
+    parser.add_argument("--write", metavar="PATH",
+                        help="Also write the report to this file, in the --report format.")
     return parser
 
 
@@ -119,6 +125,17 @@ def main(argv: list[str] | None = None) -> None:
 
     args = build_parser().parse_args(argv)
 
+    # Before any work: validating a large frame and only then finding that the
+    # directory does not exist wastes the run and loses the report. The write
+    # itself is still guarded below -- a directory can go away, or be read-only
+    # in a way this does not see.
+    if args.write is not None:
+        directory = os.path.dirname(os.path.abspath(args.write))
+        if not os.path.isdir(directory):
+            print(f"error: cannot write {args.write}: no directory {directory}",
+                  file=sys.stderr)
+            raise SystemExit(2)
+
     load_checks(CHECK_FILES, base_dir=PROJECT_ROOT)
     overrides = load_overrides(args.rules)
     print(f"Loaded {len(overrides)} override rule(s) from {len(args.rules)} file(s)\n")
@@ -138,6 +155,14 @@ def main(argv: list[str] | None = None) -> None:
         print_row_explanation(outcomes[args.explain])
         return
 
+    if args.rules_table:
+        print("== Override rules ==")
+        # One row per rule, where the registry table below is one row per code:
+        # a rule touching eight codes is one line here and eight there, which is
+        # the view that answers "what did this file actually say".
+        print_override_rules(overrides)
+        print()
+
     print("== Registry ==")
     # could_be_overridden_by is the only use print_registry makes of the rules:
     # without it the argument is inert and the demo never shows which rule
@@ -145,7 +170,18 @@ def main(argv: list[str] | None = None) -> None:
     print_registry(overrides=overrides, extra_columns=["could_be_overridden_by"])
 
     print("\n== Failures ==")
-    print_report(build_report(outcomes, df=df, key_column=KEY_COLUMN), fmt=args.report)
+    report = build_report(outcomes, df=df, key_column=KEY_COLUMN)
+    print_report(report, fmt=args.report)
+
+    if args.write is not None:
+        # The same frame the report above was printed from, so the file and the
+        # terminal cannot disagree.
+        try:
+            write_report(report, args.write, fmt=args.report)
+        except OSError as exc:
+            print(f"error: cannot write {args.write}: {exc}", file=sys.stderr)
+            raise SystemExit(2) from None
+        print(f"\nWrote {len(report)} report row(s) to {args.write}")
 
     if args.summary:
         print("\n== Summary ==")

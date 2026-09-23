@@ -143,3 +143,89 @@ def test_rules_with_no_paths_loads_none(fresh_registry: None, capsys: Any) -> No
 def test_the_csv_report_format_is_comma_separated(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys, "--data", SMALL, "--report", "csv")
     assert "row,code,status,layer,outcome,message,detail,comments,is_root_cause" in out
+
+
+def test_the_rules_table_prints_one_row_per_rule_not_per_code(fresh_registry: None,
+                                                              capsys: Any) -> None:
+    """The registry table below it is one row per code, so a rule touching two
+    codes is two lines there and one line here."""
+
+    out = run(capsys, "--rules-table")
+    rules = out.split("== Override rules ==")[1].split("== Registry ==")[0]
+    assert "codes_hit_count" in rules
+    assert rules.count("suppress_email_checks_for_test_accounts") == 1
+    # The same rule, twice in the registry table: once per code it can reach.
+    registry = out.split("== Registry ==")[1].split("== Failures ==")[0]
+    assert registry.count("suppress_email_checks_for_test_accounts") == 2
+
+
+def test_the_rules_table_is_empty_when_no_rules_were_loaded(fresh_registry: None,
+                                                            capsys: Any) -> None:
+    out = run(capsys, "--rules-table", "--rules")
+    rules = out.split("== Override rules ==")[1].split("== Registry ==")[0]
+    assert "enable_legacy_integer_check" not in rules
+
+
+def test_write_puts_the_printed_report_in_a_file(fresh_registry: None, capsys: Any,
+                                                 tmp_path: Path) -> None:
+    """The file and the terminal come from one report frame, so a difference
+    between them would be a defect rather than a formatting choice."""
+
+    target = tmp_path / "report.csv"
+    out = run(capsys, "--data", SMALL, "--report", "csv", "--write", str(target))
+    written = target.read_text(encoding="utf-8")
+    assert written.startswith(
+        "row,code,status,layer,outcome,message,detail,comments,is_root_cause")
+    assert f"Wrote {written.count(chr(10)) - 1} report row(s) to {target}" in out
+
+
+def test_write_uses_the_report_format_rather_than_the_extension(fresh_registry: None,
+                                                                capsys: Any,
+                                                                tmp_path: Path) -> None:
+    """`--report table --write out.csv` writes the bordered table. The flag
+    chooses the format; the file name is just a name."""
+
+    target = tmp_path / "report.csv"
+    run(capsys, "--data", SMALL, "--write", str(target))
+    assert target.read_text(encoding="utf-8").startswith("row ")
+
+
+def test_write_replaces_a_file_that_is_already_there(fresh_registry: None, capsys: Any,
+                                                     tmp_path: Path) -> None:
+    target = tmp_path / "report.csv"
+    target.write_text("stale\n" * 200, encoding="utf-8")
+    run(capsys, "--data", CLEAN, "--report", "csv", "--write", str(target))
+    assert "stale" not in target.read_text(encoding="utf-8")
+
+
+def test_write_into_a_missing_directory_exits_two_before_doing_the_work(
+    fresh_registry: None, capsys: Any, tmp_path: Path
+) -> None:
+    """Checked up front: validating the frame and only then finding there is
+    nowhere to put the report wastes the run and prints what the file was
+    supposed to hold."""
+
+    target = tmp_path / "nope" / "report.csv"
+    with pytest.raises(SystemExit) as excinfo:
+        main.main(["--write", str(target)])
+    assert excinfo.value.code == 2
+    captured = capsys.readouterr()
+    assert f"error: cannot write {target}: no directory {tmp_path / 'nope'}" in captured.err
+    assert captured.out == ""
+
+
+def test_a_write_that_fails_at_the_last_moment_still_exits_two(
+    fresh_registry: None, capsys: Any, tmp_path: Path, monkeypatch: Any
+) -> None:
+    """The up-front check cannot see everything -- a directory can go away, a
+    disk can fill -- so the write itself stays guarded."""
+
+    def refuse(*args: Any, **kwargs: Any) -> None:
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(main, "write_report", refuse)
+    target = tmp_path / "report.csv"
+    with pytest.raises(SystemExit) as excinfo:
+        main.main(["--data", CLEAN, "--write", str(target)])
+    assert excinfo.value.code == 2
+    assert "No space left on device" in capsys.readouterr().err
