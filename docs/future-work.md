@@ -55,17 +55,6 @@ would be, so a later session can take one without re-deriving it.
 
 
 
-**F.17 — no search path for check and rule files.** `base_dir` (2026-09-22) anchors a
-relative path to one directory the caller names. What it does not serve is the
-deployment case: check files installed in a shared location, named bare by a run
-configuration that does not know where they were installed. That wants a list of
-directories tried in order -- an environment variable, or an argument -- and first match
-wins. Not built, because it is discovery, which this library refuses everywhere else: two
-files of one name in two entries means the wrong checks run and nothing says so, and an
-environment variable makes a run irreproducible from its command line. Estimated ~45
-source and ~130 test lines. Decide it deliberately if the deployment case turns up; do
-not add it as a convenience.
-
 The ten items below came out of the two reviews of 2026-09-23, were sniff-tested against
 the code, and were held rather than fixed because each changes behavior, an API, or needs
 a design call the owner has not made. The reviews' own fixes to the same commit are in the
@@ -218,6 +207,20 @@ where the rule is actually claimed, and leave `tests/` and `scripts/` out rather
 writing an exception list.
 
 ## Considered and deliberately not done
+
+**A search path for check and rule files** (F.17, decided 2026-09-23). `base_dir`
+anchors a relative path to one directory the caller names. What it does not serve is the
+deployment case: check files installed in a shared location, named bare by a run
+configuration that does not know where they went. A list of directories tried in order,
+first match wins, was the obvious answer and is refused. **A bundle is the answer
+instead**: the installed location ships one check file that names its own members, the
+run configuration names that file, and where the members live is the bundle's business
+rather than a search order's. One path still means one file, which a search path gives
+up -- two files of one name in two entries means the wrong checks run and nothing says
+so, and an environment variable makes a run irreproducible from its command line. It
+would also cost the sentence every failure prints, "load_checks() names files explicitly;
+nothing is discovered", which is pinned in eleven places and is the invariant the whole
+loader is built on.
 
 **Carrying the in-progress load stack through `snapshot` and `restore`** (F.18, decided
 2026-09-23). The registry's frame stack -- the check files whose import is in progress,
