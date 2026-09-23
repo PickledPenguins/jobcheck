@@ -71,3 +71,35 @@ def test_an_argument_names_a_different_bundle(fresh_registry: None, capsys: Any,
 def test_the_default_bundle_is_the_shipped_one() -> None:
     assert bundle_main.DEFAULT_BUNDLE == os.path.join(
         PROJECT_ROOT, "examples/checks/all_checks.py")
+
+
+def test_help_answers_rather_than_being_read_as_a_bundle_path(capsys: Any) -> None:
+    """Regression: `--help` was element zero of `sys.argv[1:]`, so it reached
+    `load_checks` and came back as `No check file at '--help'` with a traceback
+    and exit 1 -- at the one command a reader tries first."""
+
+    with pytest.raises(SystemExit) as excinfo:
+        bundle_main.main(["--help"])
+    assert excinfo.value.code == 0
+    out = capsys.readouterr().out
+    # The program name is argv[0], which is pytest here; the catalog's
+    # subprocess run is what pins the real one.
+    assert out.startswith("usage: ")
+    assert "[PATH]" in out
+    assert "the bundle to load" in out
+
+
+def test_a_second_argument_is_an_error_rather_than_dropped(capsys: Any) -> None:
+    """Regression: the extra path was ignored and the run exited 0, so somebody
+    meaning to load two bundles got one and no warning."""
+
+    with pytest.raises(SystemExit) as excinfo:
+        bundle_main.main([bundle_main.DEFAULT_BUNDLE, "second_bundle.py"])
+    assert excinfo.value.code == 2
+    assert "unrecognized arguments: second_bundle.py" in capsys.readouterr().err
+
+
+def test_no_argument_still_means_the_shipped_bundle() -> None:
+    """The default moved into the parser; it is still the same file."""
+
+    assert bundle_main.build_parser().parse_args([]).bundle == bundle_main.DEFAULT_BUNDLE

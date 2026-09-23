@@ -61,23 +61,6 @@ a design call the owner has not made. The reviews' own fixes to the same commit 
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
 
-**F.20 — `examples/bundle_main.py` has no argument parsing.** It reads `sys.argv[1:]` and
-takes element zero as a bundle path, so `python3 examples/bundle_main.py --help` exits 1
-with `ValueError: No check file at '--help'`, and a second path argument is dropped with
-no message and exit 0. `docs/cli.md` documents `-h`, `--help` for `examples/main.py` two
-sections above, so the convention is taught and then broken by the sibling. Gain: `--help`,
-a usage line, and an error for too many arguments, all from four lines of `argparse`; the
-silent drop stops. Loss: `docs/cli.md` currently says "No flags; one optional argument",
-which would have to change, and the failures catalog would want a case for the
-too-many-arguments error — both small, but they are why this is not a one-line edit. There
-is also a deliberate reason for the current shape: the file is a *minimal* second entry
-point, and `argparse` is the thing `examples/main.py` already demonstrates. ~10 source
-lines, 1 doc section, 1 or 2 catalog cases. Priority: medium — it is the first thing a
-junior types at an unfamiliar command. Blast radius: one example entry point, one doc
-section, the catalog. Recommendation: do it. A shipped entry point that answers `--help`
-with a traceback teaches the wrong thing about a library whose error messages are
-otherwise this careful.
-
 **F.21 — the `sys.path` bootstrap is written eight times, three ways.** `tests/conftest.py`,
 `tests/test_docs_unit.py`, `tests/test_concurrency.py`, `examples/main.py`,
 `examples/bundle_main.py`, `scripts/regen_catalog.py`, `scripts/regen_golden.py`,
