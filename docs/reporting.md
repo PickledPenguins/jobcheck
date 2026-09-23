@@ -58,7 +58,7 @@ than `nan`.
 
 A column the frame holds more than once is refused, naming how often it appears:
 `df[key_column]` is a table rather than a column then, and every line of the
-report would be labelled with the column's *name* instead of the row's key.
+report would be labeled with the column's *name* instead of the row's key.
 
 ## Showing data alongside the failures
 

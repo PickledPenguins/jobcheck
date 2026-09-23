@@ -56,7 +56,8 @@ def build_parser() -> argparse.ArgumentParser:
     longer exists are both failures.
     """
 
-    parser = argparse.ArgumentParser(description="Validate rows of a DataFrame with pluggable checks.")
+    parser = argparse.ArgumentParser(
+        description="Validate rows of a DataFrame with pluggable checks.")
     parser.add_argument("--data", metavar="PATH",
                         help="CSV file to validate (default: the built-in demo frame).")
     # nargs="*" rather than "+": `--rules` with nothing after it means no

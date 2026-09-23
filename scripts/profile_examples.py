@@ -25,13 +25,16 @@ import cProfile
 import io
 import pstats
 import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "examples"))
 
-import main  # noqa: E402
+import main as demo  # noqa: E402
+
+from jobcheck import clear_registry  # noqa: E402
 
 DEFAULT_SAVE = ROOT / ".build" / "examples.prof"
 # The runs worth profiling: the ones a user actually waits for.
@@ -63,15 +66,14 @@ def project_rows(stats: pstats.Stats, limit: int = 15) -> list[tuple[str, int, f
 def run(argv: list[str], quiet: bool) -> None:
     """One entry-point run, with its output swallowed unless asked for."""
 
-    stream = sys.stdout if not quiet else io.StringIO()
-    saved, sys.stdout = sys.stdout, stream
-    try:
-        main.main(argv)
-    finally:
-        sys.stdout = saved
+    if not quiet:
+        demo.main(argv)
+        return
+    with redirect_stdout(io.StringIO()):
+        demo.main(argv)
 
 
-def main_(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Profile the example runs.")
     parser.add_argument("--save", default=str(DEFAULT_SAVE),
                         help=f"where to write the full profile (default {DEFAULT_SAVE})")
@@ -82,7 +84,6 @@ def main_(argv: list[str] | None = None) -> int:
     for run_argv in RUNS:
         # Each run loads check files into the same registry; clearing between them
         # keeps the profile honest about what one run costs.
-        from jobcheck import clear_registry
         clear_registry()
         profiler.enable()
         run(run_argv, quiet=True)
@@ -105,4 +106,4 @@ def main_(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main_())
+    raise SystemExit(main())

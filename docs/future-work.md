@@ -66,6 +66,181 @@ environment variable makes a run irreproducible from its command line. Estimated
 source and ~130 test lines. Decide it deliberately if the deployment case turns up; do
 not add it as a convenience.
 
+The ten items below came out of the two reviews of 2026-09-23, were sniff-tested against
+the code, and were held rather than fixed because each changes behavior, an API, or needs
+a design call the owner has not made. The reviews' own fixes to the same commit are in the
+git log; these are what was deliberately left. Each says what would be gained, what would
+be lost, the size, and the recommendation, so none has to be re-derived.
+
+**F.18 — `snapshot` and `restore` do not carry the in-progress load stack.** The registry
+has five module-level pieces of state; the snapshot dict carries four. The frame stack the
+bundle work added (`registry.py`, the list of files whose import is in progress with the
+checks each registered) is carried by neither `snapshot`, `restore` nor `clear_registry`,
+while `RegistryState` is documented as "Everything `clear_registry` clears, as one value"
+and `snapshot` as "Copy the whole registry ... One place owns what registry state *is*, so
+a caller cannot miss a piece". Nothing observed is wrong: the stack is empty between calls,
+and the only way to observe the gap is a check file that calls `snapshot` and `restore`
+while a bundle above it is still importing — at which point the restore drops a frame the
+bundle's rollback still expects, and the rollback then keeps checks it should have dropped.
+Gain: the three docstrings become true, and a nested `snapshot` stops being a trap nobody
+documented. Loss, if the state is carried rather than the wording narrowed: `restore`
+starts reinstating a *mid-load* registry, which is a state the rest of the module assumes
+it never sees — the stack is read by `register_check` and by the rollback, so a restored
+frame from a load that is no longer running would attribute the next file's checks to it.
+That is a worse failure than the one being fixed, and it is why this was not simply done.
+Doc-only: 6 lines across three docstrings, no test. Carrying the state: ~10 source lines,
+~40 test lines, and a decision about what a restore *means* during a load. Priority:
+medium — no failure today, a real one for anyone who writes the nested case. Blast radius:
+doc-only, none; carrying it, every caller of `restore`, which is `fresh_registry` and
+therefore most of the suite. Recommendation: narrow the wording to "a registry between
+loads, not during one" and say the nested case is unsupported. The state is not worth
+carrying until something needs to snapshot mid-load, and nothing does.
+
+**F.19 — `restore` puts back the registry but not the module cache.** `restore` calls
+`clear_registry` first, which pops every recorded module out of `sys.modules`, then
+re-declares those same names from the snapshot without re-importing anything. Probed
+2026-09-23: after a load of `examples/checks/check_age.py`, a `snapshot`, a
+`clear_registry` and a `restore`, the registry holds all five age checks and the module
+set names `jobcheck_check_file_check_age_0`, while `sys.modules` holds nothing at all. The
+checks still run, because the runners are closures over the author's functions. Gain:
+`restore` would match its docstring, "Put back a registry `snapshot` took". Loss if left:
+anything that resolves a check function's module after a restore gets a `KeyError` or the
+wrong answer — `pickle` for a worker pool, `inspect.getmodule`, and the `dataclasses`
+annotation resolution `architecture.md` already documents as a trap for `clear_registry`;
+`fresh_registry` runs this pattern around most of the suite, so the state is common.
+Loss if fixed by behavior: `restore` would have to either keep the modules alive across
+the clear (a second eviction rule to explain) or re-import the files (which re-runs
+arbitrary user code inside what is documented as a pure state swap, and would double-
+register). Doc-only: 3 lines. Behavior: ~15 source lines and a new rule about what
+`restore` may execute. Priority: medium. Blast radius: `restore` is public and used by
+every test that takes `fresh_registry`. Recommendation: document it — say the module cache
+is not restored and point at the `clear_registry` note in `architecture.md`. Re-importing
+inside `restore` is the wrong shape; keeping modules alive is worth considering only if
+someone actually pickles a check.
+
+**F.20 — `examples/bundle_main.py` has no argument parsing.** It reads `sys.argv[1:]` and
+takes element zero as a bundle path, so `python3 examples/bundle_main.py --help` exits 1
+with `ValueError: No check file at '--help'`, and a second path argument is dropped with
+no message and exit 0. `docs/cli.md` documents `-h`, `--help` for `examples/main.py` two
+sections above, so the convention is taught and then broken by the sibling. Gain: `--help`,
+a usage line, and an error for too many arguments, all from four lines of `argparse`; the
+silent drop stops. Loss: `docs/cli.md` currently says "No flags; one optional argument",
+which would have to change, and the failures catalog would want a case for the
+too-many-arguments error — both small, but they are why this is not a one-line edit. There
+is also a deliberate reason for the current shape: the file is a *minimal* second entry
+point, and `argparse` is the thing `examples/main.py` already demonstrates. ~10 source
+lines, 1 doc section, 1 or 2 catalog cases. Priority: medium — it is the first thing a
+junior types at an unfamiliar command. Blast radius: one example entry point, one doc
+section, the catalog. Recommendation: do it. A shipped entry point that answers `--help`
+with a traceback teaches the wrong thing about a library whose error messages are
+otherwise this careful.
+
+**F.21 — the `sys.path` bootstrap is written eight times, three ways.** `tests/conftest.py`,
+`tests/test_docs_unit.py`, `tests/test_concurrency.py`, `examples/main.py`,
+`examples/bundle_main.py`, `scripts/regen_catalog.py`, `scripts/regen_golden.py`,
+`scripts/profile_examples.py` and `scripts/new_catalog_case.py` each compute the clone root
+and put some subset of `src`, `examples`, `tests` and the root itself on the path. The root
+is `PROJECT_ROOT` in some and `ROOT` in others, `os.path` in some and `pathlib` in others,
+and no two insert the same set. Gain: one place to change when the layout moves, and one
+name for one concept, which is the rule `contributing.md` states. Loss: the two files under
+`examples/` must keep their own copy whatever happens — they are what an adopter copies, and
+a demo that imports a private test helper to find its own package is worse than a repeated
+three lines. So the de-duplication can only ever cover six of the eight, which weakens it:
+a reader still meets two spellings, and now also has to know which files are allowed to use
+the helper. ~25 source lines removed, ~15 added, 6 files touched. Priority: low — it has
+never caused a failure. Blast radius: import bootstrapping for the whole suite and every
+script; a mistake here is a collection error, loud and immediate. Recommendation: do the
+smaller half instead — make the six agree on the name `ROOT` and on `pathlib`, and leave
+them separate. The shared helper buys less than it costs once the two entry points are
+carved out.
+
+**F.22 — two private-by-name helpers in `tables.py` are package-internal API.** The cell
+formatter and the extra-columns validator carry a leading underscore and are imported by
+`rules.py`, `report.py` and `registry_tables.py`; `format_table` and `is_null`, in the same
+file and used the same way, carry none and are exported from `__init__.py`. A reader cannot
+derive the rule, and the underscore is the only signal a junior has for "do not call this
+from elsewhere". Gain: the convention becomes legible — either the underscore means
+"not public API" and is documented as such, or the two helpers are named like the rest of
+the file. Loss if renamed: they would look exported without being in `__all__`, which is a
+different confusion, and `test_api_contract.py` checks that the public surface is complete
+and sorted — a public-looking name that is deliberately absent from `__all__` is a new
+exception to explain there. 5 lines if documented; ~12 lines across 4 files if renamed.
+Priority: low. Blast radius: three modules and their unit tests; no behavior. Recommendation:
+document rather than rename. One sentence in `tables.py`'s module docstring saying an
+underscore there means "internal to the package, not to this file" costs nothing and does
+not disturb the export contract.
+
+**F.23 — the test suite's module aliases.** `tests/conftest.py` imports the package's
+modules as `eng`, `reg` and `res`, and roughly twenty test modules use them. The package
+itself spells everything out, and `contributing.md` names the junior reader as the bar.
+Gain: one vocabulary across source and tests. Loss: the rename touches every test file that
+uses them, which is a large diff with no behavior change — it makes `git log -S` and
+`git blame` on the suite worse for a year to buy a spelling. 3 lines in `conftest.py`,
+~200 touched lines across ~20 files. Priority: low. Blast radius: tests only. Recommendation:
+do not do it on its own. If the suite is ever split or reorganized, spell them out in the
+files that move, and let the rest converge.
+
+**F.24 — the enabled-state lookup carries a fallback nothing explains.** `engine.py`'s
+per-row loop reads each check's state with a dict `get` and a default, but the dict is
+built from the same registry list the loop walks, in the same call, so the default cannot
+fire unless the cached evaluation order is stale with respect to the registry — the exact
+state the cache invalidation exists to prevent. A `get` default is not a branch, so the
+100% branch figure does not cover it, and no test reaches it. Gain: either the reader
+learns in one line what the fallback guards, or the guard goes and a stale cache raises
+where it happens instead of silently running a check under its declared default. Loss if
+the default is dropped: a stale cache becomes a `KeyError` from inside the row loop rather
+than a quietly wrong-but-plausible run. That is the right trade for a library that refuses
+to guess elsewhere — but it converts a silent state into a crash, which is a behavior change
+and needs the owner's word. 1 line either way; ~15 test lines if the raise is asserted.
+Priority: low. Blast radius: the per-row loop, which is every validation. Recommendation:
+drop the default and index directly, with a test that a stale cache raises. The silent path
+is the one this project would not accept anywhere else.
+
+**F.25 — `print_report` returns nothing while its four siblings return their frame.**
+`registry_tables.py`'s module docstring states the convention — every function returns the
+DataFrame it prints, so a caller can take the data without the output — and
+`print_registry`, `print_override_rules`, `print_summary` and `print_row_explanation` all
+follow it. `print_report` returns `None`, and `report.py`'s module docstring does not
+mention the convention, so a reader meets the rule only by opening the other file. Gain:
+one rule, stated in both files, and a caller that prints and keeps the frame without
+building it twice. Loss: it is a public API change. Additive — nothing can depend on
+`None` — but `interfaces.md` documents the return, `test_api_contract.py` checks
+signatures, and the golden and catalog outputs would need re-reading to confirm nothing
+prints twice. ~4 source lines, 2 doc lines, ~10 test lines. Priority: low. Blast radius:
+one exported function's signature and its documentation. Recommendation: do it with the
+next API change rather than alone, and state the convention in `report.py`'s docstring at
+the same time.
+
+**F.26 — the catalog's stable-root fallback swallows more than its comment admits.**
+`tests/catalog.py` creates a fixed-length symlink to the clone so the recorded column
+widths do not depend on where the repository sits, and falls back to the real root inside
+an `except OSError` marked `# pragma: no cover - no symlinks on this filesystem`. That
+handler also catches the `FileExistsError` two runs in one clone produce by racing between
+the unlink and the symlink call: the fallback then returns the real root, the rendered
+paths change width, and the byte-for-byte cases fail with a padding diff the comment blames
+on the filesystem, while the pragma tells coverage never to look. Gain: a concurrent run
+stops producing a failure that reads as somebody else's fault. Loss: the fix is either a
+narrower `except` plus a re-read of the link, or creating the link under a unique name and
+`os.replace`-ing it, which is atomic — the second is right but adds a temporary name to a
+directory shared by every clone of every user, which is what the current zero-padded name
+scheme was carefully built to avoid. ~12 lines in one file. Priority: low — the handoff
+already says not to run two timing suites at once, and the catalog is not a timing suite
+but shares the constraint. Blast radius: the 64 catalog cases, and only when two runs of
+one clone overlap. Recommendation: do the atomic-replace version, and narrow the comment to
+say what it is excusing. The pragma should move to whatever is genuinely unreachable.
+
+**F.27 — no gate on line width.** `contributing.md` states "Lines stay under 100
+characters. Nothing enforces it -- there is no linter here -- but the package sits under
+it". On 2026-09-23 it did not: two lines were 101 and 103 characters. They were wrapped, and
+nothing stops the next two. Gain: the one style rule with no enforcement gets one, in the
+file that already enforces the other layout rules. Loss: a width check has to decide what it
+covers — the package only, or the tests and scripts too, where several long lines are
+deliberate table rows and error-message literals — and a gate that has to carry exceptions
+is worth less than the rule. ~20 test lines. Priority: low. Blast radius: the fast suite; a
+false positive blocks a commit. Recommendation: add it for `src/` and `examples/` only,
+where the rule is actually claimed, and leave `tests/` and `scripts/` out rather than
+writing an exception list.
+
 ## Considered and deliberately not done
 
 **Anchoring relative paths on the caller's script directory, automatically** (considered

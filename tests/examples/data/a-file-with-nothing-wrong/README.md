@@ -1,6 +1,6 @@
 # A file with nothing wrong
 
-What a clean file looks like, so the empty report is recognisable.
+What a clean file looks like, so the empty report is recognizable.
 
 Level:    simple
 Input:    `examples/data/customers_clean.csv` (24 clean rows)

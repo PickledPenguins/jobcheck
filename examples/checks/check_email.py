@@ -7,9 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from jobcheck.registry import register_check
-from jobcheck.results import PASS, Status, CheckResult
-from jobcheck.tables import is_null
+from jobcheck import PASS, Status, CheckResult, is_null, register_check
 
 _DOMAIN = re.compile(r"^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$")
 

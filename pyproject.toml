@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "jobcheck"
 version = "0.2.0"
-description = "Validate rows of a pandas DataFrame with many small, dependent, named tests."
+description = "Validate rows of a pandas DataFrame with many small, dependent, named checks."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Chris Harris" }]

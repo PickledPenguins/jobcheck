@@ -75,11 +75,17 @@ def session_blocks() -> list[tuple[int, str, str]]:
 
 
 def test_the_readme_session_runs_and_prints_exactly_what_it_shows(
-    fresh_registry: None,
+    fresh_registry: None, monkeypatch: Any,
 ) -> None:
     """The worked example, start to finish, in one namespace -- which is what a
-    reader following along has. Every shown output is compared byte for byte."""
+    reader following along has. Every shown output is compared byte for byte.
 
+    From the project root, because that is where the reader is standing: the
+    README names its check files relative to the clone, which is what a reader
+    would type. Without the chdir the suite passes only when pytest happens to
+    have been started there."""
+
+    monkeypatch.chdir(README.parent)
     namespace: dict[str, Any] = {}
     compared = 0
     for index, source, expected in session_blocks():
@@ -92,10 +98,14 @@ def test_the_readme_session_runs_and_prints_exactly_what_it_shows(
     assert compared >= 2, "the README stopped showing output for its examples"
 
 
-def test_a_later_block_only_uses_names_an_earlier_one_defined(fresh_registry: None) -> None:
+def test_a_later_block_only_uses_names_an_earlier_one_defined(
+    fresh_registry: None, monkeypatch: Any,
+) -> None:
     """A reader pastes these in order; a block reaching for something undefined
-    would fail on them and not on us."""
+    would fail on them and not on us. From the project root, for the reason the
+    block above gives."""
 
+    monkeypatch.chdir(README.parent)
     namespace: dict[str, Any] = {}
     for index, source, _ in session_blocks():
         with redirect_stdout(io.StringIO()):

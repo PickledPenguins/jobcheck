@@ -34,6 +34,7 @@ os.environ.setdefault(
 
 from jobcheck import engine as eng  # noqa: E402
 from jobcheck import registry as reg  # noqa: E402
+from jobcheck import report  # noqa: E402
 from jobcheck import results as res  # noqa: E402
 
 
@@ -102,15 +103,12 @@ def one_row_report(
     -- rendered, escaped, wrapped -- without each of them growing its own copy.
     """
 
-    from jobcheck import build_report, validate
-    from jobcheck.results import Status, CheckResult
-
     @reg.register_check(code="CELL", message=message)
     def check(row: "pd.Series[Any]") -> res.CheckResult:
-        return CheckResult(Status.INVALID, comments or {})
+        return res.CheckResult(res.Status.INVALID, comments or {})
 
     frame = pd.DataFrame([{"id": 1}])
-    return build_report(validate(frame), df=frame, key_column="id")
+    return report.build_report(eng.validate(frame), df=frame, key_column="id")
 
 
 @dataclass

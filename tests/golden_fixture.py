@@ -12,9 +12,22 @@ so the check and the regeneration can never disagree about the input.
 
 from __future__ import annotations
 
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import pandas as pd
+
+from jobcheck import (
+    build_report,
+    clear_registry,
+    validate,
+    load_checks,
+    load_overrides,
+    print_row_explanation,
+    print_summary,
+    render_report,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
@@ -49,22 +62,9 @@ def render_all() -> dict[str, str]:
     """Every golden view, keyed by filename, produced through the public API.
 
     Clears and reloads the registry, since the golden files are defined by the
-    example check files and nothing else; callers get an empty registry back.
+    example check files and nothing else; callers get those checks loaded, not
+    an empty registry.
     """
-
-    import io
-    from contextlib import redirect_stdout
-
-    from jobcheck import (
-        build_report,
-        clear_registry,
-        validate,
-        load_checks,
-        load_overrides,
-        print_row_explanation,
-        print_summary,
-        render_report,
-    )
 
     clear_registry()
     load_checks([str(ROOT / path) for path in CHECK_FILES])

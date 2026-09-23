@@ -1,7 +1,7 @@
 """What an adopter actually gets: the library alone, with nothing of ours in it.
 
 These are the checks that would have caught the two findings the fourth review
-turned up -- the example suites travelling inside the distribution, and the
+turned up -- the example suites traveling inside the distribution, and the
 library being unusable from outside this repository. They install nothing: the
 package is imported from ``src/`` the way an installed copy would be, in a
 subprocess whose working directory is not this project.
