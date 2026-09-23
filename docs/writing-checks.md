@@ -134,6 +134,54 @@ Each file gets a unique module name, so two run directories that each hold a
 `checks.py` both load. No `__pycache__` is written beside the caller's file: that
 directory is a record of what the run read, not somewhere to write to.
 
+## Bundles: one file that loads the rest
+
+Ten check files means ten paths in every entry point that wants them, and a
+forgotten one is a check that silently does not run. A **bundle** is a check file
+whose job is to load the others, so a caller names one path:
+
+```python
+# my_checks/all_checks.py -- inside the file, HERE is os.path.dirname(os.path.abspath(__file__))
+import os
+from jobcheck import load_checks, loaded_check_files
+
+HERE = os.path.join(os.getcwd(), "my_checks")
+load_checks(["check_age.py", "check_email.py"], base_dir=HERE)
+loaded_check_files()
+```
+
+The caller then names one path, `my_checks/all_checks.py`, and gets all of them.
+The members are loaded files like any other: each is in `loaded_check_files()`,
+before the bundle that pulled it in, and naming one directly as well loads it
+once. A bundle may register checks of its own, and may load other bundles.
+`examples/checks/all_checks.py` is a shipped one; `examples/bundle_main.py` is an
+entry point that loads nothing else.
+
+Two things are worth knowing before you build one:
+
+- **Prerequisites may point anywhere in the whole load.** The dependency graph is
+  validated as the outermost call returns, so a check in a bundle may depend on a
+  code from another bundle, or from a file the caller names *after* it.
+- **A failure is per file, at every depth.** If one member raises, the members
+  before it stay loaded with their checks, the failing member leaves nothing, and
+  the bundle itself is not recorded as loaded — fix the member and load the bundle
+  again.
+
+Importing the members instead of loading them works too, and costs you the
+guarantees above:
+
+```python
+# my_checks/all_checks.py -- works, but see below
+import os, sys
+sys.path.insert(0, os.path.join(os.getcwd(), "my_checks"))
+import check_age, check_email     # noqa: F401
+```
+
+Those are ordinary modules, so a second bundle holding its own `check_age.py`
+imports nothing — the name is already in `sys.modules` — and its checks are
+silently missing. The members also never appear in `loaded_check_files()`, which
+is the record of what the run read. Prefer the nested `load_checks`.
+
 `examples/checks/` is the worked example — four files outside the library, loaded
 by `examples/main.py` from the list it names in `CHECK_FILES`.
 

@@ -61,6 +61,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--input", required=True, help="the Input: line")
     parser.add_argument("--expected", required=True, help="the Expected: line")
     parser.add_argument("--level", choices=LEVELS, help="required for an example case")
+    parser.add_argument("--entry", default="examples/main.py",
+                        help="the entry point to run (default examples/main.py)")
     parser.add_argument("command", nargs="*", help=argparse.SUPPRESS)
     # Split on the first bare `--` by hand: a nargs=REMAINDER positional
     # swallows every option typed after the first positional, so the --title
@@ -70,10 +72,9 @@ def main(argv: list[str] | None = None) -> int:
         print("new_catalog_case: no command given (use -- before it)", file=sys.stderr)
         return 2
     split = raw.index("--")
+    # Everything after `--` is the entry point's arguments, and an empty list is
+    # a real case: a run with no flags at all is what a reader tries first.
     arguments = raw[split + 1:]
-    if not arguments:
-        print("new_catalog_case: no command given (use -- before it)", file=sys.stderr)
-        return 2
     args = parser.parse_args(raw[:split])
 
     if args.kind == "examples" and not args.level:
@@ -85,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"new_catalog_case: {case} already exists", file=sys.stderr)
         return 1
 
-    command = "python3 examples/main.py " + " ".join(shlex.quote(a) for a in arguments)
+    command = " ".join(["python3", args.entry, *(shlex.quote(a) for a in arguments)])
     clash = existing_commands(args.kind).get(command)
     if clash is not None:
         print(f"new_catalog_case: {clash.relative_to(ROOT)} already runs that exact command.\n"

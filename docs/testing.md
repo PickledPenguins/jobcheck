@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 640 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 236 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 876 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 655 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 244 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 899 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -59,13 +59,14 @@ Fast:
 | File | Covers |
 |---|---|
 | `tests/test_registry_unit.py` | Registration and its duplicate guard, `clear_registry`, dependency validation, cycle detection, topological order and its cache. |
-| `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads skipped, unique module names, prerequisites across files in one call, what a broken file leaves behind, and that no `__pycache__` appears beside the caller's file. |
+| `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads skipped, unique module names, prerequisites across files in one call, what a broken file leaves behind, and that no `__pycache__` appears beside the caller's file. Bundles -- a check file that loads check files -- have a section of their own: deferred validation, whose checks a failure drops, and the guard that stops a bundle naming itself from recursing. |
 | `tests/test_validate_unit.py` | The whole-frame entry point: one list of outcomes per row **in its own position**, the checks that did not run kept, overrides and the context builder passed through, and both `on_error` modes. |
 | `tests/test_overrides_unit.py` | Every rule-file rejection (19 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
 | `tests/test_results_unit.py` | The fixed status vocabulary, `CheckResult` truthiness and validation, and normalizing whatever a check returned. |
 | `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `check_override_columns`, root cause, layers, and the shipped checks at their boundaries. |
 | `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys, `include` levels, table and CSV rendering, writing files, explanations and summaries. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
+| `tests/test_bundle_main_unit.py` | The bundle entry point in this process, and the shipped bundle it loads: the four members and their order, the printed sections, and the argument that names another bundle. |
 | `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artefact: every rule file loads alone and together, every rule names a real code and a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
 | `tests/test_differential_jobchain.py` | What jobchain's own suite asserted of the pre-rename engine, restated against this one — layering, root cause, cross-row context, crashes, rule-driven disabling. |
 | `tests/test_error_messages_unit.py` | Every message the library raises, compared word for word rather than by keyword: registration, loading, per-row evaluation, reporting and the whole-frame entry point. |
@@ -105,10 +106,11 @@ Own gates:
 
 ## The example catalog
 
-`tests/examples/` holds 42 cases at three levels — 17 simple, 15 moderate, 10 complex —
-and `tests/failures/` holds 19, each asserting the exact message and exit code a user
-sees. Both run through the real entry point in a subprocess, so the documentation cannot
-drift from the behavior.
+`tests/examples/` holds 44 cases at three levels — 18 simple, 16 moderate, 10 complex —
+and `tests/failures/` holds 20, each asserting the exact message and exit code a user
+sees. Both run through a real entry point in a subprocess — `examples/main.py`, or
+`examples/bundle_main.py` for the bundle cases — so the documentation cannot drift from
+the behavior.
 
 Nothing is faked. The entry point, the library, the rule files and the data files are the
 real ones; the only normalization is the absolute project root, replaced by `<project>`

@@ -1,10 +1,12 @@
 # CLI reference
 
-One demo entry point, `examples/main.py`. It imports `jobcheck` from the clone it lives
-in and names its own check files and its default rule file relative to that clone, so it
-runs the same from any directory; a path *you* pass — `--data`, `--rules` — is relative to
-where you are standing. It loads the example checks, prints the registry table and the
-failure report, and can explain one row or summarize the frame.
+Two demo entry points. `examples/main.py` is the one to read first: it imports `jobcheck`
+from the clone it lives in and names its own check files and its default rule file
+relative to that clone, so it runs the same from any directory; a path *you* pass —
+`--data`, `--rules` — is relative to where you are standing. It loads the example checks,
+prints the registry table and the failure report, and can explain one row or summarize the
+frame. `examples/bundle_main.py` loads a single bundle instead, and is what the bundle
+cases in the catalog drive.
 
 It is not the product: the library does the work, and this exists to demonstrate it and to
 give the end-to-end checks something to drive. A pipeline calls
@@ -99,6 +101,21 @@ layer below it.
 ### `-h`, `--help`
 
 Prints usage and exits 0.
+
+## `examples/bundle_main.py`
+
+Loads one bundle — a check file that loads check files — and prints the loaded file list
+and the registry it produced. No flags; one optional argument names the bundle, and
+without it the shipped `examples/checks/all_checks.py` is loaded.
+
+```sh
+python3 examples/bundle_main.py
+python3 examples/bundle_main.py path/to/all_checks.py
+```
+
+The loaded list is the point: the members appear before the bundle that pulled them in,
+because each is a loaded file in its own right. See
+[writing-checks.md](writing-checks.md) for what a bundle is and when a failure drops what.
 
 ## Exit codes
 

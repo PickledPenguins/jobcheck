@@ -1,0 +1,1 @@
+python3 examples/bundle_main.py tests/failures/bundle-member-missing/bundle_with_missing_member.py
