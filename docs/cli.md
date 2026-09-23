@@ -131,13 +131,30 @@ Prints usage and exits 0.
 ## `examples/bundle_main.py`
 
 Loads one bundle — a check file that loads check files — and prints the loaded file list
-and the registry it produced. No flags; one optional argument names the bundle, and
-without it the shipped `examples/checks/all_checks.py` is loaded.
+and the registry it produced. One optional argument names the bundle, and without it the
+shipped `examples/checks/all_checks.py` is loaded. A bundle is one file that names the
+rest, so there is one path and no more: a second argument is an error rather than a
+second bundle.
+
+```
+usage: bundle_main.py [-h] [PATH]
+```
 
 ```sh
 python3 examples/bundle_main.py
 python3 examples/bundle_main.py path/to/all_checks.py
+python3 examples/bundle_main.py --help
 ```
+
+### `PATH`
+
+Optional, default the shipped `examples/checks/all_checks.py`. The bundle to load. A path
+that is not a file exits 1 with the loader's own message, which names what it looked for;
+a command line argparse rejects — a surplus argument, an unknown flag — exits 2.
+
+### `-h`, `--help`
+
+Prints usage and exits 0.
 
 The loaded list is the point: the members appear before the bundle that pulled them in,
 because each is a loaded file in its own right. See

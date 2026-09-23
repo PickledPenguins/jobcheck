@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 668 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 249 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 917 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 671 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 251 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 922 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -107,7 +107,7 @@ Own gates:
 ## The example catalog
 
 `tests/examples/` holds 45 cases at three levels — 19 simple, 16 moderate, 10 complex —
-and `tests/failures/` holds 21, each asserting the exact message and exit code a user
+and `tests/failures/` holds 22, each asserting the exact message and exit code a user
 sees. Both run through a real entry point in a subprocess — `examples/main.py`, or
 `examples/bundle_main.py` for the bundle cases — so the documentation cannot drift from
 the behavior.
