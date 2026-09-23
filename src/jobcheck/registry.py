@@ -203,6 +203,9 @@ def clear_registry() -> None:
     """Drop every registered check and all loaded-file bookkeeping.
 
     For a throwaway registry, and for a process validating several runs in turn.
+    The in-progress load stack is not touched: it belongs to a `load_checks`
+    call rather than to the registry, and emptying it under a running load
+    would strand that call's rollback.
     """
 
     global _TOPO_ORDER, _LOAD_SEQUENCE
@@ -218,8 +221,10 @@ def clear_registry() -> None:
     _TOPO_ORDER = None
 
 
-#: Everything `clear_registry` clears, as one value. A dict rather than four
-#: return values so adding registry state does not change this signature.
+#: Everything `clear_registry` clears, as one value. A dict rather than five
+#: return values so adding registry state does not change this signature. State
+#: that belongs to a call rather than to the registry -- the in-progress load
+#: stack -- is deliberately not here; see `snapshot`.
 RegistryState = dict[str, Any]
 
 
@@ -227,6 +232,11 @@ def snapshot() -> RegistryState:
     """Copy the whole registry, to be handed back to `restore` later.
 
     One place owns what registry state *is*, so a caller cannot miss a piece.
+    A registry *between* loads, never during one: the in-progress load stack is
+    not copied, because it belongs to the `load_checks` call that is running
+    rather than to the registry, and putting a frame back from a load that has
+    since finished would attribute the next file's checks to it. A check file
+    that snapshots while a bundle above it is still importing is unsupported.
     """
 
     return {
@@ -234,18 +244,26 @@ def snapshot() -> RegistryState:
         "loaded_files": list(_LOADED_FILES),
         "loaded_modules": set(_LOADED_MODULES),
         "topo_order": _TOPO_ORDER,
+        "load_sequence": _LOAD_SEQUENCE,
     }
 
 
 def restore(state: RegistryState) -> None:
-    """Put back a registry :func:`snapshot` took, dropping whatever is there now."""
+    """Put back a registry :func:`snapshot` took, dropping whatever is there now.
 
-    global _TOPO_ORDER
+    Between loads only, for the same reason `snapshot` is.
+    """
+
+    global _TOPO_ORDER, _LOAD_SEQUENCE
     clear_registry()
     CHECKS.extend(state["checks"])
     _LOADED_FILES.extend(state["loaded_files"])
     _LOADED_MODULES.update(state["loaded_modules"])
     _TOPO_ORDER = state["topo_order"]
+    # The counter that makes each load's module name unique. clear_registry has
+    # just put it back to zero, and leaving it there would hand the next load a
+    # number an earlier one already used.
+    _LOAD_SEQUENCE = state["load_sequence"]
 
 
 def loaded_check_files() -> list[str]:

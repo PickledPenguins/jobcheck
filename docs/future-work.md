@@ -72,30 +72,6 @@ a design call the owner has not made. The reviews' own fixes to the same commit 
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
 
-**F.18 — `snapshot` and `restore` do not carry the in-progress load stack.** The registry
-has five module-level pieces of state; the snapshot dict carries four. The frame stack the
-bundle work added (`registry.py`, the list of files whose import is in progress with the
-checks each registered) is carried by neither `snapshot`, `restore` nor `clear_registry`,
-while `RegistryState` is documented as "Everything `clear_registry` clears, as one value"
-and `snapshot` as "Copy the whole registry ... One place owns what registry state *is*, so
-a caller cannot miss a piece". Nothing observed is wrong: the stack is empty between calls,
-and the only way to observe the gap is a check file that calls `snapshot` and `restore`
-while a bundle above it is still importing — at which point the restore drops a frame the
-bundle's rollback still expects, and the rollback then keeps checks it should have dropped.
-Gain: the three docstrings become true, and a nested `snapshot` stops being a trap nobody
-documented. Loss, if the state is carried rather than the wording narrowed: `restore`
-starts reinstating a *mid-load* registry, which is a state the rest of the module assumes
-it never sees — the stack is read by `register_check` and by the rollback, so a restored
-frame from a load that is no longer running would attribute the next file's checks to it.
-That is a worse failure than the one being fixed, and it is why this was not simply done.
-Doc-only: 6 lines across three docstrings, no test. Carrying the state: ~10 source lines,
-~40 test lines, and a decision about what a restore *means* during a load. Priority:
-medium — no failure today, a real one for anyone who writes the nested case. Blast radius:
-doc-only, none; carrying it, every caller of `restore`, which is `fresh_registry` and
-therefore most of the suite. Recommendation: narrow the wording to "a registry between
-loads, not during one" and say the nested case is unsupported. The state is not worth
-carrying until something needs to snapshot mid-load, and nothing does.
-
 **F.19 — `restore` puts back the registry but not the module cache.** `restore` calls
 `clear_registry` first, which pops every recorded module out of `sys.modules`, then
 re-declares those same names from the snapshot without re-importing anything. Probed
@@ -242,6 +218,21 @@ where the rule is actually claimed, and leave `tests/` and `scripts/` out rather
 writing an exception list.
 
 ## Considered and deliberately not done
+
+**Carrying the in-progress load stack through `snapshot` and `restore`** (F.18, decided
+2026-09-23). The registry's frame stack -- the check files whose import is in progress,
+each with the checks it registered -- is the one piece of registry-module state the
+snapshot dict does not copy, and `clear_registry` does not clear it either. Carrying it
+was rejected: `restore` would then reinstate a *mid-load* registry, a state the rest of
+the module assumes it never sees. The stack is read by `register_check` and by the
+per-file rollback, so a frame put back from a load that has since finished would take the
+blame for the next file's checks, and that file's rollback would drop checks belonging to
+somebody else -- a worse failure than the one being fixed, and one that needs a decision
+nobody has had to make about what a restore *means* during a load. The docstrings on
+`snapshot`, `restore`, `clear_registry` and `RegistryState` now say the supported case
+instead: a registry between loads, never during one, and a check file that snapshots while
+a bundle above it is still importing is unsupported. The rest of F.18 -- the load-sequence
+counter, which is registry state with no mid-load meaning -- was built in the same change.
 
 **Anchoring relative paths on the caller's script directory, automatically** (considered
 2026-09-22, when `base_dir` was built). Frame inspection -- `sys._getframe(1)` --

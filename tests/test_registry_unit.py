@@ -257,3 +257,54 @@ def test_two_required_keyword_arguments_are_both_named(fresh_registry: None) -> 
         def check(row, *, low, high):  # type: ignore[no-untyped-def]
             return PASS
     assert "needs keyword argument(s) low, high that the engine cannot supply" in str(excinfo.value)
+
+
+def _check_file(path: Any, code: str) -> str:
+    """A one-check file, for the tests that care which module it loads as."""
+
+    path.write_text(
+        "from jobcheck import PASS, register_check\n"
+        f"@register_check({code!r}, 'm')\n"
+        "def rule(row): return PASS\n",
+        encoding="utf-8",
+    )
+    return str(path)
+
+
+def test_snapshot_carries_every_piece_clear_registry_clears(fresh_registry: None) -> None:
+    """The dict is the definition of registry state, so a piece added to the
+    module and not to the dict is a snapshot that silently loses it -- which is
+    what happened to the load sequence."""
+
+    assert set(reg.snapshot()) == {
+        "checks",
+        "loaded_files",
+        "loaded_modules",
+        "topo_order",
+        "load_sequence",
+    }
+
+
+def test_snapshot_leaves_out_the_in_progress_load_stack(fresh_registry: None) -> None:
+    """Deliberate, not an oversight: the stack belongs to the `load_checks`
+    call that is running, and a restored frame from a finished load would take
+    the blame for the next file's checks."""
+
+    assert "loading" not in reg.snapshot()
+
+
+def test_restore_puts_back_the_load_sequence_rather_than_zero(
+    fresh_registry: None, tmp_path: Any
+) -> None:
+    """A module name is numbered by the load sequence. restore() calls
+    clear_registry(), which zeroes it, so without carrying it the next load
+    would be handed a number an earlier one already used."""
+
+    reg.load_checks([_check_file(tmp_path / "first.py", "FIRST")])
+    assert "jobcheck_check_file_first_0" in reg._LOADED_MODULES
+    saved = reg.snapshot()
+    reg.clear_registry()
+    reg.restore(saved)
+
+    reg.load_checks([_check_file(tmp_path / "second.py", "SECOND")])
+    assert "jobcheck_check_file_second_1" in reg._LOADED_MODULES

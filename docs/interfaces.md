@@ -181,7 +181,10 @@ raises `ValueError` naming the registry size and that limit, rather than a bare
 `snapshot() -> dict` copies the whole registry and `restore(state)` puts it back,
 dropping whatever is there now. One place owns what registry state *is*, which is
 what a caller wanting a throwaway registry needs; the test suite takes one per
-test.
+test. Both mean a registry *between* loads: the stack of check files whose import
+is in progress belongs to the `load_checks` call that is running rather than to
+the registry, so it is not copied, and snapshotting from a check file a bundle is
+still importing is unsupported.
 
 `clear_registry` empties the registry and evicts the modules that registered
 checks from `sys.modules`, so a later `load_checks` re-registers rather than
