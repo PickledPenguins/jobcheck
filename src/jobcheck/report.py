@@ -73,7 +73,7 @@ def _row_labels(df: pd.DataFrame, key_column: str | None) -> list[str]:
         raise ValueError(
             f"key_column {key_column!r} appears {repeated} times in the data: "
             "df[key_column] is then a table rather than a column, and every row would "
-            "be labelled with the column name. Rename or drop the duplicate columns."
+            "be labeled with the column name. Rename or drop the duplicate columns."
         )
     return [_format_cell(value, missing="<no key>") for value in df[key_column]]
 
@@ -296,7 +296,8 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
         return pd.DataFrame(rows, columns=columns)
     return (
         pd.DataFrame(rows, columns=columns)
-        .sort_values(["failed", "errored", "skipped", "code"], ascending=[False, False, False, True])
+        .sort_values(["failed", "errored", "skipped", "code"],
+                     ascending=[False, False, False, True])
         .reset_index(drop=True)
     )
 

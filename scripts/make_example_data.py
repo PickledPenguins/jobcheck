@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the example data files the catalog validates.
 
-Two files, both deliberately messy in the ways real exports are:
+Three files, the first two deliberately messy in the ways real exports are:
 
 - ``customers.csv`` — 49 rows, written by hand-shaped rules so every example
   check has something to say about it and most rows are fine. Small enough that
@@ -30,6 +30,10 @@ DATA = ROOT / "examples" / "data"
 
 COLUMNS = ["id", "name", "age", "email", "start_date", "end_date",
            "source_system", "record_type", "region"]
+
+# Cycled through by every generator below, so one list decides what regions the
+# example data has.
+REGIONS = ["EU", "US", "UK", "APAC"]
 
 # The small file, row by row, so each problem is visible in the source rather
 # than emerging from a generator. Every value here is one a real export has
@@ -147,7 +151,7 @@ def small_rows() -> list[dict[str, str]]:
             "end_date": f"2024-1{offset % 2}-1{offset % 9}",
             "source_system": "LEGACY_A" if offset % 8 == 0 else "MODERN",
             "record_type": "BATCH" if offset % 8 == 0 else "STREAM",
-            "region": ["EU", "US", "UK", "APAC"][offset % 4],
+            "region": REGIONS[offset % len(REGIONS)],
         })
     return rows
 
@@ -167,7 +171,7 @@ def clean_rows() -> list[dict[str, str]]:
             "end_date": "2024-12-31",
             "source_system": "MODERN",
             "record_type": "STREAM",
-            "region": ["EU", "US", "UK", "APAC"][offset % 4],
+            "region": REGIONS[offset % len(REGIONS)],
         })
     return rows
 
@@ -210,7 +214,7 @@ def large_rows(count: int, seed: int = 20260910) -> list[dict[str, str]]:
             "end_date": end,
             "source_system": "LEGACY_A" if legacy else "MODERN",
             "record_type": "BATCH" if legacy else "STREAM",
-            "region": ["EU", "US", "UK", "APAC"][index % 4],
+            "region": REGIONS[index % len(REGIONS)],
         })
     return rows
 

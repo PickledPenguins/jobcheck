@@ -6,8 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from jobcheck.results import PASS, Status, CheckResult
-from jobcheck.registry import register_check
+from jobcheck import PASS, Status, CheckResult, register_check
 
 
 @register_check(code="ROW_ALL_NULL", message="Row is entirely empty")

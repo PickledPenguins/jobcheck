@@ -128,9 +128,12 @@ corrected file loads on the next call; files loaded before it in the same call
 stay loaded.
 
 Each file is given a unique module name, so two directories that each hold a
-`checks.py` both load. No `__pycache__` is written beside the file: a check file
-comes from wherever the caller names, which is a record of what was read rather
-than somewhere to write to.
+`checks.py` both load, a bundle and a member of the same name included. No
+`__pycache__` is written beside the file: a check file comes from wherever the
+caller names, which is a record of what was read rather than somewhere to write
+to. That is `sys.dont_write_bytecode`, which is the interpreter's flag rather
+than this import's, so for the length of the import no thread writes bytecode
+for anything it imports either.
 
 A check file may call `load_checks` itself — a **bundle**, one path standing for
 the files it collects:

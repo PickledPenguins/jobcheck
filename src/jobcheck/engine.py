@@ -44,8 +44,9 @@ def resolve_enabled_state(
     """
 
     state = {
-        t.code: (t.default_enabled, "default" if t.default_enabled else "off by default")
-        for t in CHECKS
+        check.code: (check.default_enabled,
+                     "default" if check.default_enabled else "off by default")
+        for check in CHECKS
     }
     for rule in overrides:
         if not rule_matches(rule, row):

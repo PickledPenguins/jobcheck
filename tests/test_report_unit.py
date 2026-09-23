@@ -119,12 +119,12 @@ def test_a_failure_below_another_is_not_a_root_cause(fresh_registry: None) -> No
     assert flagged == {"FIRST": True, "CHILD": False}
 
 
-def test_rows_without_a_key_column_are_labelled_by_index(two_layers: None) -> None:
+def test_rows_without_a_key_column_are_labeled_by_index(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME)
     assert list(report["row"]) == ["1", "2"]
 
 
-def test_a_missing_key_value_is_labelled_rather_than_rendered_as_nan(two_layers: None) -> None:
+def test_a_missing_key_value_is_labeled_rather_than_rendered_as_nan(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": None, "age": -5}])
     report = rep.build_report(validate(frame), df=frame, key_column="id")
     assert list(report["row"]) == ["<no key>"]
@@ -222,7 +222,7 @@ def test_a_duplicated_frame_column_is_rejected_rather_than_misread(two_layers: N
 
 def test_a_duplicated_key_column_is_rejected_rather_than_misread(two_layers: None) -> None:
     """Regression: df[key_column] is a DataFrame when the label is repeated, so
-    every row was labelled with the column *name* -- 'id' on every line -- and
+    every row was labeled with the column *name* -- 'id' on every line -- and
     zip() then truncated the report to the number of labels produced."""
 
     frame = pd.DataFrame([[1, "A", 1], [2, "B", 2]], columns=["id", "batch", "id"])

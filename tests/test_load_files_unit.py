@@ -546,3 +546,70 @@ def test_two_bundles_that_name_each_other_both_load(fresh_registry: None,
         )
     reg.load_checks([str(tmp_path / "left.py")])
     assert sorted(t.code for t in reg.CHECKS) == ["LEFT", "RIGHT"]
+
+
+def test_a_bundle_and_a_member_of_one_name_get_different_module_names(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """Written against a defect: the module name counted loaded files, and a
+    bundle's name is computed before its members run, so a bundle and a member
+    both called ``checks.py`` were given one name and the member's module
+    replaced the bundle's in ``sys.modules`` -- where the bundle's own dataclass
+    annotations, ``get_type_hints`` and ``pickle`` would have looked for it."""
+
+    import sys
+
+    inner = tmp_path / "inner"
+    inner.mkdir()
+    write_check_file(inner, "checks.py", "INNER")
+    bundle = tmp_path / "checks.py"
+    bundle.write_text(
+        "import os, sys\n"
+        "from jobcheck import PASS, load_checks, register_check\n"
+        "load_checks([os.path.join(os.path.dirname(os.path.abspath(__file__)),\n"
+        "                          'inner', 'checks.py')])\n"
+        "MARKER = 'the bundle'\n"
+        "@register_check('OUTER', 'from the bundle itself')\n"
+        "def own(row): return PASS\n"
+        "assert sys.modules[__name__].MARKER == 'the bundle', sys.modules[__name__]\n"
+    )
+
+    reg.load_checks([str(bundle)])
+
+    assert sorted(t.code for t in reg.CHECKS) == ["INNER", "OUTER"]
+    names = [name for name in sys.modules if name.startswith("jobcheck_check_file_")]
+    assert len(names) == 2, names
+
+
+def test_a_file_interrupted_part_way_drops_its_checks_like_any_other_failure(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """Written against a defect: the rollback caught ``Exception``, so a
+    ``KeyboardInterrupt`` during a slow import -- or a check file calling
+    ``sys.exit()`` -- left its checks registered while the file stayed out of
+    ``loaded_check_files()``, and the retry refused the author's own check as a
+    duplicate of itself."""
+
+    path = tmp_path / "check_interrupted.py"
+    path.write_text(
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('INTERRUPTED', 'registered before the interrupt')\n"
+        "def rule(row): return PASS\n"
+        "raise KeyboardInterrupt('ctrl-c during the import')\n"
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        reg.load_checks([str(path)])
+
+    assert reg.CHECKS == []
+    assert reg.loaded_check_files() == []
+    assert reg._LOADING == []
+
+    # The author runs the same command again, uninterrupted this time.
+    path.write_text(
+        "from jobcheck import PASS, register_check\n"
+        "@register_check('INTERRUPTED', 'registered before the interrupt')\n"
+        "def rule(row): return PASS\n"
+    )
+    reg.load_checks([str(path)])
+    assert [t.code for t in reg.CHECKS] == ["INTERRUPTED"]

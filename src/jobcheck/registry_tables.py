@@ -30,7 +30,7 @@ RULE_EXTRA_COLUMNS = ["source_file"]
 def _rules_for_code(code: str, overrides: list[OverrideRule]) -> list[OverrideRule]:
     """Rules that reference *code*, in load order."""
 
-    return [r for r in overrides if code in r.codes]
+    return [rule for rule in overrides if code in rule.codes]
 
 
 def _render_match(rule: OverrideRule) -> str:
@@ -38,7 +38,8 @@ def _render_match(rule: OverrideRule) -> str:
 
     if rule.match_all:
         return "all"
-    return "; ".join(f"{c.column}~=/{c.pattern}/" for c in rule.criteria)
+    return "; ".join(f"{criterion.column}~=/{criterion.pattern}/"
+                     for criterion in rule.criteria)
 
 
 def get_registry_table(extra_columns: list[str] | None = None) -> pd.DataFrame:
@@ -89,7 +90,7 @@ def print_registry(
     extra_columns = list(extra_columns or [])
     _check_extra_columns(extra_columns, REGISTRY_EXTRA_COLUMNS, "the registry table")
     table = get_registry_table(
-        extra_columns=[c for c in extra_columns if c in CHECK_EXTRA_COLUMNS])
+        extra_columns=[name for name in extra_columns if name in CHECK_EXTRA_COLUMNS])
     if table.empty:
         print("No checks registered.")
         return table
@@ -98,7 +99,7 @@ def print_registry(
     matching = {code: _rules_for_code(code, rules) for code in table["code"]}
     if "could_be_overridden_by" in extra_columns:
         table["could_be_overridden_by"] = [
-            "; ".join(f"{r.name} ({r.action})" for r in matching[code]) or "-"
+            "; ".join(f"{rule.name} ({rule.action})" for rule in matching[code]) or "-"
             for code in table["code"]
         ]
     if "effective_state" in extra_columns:
@@ -152,5 +153,5 @@ def list_rule_codes(rule_name: str, overrides: list[OverrideRule]) -> list[str]:
         if rule.name == rule_name:
             print(f"{rule.name} ({rule.action}) -> " + ", ".join(rule.codes))
             return list(rule.codes)
-    known = ", ".join(r.name for r in overrides) or "(none loaded)"
+    known = ", ".join(rule.name for rule in overrides) or "(none loaded)"
     raise ValueError(f"No override rule named {rule_name!r}. Loaded rules: {known}")

@@ -72,7 +72,7 @@ def test_a_written_file_is_byte_for_byte_the_golden_csv(
     trailing newline all come from write_report rather than the caller."""
 
     load_checks([str(ROOT / path) for path in CHECK_FILES])
-    overrides = load_overrides(["examples/rules/error_overrides.yaml"])
+    overrides = load_overrides([str(ROOT / "examples/rules/error_overrides.yaml")])
     df = frame()
     report = build_report(validate(df, overrides=overrides), df=df, key_column="id")
 
@@ -88,7 +88,7 @@ def test_the_golden_csv_parses_back_into_the_same_frame(fresh_registry: None) ->
     import pandas as pd
 
     load_checks([str(ROOT / path) for path in CHECK_FILES])
-    overrides = load_overrides(["examples/rules/error_overrides.yaml"])
+    overrides = load_overrides([str(ROOT / "examples/rules/error_overrides.yaml")])
     df = frame()
     report = build_report(validate(df, overrides=overrides), df=df, key_column="id")
 

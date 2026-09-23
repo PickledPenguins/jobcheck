@@ -61,11 +61,13 @@ CHECKS: list[Check] = []
 # Check files imported by path through load_checks(), resolved and in load
 # order.
 _LOADED_FILES: list[str] = []
-# Modules that have registered a check, so clear_registry can evict them from
-# sys.modules; without that a later import is a no-op -- Python caches modules --
-# and the registry would silently stay empty. Recorded at registration rather
-# than at import, so a module pulled in by any route is still tracked.
-_REGISTERING_MODULES: set[str] = set()
+# Modules clear_registry must evict from sys.modules; without that a later
+# import is a no-op -- Python caches modules -- and the registry would silently
+# stay empty. Two routes fill it, and both are needed: registration, which
+# catches a shared module a check file imported by any route, and a completed
+# load_checks import, which catches a file that registered nothing of its own --
+# a bundle, or a file holding only constants.
+_LOADED_MODULES: set[str] = set()
 # The check files whose import is in progress, innermost last, each with the
 # checks that file has registered directly. A check file may itself call
 # load_checks -- a bundle naming the files it collects -- and what that costs is
@@ -77,6 +79,13 @@ _LOADING: list[tuple[str, list["Check"]]] = []
 # the registry changes, so it is computed once per registry state and never
 # inside the per-row loop.
 _TOPO_ORDER: list[Check] | None = None
+# Import attempts so far, which is what makes each load's module name unique.
+# Not len(_LOADED_FILES): a bundle's name is computed before its members run and
+# a member appends to that list only after its own import finishes, so the two
+# would be handed the same number and a bundle and a member both called
+# checks.py would collide. Reset by clear_registry, which has just evicted every
+# module the previous numbers named.
+_LOAD_SEQUENCE = 0
 
 
 def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
@@ -172,7 +181,7 @@ def register_check(
         )
 
         if module:
-            _REGISTERING_MODULES.add(module)
+            _LOADED_MODULES.add(module)
         check = Check(
             code=code,
             message=message,
@@ -196,15 +205,16 @@ def clear_registry() -> None:
     For a throwaway registry, and for a process validating several runs in turn.
     """
 
-    global _TOPO_ORDER
+    global _TOPO_ORDER, _LOAD_SEQUENCE
     CHECKS.clear()
     _LOADED_FILES.clear()
+    _LOAD_SEQUENCE = 0
     # Evict the check modules too: Python caches a module after its first import,
     # so without this a later load_checks() would re-import nothing and leave
     # the registry silently empty.
-    for name in _REGISTERING_MODULES:
+    for name in _LOADED_MODULES:
         sys.modules.pop(name, None)
-    _REGISTERING_MODULES.clear()
+    _LOADED_MODULES.clear()
     _TOPO_ORDER = None
 
 
@@ -222,7 +232,7 @@ def snapshot() -> RegistryState:
     return {
         "checks": list(CHECKS),
         "loaded_files": list(_LOADED_FILES),
-        "registering_modules": set(_REGISTERING_MODULES),
+        "loaded_modules": set(_LOADED_MODULES),
         "topo_order": _TOPO_ORDER,
     }
 
@@ -234,7 +244,7 @@ def restore(state: RegistryState) -> None:
     clear_registry()
     CHECKS.extend(state["checks"])
     _LOADED_FILES.extend(state["loaded_files"])
-    _REGISTERING_MODULES.update(state["registering_modules"])
+    _LOADED_MODULES.update(state["loaded_modules"])
     _TOPO_ORDER = state["topo_order"]
 
 
@@ -265,7 +275,7 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     passes that file's directory, so they mean what their author meant.
     """
 
-    global _TOPO_ORDER
+    global _TOPO_ORDER, _LOAD_SEQUENCE
     if isinstance(paths, str):
         raise TypeError(
             f"load_checks takes a list of paths, not one string: pass [{paths!r}]. "
@@ -285,7 +295,8 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
         # A unique module name per load: two run directories can each hold a
         # checks.py, and importing the second under the first's name would be a
         # no-op that silently registered nothing.
-        module_name = f"jobcheck_check_file_{Path(name).stem}_{len(_LOADED_FILES)}"
+        module_name = f"jobcheck_check_file_{Path(name).stem}_{_LOAD_SEQUENCE}"
+        _LOAD_SEQUENCE += 1
         spec = importlib.util.spec_from_file_location(module_name, name)
         if spec is None or spec.loader is None:
             raise ValueError(f"Cannot import {name!r} as a Python file.")
@@ -297,12 +308,19 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
         # comes from a data directory -- a prepared run's inputs, say -- which is
         # a record of what was read, not somewhere to write to; and the module
         # name is unique per load, so a cached .pyc would never be reused anyway.
+        # The flag is the interpreter's, not this import's: for the length of
+        # the exec, no thread writes bytecode for anything it imports.
         writing_bytecode = sys.dont_write_bytecode
         sys.dont_write_bytecode = True
         _LOADING.append((name, []))
         try:
             spec.loader.exec_module(module)
-        except Exception:
+        except BaseException:
+            # BaseException, not Exception: a KeyboardInterrupt while a slow
+            # check file imports, or a check file calling sys.exit() over its
+            # own bad configuration, leaves the same half-registered file as
+            # any other failure, and the retry afterwards reported the author's
+            # own check as a duplicate of itself.
             # The file's decorators ran up to the line that raised, so its
             # earlier checks are in CHECKS while the file is not in
             # _LOADED_FILES. Drop them: a file that failed to load loaded
@@ -312,14 +330,14 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
             # completed members registered, which is what _LOADING separates.
             mine = {id(check) for check in _LOADING[-1][1]}
             CHECKS[:] = [check for check in CHECKS if id(check) not in mine]
-            _REGISTERING_MODULES.discard(module_name)
+            _LOADED_MODULES.discard(module_name)
             sys.modules.pop(module_name, None)
             _TOPO_ORDER = None
             raise
         finally:
             _LOADING.pop()
             sys.dont_write_bytecode = writing_bytecode
-        _REGISTERING_MODULES.add(module_name)
+        _LOADED_MODULES.add(module_name)
         _LOADED_FILES.append(name)
 
     # Nested calls leave it to the outermost one: a bundle's members may depend
