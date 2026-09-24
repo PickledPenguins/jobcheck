@@ -81,7 +81,7 @@ def test_validate_can_be_made_fatal_on_a_raising_check(fresh_registry: None) -> 
 
 def test_the_report_has_one_row_per_failure(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id")
-    assert list(report.columns) == rep.REPORT_COLUMNS
+    assert tuple(report.columns) == rep.REPORT_COLUMNS
     assert list(report["code"]) == ["AGE_IN_RANGE", "AGE_PRESENT"]
     assert list(report["row"]) == ["102", "103"]
 
@@ -89,7 +89,7 @@ def test_the_report_has_one_row_per_failure(two_layers: None) -> None:
 def test_a_clean_frame_produces_an_empty_report_with_columns(two_layers: None) -> None:
     report = report_for(pd.DataFrame([{"id": 1, "age": 30}]))
     assert report.empty
-    assert list(report.columns) == rep.REPORT_COLUMNS
+    assert tuple(report.columns) == rep.REPORT_COLUMNS
 
 
 def test_the_report_carries_status_layer_and_comments(two_layers: None) -> None:
@@ -156,21 +156,21 @@ def test_a_frame_of_the_wrong_length_is_rejected(two_layers: None) -> None:
 
 
 def test_extra_columns_sit_between_the_row_key_and_the_code(two_layers: None) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id", extra_columns=["age"])
-    assert list(report.columns) == ["row", "age", *rep.REPORT_COLUMNS[1:]]
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
+    assert tuple(report.columns) == ("row", "age", *rep.REPORT_COLUMNS[1:])
 
 
 def test_extra_columns_keep_the_order_they_were_given(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": 1, "age": -5, "batch": "B1", "region": "EU"}])
     report = rep.build_report(validate(frame), df=frame, key_column="id",
-                              extra_columns=["region", "batch"])
+                              add_columns=["region", "batch"])
     assert list(report.columns)[:3] == ["row", "region", "batch"]
 
 
 def test_a_data_column_repeats_on_every_failure_of_its_row(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": 1, "age": -5, "batch": "B1"}])
     report = rep.build_report(validate(frame), df=frame, key_column="id",
-                              extra_columns=["batch"])
+                              add_columns=["batch"])
     assert list(report["batch"]) == ["B1"]
 
 
@@ -179,45 +179,45 @@ def test_data_column_values_render_like_the_row_key(two_layers: None) -> None:
 
     frame = pd.DataFrame([{"id": 1, "age": -5, "batch": 7.0, "region": None}])
     report = rep.build_report(validate(frame), df=frame, key_column="id",
-                              extra_columns=["batch", "region"])
+                              add_columns=["batch", "region"])
     assert list(report["batch"]) == ["7"]
     assert list(report["region"]) == [""]
 
 
 def test_extra_columns_reach_the_csv_too(two_layers: None) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id", extra_columns=["age"])
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
     assert rep.render_report(report, fmt="csv").splitlines()[0].startswith("row,age,code")
 
 
 def test_extra_columns_work_without_a_key_column(two_layers: None) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, extra_columns=["age"])
+    report = rep.build_report(outcomes(), df=FRAME, add_columns=["age"])
     assert list(report.columns)[:2] == ["row", "age"]
 
 
 def test_an_empty_data_columns_list_changes_nothing(two_layers: None) -> None:
-    assert list(rep.build_report(outcomes(), df=FRAME, extra_columns=[]).columns) == \
+    assert tuple(rep.build_report(outcomes(), df=FRAME, add_columns=[]).columns) == \
         rep.REPORT_COLUMNS
 
 
 def test_an_unknown_data_column_is_rejected(two_layers: None) -> None:
-    with pytest.raises(ValueError, match=r"extra_columns \['nope'\] cannot be used"):
-        rep.build_report(outcomes(), df=FRAME, extra_columns=["nope"])
+    with pytest.raises(ValueError, match=r"add_columns \['nope'\] cannot be used"):
+        rep.build_report(outcomes(), df=FRAME, add_columns=["nope"])
 
 
 def test_a_repeated_data_column_is_rejected(two_layers: None) -> None:
-    with pytest.raises(ValueError, match=r"extra_columns \['age'\] cannot be used"):
-        rep.build_report(outcomes(), df=FRAME, extra_columns=["age", "age"])
+    with pytest.raises(ValueError, match=r"add_columns \['age'\] cannot be used"):
+        rep.build_report(outcomes(), df=FRAME, add_columns=["age", "age"])
 
 
 def test_a_duplicated_frame_column_is_rejected_rather_than_misread(two_layers: None) -> None:
-    """Regression: df[extra_columns] returns one value per matching column, so a
+    """Regression: df[add_columns] returns one value per matching column, so a
     duplicated label produced more values than names and zip paired them by
     position -- the second 'batch' value printed under the 'age' heading."""
 
     frame = pd.DataFrame([[1, "A", "B", -5]], columns=["id", "batch", "batch", "age"])
     outs = validate(pd.DataFrame([{"id": 1, "age": -5}]))
-    with pytest.raises(ValueError, match=r"extra_columns \['batch'\] cannot be used"):
-        rep.build_report(outs, df=frame, key_column="id", extra_columns=["batch", "age"])
+    with pytest.raises(ValueError, match=r"add_columns \['batch'\] cannot be used"):
+        rep.build_report(outs, df=frame, key_column="id", add_columns=["batch", "age"])
 
 
 def test_a_duplicated_key_column_is_rejected_rather_than_misread(two_layers: None) -> None:
@@ -236,7 +236,7 @@ def test_a_duplicate_elsewhere_in_the_frame_does_not_block_other_columns(
 ) -> None:
     frame = pd.DataFrame([[1, "A", "B", -5]], columns=["id", "batch", "batch", "age"])
     outs = validate(pd.DataFrame([{"id": 1, "age": -5}]))
-    report = rep.build_report(outs, df=frame, key_column="id", extra_columns=["age"])
+    report = rep.build_report(outs, df=frame, key_column="id", add_columns=["age"])
     assert list(report["age"]) == ["-5"]
 
 
@@ -244,16 +244,16 @@ def test_a_data_column_colliding_with_a_report_column_is_rejected(two_layers: No
     """Silently overwriting the report's own column would hide the failure."""
 
     frame = pd.DataFrame([{"id": 1, "age": -5, "code": "SOURCE-1"}])
-    with pytest.raises(ValueError, match=r"extra_columns \['code'\] cannot be used"):
+    with pytest.raises(ValueError, match=r"add_columns \['code'\] cannot be used"):
         rep.build_report(validate(frame), df=frame, key_column="id",
-                         extra_columns=["code"])
+                         add_columns=["code"])
 
 
 def test_the_key_column_may_also_be_shown_as_a_data_column(two_layers: None) -> None:
     """Nothing stops it, and it is a reasonable thing to want when the key is
     also a value worth reading."""
 
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id", extra_columns=["id"])
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id", add_columns=["id"])
     assert list(report["row"]) == list(report["id"])
 
 
@@ -300,7 +300,7 @@ def test_the_table_format_is_bordered_and_wrapped(two_layers: None) -> None:
 def test_the_csv_format_round_trips(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id")
     parsed = pd.read_csv(pd.io.common.StringIO(rep.render_report(report, fmt="csv")))
-    assert list(parsed.columns) == rep.REPORT_COLUMNS
+    assert tuple(parsed.columns) == rep.REPORT_COLUMNS
     assert list(parsed["code"]) == ["AGE_IN_RANGE", "AGE_PRESENT"]
 
 
@@ -521,7 +521,7 @@ def formula_report(fresh: None) -> pd.DataFrame:
     make_check("CELL", passes=False)
     frame = pd.DataFrame([{"id": 1, "name": "=SUM(A1:A9)"}])
     return rep.build_report(validate(frame), df=frame, key_column="id",
-                            extra_columns=["name"])
+                            add_columns=["name"])
 
 
 def test_a_written_report_escapes_formulas_by_default(fresh_registry: None,
@@ -630,7 +630,7 @@ def test_a_frame_offering_no_extra_columns_says_so(fresh_registry: None) -> None
     make_check("FAILS", passes=False)
     frame = pd.DataFrame([{"code": "x", "status": "y"}])
     with pytest.raises(ValueError, match=r"be one of: \(none available\)"):
-        rep.build_report(validate(frame), df=frame, extra_columns=["code"])
+        rep.build_report(validate(frame), df=frame, add_columns=["code"])
 
 
 def test_the_report_title_counts_lines_and_names_the_key_column(
@@ -690,3 +690,76 @@ def test_a_row_explanation_can_be_printed_without_its_heading(
 
     rep.print_row_explanation(outcomes()[1], title=False)
     assert capsys.readouterr().out.splitlines()[0].startswith("layer")
+
+
+# --- dropping the report's own columns ---------------------------------------
+
+
+def test_drop_columns_removes_report_columns_and_keeps_the_order(two_layers: None) -> None:
+    """The inverse of add_columns: one keeps a column a run does not want in what
+    ships, the other copies frame data in. Order is the report's, not the caller's."""
+
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id",
+                              drop_columns=["comments", "detail", "layer"])
+    assert tuple(report.columns) == ("row", "code", "status", "outcome", "message",
+                                     "is_root_cause")
+
+
+def test_drop_columns_and_add_columns_work_together(two_layers: None) -> None:
+    """Added columns still land straight after `row`, whatever was dropped."""
+
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id",
+                              add_columns=["age"], drop_columns=["comments"])
+    assert tuple(report.columns) == ("row", "age", "code", "status", "layer", "outcome",
+                                     "message", "detail", "is_root_cause")
+
+
+def test_the_row_column_can_be_dropped_like_any_other(two_layers: None) -> None:
+    """`drop_columns` is the caller's choice about their own output, not a
+    judgement about which columns matter."""
+
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id", drop_columns=["row"])
+    assert "row" not in report.columns
+    assert list(report.columns)[0] == "code"
+
+
+def test_an_unknown_drop_name_is_refused_and_lists_what_can_go(two_layers: None) -> None:
+    """Silently ignoring it would read as proof the column is empty."""
+
+    with pytest.raises(ValueError) as raised:
+        rep.build_report(outcomes(), df=FRAME, drop_columns=["comment"])
+    assert str(raised.value) == (
+        "drop_columns ['comment'] cannot be used for the report. Each name must be "
+        "asked for once and be one of: row, code, status, layer, outcome, message, "
+        "detail, comments, is_root_cause."
+    )
+
+
+def test_a_name_dropped_twice_is_refused(two_layers: None) -> None:
+    with pytest.raises(ValueError, match=r"drop_columns \['comments'\]"):
+        rep.build_report(outcomes(), df=FRAME, drop_columns=["comments", "comments"])
+
+
+def test_an_empty_drop_list_changes_nothing(two_layers: None) -> None:
+    assert tuple(rep.build_report(outcomes(), df=FRAME, drop_columns=[]).columns) == \
+        rep.REPORT_COLUMNS
+
+
+def test_report_columns_is_a_tuple_so_a_caller_cannot_edit_the_default(
+    two_layers: None,
+) -> None:
+    """It is exported for building a drop list from the other direction -- the
+    columns a run keeps -- so it must not be a list a caller can mutate."""
+
+    assert isinstance(rep.REPORT_COLUMNS, tuple)
+    keep = ("row", "code", "message")
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id",
+                              drop_columns=[name for name in rep.REPORT_COLUMNS
+                                            if name not in keep])
+    assert tuple(report.columns) == keep
+
+
+def test_a_dropped_column_is_absent_from_the_csv_too(two_layers: None) -> None:
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id",
+                              drop_columns=["comments"])
+    assert "comments" not in rep.render_report(report, fmt="csv").splitlines()[0]

@@ -3,7 +3,7 @@
 Printing is kept apart from registering and evaluating because it is the job
 that grows: every question about the configuration becomes another column rather
 than another engine feature. Each table carries the columns a reader always
-wants and takes `extra_columns` for the ones only some readers do.
+wants and takes `add_columns` for the ones only some readers do.
 
 Every function here returns the DataFrame it prints, so a caller can take the data
 without printing it twice. That is the package-wide rule, and it is about who owns
@@ -21,14 +21,20 @@ import pandas as pd
 
 from .registry import CHECKS
 from .rules import Rule
-from .tables import _print_title, _reject_unknown_columns, format_table
+from .tables import _keep_columns, _print_title, _reject_unknown_columns, format_table
 
-#: Extra columns the check tables offer. ``source_file`` is where the check was
+#: The columns each table always has, before `add_columns` adds to them and after
+#: `drop_columns` takes from them. Named rather than inline so both arguments are
+#: validated against the same list a reader can find.
+REGISTRY_BASE_COLUMNS = ["code", "layer", "default", "message", "depends_on"]
+RULES_BASE_COLUMNS = ["name", "action", "codes_hit_count", "match", "message"]
+
+#: Optional columns the check tables offer. ``source_file`` is where the check was
 #: registered; ``could_be_overridden_by`` and ``effective_state`` read the loaded
 #: rules, so only :func:`print_registry`, which is given them, offers those two.
-CHECK_EXTRA_COLUMNS = ["source_file"]
-REGISTRY_EXTRA_COLUMNS = ["source_file", "could_be_overridden_by", "effective_state"]
-RULE_EXTRA_COLUMNS = ["source_file"]
+CHECK_OPTIONAL_COLUMNS = ["source_file"]
+REGISTRY_OPTIONAL_COLUMNS = ["source_file", "could_be_overridden_by", "effective_state"]
+RULE_OPTIONAL_COLUMNS = ["source_file"]
 
 
 def _rules_for_code(code: str, rules: list[Rule]) -> list[Rule]:
@@ -46,17 +52,21 @@ def _render_match(rule: Rule) -> str:
                      for criterion in rule.criteria)
 
 
-def get_registry_table(extra_columns: list[str] | None = None) -> pd.DataFrame:
+def get_registry_table(add_columns: list[str] | None = None,
+                       drop_columns: list[str] | None = None) -> pd.DataFrame:
     """One row per registered check, ordered layer then code, so the fundamental
     checks read first.
 
-    `layer` and `depends_on` are base columns, not optional: what a check
-    requires, and how deep it sits, decide whether it runs at all.
+    `layer` and `depends_on` are base columns rather than optional ones: what a
+    check requires, and how deep it sits, decide whether it runs at all. They can
+    still be dropped -- `drop_columns` is a caller's choice about their own
+    output, not a judgement about which columns matter.
     """
 
-    extra_columns = list(extra_columns or [])
-    _reject_unknown_columns(extra_columns, CHECK_EXTRA_COLUMNS, "the registry table")
-    columns = ["code", "layer", "default", "message", "depends_on", *extra_columns]
+    add_columns = list(add_columns or [])
+    _reject_unknown_columns(add_columns, CHECK_OPTIONAL_COLUMNS, "the registry table")
+    columns = [*_keep_columns(REGISTRY_BASE_COLUMNS, drop_columns, "the registry table"),
+               *add_columns]
 
     rows: list[dict[str, Any]] = []
     for check in CHECKS:
@@ -79,12 +89,12 @@ def get_registry_table(extra_columns: list[str] | None = None) -> pd.DataFrame:
 
 
 def print_registry(
-    rules: list[Rule] | None = None, extra_columns: list[str] | None = None,
-    title: bool = True,
+    rules: list[Rule] | None = None, add_columns: list[str] | None = None,
+    title: bool = True, drop_columns: list[str] | None = None,
 ) -> pd.DataFrame:
     """Print the registry table, under its own heading, and return the frame.
 
-    `could_be_overridden_by` and `effective_state` are the two extra columns that
+    `could_be_overridden_by` and `effective_state` are the two added columns that
     read the rules, and `rules` feeds nothing else -- passing rules without
     asking for either prints the same table as passing none.
 
@@ -92,10 +102,14 @@ def print_registry(
     matched against, and this table has no row.
     """
 
-    extra_columns = list(extra_columns or [])
-    _reject_unknown_columns(extra_columns, REGISTRY_EXTRA_COLUMNS, "the registry table")
+    add_columns = list(add_columns or [])
+    _reject_unknown_columns(add_columns, REGISTRY_OPTIONAL_COLUMNS, "the registry table")
+    # Dropped at the end rather than passed down: the two rules-derived columns are
+    # computed from this table's own `code` and `default`, so a caller dropping
+    # either would otherwise take them out from under it.
+    kept = _keep_columns(REGISTRY_BASE_COLUMNS, drop_columns, "the registry table")
     table = get_registry_table(
-        extra_columns=[name for name in extra_columns if name in CHECK_EXTRA_COLUMNS])
+        add_columns=[name for name in add_columns if name in CHECK_OPTIONAL_COLUMNS])
     rules = rules or []
     if title:
         _print_title("Registry", f"{len(table)} check(s)",
@@ -104,37 +118,40 @@ def print_registry(
         print("No checks registered.")
         return table
     matching = {code: _rules_for_code(code, rules) for code in table["code"]}
-    if "could_be_overridden_by" in extra_columns:
+    if "could_be_overridden_by" in add_columns:
         table["could_be_overridden_by"] = [
             "; ".join(f"{rule.name} ({rule.action})" for rule in matching[code]) or "-"
             for code in table["code"]
         ]
-    if "effective_state" in extra_columns:
+    if "effective_state" in add_columns:
         table["effective_state"] = [
             f"depends on row (default {state} unless a rule above matches)"
             if matching[code] else f"DEFAULT ({state})"
             for code, state in zip(table["code"], table["default"])
         ]
 
+    table = table[[name for name in table.columns if name in kept or name in add_columns]]
     print(format_table(table, wrap_columns={"message": 40, "could_be_overridden_by": 34,
                                             "effective_state": 34}))
     return table
 
 
-def print_rules(
-    rules: list[Rule], extra_columns: list[str] | None = None, title: bool = True
-) -> pd.DataFrame:
-    """Print one row per rule, rather than per code, under its own heading.
+def get_rules_table(rules: list[Rule], add_columns: list[str] | None = None,
+                    drop_columns: list[str] | None = None) -> pd.DataFrame:
+    """One row per rule, rather than per code.
+
+    The data behind `print_rules`, so a caller can have the frame without the
+    output -- every other table here and in `report.py` offers that, and this one
+    did not.
 
     `codes_hit_count` is a count rather than the code list, so a rule touching
     many codes does not blow the table apart; `list_rule_codes` gives the detail.
     """
 
-    if title:
-        _print_title("Rules", f"{len(rules)} loaded")
-    extra_columns = list(extra_columns or [])
-    _reject_unknown_columns(extra_columns, RULE_EXTRA_COLUMNS, "the rules table")
-    columns = ["name", "action", "codes_hit_count", "match", "message", *extra_columns]
+    add_columns = list(add_columns or [])
+    _reject_unknown_columns(add_columns, RULE_OPTIONAL_COLUMNS, "the rules table")
+    columns = [*_keep_columns(RULES_BASE_COLUMNS, drop_columns, "the rules table"),
+               *add_columns]
 
     rows: list[dict[str, Any]] = []
     for rule in rules:
@@ -147,7 +164,18 @@ def print_rules(
             "source_file": rule.source_file,
         })
 
-    table = pd.DataFrame(rows, columns=columns)
+    return pd.DataFrame(rows, columns=columns)
+
+
+def print_rules(
+    rules: list[Rule], add_columns: list[str] | None = None, title: bool = True,
+    drop_columns: list[str] | None = None,
+) -> pd.DataFrame:
+    """Print the rules table, under its own heading, and return the frame."""
+
+    if title:
+        _print_title("Rules", f"{len(rules)} loaded")
+    table = get_rules_table(rules, add_columns=add_columns, drop_columns=drop_columns)
     if table.empty:
         print("No rules loaded.")
         return table

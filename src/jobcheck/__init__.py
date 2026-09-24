@@ -33,6 +33,7 @@ from .engine import (
     validate_row,
 )
 from .registry_tables import (
+    get_rules_table,
     get_registry_table,
     list_rule_codes,
     print_rules,
@@ -40,6 +41,7 @@ from .registry_tables import (
 )
 from .rules import warn_missing_rule_columns, warn_shadowed_rules
 from .report import (
+    REPORT_COLUMNS,
     build_report,
     escape_for_spreadsheet,
     print_report,
@@ -77,6 +79,7 @@ __all__ = [
     "MatchCriterion",
     "OK",
     "PASSED",
+    "REPORT_COLUMNS",
     "RowContext",
     "Rule",
     "SKIPPED",
@@ -88,6 +91,7 @@ __all__ = [
     "explain_row",
     "format_table",
     "get_registry_table",
+    "get_rules_table",
     "is_null",
     "list_rule_codes",
     "load_checks",

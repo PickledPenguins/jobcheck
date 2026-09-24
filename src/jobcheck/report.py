@@ -22,10 +22,11 @@ import pandas as pd
 
 from .engine import root_causes
 from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, render_status
-from .tables import _print_title, _reject_unknown_columns, _format_cell, format_table
+from .tables import (_keep_columns, _print_title, _reject_unknown_columns, _format_cell,
+                     format_table)
 
-REPORT_COLUMNS = ["row", "code", "status", "layer", "outcome", "message", "detail", "comments",
-                  "is_root_cause"]
+REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "detail", "comments",
+                  "is_root_cause")
 
 # Which outcomes reach a report or an explanation, worst-first. Every level
 # contains the one before it, so the choice is how far down to go rather than a
@@ -86,20 +87,20 @@ def _row_labels(df: pd.DataFrame, key_column: str | None) -> list[str]:
     return [_format_cell(value, missing="<no key>") for value in df[key_column]]
 
 
-def _extra_values(df: pd.DataFrame, extra_columns: list[str], rows: int) -> list[dict[str, str]]:
-    """One dict per row, holding the extra columns' values rendered as text.
+def _added_values(df: pd.DataFrame, add_columns: list[str], rows: int) -> list[dict[str, str]]:
+    """One dict per row, holding the added columns' values rendered as text.
 
     Empty dicts when nothing was asked for, so the caller can merge the dict into
     every report line either way rather than branching per line.
     """
 
-    if not extra_columns:
+    if not add_columns:
         return [{} for _ in range(rows)]
 
     values = []
-    for row in df[extra_columns].itertuples(index=False, name=None):
+    for row in df[add_columns].itertuples(index=False, name=None):
         values.append({column: _format_cell(value)
-                       for column, value in zip(extra_columns, row)})
+                       for column, value in zip(add_columns, row)})
     return values
 
 
@@ -107,8 +108,9 @@ def build_report(
     frame_outcomes: list[list[CheckOutcome]],
     df: pd.DataFrame,
     key_column: str | None = None,
-    extra_columns: list[str] | None = None,
+    add_columns: list[str] | None = None,
     include: str = "failures",
+    drop_columns: list[str] | None = None,
 ) -> pd.DataFrame:
     """Build the long-format report: one line per failure, in evaluation order.
 
@@ -119,7 +121,12 @@ def build_report(
     `is_root_cause` flags **every** failure at the shallowest failing layer, and
     is not always the first line: an independent chain registered earlier can be
     printed above a shallower failure. The columns, the `include` levels and what
-    `extra_columns` refuses are in `reporting.md`.
+    `add_columns` refuses are in `reporting.md`.
+
+    `add_columns` copies frame columns in; `drop_columns` takes the report's own
+    columns out, which is how a run keeps `comments` and `detail` for a developer
+    and leaves them out of what ships. `REPORT_COLUMNS` is the list it validates
+    against.
     """
 
     if len(df) != len(frame_outcomes):
@@ -128,7 +135,8 @@ def build_report(
             "pass the same frame the outcomes were collected from."
         )
     wanted = _included(include)
-    extra_columns = list(extra_columns or [])
+    add_columns = list(add_columns or [])
+    kept = _keep_columns(list(REPORT_COLUMNS), drop_columns, "the report")
 
     # A column is on offer when the frame holds it exactly once -- a duplicated
     # label would hand back a table rather than a column -- and when its name
@@ -136,13 +144,13 @@ def build_report(
     labels = list(df.columns)
     available = [str(column) for column in labels
                  if labels.count(column) == 1 and column not in REPORT_COLUMNS]
-    _reject_unknown_columns(extra_columns, available, "the report")
+    _reject_unknown_columns(add_columns, available, "the report")
 
     row_labels = _row_labels(df, key_column)
-    extra = _extra_values(df, extra_columns, len(frame_outcomes))
+    added = _added_values(df, add_columns, len(frame_outcomes))
 
     rows: list[dict[str, Any]] = []
-    for label, row_outcomes, context in zip(row_labels, frame_outcomes, extra):
+    for label, row_outcomes, context in zip(row_labels, frame_outcomes, added):
         causes = set(root_causes(row_outcomes))
         for outcome in row_outcomes:
             if outcome.outcome not in wanted:
@@ -161,7 +169,11 @@ def build_report(
                     "is_root_cause": outcome.code in causes,
                 }
             )
-    columns = ["row", *extra_columns, *REPORT_COLUMNS[1:]]
+    # `row` first and the added columns straight after it, so a reader meets the
+    # identity and its context before the outcome -- and only the columns that
+    # survived `drop_columns`.
+    ordered = [*add_columns, *(name for name in REPORT_COLUMNS[1:] if name in kept)]
+    columns = (["row", *ordered] if "row" in kept else ordered)
     return pd.DataFrame(rows, columns=columns)
 
 
