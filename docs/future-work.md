@@ -61,16 +61,6 @@ a design call the owner has not made. The reviews' own fixes to the same commit 
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
 
-**F.23 — the test suite's module aliases.** `tests/conftest.py` imports the package's
-modules as `eng`, `reg` and `res`, and roughly twenty test modules use them. The package
-itself spells everything out, and `contributing.md` names the junior reader as the bar.
-Gain: one vocabulary across source and tests. Loss: the rename touches every test file that
-uses them, which is a large diff with no behavior change — it makes `git log -S` and
-`git blame` on the suite worse for a year to buy a spelling. 3 lines in `conftest.py`,
-~200 touched lines across ~20 files. Priority: low. Blast radius: tests only. Recommendation:
-do not do it on its own. If the suite is ever split or reorganized, spell them out in the
-files that move, and let the rest converge.
-
 **F.24 — the enabled-state lookup carries a fallback nothing explains.** `engine.py`'s
 per-row loop reads each check's state with a dict `get` and a default, but the dict is
 built from the same registry list the loop walks, in the same call, so the default cannot
@@ -147,6 +137,24 @@ so, and an environment variable makes a run irreproducible from its command line
 would also cost the sentence every failure prints, "load_checks() names files explicitly;
 nothing is discovered", which is pinned in eleven places and is the invariant the whole
 loader is built on.
+
+**Spelling out the test suite's module aliases** (F.23, decided 2026-09-23). The suite
+writes `reg`, `rep` and `res` where the package spells `registry`, `report` and `results`
+out, and `contributing.md` names the junior reader as the bar. Rejected on size against
+gain: measured 2026-09-23, that is 405 use sites across about 26 files -- `reg` 277 in 24
+files, `rep` 93 in 6, `res` 33 in 5 -- a diff with no behavior change that makes
+`git blame` and `git log -S` on the suite worse for a year to buy a spelling. The entry's
+own figure, "~200 touched lines across ~20 files", was half the real one, and it missed
+`rep` entirely: `conftest.py` does not define that alias, the six test modules each import
+`report as rep` themselves. That is also why `conftest.py` is not the lever it looks like --
+most of the 24 files re-import `registry as reg` locally, so changing conftest alone changes
+nothing.
+
+What was taken is in the git log: `eng` was defined in `conftest.py` and used twice, both
+inside `conftest.py`, while three test modules already spelled `engine` out. Dropping it
+cost three lines in one file and left the suite with one spelling of `engine` instead of
+two. If the suite is ever split or reorganized, spell the rest out in the files that move
+and let the others converge.
 
 **Renaming `tables.py`'s two cross-module helpers to look public** (F.22, decided
 2026-09-23). `_format_cell` and `_check_extra_columns` carry a leading underscore and are
