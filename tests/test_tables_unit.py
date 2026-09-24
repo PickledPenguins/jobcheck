@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy
 import pandas as pd
 import pytest
@@ -165,7 +167,7 @@ def test_registry_table_of_an_empty_registry_has_columns_and_no_rows(fresh_regis
 def test_print_registry_prints_the_table_and_returns_it(
     example_checks: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    table = registry_tables.print_registry()
+    table = registry_tables.print_registry(title=False)
     out = capsys.readouterr().out
     assert "AGE_NEGATIVE" in out
     assert "code" in out.splitlines()[0]
@@ -175,7 +177,7 @@ def test_print_registry_prints_the_table_and_returns_it(
 def test_print_registry_on_an_empty_registry_says_so(
     fresh_registry: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    table = registry_tables.print_registry()
+    table = registry_tables.print_registry(title=False)
     assert capsys.readouterr().out == "No checks registered.\n"
     assert table.empty
 
@@ -288,7 +290,7 @@ def test_rules_table_adds_source_file_when_asked_for(fresh_registry: None) -> No
 def test_no_rules_loaded_prints_a_message(
     fresh_registry: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    table = registry_tables.print_rules([])
+    table = registry_tables.print_rules([], title=False)
     assert capsys.readouterr().out == "No rules loaded.\n"
     assert table.empty
 
@@ -445,3 +447,49 @@ def test_could_be_overridden_by_is_not_on_offer_where_there_are_no_rules_to_read
 
     with pytest.raises(ValueError, match="cannot be used for the registry table"):
         registry_tables.get_registry_table(extra_columns=["could_be_overridden_by"])
+
+
+# --- table titles -----------------------------------------------------------
+
+
+def test_the_registry_title_counts_the_checks_and_the_rules(
+    example_checks: None, capsys: pytest.CaptureFixture[str], tmp_path: Any
+) -> None:
+    """Every print_ writes its own heading, so an entry point printing three
+    tables does not label them itself -- and the heading carries what the call was
+    given, because "which table is this" and "what did I ask for" are one question
+    once two are on screen."""
+
+    path = tmp_path / "r.yaml"
+    path.write_text(
+        "- name: off_everywhere\n  message: \"m\"\n  action: disable\n"
+        "  codes: [AGE_NOT_INTEGER]\n  match: all\n",
+        encoding="utf-8",
+    )
+    registry_tables.print_registry(rules=reg.load_rules([str(path)]))
+    assert capsys.readouterr().out.splitlines()[0] == (
+        "== Registry: 11 check(s), 1 rule(s) considered ==")
+
+
+def test_the_registry_title_omits_rules_it_was_not_given(
+    example_checks: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry_tables.print_registry()
+    assert capsys.readouterr().out.splitlines()[0] == "== Registry: 11 check(s) =="
+
+
+def test_a_title_is_written_even_when_there_is_nothing_to_show(
+    fresh_registry: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The heading comes first: "nothing here" is only an answer if the reader
+    knows which question it answers."""
+
+    registry_tables.print_registry()
+    assert capsys.readouterr().out == "== Registry: 0 check(s) ==\nNo checks registered.\n"
+
+
+def test_the_rules_title_counts_what_was_loaded(
+    fresh_registry: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    registry_tables.print_rules([])
+    assert capsys.readouterr().out.splitlines()[0] == "== Rules: 0 loaded =="

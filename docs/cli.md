@@ -27,7 +27,10 @@ usage: main.py [-h] [--data PATH] [--rules PATH [PATH ...]]
 ```
 
 No positional arguments. Nothing is read from stdin. Results go to stdout; column
-warnings and uncaught errors go to stderr.
+warnings and uncaught errors go to stderr. Every table prints under its own
+heading — `== Registry: 11 check(s), 3 rule(s) considered ==` — written by the
+library rather than by this script, and carrying what the call was given. The
+CSV report is the exception and has no heading, so it stays parseable.
 
 The check files are named in the entry point itself, as `CHECK_FILES`, and are not
 selectable from the command line: which checks a pipeline runs is a property of the

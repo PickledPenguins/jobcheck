@@ -152,12 +152,10 @@ def main(argv: list[str] | None = None) -> None:
             print(f"error: --explain {args.explain} is outside the frame's {len(df)} row(s)",
                   file=sys.stderr)
             raise SystemExit(2)
-        print(f"== Row {args.explain} ==")
-        print_row_explanation(outcomes[args.explain])
+        print_row_explanation(outcomes[args.explain], row_key=args.explain)
         return
 
     if args.rules_table:
-        print("== Rules ==")
         # One row per rule, where the registry table below is one row per code:
         # a rule touching eight codes is one line here and eight there, which is
         # the view that answers "what did this file actually say".
@@ -169,15 +167,14 @@ def main(argv: list[str] | None = None) -> None:
             print(f"warning: {warning}")
         print()
 
-    print("== Registry ==")
     # could_be_overridden_by is the only use print_registry makes of the rules:
     # without it the argument is inert and the demo never shows which rule
     # touches which code.
     print_registry(rules=rules, extra_columns=["could_be_overridden_by"])
 
-    print("\n== Failures ==")
+    print()
     report = build_report(outcomes, df=df, key_column=KEY_COLUMN)
-    print_report(report, fmt=args.report)
+    print_report(report, fmt=args.report, key_column=KEY_COLUMN)
 
     if args.write is not None:
         # The same frame the report above was printed from, so the file and the
@@ -190,7 +187,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"\nWrote {len(report)} report row(s) to {args.write}")
 
     if args.summary:
-        print("\n== Summary ==")
+        print()
         print_summary(outcomes)
 
 

@@ -1,6 +1,6 @@
 Loaded 6 rule(s) from 4 file(s)
 
-== Registry ==
+== Registry: 11 check(s), 6 rule(s) considered ==
 code                 | layer | default | message                                 | depends_on       | could_be_overridden_by                          
 ---------------------+-------+---------+-----------------------------------------+------------------+-------------------------------------------------
 AGE_PRESENT          | 0     | ON      | Age is missing                          | -                | -                                               
@@ -28,10 +28,9 @@ EMAIL_DOMAIN_INVALID | 2     | ON      | Email domain looks malformed           
                      |       |         |                                         |                  | suppress_email_checks_for_test_accounts_by_topic
                      |       |         |                                         |                  | (disable)                                       
 
-== Failures ==
 No failures.
 
-== Summary ==
+== Summary: 24 row(s), 11 check(s) ==
 code                 | layer | failed | errored | skipped | disabled | passed
 ---------------------+-------+--------+---------+---------+----------+-------
 AGE_NEGATIVE         | 2     | 0      | 0       | 0       | 0        | 24    

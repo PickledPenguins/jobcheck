@@ -7,6 +7,7 @@ hands it back in, and that every argument reaches `explain_row` unchanged.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
@@ -24,6 +25,7 @@ from jobcheck import (
     validate,
 )
 from jobcheck.rules import Rule
+from jobcheck import registry as reg
 from jobcheck.results import OK, Verdict
 
 pytestmark = pytest.mark.fast
@@ -31,6 +33,16 @@ pytestmark = pytest.mark.fast
 
 def frame(rows: int = 3) -> pd.DataFrame:
     return pd.DataFrame([{"id": index, "value": index} for index in range(rows)])
+
+
+
+@dataclass
+class RunContext(RowContext):
+    """Defined at module level on purpose: `clear_registry` evicts whatever module
+    a check registered from, and a dataclass built after that eviction raises from
+    `dataclasses` while resolving its annotations."""
+
+    strict: bool = False
 
 
 def test_one_list_of_outcomes_per_row(fresh_registry: None) -> None:
@@ -138,3 +150,52 @@ def test_a_series_is_refused_with_a_pointer_to_the_per_row_functions(
     make_check("CODE")
     with pytest.raises(TypeError, match="validate takes a DataFrame, got Series"):
         validate(pd.Series({"age": 1}))  # type: ignore[arg-type]
+
+
+def test_a_context_builder_taking_two_arguments_is_given_the_context_args(
+    fresh_registry: None,
+) -> None:
+    """The shape a pipeline wants: a named function taking `(row, args)`, not a
+    lambda closing over them. `context_args` is passed through untouched."""
+
+    def build_context(row: Any, args: Any) -> RunContext:
+        return RunContext(strict=args["strict"])
+
+    seen: list[bool] = []
+
+    @reg.register_check("STRICTNESS", "m")
+    def strictness(row: Any, context: Any) -> Any:
+        seen.append(context.strict)
+        return OK
+
+    frame = pd.DataFrame([{"a": 1}, {"a": 2}])
+    validate(frame, context_builder=build_context, context_args={"strict": True})
+    assert seen == [True, True]
+
+
+def test_a_context_builder_taking_one_argument_still_gets_only_the_row(
+    fresh_registry: None,
+) -> None:
+    """The corner case keeps working, and needs no context_args."""
+
+    built: list[Any] = []
+
+    def build_context(row: Any) -> RowContext:
+        built.append(row["a"])
+        return RowContext()
+
+    make_check("CODE")
+    validate(pd.DataFrame([{"a": 1}, {"a": 2}]), context_builder=build_context)
+    assert built == [1, 2]
+
+
+def test_a_builder_taking_neither_shape_says_so(fresh_registry: None) -> None:
+    """The same message shape a check gets for the same mistake, and raised once
+    per validate rather than once per row."""
+
+    make_check("CODE")
+    with pytest.raises(ValueError) as raised:
+        validate(pd.DataFrame([{"a": 1}]),
+                 context_builder=lambda row, args, extra: RowContext())
+    assert "must take (row) or (row, context_args), not 3 positional argument(s)" in str(
+        raised.value)

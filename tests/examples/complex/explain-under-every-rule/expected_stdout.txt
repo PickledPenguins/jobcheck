@@ -1,6 +1,6 @@
 Loaded 6 rule(s) from 4 file(s)
 
-== Row 1999 ==
+== Row explanation: row 1999, 11 of 11 check(s), include=all ==
 layer | code                 | outcome  | status   | detail                                            
 ------+----------------------+----------+----------+---------------------------------------------------
 0     | ROW_ALL_NULL         | passed   | PASS (0) | -                                                 

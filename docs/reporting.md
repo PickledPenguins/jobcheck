@@ -146,6 +146,31 @@ outcomes themselves always hold the value the check actually saw. There is no
 switch for it: a report is written to be opened by a person, and a CSV that can
 execute on open is not one.
 
+## Every table names itself
+
+Each `print_*` writes its own heading first, so an entry point printing three
+tables in a row does not label them by hand:
+
+```
+== Rules: 3 loaded ==
+== Registry: 11 check(s), 3 rule(s) considered ==
+== Report: 12 line(s), keyed by id ==
+== Row explanation: row 5, 11 of 11 check(s), include=all ==
+== Summary: 6 row(s), 11 check(s) ==
+```
+
+The heading carries what the call was given, because "which table is this" and
+"what did I ask for" are the same question once two of them are on screen: a row
+explanation is `include=blocked` or it is not the table you meant. Two facts the
+functions cannot read off their arguments are passed in for the heading and nothing
+else — `print_report(report, key_column="id")`, since the key column's name is not
+a column, and `print_row_explanation(outcomes, row_key=5)`, since a list of
+outcomes does not say which row it came from.
+
+`title=False` turns it off. `print_report` writes no heading for `fmt="csv"` at
+all: a line above CSV makes it unparseable, and CSV is the format a caller
+redirects to a file. Print your own if you want one.
+
 ## Formats and files
 
 ```python

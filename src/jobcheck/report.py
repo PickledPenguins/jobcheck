@@ -22,7 +22,7 @@ import pandas as pd
 
 from .engine import root_causes
 from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, render_status
-from .tables import _reject_unknown_columns, _format_cell, format_table
+from .tables import _print_title, _reject_unknown_columns, _format_cell, format_table
 
 REPORT_COLUMNS = ["row", "code", "status", "layer", "outcome", "message", "detail", "comments",
                   "is_root_cause"]
@@ -216,9 +216,22 @@ def write_report(report: pd.DataFrame, path: str, fmt: str = "csv") -> None:
         handle.write(render_report(report, fmt=fmt))
 
 
-def print_report(report: pd.DataFrame, fmt: str = "table", wrap_width: int = 48) -> None:
-    """Print a rendered report, or a plain line when nothing failed."""
+def print_report(report: pd.DataFrame, fmt: str = "table", wrap_width: int = 48,
+                 title: bool = True, key_column: str | None = None) -> None:
+    """Print a rendered report, or a plain line when nothing failed.
 
+    The heading is written for `fmt="table"` only. A line above CSV would make the
+    output unparseable, and CSV is the format a caller redirects to a file, so
+    `title=True` is honored for the table and ignored for the CSV rather than
+    quietly breaking it. Print your own line above CSV if you want one.
+    """
+
+    if title and fmt != "csv":
+        # key_column is the one fact about a report this function cannot read off
+        # the frame -- the name is not a column -- and it is what tells a reader
+        # what the `row` values are. Given for the heading, nothing else.
+        _print_title("Report", f"{len(report)} line(s)",
+                     f"keyed by {key_column}" if key_column else "")
     if report.empty:
         print("No failures.")
         return
@@ -252,7 +265,8 @@ def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> p
     )
 
 
-def print_row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> pd.DataFrame:
+def print_row_explanation(row_outcomes: list[CheckOutcome], include: str = "all",
+                          title: bool = True, row_key: Any = None) -> pd.DataFrame:
     """Print what every check did on one row, then the row's root cause(s).
 
     The cause is named at the end rather than left to the reader: it is not
@@ -261,6 +275,12 @@ def print_row_explanation(row_outcomes: list[CheckOutcome], include: str = "all"
     """
 
     table = row_explanation(row_outcomes, include=include)
+    if title:
+        # The outcomes say nothing about which row they came from, and a row
+        # explanation with no row in its heading is the one table where that
+        # matters. Given for the heading, nothing else.
+        _print_title("Row explanation", f"row {row_key}" if row_key is not None else "",
+                     f"{len(table)} of {len(row_outcomes)} check(s)", f"include={include}")
     print(format_table(table, wrap_columns={"detail": 60}))
     causes = root_causes(row_outcomes)
     label = "root cause" if len(causes) == 1 else "root causes"
@@ -336,10 +356,14 @@ def root_cause_counts(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataFr
     )
 
 
-def print_summary(frame_outcomes: list[list[CheckOutcome]]) -> pd.DataFrame:
+def print_summary(frame_outcomes: list[list[CheckOutcome]],
+                  title: bool = True) -> pd.DataFrame:
     """Print the per-check summary, worst first, and the root-cause tally."""
 
     table = summarize_outcomes(frame_outcomes)
+    if title:
+        _print_title("Summary", f"{len(frame_outcomes)} row(s)",
+                     f"{len(table)} check(s)" if not table.empty else "")
     if table.empty:
         print("No checks ran.")
         return table
