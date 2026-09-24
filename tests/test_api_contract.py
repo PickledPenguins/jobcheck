@@ -196,8 +196,8 @@ def test_root_cause_accepts_either_functions_output(fresh_registry: None) -> Non
 
 
 def test_pass_is_a_shared_singleton() -> None:
-    assert res.PASS is validation.PASS
-    assert res.normalize_result(res.PASS, "CODE") is res.PASS
+    assert res.OK is validation.OK
+    assert res.normalize_verdict(res.OK, "CODE") is res.OK
 
 
 def _row() -> Any:

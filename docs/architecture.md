@@ -23,7 +23,7 @@ entry point
   |       resolve state (defaults, then matching rules, last wins)
   |       walk the cached topological order
   |       disabled / blocked  -> CheckOutcome, fn never called
-  |       fn(row, ctx)        -> CheckResult -> CheckOutcome(passed|failed)
+  |       fn(row, ctx)        -> Verdict -> CheckOutcome(passed|failed)
   |       fn raises           -> CheckOutcome(errored, Status.ERROR)
   |
   +-- build_report(...) -> long-format frame -> render_report / write_report
@@ -65,7 +65,7 @@ the package by accident from the working directory. The demos and the scripts ad
 | `src/jobcheck/engine.py` | What happens to one row: per-row on/off state from the rules, evaluation in dependency order, the outcomes, and the root causes. |
 | `src/jobcheck/registry_tables.py` | The registry and the rules as tables: what is registered, which rules could touch each code, what each rule covers. |
 | `src/jobcheck/report.py` | Collecting outcomes for a frame, the long-format failure table, summaries, explanations, and rendering them as text or CSV. |
-| `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `CheckResult`, `CheckOutcome`. |
+| `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `Verdict`, `CheckOutcome`. |
 | `src/jobcheck/rules.py` | The rule file format and its parser. Knows nothing about the registry. |
 | `src/jobcheck/tables.py` | Table rendering and null handling, shared by every view. |
 | `src/jobcheck/paths.py` | The path a caller named, turned into a file on disk, and the error when it is not one. Used by both loaders. |
@@ -172,11 +172,11 @@ would catch it.
 not actionable without the value and the limit, and threading that into the
 report through anything but the return value meant per-row state. A bare bool
 return is refused at the boundary rather than converted: `True == 1 ==
-Status.MISSING`, so a guess would invert the meaning. `CheckResult(condition)` is
+Status.MISSING`, so a guess would invert the meaning. `Verdict(condition)` is
 the one-liner form.
 
-**Failure kinds are one small fixed vocabulary.** Five statuses, `PASS` and four
-failure kinds, and a `CheckResult` carrying anything else is refused at
+**Failure kinds are one small fixed vocabulary.** Five statuses, `OK` and four
+failure kinds, and a `Verdict` carrying anything else is refused at
 construction. A fixed set can be grouped and counted across every check in a
 summary, which per-check enums could not; what varies between projects is the
 codes, not the kinds.

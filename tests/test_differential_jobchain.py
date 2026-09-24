@@ -3,7 +3,7 @@
 ``~/work/ai/jobchain`` was written against the pre-rename library and is the only
 surviving *written* record of what that engine did -- its checks are executable
 expectations, not prose. Each check here is one of those expectations, restated in
-this package's vocabulary (``register_check``, ``CheckResult``, ``load_checks``).
+this package's vocabulary (``register_check``, ``Verdict``, ``load_checks``).
 
 They exist to answer one question: does this tree behave the way the tree
 jobchain was written against behaved? A failure here that a rename does not
@@ -44,38 +44,38 @@ from jobcheck import (
 pytestmark = pytest.mark.fast
 
 SIMPLE = """
-from jobcheck import PASS, Status, CheckResult, register_check
+from jobcheck import OK, Status, Verdict, register_check
 
 @register_check("B_INT", "b must be a whole number")
 def b_int(row):
     if not row["b"].isdigit():
-        return CheckResult(Status.MALFORMED, {"value": row["b"]})
-    return PASS
+        return Verdict(Status.MALFORMED, {"value": row["b"]})
+    return OK
 """
 
 LAYERED = """
-from jobcheck import PASS, Status, CheckResult, register_check
+from jobcheck import OK, Status, Verdict, register_check
 
 @register_check("B_PRESENT", "b is missing")
 def b_present(row):
-    return PASS if row["b"].strip() else CheckResult(Status.MISSING)
+    return OK if row["b"].strip() else Verdict(Status.MISSING)
 
 @register_check("B_INT", "b must be a whole number", depends_on=["B_PRESENT"])
 def b_int(row):
-    return PASS if row["b"].isdigit() else CheckResult(Status.MALFORMED)
+    return OK if row["b"].isdigit() else Verdict(Status.MALFORMED)
 
 @register_check("B_POSITIVE", "b must be positive", depends_on=["B_INT"])
 def b_positive(row):
-    return PASS if int(row["b"]) > 0 else CheckResult(Status.INVALID)
+    return OK if int(row["b"]) > 0 else Verdict(Status.INVALID)
 """
 
 CROSS_ROW = """
-from jobcheck import PASS, Status, CheckResult, register_check
+from jobcheck import OK, Status, Verdict, register_check
 
 @register_check("A_UNIQUE", "a is not unique in this file")
 def a_unique(row, ctx):
     n = ctx.count("a", row["a"])
-    return PASS if n <= 1 else CheckResult(Status.INVALID, {"a": row["a"], "n": n})
+    return OK if n <= 1 else Verdict(Status.INVALID, {"a": row["a"], "n": n})
 """
 
 CRASHES = """
@@ -234,9 +234,9 @@ def test_a_check_file_that_does_not_import_raises(fresh_registry: None, tmp_path
 
 def test_a_dangling_prerequisite_raises(fresh_registry: None, tmp_path: Path) -> None:
     body = (
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('X', 'x', depends_on=['NO_SUCH'])\n"
-        "def x(row): return PASS\n"
+        "def x(row): return OK\n"
     )
     with pytest.raises(ValueError, match="NO_SUCH"):
         load_checks([write_file(tmp_path, body)])

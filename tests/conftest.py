@@ -84,14 +84,14 @@ def make_check(
         default_enabled=default_enabled,
         depends_on=depends_on,
     )
-    def _check(row: "pd.Series[Any]") -> res.CheckResult:
+    def _check(row: "pd.Series[Any]") -> res.Verdict:
         if calls is not None:
             calls.append(code)
         if raises is not None:
             raise raises
         if passes:
-            return res.PASS
-        return res.CheckResult(status, comments or {})
+            return res.OK
+        return res.Verdict(status, comments or {})
 
 
 def one_row_report(
@@ -104,8 +104,8 @@ def one_row_report(
     """
 
     @reg.register_check(code="CELL", message=message)
-    def check(row: "pd.Series[Any]") -> res.CheckResult:
-        return res.CheckResult(res.Status.INVALID, comments or {})
+    def check(row: "pd.Series[Any]") -> res.Verdict:
+        return res.Verdict(res.Status.INVALID, comments or {})
 
     frame = pd.DataFrame([{"id": 1}])
     return report.build_report(engine.validate(frame), df=frame, key_column="id")

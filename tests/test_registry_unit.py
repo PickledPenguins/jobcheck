@@ -12,7 +12,7 @@ from conftest import EXAMPLE_CHECK_FILES, make_check
 from registry_state import SavedRegistry
 from jobcheck import registry as reg
 from jobcheck import engine
-from jobcheck.results import CheckResult, PASS, Status
+from jobcheck.results import Verdict, OK, Status
 
 pytestmark = pytest.mark.fast
 
@@ -31,8 +31,8 @@ def test_register_check_defaults_are_enabled_with_no_dependencies(fresh_registry
 
 def test_register_check_returns_the_undecorated_function(fresh_registry: None) -> None:
     @reg.register_check(code="RETURNED", message="m")
-    def check(row: "pd.Series[Any]") -> CheckResult:
-        return CheckResult(Status.INVALID)
+    def check(row: "pd.Series[Any]") -> Verdict:
+        return Verdict(Status.INVALID)
 
     assert bool(check(pd.Series(dtype=object))) is False
 
@@ -62,10 +62,10 @@ def test_a_check_defined_by_exec_registers(fresh_registry: None) -> None:
 
     namespace: dict[str, Any] = {}
     exec(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         '@register_check("EXECED", "m")\n'
         "def check(row):\n"
-        "    return PASS\n",
+        "    return OK\n",
         namespace,
     )
     registered = reg.CHECKS[0]
@@ -77,10 +77,10 @@ def test_a_check_defined_by_exec_registers(fresh_registry: None) -> None:
 def test_a_duplicate_code_from_exec_still_names_the_function(fresh_registry: None) -> None:
     namespace: dict[str, Any] = {}
     source = (
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         '@register_check("EXECED", "m")\n'
         "def check(row):\n"
-        "    return PASS\n"
+        "    return OK\n"
     )
     exec(source, namespace)
     with pytest.raises(ValueError, match=r"Duplicate check code 'EXECED' \(registering check\)"):
@@ -231,9 +231,9 @@ def test_a_duplicate_code_names_the_module_the_second_check_lives_in(
     make_check("SHARED")
     path = tmp_path / "second.py"
     path.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('SHARED', 'again')\n"
-        "def rule(row): return PASS\n",
+        "def rule(row): return OK\n",
         encoding="utf-8",
     )
     with pytest.raises(ValueError) as excinfo:
@@ -256,7 +256,7 @@ def test_two_required_keyword_arguments_are_both_named(fresh_registry: None) -> 
     with pytest.raises(ValueError) as excinfo:
         @reg.register_check(code="CODE", message="m")
         def check(row, *, low, high):  # type: ignore[no-untyped-def]
-            return PASS
+            return OK
     assert "needs keyword argument(s) low, high that the engine cannot supply" in str(excinfo.value)
 
 
@@ -264,9 +264,9 @@ def _check_file(path: Any, code: str) -> str:
     """A one-check file, for the tests that care which module it loads as."""
 
     path.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         f"@register_check({code!r}, 'm')\n"
-        "def rule(row): return PASS\n",
+        "def rule(row): return OK\n",
         encoding="utf-8",
     )
     return str(path)

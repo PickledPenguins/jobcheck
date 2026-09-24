@@ -150,11 +150,11 @@ def test_a_formula_inside_a_comment_value_cannot_start_the_cell(
 
 def test_a_formula_in_the_row_key_is_neutralized(fresh_registry: None) -> None:
     from jobcheck import build_report, validate, render_report
-    from jobcheck.results import Status, CheckResult
+    from jobcheck.results import Status, Verdict
 
     @reg.register_check(code="CELL", message="m")
-    def check(row: "pd.Series[Any]") -> CheckResult:
-        return CheckResult(Status.INVALID)
+    def check(row: "pd.Series[Any]") -> Verdict:
+        return Verdict(Status.INVALID)
 
     frame = pd.DataFrame([{"id": "=DANGER()"}])
     report = build_report(validate(frame), df=frame, key_column="id")

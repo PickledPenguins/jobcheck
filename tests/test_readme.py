@@ -222,11 +222,11 @@ def test_the_declared_version_matches_the_package() -> None:
 
 
 def test_a_condition_wrapped_in_a_result_works_as_the_readme_says(fresh_registry: None) -> None:
-    from jobcheck import CheckResult, Status
+    from jobcheck import Verdict, Status
 
-    assert "`CheckResult(condition)` wraps a bare comparison" in readme_text()
-    assert bool(CheckResult(1 > 0)) is True
-    assert CheckResult(1 < 0).status == Status.INVALID
+    assert "`Verdict(condition)` wraps a bare comparison" in readme_text()
+    assert bool(Verdict(1 > 0)) is True
+    assert Verdict(1 < 0).status == Status.INVALID
 
 
 def test_the_report_is_one_line_per_failure_as_claimed(fresh_registry: None) -> None:

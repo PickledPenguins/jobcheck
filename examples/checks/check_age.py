@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from jobcheck import PASS, Status, CheckResult, is_null, register_check
+from jobcheck import OK, Status, Verdict, is_null, register_check
 
 
 def _number(value: Any) -> float | None:
@@ -23,36 +23,36 @@ def _number(value: Any) -> float | None:
 
 
 @register_check(code="AGE_PRESENT", message="Age is missing")
-def age_present(row: "pd.Series[Any]") -> CheckResult:
+def age_present(row: "pd.Series[Any]") -> Verdict:
     """Pass when the row carries an age at all."""
 
     if "age" not in row.index:
-        return CheckResult(Status.MISSING, {"reason": "no age column"})
+        return Verdict(Status.MISSING, {"reason": "no age column"})
     value = row["age"]
     if is_null(value):
-        return CheckResult(Status.MISSING)
-    return PASS
+        return Verdict(Status.MISSING)
+    return OK
 
 
 # Everything below waits for an age to be there: one complaint about a blank
 # field instead of one from every check that reads it.
 @register_check("AGE_NOT_A_NUMBER", "Age is not a number", depends_on=["AGE_PRESENT"])
-def age_is_a_number(row: "pd.Series[Any]") -> CheckResult:
+def age_is_a_number(row: "pd.Series[Any]") -> Verdict:
     """Pass when the age can be read as a number."""
 
     if _number(row["age"]) is None:
-        return CheckResult(Status.MALFORMED, {"value": row["age"]})
-    return PASS
+        return Verdict(Status.MALFORMED, {"value": row["age"]})
+    return OK
 
 
 @register_check("AGE_NEGATIVE", "Age is negative", depends_on=["AGE_NOT_A_NUMBER"])
-def age_negative(row: "pd.Series[Any]") -> CheckResult:
+def age_negative(row: "pd.Series[Any]") -> Verdict:
     """Pass unless the age is below zero."""
 
     value = _number(row["age"])
     if value is not None and value < 0:
-        return CheckResult(Status.INVALID, {"value": value, "minimum": 0})
-    return PASS
+        return Verdict(Status.INVALID, {"value": value, "minimum": 0})
+    return OK
 
 
 @register_check(
@@ -60,13 +60,13 @@ def age_negative(row: "pd.Series[Any]") -> CheckResult:
     "Age is implausibly high (over 130)",
     depends_on=["AGE_NOT_A_NUMBER"],
 )
-def age_too_high(row: "pd.Series[Any]") -> CheckResult:
+def age_too_high(row: "pd.Series[Any]") -> Verdict:
     """Pass unless the age exceeds 130."""
 
     value = _number(row["age"])
     if value is not None and value > 130:
-        return CheckResult(Status.INVALID, {"value": value, "maximum": 130})
-    return PASS
+        return Verdict(Status.INVALID, {"value": value, "maximum": 130})
+    return OK
 
 
 @register_check(
@@ -75,10 +75,10 @@ def age_too_high(row: "pd.Series[Any]") -> CheckResult:
     default_enabled=False,
     depends_on=["AGE_NOT_A_NUMBER"],
 )
-def age_not_integer(row: "pd.Series[Any]") -> CheckResult:
+def age_not_integer(row: "pd.Series[Any]") -> Verdict:
     """Pass unless the age has a fractional part."""
 
     value = _number(row["age"])
     if value is not None and not value.is_integer():
-        return CheckResult(Status.INVALID, {"value": value})
-    return PASS
+        return Verdict(Status.INVALID, {"value": value})
+    return OK

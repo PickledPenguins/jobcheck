@@ -110,12 +110,12 @@ CHILD = textwrap.dedent(
 
 CHECK_FILE = textwrap.dedent(
     """
-    from jobcheck import PASS, Status, CheckResult, register_check
+    from jobcheck import OK, Status, Verdict, register_check
 
     
     @register_check("{code}", "{code} failed")
     def rule(row):
-        return PASS if row.get("value") == 1 else CheckResult(Status.INVALID, {{}})
+        return OK if row.get("value") == 1 else Verdict(Status.INVALID, {{}})
     """
 )
 

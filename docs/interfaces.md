@@ -16,7 +16,7 @@ are treated as permanent.
 Writing checks and running them needs eight names, and nothing else here is
 required reading:
 
-`register_check`, `PASS`, `CheckResult`, `Status` for a check file;
+`register_check`, `OK`, `Verdict`, `Status` for a check file;
 `load_checks`, `load_rules`, `validate` and `build_report` for the pipeline
 that runs them. Add `RowContext` when a check needs per-row state the frame does
 not carry, and `validate_row` for a frame too large to keep every outcome.
@@ -35,12 +35,12 @@ these names -- but a first check file needs none of it.
 fixed: these five are the whole of it, and a value outside them is refused.
 
 - `render_status(code) -> str` (`"INVALID (3)"`).
-- `normalize_result(returned, code) -> CheckResult` — the boundary the engine puts
-  every return value through: a `CheckResult` passes straight back; anything
+- `normalize_verdict(returned, code) -> Verdict` — the boundary the engine puts
+  every return value through: a `Verdict` passes straight back; anything
   else — a bare bool, a bare `Status` value, `None` — raises `TypeError` naming
   the check. Exported so a wrapper around checks can apply the same rule.
 
-### `CheckResult`
+### `Verdict`
 
 What a check returns. Frozen dataclass: `status: int = Status.PASS`,
 `comments: Mapping[str, Any] = {}`.
@@ -48,7 +48,7 @@ What a check returns. Frozen dataclass: `status: int = Status.PASS`,
 - `bool(result)` is **True when the check passed**; `.failed` says the opposite
   explicitly. The raw `status` is not a truthiness source — 0 is a pass but falsy.
 - A **bool** is accepted in place of a status, so a check can wrap a bare
-  comparison: `CheckResult(row["age"] > 0)` is a pass or an `INVALID` failure. It is
+  comparison: `Verdict(row["age"] > 0)` is a pass or an `INVALID` failure. It is
   resolved before anything reads the value as an integer, since `True == 1 ==
   MISSING` would otherwise invert the meaning. A check wanting `MISSING` or
   `MALFORMED` names it.
@@ -57,7 +57,7 @@ What a check returns. Frozen dataclass: `status: int = Status.PASS`,
 - Construction validates: a value outside `Status`, `Status.ERROR` (the engine's, not
   a check's), a non-integer non-bool status, a non-mapping `comments`, or a
   non-string comment key all raise.
-- `PASS` is the shared, immutable passing result.
+- `OK` is the shared, immutable passing result.
 
 ### `CheckOutcome`
 
@@ -100,8 +100,8 @@ A rule's `{column, pattern}` filter, and the rule itself: `name`, `action`,
 
 ### `register_check(code, message, default_enabled=True, depends_on=None)`
 
-Decorator. The function takes `(row)` or `(row, context)` and returns `PASS` or a
-`CheckResult` — `CheckResult(condition)` wraps a bare comparison.
+Decorator. The function takes `(row)` or `(row, context)` and returns `OK` or a
+`Verdict` — `Verdict(condition)` wraps a bare comparison.
 
 Raises at import for a duplicate code, an empty code or message, a non-list
 `depends_on` (a bare string would otherwise register one prerequisite per

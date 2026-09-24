@@ -88,7 +88,7 @@ def known_names() -> set[str]:
     """Every name a document may show in call form without promising our API.
 
     This package's own surface, the methods of the types it exports -- a reader
-    will call `CheckResult.passed` as `passed(...)` -- pandas' frame and series
+    will call `Verdict.passed` as `passed(...)` -- pandas' frame and series
     methods, every builtin, and the placeholder names the examples use for a
     group or a callback.
 
@@ -463,14 +463,14 @@ def test_no_document_says_a_bare_bool_or_status_is_converted() -> None:
 
     for value in (True, False, prv.Status.MISSING):
         with pytest.raises(TypeError):
-            prv.normalize_result(value, "X")
+            prv.normalize_verdict(value, "X")
     for path in DOCS:
         text = path.read_text(encoding="utf-8")
         assert not re.search(r"bare bools? (still work|is converted|are converted)", text,
                              re.I), (
-            f"{path.name} says a bare bool is accepted; normalize_result refuses it")
+            f"{path.name} says a bare bool is accepted; normalize_verdict refuses it")
         assert "status value is converted" not in text, (
-            f"{path.name} says a bare status is accepted; normalize_result refuses it")
+            f"{path.name} says a bare status is accepted; normalize_verdict refuses it")
 
 
 #: The width `contributing.md` claims, and the directories it is claimed for.

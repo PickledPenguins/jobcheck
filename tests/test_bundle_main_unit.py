@@ -51,9 +51,9 @@ def test_the_entry_point_prints_the_loaded_files_then_the_registry(
 def test_an_argument_names_a_different_bundle(fresh_registry: None, capsys: Any,
                                               tmp_path: Path) -> None:
     (tmp_path / "check_one.py").write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('ONLY_ONE', 'the only check in this bundle')\n"
-        "def only_one(row): return PASS\n"
+        "def only_one(row): return OK\n"
     )
     bundle = tmp_path / "small_bundle.py"
     bundle.write_text(

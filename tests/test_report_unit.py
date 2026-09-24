@@ -13,7 +13,7 @@ from jobcheck import registry as reg
 from jobcheck import results as res
 from jobcheck import report as rep
 from jobcheck import validate
-from jobcheck.results import PASS, Status, CheckResult
+from jobcheck.results import OK, Status, Verdict
 
 pytestmark = pytest.mark.fast
 
@@ -32,16 +32,16 @@ def two_layers(fresh_registry: None) -> None:
 
     @reg.register_check(code="AGE_PRESENT", message="Age is missing")
     def age_present(row: "pd.Series[Any]") -> Any:
-        return PASS if row["age"] is not None and not pd.isna(row["age"]) else CheckResult(Status.MISSING)
+        return OK if row["age"] is not None and not pd.isna(row["age"]) else Verdict(Status.MISSING)
 
     @reg.register_check(code="AGE_IN_RANGE", message="Age is out of range",
                        depends_on=["AGE_PRESENT"])
     def age_in_range(row: "pd.Series[Any]") -> Any:
         if row["age"] > 130:
-            return CheckResult(Status.INVALID, {"maximum": 130, "actual": row["age"]})
+            return Verdict(Status.INVALID, {"maximum": 130, "actual": row["age"]})
         if row["age"] < 0:
-            return CheckResult(Status.INVALID, {"minimum": 0, "actual": row["age"]})
-        return PASS
+            return Verdict(Status.INVALID, {"minimum": 0, "actual": row["age"]})
+        return OK
 
 
 def outcomes(df: pd.DataFrame = FRAME) -> list[list[res.CheckOutcome]]:
@@ -462,7 +462,7 @@ def test_validate_hands_each_row_the_context_its_builder_returned(
     ``context_builder(row)`` broke nothing any check asserted.
     """
 
-    from jobcheck import FAILED, PASS, PASSED, RowContext
+    from jobcheck import FAILED, OK, PASSED, RowContext
 
     # A plain subclass rather than a nested dataclass: fresh_registry evicts the
     # test module from sys.modules, and @dataclass resolves annotations through
@@ -472,11 +472,11 @@ def test_validate_hands_each_row_the_context_its_builder_returned(
             self.allowed = allowed
 
     @reg.register_check(code="NEEDS_CTX", message="the context said no")
-    def check(row: "pd.Series[Any]", context: "RowContext | None") -> CheckResult:
+    def check(row: "pd.Series[Any]", context: "RowContext | None") -> Verdict:
         if context is None:
-            return CheckResult(Status.INVALID, {"context": "missing"})
+            return Verdict(Status.INVALID, {"context": "missing"})
         allowed = getattr(context, "allowed", False)
-        return PASS if allowed else CheckResult(Status.INVALID, {"allowed": allowed})
+        return OK if allowed else Verdict(Status.INVALID, {"allowed": allowed})
 
     frame = pd.DataFrame([{"id": 1, "allow": True}, {"id": 2, "allow": False}])
     outcomes = validate(

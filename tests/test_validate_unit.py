@@ -24,7 +24,7 @@ from jobcheck import (
     validate,
 )
 from jobcheck.rules import Rule
-from jobcheck.results import PASS, CheckResult
+from jobcheck.results import OK, Verdict
 
 pytestmark = pytest.mark.fast
 
@@ -58,8 +58,8 @@ def test_each_row_gets_its_own_outcomes_in_its_own_position(fresh_registry: None
     """
 
     @register_check(code="ODD_VALUE", message="value is odd")
-    def odd_value(row: "pd.Series[Any]") -> CheckResult:
-        return CheckResult(int(row["value"]) % 2 == 0)
+    def odd_value(row: "pd.Series[Any]") -> Verdict:
+        return Verdict(int(row["value"]) % 2 == 0)
 
     outcomes = validate(frame(4))
     assert [row[0].outcome for row in outcomes] == [PASSED, FAILED, PASSED, FAILED]
@@ -93,9 +93,9 @@ def test_the_context_builder_is_called_once_per_row(fresh_registry: None) -> Non
     seen: list[Any] = []
 
     @register_check(code="CTX", message="ctx")
-    def uses_context(row: "pd.Series[Any]", context: Any) -> CheckResult:
+    def uses_context(row: "pd.Series[Any]", context: Any) -> Verdict:
         seen.append(context)
-        return PASS
+        return OK
 
     shared = RowContext()
     outcomes = validate(frame(2), context_builder=lambda row: shared)

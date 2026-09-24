@@ -11,7 +11,7 @@ import pytest
 from conftest import first_cause, make_check
 from jobcheck import RowContext, registry as reg
 from jobcheck import results as res
-from jobcheck.results import ERRORED, FAILED, PASS, PASSED, SKIPPED, Status, CheckResult
+from jobcheck.results import ERRORED, FAILED, OK, PASSED, SKIPPED, Status, Verdict
 from jobcheck import engine
 from jobcheck import rules
 
@@ -77,9 +77,9 @@ def test_a_one_argument_check_receives_the_row(fresh_registry: None) -> None:
     seen: list[Any] = []
 
     @reg.register_check(code="ONE_ARG", message="m")
-    def check(row: "pd.Series[Any]") -> CheckResult:
+    def check(row: "pd.Series[Any]") -> Verdict:
         seen.append(row)
-        return PASS
+        return OK
 
     engine.validate_row(ROW)
     assert seen[0]["email"] == "a@b.com"
@@ -89,9 +89,9 @@ def test_a_two_argument_check_receives_the_context(fresh_registry: None) -> None
     seen: list[Any] = []
 
     @reg.register_check(code="TWO_ARG", message="m")
-    def check(row: "pd.Series[Any]", ctx: RowContext | None) -> CheckResult:
+    def check(row: "pd.Series[Any]", ctx: RowContext | None) -> Verdict:
         seen.append(ctx)
-        return PASS
+        return OK
 
     context = RowContext()
     engine.validate_row(ROW, context=context)
@@ -105,9 +105,9 @@ def test_an_unnamed_context_is_an_empty_one_not_none(fresh_registry: None) -> No
     seen: list[Any] = []
 
     @reg.register_check(code="NO_CTX", message="m")
-    def check(row: "pd.Series[Any]", ctx: RowContext | None) -> CheckResult:
+    def check(row: "pd.Series[Any]", ctx: RowContext | None) -> Verdict:
         seen.append(ctx)
-        return PASS
+        return OK
 
     engine.validate_row(ROW)
     engine.explain_row(ROW)
@@ -131,16 +131,16 @@ def test_a_signature_the_engine_cannot_call_is_rejected_at_registration(
 
 def test_a_starargs_check_is_accepted(fresh_registry: None) -> None:
     @reg.register_check(code="STAR", message="m")
-    def check(*args: Any) -> CheckResult:
-        return PASS
+    def check(*args: Any) -> Verdict:
+        return OK
 
     assert engine.validate_row(ROW) == []
 
 
 def test_a_condition_wrapped_in_a_result_fails_as_invalid(fresh_registry: None) -> None:
     @reg.register_check(code="BOOLEAN", message="m")
-    def check(row: "pd.Series[Any]") -> CheckResult:
-        return CheckResult(1 < 0)
+    def check(row: "pd.Series[Any]") -> Verdict:
+        return Verdict(1 < 0)
 
     outcome = engine.validate_row(ROW)[0]
     assert outcome.status == Status.INVALID
@@ -148,8 +148,8 @@ def test_a_condition_wrapped_in_a_result_fails_as_invalid(fresh_registry: None) 
 
 def test_a_named_status_fails_with_it(fresh_registry: None) -> None:
     @reg.register_check(code="BARE", message="m")
-    def check(row: "pd.Series[Any]") -> CheckResult:
-        return CheckResult(Status.MISSING)
+    def check(row: "pd.Series[Any]") -> Verdict:
+        return Verdict(Status.MISSING)
 
     assert engine.validate_row(ROW)[0].status == Status.MISSING
 

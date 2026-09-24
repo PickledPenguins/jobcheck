@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from jobcheck import results as res
-from jobcheck.results import PASS, Status, CheckResult
+from jobcheck.results import OK, Status, Verdict
 
 pytestmark = pytest.mark.fast
 
@@ -16,28 +16,28 @@ def test_pass_is_zero_and_every_other_builtin_is_not() -> None:
 
 
 def test_a_passing_result_is_truthy() -> None:
-    result = CheckResult()
+    result = Verdict()
     assert bool(result) is True
     assert result.failed is False
 
 
 def test_a_failing_result_is_falsy() -> None:
-    result = CheckResult(Status.MISSING)
+    result = Verdict(Status.MISSING)
     assert bool(result) is False
     assert result.failed is True
     assert result.status == Status.MISSING
 
 
 def test_the_shared_pass_singleton_passes_and_carries_no_comments() -> None:
-    assert bool(PASS) is True
-    assert dict(PASS.comments) == {}
+    assert bool(OK) is True
+    assert dict(OK.comments) == {}
 
 
 def test_comments_are_copied_and_frozen() -> None:
-    """A shared PASS must not be poisonable through a caller's dict."""
+    """A shared OK must not be poisonable through a caller's dict."""
 
     original = {"actual": 7}
-    result = CheckResult(Status.INVALID, original)
+    result = Verdict(Status.INVALID, original)
     original["actual"] = 8
     assert result.comments["actual"] == 7
     with pytest.raises(TypeError):
@@ -49,9 +49,9 @@ def test_a_check_cannot_return_status_error() -> None:
     summary's split between broken checks and bad data."""
 
     with pytest.raises(ValueError, match="Status.ERROR is the engine's, not a check's"):
-        CheckResult(Status.ERROR)
+        Verdict(Status.ERROR)
     with pytest.raises(TypeError, match="Check 'CODE' returned"):
-        res.normalize_result(Status.ERROR, "CODE")
+        res.normalize_verdict(Status.ERROR, "CODE")
 
 
 def test_the_engine_can_still_record_an_error_outcome() -> None:
@@ -64,17 +64,17 @@ def test_the_engine_can_still_record_an_error_outcome() -> None:
 
 def test_a_non_integer_status_is_rejected() -> None:
     with pytest.raises(TypeError, match="status must be a Status value or a bool"):
-        CheckResult("MISSING")  # type: ignore[arg-type]
+        Verdict("MISSING")  # type: ignore[arg-type]
 
 
 def test_non_mapping_comments_are_rejected() -> None:
     with pytest.raises(TypeError, match="comments must be a mapping"):
-        CheckResult(Status.INVALID, ["actual", 7])  # type: ignore[arg-type]
+        Verdict(Status.INVALID, ["actual", 7])  # type: ignore[arg-type]
 
 
 def test_non_string_comment_keys_are_rejected() -> None:
     with pytest.raises(TypeError, match="comment keys must be strings"):
-        CheckResult(Status.INVALID, {7: "actual"})  # type: ignore[dict-item]
+        Verdict(Status.INVALID, {7: "actual"})  # type: ignore[dict-item]
 
 
 # --- the fixed status vocabulary --------------------------------------------
@@ -88,30 +88,30 @@ def test_every_status_renders_as_name_and_number() -> None:
 @pytest.mark.parametrize("value", [4, 77, -1])
 def test_a_value_outside_the_vocabulary_is_refused(value: int) -> None:
     with pytest.raises(ValueError, match=f"Unknown status {value}"):
-        res.CheckResult(value)
+        res.Verdict(value)
 
 
 # --- normalizing what a check returned --------------------------------------
 
 
 def test_a_result_passes_through() -> None:
-    result = CheckResult(Status.MISSING)
-    assert res.normalize_result(result, "CODE") is result
+    result = Verdict(Status.MISSING)
+    assert res.normalize_verdict(result, "CODE") is result
 
 
 def test_a_condition_wrapped_in_a_result_passes_or_fails_as_invalid() -> None:
-    """CheckResult(condition) is how a bare comparison becomes a result."""
+    """Verdict(condition) is how a bare comparison becomes a result."""
 
-    assert bool(CheckResult(1 > 0)) is True
-    assert CheckResult(1 < 0).status == Status.INVALID
+    assert bool(Verdict(1 > 0)) is True
+    assert Verdict(1 < 0).status == Status.INVALID
 
 
 def test_a_bool_is_never_read_as_an_integer_status() -> None:
-    """True == 1 == MISSING and False == 0 == PASS: reading either as an integer
+    """True == 1 == MISSING and False == 0 == OK: reading either as an integer
     would invert what the check said."""
 
-    assert CheckResult(True).status == Status.PASS
-    assert CheckResult(False).status == Status.INVALID
+    assert Verdict(True).status == Status.PASS
+    assert Verdict(False).status == Status.INVALID
 
 
 def test_numpy_scalars_are_accepted() -> None:
@@ -119,9 +119,9 @@ def test_numpy_scalars_are_accepted() -> None:
 
     import numpy
 
-    assert bool(CheckResult(numpy.bool_(True))) is True  # type: ignore[arg-type]
-    assert CheckResult(numpy.bool_(False)).status == Status.INVALID  # type: ignore[arg-type]
-    assert CheckResult(numpy.int64(2)).status == Status.MALFORMED  # type: ignore[arg-type]
+    assert bool(Verdict(numpy.bool_(True))) is True  # type: ignore[arg-type]
+    assert Verdict(numpy.bool_(False)).status == Status.INVALID  # type: ignore[arg-type]
+    assert Verdict(numpy.int64(2)).status == Status.MALFORMED  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
@@ -133,5 +133,5 @@ def test_anything_else_raises_naming_the_check(returned: object) -> None:
     """A check falling off the end must not be read as a pass."""
 
     with pytest.raises(TypeError, match=r"Check 'CODE' returned"):
-        res.normalize_result(returned, "CODE")
+        res.normalize_verdict(returned, "CODE")
 
