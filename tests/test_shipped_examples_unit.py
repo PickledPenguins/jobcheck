@@ -20,7 +20,7 @@ import yaml
 
 from conftest import PROJECT_ROOT
 from jobcheck import (
-    check_rule_columns,
+    warn_missing_rule_columns,
     validate,
     load_rules,
     registry as reg,
@@ -85,7 +85,7 @@ def test_every_shipped_rule_matches_a_column_the_data_has(example_checks: None) 
 
     rules = load_rules([str(path) for path in rule_files()])
     frame = pd.read_csv(DATA_DIR / "customers.csv", dtype=str)
-    assert check_rule_columns(frame, rules) == []
+    assert warn_missing_rule_columns(frame, rules) == []
 
 
 # --- the data files ---------------------------------------------------------

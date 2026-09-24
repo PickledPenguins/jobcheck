@@ -145,7 +145,7 @@ In `examples/rules/error_rules.yaml` the third rule (`match: all`, disable) is l
 rows — that is the precedence demonstration, not a mistake.
 
 It is also the shape worth finding when it *is* a mistake, so it is reported.
-`check_shadowed_rules` takes the loaded rules and names every rule a later
+`warn_shadowed_rules` takes the loaded rules and names every rule a later
 `match: all` rule overrules for every row; `python3 examples/main.py --rules-table`
 prints those warnings under the rules table, which is why the shipped file's own
 demonstration shows up there. Nothing else tells you: the registry table lists both

@@ -273,7 +273,7 @@ in exports. Take `(row, context)` in the checks that need it.
 ```python
 import pandas as pd
 from jobcheck import (
-    build_report, check_rule_columns, load_checks,
+    build_report, warn_missing_rule_columns, load_checks,
     load_rules, root_causes, validate, validate_row, write_report,
 )
 
@@ -282,7 +282,7 @@ rules = load_rules([
     "examples/rules/split_by_topic/01_age_rules.yaml",
     "examples/rules/split_by_topic/02_email_rules.yaml",
 ])
-for warning in check_rule_columns(df, rules):
+for warning in warn_missing_rule_columns(df, rules):
     print(f"warning: {warning}")
 
 # Full report, when you want to look at the failures:
@@ -322,4 +322,4 @@ the frame; check the spelling against the data.
 
 **A rule looks right but has no effect.** Another rule later in load order
 matches the same row and code, and last wins — or its criterion names a column
-the data lacks, which `check_rule_columns` reports.
+the data lacks, which `warn_missing_rule_columns` reports.

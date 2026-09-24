@@ -255,13 +255,13 @@ check's `default_enabled`, then every matching rule in order, last match winning
 The reason is `"default"`, `"off by default"`, or `"rule 'name'"` — which is what
 an explanation prints beside a `disabled` outcome.
 
-### `check_rule_columns(df, rules) -> list[str]`
+### `warn_missing_rule_columns(df, rules) -> list[str]`
 
 One line per rule criterion naming a column the frame lacks — a rule that can
 never fire. Checks are not checked: they read the row themselves, so a missing
 field raises and is recorded as an `ERROR` outcome naming the column.
 
-### `check_shadowed_rules(rules) -> list[str]`
+### `warn_shadowed_rules(rules) -> list[str]`
 
 One line per rule a later rule overrules for every row: precedence is positional,
 so a rule touching a code is dead for that code once a later rule touches it with
@@ -272,7 +272,7 @@ rather than reading them.
 
 Judged per code, not per rule: a rule carrying several codes can be overruled for
 one and decisive for another. Warns rather than raises, like
-`check_rule_columns` — `examples/rules/error_rules.yaml` ships a shadowed
+`warn_missing_rule_columns` — `examples/rules/error_rules.yaml` ships a shadowed
 rule on purpose, as the precedence demonstration, and
 `python3 examples/main.py --rules-table` prints the warning under the rules table.
 

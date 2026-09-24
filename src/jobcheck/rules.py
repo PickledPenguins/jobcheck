@@ -239,13 +239,13 @@ def rule_matches(rule: Rule, row: "pd.Series[Any]") -> bool:
     return True
 
 
-def check_rule_columns(df: pd.DataFrame, rules: list[Rule]) -> list[str]:
+def warn_missing_rule_columns(df: pd.DataFrame, rules: list[Rule]) -> list[str]:
     """Warn about columns a rule matches on that the data lacks.
 
     A criterion naming a column that is not there never matches, so the rule
     silently never applies, and the loader cannot catch it because it has no data
     to compare against. It warns rather than raises: one rule file may
-    deliberately cover several data shapes. `check_shadowed_rules` is the other
+    deliberately cover several data shapes. `warn_shadowed_rules` is the other
     half -- a rule that can never apply whatever the data says.
     """
 
@@ -261,7 +261,7 @@ def check_rule_columns(df: pd.DataFrame, rules: list[Rule]) -> list[str]:
     return warnings
 
 
-def check_shadowed_rules(rules: list[Rule]) -> list[str]:
+def warn_shadowed_rules(rules: list[Rule]) -> list[str]:
     """Warn about rules a later rule overrules for every row.
 
     Precedence is positional and the last matching rule wins, so a rule that
