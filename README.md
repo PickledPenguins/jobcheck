@@ -66,7 +66,7 @@ df = pd.DataFrame([
     {"id": 103, "age": 30, "email": "nope", "start_date": "2024-01-01", "end_date": "2024-02-01"},
     {"id": 104, "age": None, "email": "c@d.com", "start_date": "2024-01-01", "end_date": "2024-02-01"},
 ])
-outcomes = validate(df)                      # add overrides=... to apply rule files
+outcomes = validate(df)                      # add rules=... to apply rule files
 print_report(build_report(outcomes, df=df, key_column="id"))
 ```
 
@@ -139,7 +139,7 @@ EMAIL_MISSING_AT | 1
 
 Checks are loaded by path: `load_checks(paths)` imports the named `.py` files —
 what a pipeline that writes check files into a run directory needs — and nothing
-is discovered. `load_overrides(paths)` reads the rule files the same way, in the
+is discovered. `load_rules(paths)` reads the rule files the same way, in the
 order given, so the last matching rule wins. A relative path is resolved against
 the working directory, or against a `base_dir` the call names — the directory an
 entry point lives in, or the one a configuration file was read from.
@@ -153,7 +153,7 @@ instead: it returns that row's failures and retains nothing for the rest.
   comments, and how checks depend on each other. Start here.
 - [docs/reporting.md](docs/reporting.md) — the report, explanations, summaries,
   formats and files.
-- [docs/configuration.md](docs/configuration.md) — override rules: switching
+- [docs/configuration.md](docs/configuration.md) — rules: switching
   checks on or off for specific rows.
 - [docs/interfaces.md](docs/interfaces.md) — the Python API: every exported name,
   signature, return shape, and error raised.

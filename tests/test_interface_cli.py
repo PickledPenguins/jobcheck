@@ -27,7 +27,7 @@ def default_run() -> CommandResult:
 def test_defaults_when_no_flags_are_given() -> None:
     args = main.build_parser().parse_args([])
     assert args.data is None
-    assert args.rules == [os.path.join(PROJECT_ROOT, "examples/rules/error_overrides.yaml")]
+    assert args.rules == [os.path.join(PROJECT_ROOT, "examples/rules/error_rules.yaml")]
     assert args.report == "table"
     assert args.explain is None
     assert args.summary is False
@@ -48,7 +48,7 @@ def test_the_entry_point_runs_from_any_directory(tmp_path: Any) -> None:
 
     result = run_cli(os.path.join(PROJECT_ROOT, "examples/main.py"), cwd=str(tmp_path))
     assert result.returncode == 0, result.stderr
-    assert result.stdout.startswith("Loaded 3 override rule(s) from 1 file(s)")
+    assert result.stdout.startswith("Loaded 3 rule(s) from 1 file(s)")
     assert "== Failures ==" in result.stdout
 
 
@@ -127,20 +127,20 @@ def test_flag_without_its_value_exits_two() -> None:
     assert "expected one argument" in result.stderr
 
 
-def test_rules_with_no_paths_applies_no_overrides() -> None:
+def test_rules_with_no_paths_applies_none() -> None:
     """The baseline: `--rules` alone is how a reader sees the checks as written,
     before any rule file switches one on or off for anybody."""
 
     result = run_cli("examples/main.py", "--rules")
     assert result.returncode == 0
-    assert result.stdout.startswith("Loaded 0 override rule(s) from 0 file(s)")
+    assert result.stdout.startswith("Loaded 0 rule(s) from 0 file(s)")
 
 
-def test_missing_override_file_exits_one() -> None:
+def test_missing_rule_file_exits_one() -> None:
     result = run_cli("examples/main.py", "--rules", "no_such_file.yaml")
     assert result.returncode == 1
-    assert "No override file at 'no_such_file.yaml'" in result.stderr
-    assert "load_overrides() names files explicitly" in result.stderr
+    assert "No rule file at 'no_such_file.yaml'" in result.stderr
+    assert "load_rules() names files explicitly" in result.stderr
 
 
 # --- output routing and shape ----------------------------------------------
@@ -148,7 +148,7 @@ def test_missing_override_file_exits_one() -> None:
 
 def test_results_go_to_stdout_and_nothing_to_stderr(default_run: CommandResult) -> None:
     result = default_run
-    assert result.stdout.startswith("Loaded 3 override rule(s) from 1 file(s)")
+    assert result.stdout.startswith("Loaded 3 rule(s) from 1 file(s)")
     assert result.stderr == ""
 
 

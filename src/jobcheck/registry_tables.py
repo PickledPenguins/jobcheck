@@ -20,7 +20,7 @@ from typing import Any
 import pandas as pd
 
 from .registry import CHECKS
-from .rules import OverrideRule
+from .rules import Rule
 from .tables import _check_extra_columns, format_table
 
 #: Extra columns the check tables offer. ``source_file`` is where the check was
@@ -31,13 +31,13 @@ REGISTRY_EXTRA_COLUMNS = ["source_file", "could_be_overridden_by", "effective_st
 RULE_EXTRA_COLUMNS = ["source_file"]
 
 
-def _rules_for_code(code: str, overrides: list[OverrideRule]) -> list[OverrideRule]:
+def _rules_for_code(code: str, rules: list[Rule]) -> list[Rule]:
     """Rules that reference *code*, in load order."""
 
-    return [rule for rule in overrides if code in rule.codes]
+    return [rule for rule in rules if code in rule.codes]
 
 
-def _render_match(rule: OverrideRule) -> str:
+def _render_match(rule: Rule) -> str:
     """Compact one-cell rendering of a rule's match criteria."""
 
     if rule.match_all:
@@ -79,12 +79,12 @@ def get_registry_table(extra_columns: list[str] | None = None) -> pd.DataFrame:
 
 
 def print_registry(
-    overrides: list[OverrideRule] | None = None, extra_columns: list[str] | None = None
+    rules: list[Rule] | None = None, extra_columns: list[str] | None = None
 ) -> pd.DataFrame:
     """Print the registry table and return the frame behind it.
 
     `could_be_overridden_by` and `effective_state` are the two extra columns that
-    read the rules, and `overrides` feeds nothing else -- passing rules without
+    read the rules, and `rules` feeds nothing else -- passing rules without
     asking for either prints the same table as passing none.
 
     Neither is "was overridden by": whether a rule fires depends on the row it is
@@ -99,7 +99,7 @@ def print_registry(
         print("No checks registered.")
         return table
 
-    rules = overrides or []
+    rules = rules or []
     matching = {code: _rules_for_code(code, rules) for code in table["code"]}
     if "could_be_overridden_by" in extra_columns:
         table["could_be_overridden_by"] = [
@@ -118,21 +118,21 @@ def print_registry(
     return table
 
 
-def print_override_rules(
-    overrides: list[OverrideRule], extra_columns: list[str] | None = None
+def print_rules(
+    rules: list[Rule], extra_columns: list[str] | None = None
 ) -> pd.DataFrame:
-    """Print one row per override rule, rather than per code.
+    """Print one row per rule, rather than per code.
 
     `codes_hit_count` is a count rather than the code list, so a rule touching
     many codes does not blow the table apart; `list_rule_codes` gives the detail.
     """
 
     extra_columns = list(extra_columns or [])
-    _check_extra_columns(extra_columns, RULE_EXTRA_COLUMNS, "the override rules table")
+    _check_extra_columns(extra_columns, RULE_EXTRA_COLUMNS, "the rules table")
     columns = ["name", "action", "codes_hit_count", "match", "message", *extra_columns]
 
     rows: list[dict[str, Any]] = []
-    for rule in overrides:
+    for rule in rules:
         rows.append({
             "name": rule.name,
             "action": rule.action,
@@ -144,18 +144,18 @@ def print_override_rules(
 
     table = pd.DataFrame(rows, columns=columns)
     if table.empty:
-        print("No override rules loaded.")
+        print("No rules loaded.")
         return table
     print(format_table(table, wrap_columns={"match": 44, "message": 40}))
     return table
 
 
-def list_rule_codes(rule_name: str, overrides: list[OverrideRule]) -> list[str]:
+def list_rule_codes(rule_name: str, rules: list[Rule]) -> list[str]:
     """Print and return the exact codes one named rule touches."""
 
-    for rule in overrides:
+    for rule in rules:
         if rule.name == rule_name:
             print(f"{rule.name} ({rule.action}) -> " + ", ".join(rule.codes))
             return list(rule.codes)
-    known = ", ".join(rule.name for rule in overrides) or "(none loaded)"
-    raise ValueError(f"No override rule named {rule_name!r}. Loaded rules: {known}")
+    known = ", ".join(rule.name for rule in rules) or "(none loaded)"
+    raise ValueError(f"No rule named {rule_name!r}. Loaded rules: {known}")

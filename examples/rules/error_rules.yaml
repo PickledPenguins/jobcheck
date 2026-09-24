@@ -1,4 +1,4 @@
-# Override rules: a FLAT top-level list. No 'rules:' key.
+# Rules: a FLAT top-level list. No 'rules:' key.
 #
 # Precedence is "last rule wins": when two rules touch the same code and both
 # match the same row, the one listed later decides. There is no priority field.

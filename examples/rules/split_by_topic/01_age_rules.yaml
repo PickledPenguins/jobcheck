@@ -1,8 +1,8 @@
-# Loaded first by load_overrides_from_dir (alphabetical filename order),
+# Loaded first by load_rules (alphabetical filename order),
 # so anything in 02_*.yaml touching the same code wins over this file.
 #
 # The names here end "_by_topic" so that this directory can be loaded alongside
-# ../error_overrides.yaml, which carries rules doing the same job: rule names are
+# ../error_rules.yaml, which carries rules doing the same job: rule names are
 # unique across every file in one load, and two files sharing one cannot be
 # combined at all.
 

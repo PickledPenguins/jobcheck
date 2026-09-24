@@ -433,8 +433,8 @@ def documented_world(cwd: Path) -> dict[str, Any]:
     sys.modules[module.__name__] = module
     world["__name__"] = module.__name__
     world["df"] = demo_frame()
-    world["overrides"] = prv.load_overrides([str(ROOT / "examples/rules/error_overrides.yaml")])
-    world["outcomes"] = prv.validate(world["df"], overrides=world["overrides"])
+    world["rules"] = prv.load_rules([str(ROOT / "examples/rules/error_rules.yaml")])
+    world["outcomes"] = prv.validate(world["df"], rules=world["rules"])
     world["row"] = world["df"].iloc[4]
     world["report"] = prv.build_report(world["outcomes"], df=world["df"], key_column="id")
     prv.clear_registry()

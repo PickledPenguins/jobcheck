@@ -16,7 +16,7 @@ Back to the [README](../README.md).
 
 ## `examples/main.py`
 
-Loads the four check files under `examples/checks/` and the override files, validates a
+Loads the four check files under `examples/checks/` and the rule files, validates a
 DataFrame -- a CSV file when `--data` names one, otherwise a built-in demo frame -- and
 prints the registry table followed by the failure report.
 
@@ -57,13 +57,13 @@ Rows are labeled in the report by the `id` column, which every shipped data file
 
 ### `--rules PATH [PATH ...]`
 
-Optional. Override YAML files, loaded through `load_overrides`. Default
-`examples/rules/error_overrides.yaml`.
+Optional. Rule YAML files, loaded through `load_rules`. Default
+`examples/rules/error_rules.yaml`.
 
 Multi-valued: files need not share a directory, and **the order given is the precedence
 order** — later files win over earlier ones for the same code.
 
-`--rules` with no paths after it applies **no** overrides, which is the baseline every
+`--rules` with no paths after it applies **no** rules, which is the baseline every
 rule file is a deviation from:
 
 ```sh
@@ -101,8 +101,7 @@ layer below it.
 
 ### `--rules-table`
 
-Optional, off by default. Before the registry table, print one row per loaded override
-rule: its name, action, how many codes it touches, what it matches, and its message. The
+Optional, off by default. Before the registry table, print one row per loaded rule: its name, action, how many codes it touches, what it matches, and its message. The
 registry table is one row per *code*, so a rule touching eight codes is eight lines there
 and one line here — this is the view that answers "what did this rule file actually say".
 `codes_hit_count` is a count rather than the codes themselves, so a broad rule does not
@@ -173,5 +172,5 @@ argparse's.
 | Code | Meaning |
 |---|---|
 | 0 | Ran to completion. Rows failing validation still exit 0 — failures are data, printed per row, not a process error. |
-| 1 | An uncaught exception, with traceback. In practice a load-time `ValueError`: a bad rule file, a dependency problem, or a check or override path that is not a file. |
+| 1 | An uncaught exception, with traceback. In practice a load-time `ValueError`: a bad rule file, a dependency problem, or a check or rule path that is not a file. |
 | 2 | argparse rejected the command line (unknown flag, missing value); `--explain` named a row outside the frame; `--data` named a path that is missing, a directory, empty, unreadable or not CSV; or `--write` named a path that could not be opened. |

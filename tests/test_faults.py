@@ -27,7 +27,7 @@ from jobcheck import (
     build_report,
     explain_row,
     validate,
-    load_overrides,
+    load_rules,
     load_checks,
     registry as reg,
     write_report,
@@ -67,7 +67,7 @@ def test_an_unreadable_rule_file_raises_permission_error(fresh_registry: None,
     path.write_text(RULE)
     unreadable(path)
     with pytest.raises(PermissionError) as raised:
-        load_overrides([str(path)])
+        load_rules([str(path)])
     assert str(path) in str(raised.value)
 
 
@@ -78,7 +78,7 @@ def test_a_rule_path_that_is_a_directory_says_to_name_the_file(fresh_registry: N
 
     make_check("A_CODE")
     with pytest.raises(ValueError, match="is a directory, so name the file in it"):
-        load_overrides([str(tmp_path)])
+        load_rules([str(tmp_path)])
 
 
 def test_a_rule_symlink_pointing_nowhere_is_refused_as_a_missing_file(fresh_registry: None,
@@ -89,8 +89,8 @@ def test_a_rule_symlink_pointing_nowhere_is_refused_as_a_missing_file(fresh_regi
     link = tmp_path / "rules.yaml"
     link.symlink_to(tmp_path / "gone.yaml")
     make_check("A_CODE")
-    with pytest.raises(ValueError, match="No override file at"):
-        load_overrides([str(link)])
+    with pytest.raises(ValueError, match="No rule file at"):
+        load_rules([str(link)])
 
 
 @unwritable_as_root
@@ -103,7 +103,7 @@ def test_one_unreadable_file_in_a_directory_stops_the_whole_load(fresh_registry:
     (tmp_path / "02.yaml").write_text(RULE.replace("name: r", "name: s"))
     unreadable(tmp_path / "02.yaml")
     with pytest.raises(PermissionError):
-        load_overrides([str(tmp_path / "01.yaml"), str(tmp_path / "02.yaml")])
+        load_rules([str(tmp_path / "01.yaml"), str(tmp_path / "02.yaml")])
 
 
 def test_a_missing_file_in_a_list_names_that_file(fresh_registry: None, tmp_path: Path) -> None:
@@ -111,7 +111,7 @@ def test_a_missing_file_in_a_list_names_that_file(fresh_registry: None, tmp_path
     good = tmp_path / "01.yaml"
     good.write_text(RULE)
     with pytest.raises(ValueError) as raised:
-        load_overrides([str(good), str(tmp_path / "02.yaml")])
+        load_rules([str(good), str(tmp_path / "02.yaml")])
     assert "02.yaml" in str(raised.value)
 
 
@@ -129,7 +129,7 @@ def test_a_rule_file_holding_nul_bytes_is_rejected(fresh_registry: None, tmp_pat
     path = tmp_path / "rules.yaml"
     path.write_bytes(b"- name: r\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n\x00\x00")
     with pytest.raises(yaml.YAMLError) as raised:
-        load_overrides([str(path)])
+        load_rules([str(path)])
     assert "unacceptable character" in str(raised.value)
     assert str(path) in str(raised.value)
 

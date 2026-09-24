@@ -35,25 +35,25 @@ def one_code(fresh_registry: None) -> None:
 def test_invalid_yaml_raises_a_yaml_error(one_code: None, tmp_path: Path) -> None:
     path = write(tmp_path, "bad.yaml", "- name: [unclosed\n  message: \"why the rule exists\"\n")
     with pytest.raises(yaml.YAMLError):
-        reg.load_overrides([path])
+        reg.load_rules([path])
 
 
 def test_yaml_that_is_only_a_comment_yields_no_rules(one_code: None, tmp_path: Path) -> None:
-    assert reg.load_overrides([write(tmp_path, "c.yaml", "# nothing here\n")]) == []
+    assert reg.load_rules([write(tmp_path, "c.yaml", "# nothing here\n")]) == []
 
 
 def test_yaml_null_document_yields_no_rules(one_code: None, tmp_path: Path) -> None:
-    assert reg.load_overrides([write(tmp_path, "n.yaml", "null\n")]) == []
+    assert reg.load_rules([write(tmp_path, "n.yaml", "null\n")]) == []
 
 
 def test_a_list_of_nulls_is_rejected_as_a_non_mapping_rule(one_code: None, tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="each rule must be a mapping, got NoneType."):
-        reg.load_overrides([write(tmp_path, "n.yaml", "- \n- \n")])
+        reg.load_rules([write(tmp_path, "n.yaml", "- \n- \n")])
 
 
 def test_directory_passed_where_a_file_is_expected(one_code: None, tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="is a directory, so name the file in it"):
-        reg.load_overrides([str(tmp_path)])
+        reg.load_rules([str(tmp_path)])
 
 
 def test_utf8_content_survives_the_round_trip(one_code: None, tmp_path: Path) -> None:
@@ -61,7 +61,7 @@ def test_utf8_content_survives_the_round_trip(one_code: None, tmp_path: Path) ->
         tmp_path, "u.yaml",
         '- name: "règle_été"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
     )
-    assert reg.load_overrides([path])[0].name == "règle_été"
+    assert reg.load_rules([path])[0].name == "règle_été"
 
 
 def test_a_pattern_matching_a_unicode_value(fresh_registry: None, tmp_path: Path) -> None:
@@ -71,7 +71,7 @@ def test_a_pattern_matching_a_unicode_value(fresh_registry: None, tmp_path: Path
         '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n'
         '  match:\n    - column: city\n      pattern: "^München$"\n',
     )
-    rules = reg.load_overrides([path])
+    rules = reg.load_rules([path])
     assert enabled_only(engine.resolve_enabled_state(pd.Series({"city": "München"}), rules))["A_CODE"] is False
 
 
@@ -82,7 +82,7 @@ def test_a_thousand_rules_load_and_the_last_wins(fresh_registry: None, tmp_path:
         f"  codes: [A_CODE]\n  match: all\n"
         for i in range(1000)
     )
-    rules = reg.load_overrides([write(tmp_path, "many.yaml", body)])
+    rules = reg.load_rules([write(tmp_path, "many.yaml", body)])
     assert len(rules) == 1000
     assert enabled_only(engine.resolve_enabled_state(pd.Series({"age": 1}), rules))["A_CODE"] is False
 
@@ -130,7 +130,7 @@ def test_a_very_long_string_value_is_matched_not_truncated(fresh_registry: None)
     import re
 
     make_check("A_CODE")
-    rule = reg.OverrideRule(
+    rule = reg.Rule(
         name="r", action="disable", codes=["A_CODE"],
         criteria=[reg.MatchCriterion("email", "end$", re.compile("end$"))], match_all=False, message="why the rule exists")
     row = pd.Series({"email": "x" * 100_000 + "end"})

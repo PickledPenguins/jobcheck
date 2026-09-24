@@ -15,7 +15,7 @@ from jobcheck import (
     build_report,
     validate,
     load_checks,
-    load_overrides,
+    load_rules,
     render_report,
     validate_row,
     write_report,
@@ -45,16 +45,16 @@ def codes(df: pd.DataFrame) -> list[list[str]]:
     return [[r.code for r in results] for results in df["errors"]]
 
 
-def validated(overrides: list[reg.OverrideRule]) -> pd.DataFrame:
+def validated(rules: list[reg.Rule]) -> pd.DataFrame:
     df = DEMO.copy()
     df["errors"] = df.apply(
-        lambda row: validate_row(row, context=RowContext(), overrides=overrides), axis=1
+        lambda row: validate_row(row, context=RowContext(), rules=rules), axis=1
     )
     return df
 
 
 def test_shipped_root_rule_file_drives_a_whole_frame(example_checks: None) -> None:
-    df = validated(load_overrides(["examples/rules/error_overrides.yaml"]))
+    df = validated(load_rules(["examples/rules/error_rules.yaml"]))
     assert codes(df) == [
         [],
         [],  # internal.test suppresses the email checks; the global rule keeps
@@ -71,8 +71,8 @@ def test_split_files_produce_the_same_first_two_rules(example_checks: None) -> N
     to match is what the rules *do*.
     """
 
-    from_dir = load_overrides(SPLIT_BY_TOPIC)
-    from_file = load_overrides(["examples/rules/error_overrides.yaml"])
+    from_dir = load_rules(SPLIT_BY_TOPIC)
+    from_file = load_rules(["examples/rules/error_rules.yaml"])
     assert [r.action for r in from_dir] == [r.action for r in from_file[:2]]
     assert [r.codes for r in from_dir] == [r.codes for r in from_file[:2]]
     assert [[(c.column, c.pattern) for c in r.criteria] for r in from_dir] == \
@@ -81,7 +81,7 @@ def test_split_files_produce_the_same_first_two_rules(example_checks: None) -> N
 
 
 def test_split_files_leave_the_legacy_enable_in_force(example_checks: None) -> None:
-    df = validated(load_overrides(SPLIT_BY_TOPIC))
+    df = validated(load_rules(SPLIT_BY_TOPIC))
     assert codes(df)[1] == ["AGE_NOT_INTEGER"]
 
 
@@ -91,8 +91,8 @@ def test_file_order_decides_precedence_across_directories(example_checks: None) 
         "examples/rules/split_by_topic/02_email_rules.yaml",
         "examples/rules/from_another_directory/global_age_rule.yaml",
     ]
-    assert codes(validated(load_overrides(paths)))[1] == []
-    assert codes(validated(load_overrides(list(reversed(paths)))))[1] == [
+    assert codes(validated(load_rules(paths)))[1] == []
+    assert codes(validated(load_rules(list(reversed(paths)))))[1] == [
         "AGE_NOT_INTEGER"
     ]
 
@@ -113,7 +113,7 @@ def test_errors_column_projects_to_text_for_export(example_checks: None, tmp_pat
 
 
 def test_a_written_report_reads_back_as_a_frame(example_checks: None, tmp_path: Path) -> None:
-    outcomes = validate(DEMO, overrides=load_overrides(["examples/rules/error_overrides.yaml"]))
+    outcomes = validate(DEMO, rules=load_rules(["examples/rules/error_rules.yaml"]))
     report = build_report(outcomes, df=DEMO, key_column="id")
     path = tmp_path / "report.csv"
     write_report(report, str(path))
@@ -141,7 +141,7 @@ def test_a_rule_file_written_at_runtime_is_picked_up(example_checks: None, tmp_p
         '- name: "off_everywhere"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [AGE_NEGATIVE]\n  match: all\n',
         encoding="utf-8",
     )
-    assert codes(validated(load_overrides([str(path)])))[2] == [
+    assert codes(validated(load_rules([str(path)])))[2] == [
         "DATES_OUT_OF_ORDER", "EMAIL_MISSING_AT"
     ]
 
@@ -150,7 +150,7 @@ def test_loading_leaves_no_stray_files_behind(example_checks: None, tmp_path: Pa
     (tmp_path / "r.yaml").write_text(
         '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [AGE_NEGATIVE]\n  match: all\n', encoding="utf-8"
     )
-    load_overrides([str(tmp_path / "r.yaml")])
+    load_rules([str(tmp_path / "r.yaml")])
     assert [p.name for p in tmp_path.iterdir()] == ["r.yaml"]
 
 
@@ -228,7 +228,7 @@ def test_a_rule_file_changes_the_same_report(example_checks: None) -> None:
 
     unrestricted = build_report(validate(DEMO), df=DEMO, key_column="id")
     suppressed = build_report(
-        validate(DEMO, overrides=load_overrides(["examples/rules/error_overrides.yaml"])),
+        validate(DEMO, rules=load_rules(["examples/rules/error_rules.yaml"])),
         df=DEMO, key_column="id",
     )
     assert len(suppressed) <= len(unrestricted)

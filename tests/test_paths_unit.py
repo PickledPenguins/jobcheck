@@ -97,10 +97,10 @@ def test_a_missing_absolute_path_is_left_to_speak_for_itself() -> None:
 
 def test_a_directory_is_named_as_the_mistake_it_is(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as raised:
-        resolve_input_file(str(tmp_path), "override file", "load_overrides()")
+        resolve_input_file(str(tmp_path), "rule file", "load_rules()")
     assert str(raised.value) == (
-        f"No override file at {str(tmp_path)!r}: {tmp_path.resolve()} is a directory, "
-        "so name the file in it. load_overrides() names files explicitly; "
+        f"No rule file at {str(tmp_path)!r}: {tmp_path.resolve()} is a directory, "
+        "so name the file in it. load_rules() names files explicitly; "
         "nothing is discovered."
     )
 
@@ -109,7 +109,7 @@ def test_the_kind_and_the_caller_are_the_words_the_message_uses(tmp_path: Path) 
     """Both loaders share this code, so neither may describe itself as the other."""
 
     with pytest.raises(ValueError) as raised:
-        resolve_input_file(str(tmp_path / "absent.yaml"), "override file", "load_overrides()")
+        resolve_input_file(str(tmp_path / "absent.yaml"), "rule file", "load_rules()")
     message = str(raised.value)
-    assert message.startswith("No override file at ")
-    assert "load_overrides() names files explicitly" in message
+    assert message.startswith("No rule file at ")
+    assert "load_rules() names files explicitly" in message

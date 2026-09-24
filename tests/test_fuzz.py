@@ -25,7 +25,7 @@ from conftest import first_cause, make_check
 from jobcheck import (
     build_report,
     validate,
-    load_overrides,
+    load_rules,
     registry as reg,
     render_report,
 )
@@ -103,7 +103,7 @@ def test_the_rule_parser_either_loads_or_raises_valueerror(
         rules = [random_rule(rng) for _ in range(rng.randint(0, 3))]
         path.write_text(yaml.safe_dump(rules, allow_unicode=True), encoding="utf-8")
         try:
-            loaded = load_overrides([str(path)])
+            loaded = load_rules([str(path)])
         except ValueError as exc:
             rejected += 1
             assert str(path) in str(exc), f"seed {SEED} case {case}: error omits the file"

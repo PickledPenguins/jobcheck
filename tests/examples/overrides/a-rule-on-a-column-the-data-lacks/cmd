@@ -1,1 +1,0 @@
-python3 examples/main.py --data examples/data/customers.csv --rules tests/examples/overrides/a-rule-on-a-column-the-data-lacks/rules.yaml

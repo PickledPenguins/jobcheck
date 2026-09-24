@@ -33,7 +33,7 @@ def test_yaml_cannot_construct_arbitrary_python_objects(one_code: None, tmp_path
 
     path = write(tmp_path, "evil.yaml", "- !!python/object/apply:os.system ['echo pwned']\n")
     with pytest.raises(Exception) as excinfo:
-        reg.load_overrides([path])
+        reg.load_rules([path])
     assert "python/object" in str(excinfo.value)
 
 
@@ -43,7 +43,7 @@ def test_a_rule_pattern_is_never_evaluated_as_code(one_code: None, tmp_path: Pat
         '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n'
         "  match:\n    - column: email\n      pattern: \"__import__('os').system('x')\"\n",
     )
-    rules = reg.load_overrides([path])
+    rules = reg.load_rules([path])
     assert rules[0].criteria[0].pattern == "__import__('os').system('x')"
     assert enabled_only(engine.resolve_enabled_state(pd.Series({"email": "harmless"}), rules))["A_CODE"] is True
 
@@ -51,7 +51,7 @@ def test_a_rule_pattern_is_never_evaluated_as_code(one_code: None, tmp_path: Pat
 def test_loading_rules_writes_nothing_to_disk(one_code: None, tmp_path: Path) -> None:
     write(tmp_path, "r.yaml", '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n')
     before = sorted(p.name for p in tmp_path.iterdir())
-    reg.load_overrides([str(tmp_path / "r.yaml")])
+    reg.load_rules([str(tmp_path / "r.yaml")])
     assert sorted(p.name for p in tmp_path.iterdir()) == before
 
 
@@ -79,7 +79,7 @@ def test_a_catastrophic_regex_on_a_short_value_finishes_in_seconds(one_code: Non
     the matcher is safe.
     """
 
-    rule = reg.OverrideRule(
+    rule = reg.Rule(
         name="redos", action="disable", codes=["A_CODE"],
         criteria=[reg.MatchCriterion("email", "(a+)+$", re.compile("(a+)+$"))], match_all=False,
         message="why the rule exists",
@@ -96,7 +96,7 @@ def test_an_ndarray_cell_does_not_break_rule_matching(one_code: None) -> None:
 
     import numpy
 
-    rule = reg.OverrideRule(
+    rule = reg.Rule(
         name="r", action="disable", codes=["A_CODE"],
         criteria=[reg.MatchCriterion("data", "x", re.compile("x"))], match_all=False, message="why the rule exists")
     row = pd.Series({"data": numpy.array([1, 2])})
@@ -199,7 +199,7 @@ def test_error_messages_quote_the_offending_value_not_the_whole_file(
         '- name: "other"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
     )
     with pytest.raises(ValueError) as excinfo:
-        reg.load_overrides([path])
+        reg.load_rules([path])
     message = str(excinfo.value)
     assert "NOT_A_CODE" in message
     assert "other" not in message

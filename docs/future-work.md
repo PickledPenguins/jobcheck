@@ -94,7 +94,7 @@ loader is built on.
 **Making `print_report` return its frame** (F.25, decided 2026-09-24). Four `print_*`
 functions return the DataFrame they print and `print_report` returns `None`, which read as
 an inconsistency. It is not one: the other four *build* their frame -- `print_registry` from
-the registry, `print_override_rules` from a rule list, `print_row_explanation` and
+the registry, `print_rules` from a rule list, `print_row_explanation` and
 `print_summary` from outcomes -- so returning it saves the caller building it twice.
 `print_report` is handed the finished report as its first argument, and returning it would
 hand back what the caller passed in. Its real siblings are the other two functions with that
@@ -276,7 +276,7 @@ rather than as a check in `scripts/new_catalog_case.py`: the generator is the na
 door, and a hand-made directory or a regeneration after a behavior change goes round it.
 `test_no_two_cases_record_the_same_output` compares every case's recorded stdout, stderr
 and exit code across both trees. Two pairs were identical when it was written:
-`overrides/internal-test-accounts-exempted` ran `--rules examples/rules/error_overrides.yaml`,
+`rules/internal-test-accounts-exempted` ran `--rules examples/rules/error_rules.yaml`,
 which is exactly what `--rules` defaults to, so it printed what `data/validate-a-csv-file`
 prints — the command guard could never have caught that, since the commands differ. It
 now runs the email-only rule file, so the exemption is the only rule in force and the
@@ -309,7 +309,7 @@ F.11.)
 `@` signs, so `EMAIL_MISSING_AT` fails on it, and the address still ends `@internal.test`,
 so the shipped rule exempts it. Three catalog outputs moved — the runs where that rule is
 not in force (`data/no-rules-at-all`, `data/legacy-rows-get-a-stricter-check`,
-`overrides/a-rule-on-a-column-the-data-lacks`), each gaining exactly the one failure line;
+`rules/a-rule-on-a-column-the-data-lacks`), each gaining exactly the one failure line;
 the thirteen runs that do apply the rule are unchanged, which is the demonstration. The
 two READMEs now name each other as the diff to read. The case was identical to
 `data/validate-a-csv-file` for a second reason F.11 did not record: `--rules` defaults to
@@ -406,7 +406,7 @@ measured over 4,000 rows, `validate` took 9.65s against 1.28s with identical out
 date parsing was 87% of every run and the perf gate could barely see the engine. Fixed in
 the example by swapping the call. Converting date columns up front was rejected: the
 engine has no column types, and a `datetime64` column changes what `cell_text` hands
-override patterns (`2024-01-01 00:00:00` where the file said `2024-01-01`) and what the
+rule patterns (`2024-01-01 00:00:00` where the file said `2024-01-01`) and what the
 report prints, so a rule that matched the input text silently stops matching. A check
 converts the cell it reads; at 1.5 µs a cell there is nothing left to save.
 
@@ -421,7 +421,8 @@ covers `check_group`, cut in the same pass. They come back only with the code. T
 five are superseded by name: `test_engine_unit` by `test_validate_unit` and
 `test_validate_row_unit`; `test_error_messages` by `test_error_messages_unit` and
 `test_report_unit` (its other fifteen tests are parallel, params and run messages);
-`test_rules_unit` by `test_overrides_unit`, with its nine glob-matching tests obsolete
+the first `test_rules_unit` by what was then `test_overrides_unit` and is now
+`test_rules_unit` again, with its nine glob-matching tests obsolete
 since `match` became regex; `test_benchmarks` by `test_perf` and `test_scaling`;
 `test_examples` by `test_shipped_examples_unit`. Two individual tests have no successor:
 a number is matched on how it prints (the F.5 regression test, written with F.5) and
@@ -479,8 +480,8 @@ Renaming `default_state` to `default` was taken — it was 13 columns of heading
 characters of data.
 
 **Replacing `could_be_overridden_by` with a count.** Rejected, though it is the narrowest
-option measured (107 columns) and matches what `print_override_rules` does with
-`codes_hit_count`: the names are the reason the column exists. `print_override_rules` and
+option measured (107 columns) and matches what `print_rules` does with
+`codes_hit_count`: the names are the reason the column exists. `print_rules` and
 `list_rule_codes` already carry the detail for a reader who wants it by rule rather than
 by code.
 

@@ -1,4 +1,4 @@
-"""Unit checks: table rendering and the registry/override report tables."""
+"""Unit checks: table rendering and the registry and rule tables."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ pytestmark = pytest.mark.fast
 
 
 def a_rule(name: str = "r", action: str = "disable", codes: list[str] | None = None,
-           source_file: str = "rules.yaml") -> reg.OverrideRule:
-    return reg.OverrideRule(name=name, action=action, codes=codes or ["A_CODE"],
+           source_file: str = "rules.yaml") -> reg.Rule:
+    return reg.Rule(name=name, action=action, codes=codes or ["A_CODE"],
                             criteria=[], match_all=True, source_file=source_file, message="why the rule exists")
 
 
@@ -202,7 +202,7 @@ def test_could_be_overridden_by_is_a_dash_for_an_unreferenced_code(fresh_registr
     assert table.loc["UNTOUCHED", "could_be_overridden_by"] == "-"
 
 
-def test_print_registry_without_overrides_still_renders_that_column(fresh_registry: None) -> None:
+def test_print_registry_without_rules_still_renders_that_column(fresh_registry: None) -> None:
     make_check("A_CODE")
     table = registry_tables.print_registry(extra_columns=["could_be_overridden_by"]).set_index("code")
     assert table.loc["A_CODE", "could_be_overridden_by"] == "-"
@@ -248,48 +248,48 @@ def test_both_rule_columns_can_be_asked_for_at_once(fresh_registry: None) -> Non
     ]
 
 
-# --- print_override_rules ---------------------------------------------------
+# --- print_rules ---------------------------------------------------
 
 
-def test_override_rules_table_is_one_row_per_rule(fresh_registry: None) -> None:
+def test_rules_table_is_one_row_per_rule(fresh_registry: None) -> None:
     make_check("A_CODE")
     make_check("B_CODE")
-    table = registry_tables.print_override_rules([a_rule("one", codes=["A_CODE", "B_CODE"]), a_rule("two")])
+    table = registry_tables.print_rules([a_rule("one", codes=["A_CODE", "B_CODE"]), a_rule("two")])
     assert list(table["name"]) == ["one", "two"]
     assert list(table["codes_hit_count"]) == [2, 1]
 
 
 def test_match_all_renders_as_all(fresh_registry: None) -> None:
     make_check("A_CODE")
-    assert registry_tables.print_override_rules([a_rule()])["match"][0] == "all"
+    assert registry_tables.print_rules([a_rule()])["match"][0] == "all"
 
 
 def test_criteria_render_compactly(fresh_registry: None) -> None:
     import re as _re
 
     make_check("A_CODE")
-    rule = reg.OverrideRule(
+    rule = reg.Rule(
         name="r", action="disable", codes=["A_CODE"],
         criteria=[reg.MatchCriterion("source_system", "^LEGACY_", _re.compile("^LEGACY_")),
                   reg.MatchCriterion("record_type", "^BATCH$", _re.compile("^BATCH$"))],
         match_all=False, message="why the rule exists",
     )
-    assert registry_tables.print_override_rules([rule])["match"][0] == (
+    assert registry_tables.print_rules([rule])["match"][0] == (
         "source_system~=/^LEGACY_/; record_type~=/^BATCH$/"
     )
 
 
-def test_override_rules_table_adds_source_file_when_asked_for(fresh_registry: None) -> None:
+def test_rules_table_adds_source_file_when_asked_for(fresh_registry: None) -> None:
     make_check("A_CODE")
-    table = registry_tables.print_override_rules([a_rule(source_file="here.yaml")], extra_columns=["source_file"])
+    table = registry_tables.print_rules([a_rule(source_file="here.yaml")], extra_columns=["source_file"])
     assert list(table["source_file"]) == ["here.yaml"]
 
 
 def test_no_rules_loaded_prints_a_message(
     fresh_registry: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    table = registry_tables.print_override_rules([])
-    assert capsys.readouterr().out == "No override rules loaded.\n"
+    table = registry_tables.print_rules([])
+    assert capsys.readouterr().out == "No rules loaded.\n"
     assert table.empty
 
 
@@ -396,7 +396,7 @@ def test_the_registry_table_carries_the_source_file_beside_the_rule_columns(
 
 def test_the_rules_table_carries_the_source_file_it_was_asked_for(fresh_registry: None) -> None:
     make_check("A_CODE")
-    table = registry_tables.print_override_rules(
+    table = registry_tables.print_rules(
         [a_rule(source_file="here.yaml")], extra_columns=["source_file"]
     )
     assert list(table["source_file"]) == ["here.yaml"]
@@ -408,7 +408,7 @@ def test_the_rules_table_prints_the_message_that_says_why_a_rule_exists(
     """A rule nobody can justify is a rule nobody dares delete."""
 
     make_check("A_CODE")
-    table = registry_tables.print_override_rules([a_rule()])
+    table = registry_tables.print_rules([a_rule()])
     assert list(table["message"]) == ["why the rule exists"]
     assert "why the rule exists" in capsys.readouterr().out
 
@@ -420,8 +420,8 @@ def test_the_rules_table_prints_the_message_that_says_why_a_rule_exists(
                      "the registry table", id="registry-table"),
         pytest.param(lambda: registry_tables.print_registry(extra_columns=["nope"]),
                      "the registry table", id="print-registry"),
-        pytest.param(lambda: registry_tables.print_override_rules([], extra_columns=["nope"]),
-                     "the override rules table", id="override-rules"),
+        pytest.param(lambda: registry_tables.print_rules([], extra_columns=["nope"]),
+                     "the rules table", id="rules-table"),
     ],
 )
 def test_an_unknown_extra_column_names_the_table_and_what_is_on_offer(

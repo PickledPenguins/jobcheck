@@ -12,7 +12,7 @@ kept as their own module rather than folded into the unit suites.
 
 Two differences are already known and are not defects here:
 
-- the override rule format gained ``match:``. The check era took a single
+- the rule format gained ``match:``. The check era took a single
   top-level ``column``/``pattern`` pair matched with ``fnmatchcase``; this tree
   takes a list of criteria matched as regular expressions (see
   ``recovery/bytecode/jobcheck/rules.cpython-312.pyc`` on ``main``, whose
@@ -36,7 +36,7 @@ from conftest import first_cause
 from jobcheck import (
     ERRORED,
     CheckOutcome,
-    load_overrides,
+    load_rules,
     load_checks,
     validate,
 )
@@ -212,8 +212,8 @@ def test_a_rule_file_switches_a_check_off_for_chosen_rows(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     load_checks([write_file(tmp_path, SIMPLE)])
-    rules = tmp_path / "r.yaml"
-    rules.write_text(
+    path = tmp_path / "r.yaml"
+    path.write_text(
         "- name: off_for_x\n  message: \"why the rule exists\"\n"
         "  action: disable\n"
         "  codes: [B_INT]\n"
@@ -221,8 +221,8 @@ def test_a_rule_file_switches_a_check_off_for_chosen_rows(
         "    - column: a\n"
         "      pattern: '^x$'\n"
     )
-    overrides = load_overrides([str(rules)])
-    rows = validate(frame({"a": "x", "b": "zz"}, {"a": "y", "b": "zz"}), overrides=overrides)
+    rules = load_rules([str(path)])
+    rows = validate(frame({"a": "x", "b": "zz"}, {"a": "y", "b": "zz"}), rules=rules)
     assert failures(rows[0]) == []
     assert failures(rows[1])[0].code == "B_INT"
 
@@ -247,7 +247,7 @@ def test_a_rule_naming_an_unknown_code_raises(fresh_registry: None, tmp_path: Pa
     rules = tmp_path / "r.yaml"
     rules.write_text("- name: r\n  message: \"why the rule exists\"\n  action: disable\n  codes: [NO_SUCH]\n  match: all\n")
     with pytest.raises(ValueError, match="NO_SUCH"):
-        load_overrides([str(rules)])
+        load_rules([str(rules)])
 
 
 def test_the_check_era_rule_format_is_rejected_rather_than_ignored(
@@ -261,4 +261,4 @@ def test_the_check_era_rule_format_is_rejected_rather_than_ignored(
     rules.write_text(
         "- name: off_for_x\n  message: \"why the rule exists\"\n  action: disable\n  codes: [B_INT]\n  column: a\n  pattern: 'x'\n")
     with pytest.raises(ValueError):
-        load_overrides([str(rules)])
+        load_rules([str(rules)])

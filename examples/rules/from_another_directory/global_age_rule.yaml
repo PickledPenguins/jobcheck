@@ -1,7 +1,7 @@
-# Deliberately in a different directory: load_overrides_from_files takes paths
+# Deliberately in a different directory: load_rules takes paths
 # from anywhere, and precedence follows the order the paths are given.
 #
-# The name differs from the rule in ../error_overrides.yaml that does the same
+# The name differs from the rule in ../error_rules.yaml that does the same
 # thing, because rule names are unique across every file loaded together: two
 # files sharing a name cannot be combined, and these are meant to be.
 

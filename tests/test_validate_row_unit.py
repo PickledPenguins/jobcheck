@@ -20,12 +20,12 @@ pytestmark = pytest.mark.fast
 ROW = pd.Series({"age": 30, "email": "a@b.com"})
 
 
-def disable(code: str, name: str = "kill_it") -> reg.OverrideRule:
-    return reg.OverrideRule(name=name, action="disable", codes=[code], criteria=[], match_all=True, message="why the rule exists")
+def disable(code: str, name: str = "kill_it") -> reg.Rule:
+    return reg.Rule(name=name, action="disable", codes=[code], criteria=[], match_all=True, message="why the rule exists")
 
 
-def enable(code: str, name: str = "switch_on") -> reg.OverrideRule:
-    return reg.OverrideRule(name=name, action="enable", codes=[code], criteria=[], match_all=True, message="why the rule exists")
+def enable(code: str, name: str = "switch_on") -> reg.Rule:
+    return reg.Rule(name=name, action="enable", codes=[code], criteria=[], match_all=True, message="why the rule exists")
 
 
 def codes(outcomes: list[res.CheckOutcome]) -> list[str]:
@@ -173,27 +173,27 @@ def test_a_check_off_by_default_does_not_run(fresh_registry: None) -> None:
     assert calls == []
 
 
-def test_an_override_can_enable_an_off_by_default_check(fresh_registry: None) -> None:
+def test_a_rule_can_enable_an_off_by_default_check(fresh_registry: None) -> None:
     make_check("OFF", passes=False, default_enabled=False)
-    assert codes(engine.validate_row(ROW, overrides=[enable("OFF")])) == ["OFF"]
+    assert codes(engine.validate_row(ROW, rules=[enable("OFF")])) == ["OFF"]
 
 
-def test_an_override_can_disable_an_on_by_default_check(fresh_registry: None) -> None:
+def test_a_rule_can_disable_an_on_by_default_check(fresh_registry: None) -> None:
     calls: list[str] = []
     make_check("ON", passes=False, calls=calls)
-    assert engine.validate_row(ROW, overrides=[disable("ON")]) == []
+    assert engine.validate_row(ROW, rules=[disable("ON")]) == []
     assert calls == []
 
 
-def test_an_override_applies_only_to_matching_rows(fresh_registry: None) -> None:
+def test_a_rule_applies_only_to_matching_rows(fresh_registry: None) -> None:
     make_check("ON", passes=False)
-    only_internal = reg.OverrideRule(
+    only_internal = reg.Rule(
         name="internal", action="disable", codes=["ON"],
         criteria=[reg.MatchCriterion("email", "@internal", re.compile("@internal"))],
         match_all=False, message="why the rule exists")
-    assert codes(engine.validate_row(ROW, overrides=[only_internal])) == ["ON"]
+    assert codes(engine.validate_row(ROW, rules=[only_internal])) == ["ON"]
     internal_row = pd.Series({"age": 30, "email": "qa@internal.test"})
-    assert engine.validate_row(internal_row, overrides=[only_internal]) == []
+    assert engine.validate_row(internal_row, rules=[only_internal]) == []
 
 
 # --- explanations -----------------------------------------------------------
@@ -212,14 +212,14 @@ def test_a_check_off_by_default_says_so(fresh_registry: None) -> None:
 
 def test_a_check_disabled_by_a_rule_names_the_rule(fresh_registry: None) -> None:
     make_check("ON")
-    outcomes = engine.explain_row(ROW, overrides=[disable("ON", name="suppress_for_test_accounts")])
+    outcomes = engine.explain_row(ROW, rules=[disable("ON", name="suppress_for_test_accounts")])
     assert detail(outcomes, "ON") == "disabled by rule 'suppress_for_test_accounts'"
 
 
 def test_the_last_matching_rule_is_the_one_named(fresh_registry: None) -> None:
     make_check("CODE")
     rules = [disable("CODE", name="first"), disable("CODE", name="second")]
-    assert detail(engine.explain_row(ROW, overrides=rules), "CODE") == "disabled by rule 'second'"
+    assert detail(engine.explain_row(ROW, rules=rules), "CODE") == "disabled by rule 'second'"
 
 
 def test_validate_row_and_explain_row_agree_on_failures(example_checks: None) -> None:
@@ -453,13 +453,13 @@ def test_the_off_by_default_integer_check_once_enabled(example_checks: None) -> 
     row = pd.Series({"age": 41.5, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
     assert codes(engine.validate_row(row)) == []
-    assert codes(engine.validate_row(row, overrides=[enable("AGE_NOT_INTEGER")])) == ["AGE_NOT_INTEGER"]
+    assert codes(engine.validate_row(row, rules=[enable("AGE_NOT_INTEGER")])) == ["AGE_NOT_INTEGER"]
 
 
 def test_disabling_a_presence_check_hides_everything_below_it(example_checks: None) -> None:
     row = pd.Series({"age": None, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
-    assert codes(engine.validate_row(row, overrides=[disable("AGE_PRESENT")])) == []
+    assert codes(engine.validate_row(row, rules=[disable("AGE_PRESENT")])) == []
 
 
 # --- rule columns -----------------------------------------------------------
@@ -469,21 +469,21 @@ def test_check_rule_columns_is_quiet_when_every_criterion_column_is_present(
     fresh_registry: None,
 ) -> None:
     make_check("CODE")
-    rule = reg.OverrideRule(
+    rule = reg.Rule(
         name="on_age", action="disable", codes=["CODE"],
         criteria=[reg.MatchCriterion("age", "^1$", re.compile("^1$"))], match_all=False, message="why the rule exists")
-    assert rules.check_override_columns(pd.DataFrame({"age": [1]}), [rule]) == []
+    assert rules.check_rule_columns(pd.DataFrame({"age": [1]}), [rule]) == []
 
 
 def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: None) -> None:
     """A criterion on a missing column never matches, so the rule silently never fires."""
 
     make_check("CODE")
-    rule = reg.OverrideRule(
+    rule = reg.Rule(
         name="legacy_only", action="disable", codes=["CODE"],
         criteria=[reg.MatchCriterion("source_sytem", "^LEGACY", re.compile("^LEGACY"))],
         match_all=False, message="why the rule exists")
-    assert rules.check_override_columns(pd.DataFrame({"age": [1]}), [rule]) == [
+    assert rules.check_rule_columns(pd.DataFrame({"age": [1]}), [rule]) == [
         "rule 'legacy_only' matches on column 'source_sytem', which is not in the data: "
         "the rule will never apply"
     ]
@@ -491,7 +491,7 @@ def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: 
 
 def test_check_rule_columns_ignores_a_match_all_rule(fresh_registry: None) -> None:
     make_check("CODE")
-    assert rules.check_override_columns(pd.DataFrame({"age": [1]}), [disable("CODE")]) == []
+    assert rules.check_rule_columns(pd.DataFrame({"age": [1]}), [disable("CODE")]) == []
 
 
 # --- example check helpers at their edges ------------------------------------
@@ -529,7 +529,7 @@ def test_example_checks_handle_edge_values(
 def test_the_integer_check_passes_a_whole_number_once_enabled(example_checks: None) -> None:
     row = pd.Series({"age": 41.0, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
-    assert codes(engine.validate_row(row, overrides=[enable("AGE_NOT_INTEGER")])) == []
+    assert codes(engine.validate_row(row, rules=[enable("AGE_NOT_INTEGER")])) == []
 
 
 def test_a_child_blocked_by_a_disabled_parent_says_disabled(fresh_registry: None) -> None:
@@ -537,9 +537,9 @@ def test_a_child_blocked_by_a_disabled_parent_says_disabled(fresh_registry: None
 
     make_check("PARENT")
     make_check("CHILD", depends_on=["PARENT"])
-    rule = reg.OverrideRule(name="off", action="disable", codes=["PARENT"], criteria=[],
+    rule = reg.Rule(name="off", action="disable", codes=["PARENT"], criteria=[],
                             match_all=True, source_file="<test>", message="why the rule exists")
-    outcomes = engine.explain_row(pd.Series({"a": 1}), overrides=[rule])
+    outcomes = engine.explain_row(pd.Series({"a": 1}), rules=[rule])
     assert [(o.code, o.outcome, o.detail) for o in outcomes] == [
         ("PARENT", "disabled", "disabled by rule 'off'"),
         ("CHILD", "skipped", "prerequisite disabled: PARENT"),
@@ -563,9 +563,9 @@ def test_a_mix_of_disabled_and_failed_prerequisites_says_did_not_pass(
     make_check("OFF")
     make_check("BROKEN", passes=False)
     make_check("CHILD", depends_on=["OFF", "BROKEN"])
-    rule = reg.OverrideRule(name="off", action="disable", codes=["OFF"], criteria=[],
+    rule = reg.Rule(name="off", action="disable", codes=["OFF"], criteria=[],
                             match_all=True, source_file="<test>", message="why the rule exists")
-    outcomes = engine.explain_row(pd.Series({"a": 1}), overrides=[rule])
+    outcomes = engine.explain_row(pd.Series({"a": 1}), rules=[rule])
     assert outcomes[-1].detail == "prerequisite did not pass: OFF, BROKEN"
 
 

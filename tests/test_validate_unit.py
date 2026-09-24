@@ -23,7 +23,7 @@ from jobcheck import (
     register_check,
     validate,
 )
-from jobcheck.rules import OverrideRule
+from jobcheck.rules import Rule
 from jobcheck.results import PASS, CheckResult
 
 pytestmark = pytest.mark.fast
@@ -78,10 +78,10 @@ def test_an_empty_frame_produces_no_outcomes(fresh_registry: None) -> None:
     assert validate(frame(0)) == []
 
 
-def test_overrides_reach_the_per_row_engine(fresh_registry: None) -> None:
+def test_rules_reach_the_per_row_engine(fresh_registry: None) -> None:
     make_check("A", passes=False)
-    rule = OverrideRule(name="off", action="disable", codes=["A"], criteria=[], match_all=True, message="why the rule exists")
-    outcomes = validate(frame(1), overrides=[rule])
+    rule = Rule(name="off", action="disable", codes=["A"], criteria=[], match_all=True, message="why the rule exists")
+    outcomes = validate(frame(1), rules=[rule])
     assert outcomes[0][0].outcome == DISABLED
     assert outcomes[0][0].detail == "disabled by rule 'off'"
 

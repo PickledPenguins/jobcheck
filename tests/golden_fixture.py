@@ -23,7 +23,7 @@ from jobcheck import (
     clear_registry,
     validate,
     load_checks,
-    load_overrides,
+    load_rules,
     print_row_explanation,
     print_summary,
     render_report,
@@ -38,7 +38,7 @@ CHECK_FILES = [
     "examples/checks/check_dates.py",
     "examples/checks/check_email.py",
 ]
-RULE_FILE = "examples/rules/error_overrides.yaml"
+RULE_FILE = "examples/rules/error_rules.yaml"
 
 
 def frame() -> pd.DataFrame:
@@ -68,9 +68,9 @@ def render_all() -> dict[str, str]:
 
     clear_registry()
     load_checks([str(ROOT / path) for path in CHECK_FILES])
-    overrides = load_overrides([str(ROOT / RULE_FILE)])
+    rules = load_rules([str(ROOT / RULE_FILE)])
     df = frame()
-    outcomes = validate(df, overrides=overrides)
+    outcomes = validate(df, rules=rules)
     report = build_report(outcomes, df=df, key_column="id")
     with_skipped = build_report(outcomes, df=df, key_column="id", include="blocked")
     with_data = build_report(outcomes, df=df, key_column="id",

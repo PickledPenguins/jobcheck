@@ -26,7 +26,7 @@ There is no central list to update.
 ### Codes are permanent
 
 `code` is a permanent identifier. Never renumber one, and never reuse a retired
-one: override rule files, saved reports and downstream tooling all refer to
+one: rule files, saved reports and downstream tooling all refer to
 codes, so a reused code silently changes the meaning of data already written.
 
 ### What to return
@@ -273,25 +273,25 @@ in exports. Take `(row, context)` in the checks that need it.
 ```python
 import pandas as pd
 from jobcheck import (
-    build_report, check_override_columns, load_checks,
-    load_overrides, root_causes, validate, validate_row, write_report,
+    build_report, check_rule_columns, load_checks,
+    load_rules, root_causes, validate, validate_row, write_report,
 )
 
 load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
-overrides = load_overrides([
+rules = load_rules([
     "examples/rules/split_by_topic/01_age_rules.yaml",
     "examples/rules/split_by_topic/02_email_rules.yaml",
 ])
-for warning in check_override_columns(df, overrides):
+for warning in check_rule_columns(df, rules):
     print(f"warning: {warning}")
 
 # Full report, when you want to look at the failures:
-outcomes = validate(df, overrides=overrides)
+outcomes = validate(df, rules=rules)
 write_report(build_report(outcomes, df=df, key_column="id"), "report.csv")
 
 # Or just the failures per row, when you only need to gate:
 df["errors"] = df.apply(
-    lambda row: validate_row(row, overrides=overrides), axis=1
+    lambda row: validate_row(row, rules=rules), axis=1
 )
 df["root_cause"] = df["errors"].apply(lambda results: "; ".join(root_causes(results)))
 clean = df[df["errors"].str.len() == 0]
@@ -322,4 +322,4 @@ the frame; check the spelling against the data.
 
 **A rule looks right but has no effect.** Another rule later in load order
 matches the same row and code, and last wins — or its criterion names a column
-the data lacks, which `check_override_columns` reports.
+the data lacks, which `check_rule_columns` reports.
