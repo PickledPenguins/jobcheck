@@ -20,8 +20,8 @@ import pandas as pd
 
 from jobcheck import (
     build_report,
-    check_rule_columns,
-    check_shadowed_rules,
+    warn_missing_rule_columns,
+    warn_shadowed_rules,
     load_checks,
     load_rules,
     print_rules,
@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Loaded {len(rules)} rule(s) from {len(args.rules)} file(s)\n")
 
     df = load_frame(args.data)
-    for warning in check_rule_columns(df, rules):
+    for warning in warn_missing_rule_columns(df, rules):
         print(f"warning: {warning}", file=sys.stderr)
 
     outcomes = validate(df, rules=rules)
@@ -165,7 +165,7 @@ def main(argv: list[str] | None = None) -> None:
         # Beside the rules themselves, because "this rule can never apply" is a
         # fact about the file rather than about a row. The shipped rule file has
         # one on purpose: it is the precedence demonstration.
-        for warning in check_shadowed_rules(rules):
+        for warning in warn_shadowed_rules(rules):
             print(f"warning: {warning}")
         print()
 

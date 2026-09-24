@@ -165,7 +165,7 @@ import.
 and many weigh several fields together, so a single "the" column was a fiction.
 The cost is that a misspelled field is no longer detectable before the run: it
 raises `KeyError` from the check and lands as an `ERROR` outcome naming the
-column. `check_rule_columns` still covers the rule side, where nothing else
+column. `warn_missing_rule_columns` still covers the rule side, where nothing else
 would catch it.
 
 **A check returns a status and comments, not a bool.** "Age is out of range" is

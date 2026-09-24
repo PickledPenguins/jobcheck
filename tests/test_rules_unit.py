@@ -487,7 +487,7 @@ def test_a_rule_a_later_unconditional_rule_overrules_is_reported(
       pattern: "^LEGACY"
 """ + GLOBAL_DISABLE)
 
-    assert rules.check_shadowed_rules(loaded) == [
+    assert rules.warn_shadowed_rules(loaded) == [
         "rule 'narrow_enable' is overruled for A_CODE by the later rule 'kill_it', "
         "which matches every row: it can never apply to A_CODE"
     ]
@@ -509,7 +509,7 @@ def test_a_rule_after_the_unconditional_one_is_not_reported(
       pattern: "^LEGACY"
 """)
 
-    assert rules.check_shadowed_rules(loaded) == []
+    assert rules.warn_shadowed_rules(loaded) == []
 
 
 def test_two_conditional_rules_are_not_reported(one_code: None, tmp_path: Path) -> None:
@@ -533,7 +533,7 @@ def test_two_conditional_rules_are_not_reported(one_code: None, tmp_path: Path) 
       pattern: "^LEGACY"
 """)
 
-    assert rules.check_shadowed_rules(loaded) == []
+    assert rules.warn_shadowed_rules(loaded) == []
 
 
 def test_a_rule_is_judged_per_code_not_per_rule(fresh_registry: None, tmp_path: Path) -> None:
@@ -555,7 +555,7 @@ def test_a_rule_is_judged_per_code_not_per_rule(fresh_registry: None, tmp_path: 
   match: all
 """)
 
-    assert rules.check_shadowed_rules(loaded) == [
+    assert rules.warn_shadowed_rules(loaded) == [
         "rule 'both' is overruled for A_CODE by the later rule 'kills_a_only', "
         "which matches every row: it can never apply to A_CODE"
     ]
@@ -569,7 +569,7 @@ def test_the_shipped_example_reports_its_deliberate_shadowed_rule(
     file is also the worked example of this warning."""
 
     loaded = reg.load_rules([str(Path(PROJECT_ROOT) / "examples/rules/error_rules.yaml")])
-    assert rules.check_shadowed_rules(loaded) == [
+    assert rules.warn_shadowed_rules(loaded) == [
         "rule 'enable_legacy_integer_check' is overruled for AGE_NOT_INTEGER by the later "
         "rule 'disable_age_integer_check_globally', which matches every row: it can never "
         "apply to AGE_NOT_INTEGER"
@@ -577,7 +577,7 @@ def test_the_shipped_example_reports_its_deliberate_shadowed_rule(
 
 
 def test_no_rules_and_no_unconditional_rule_report_nothing(one_code: None, tmp_path: Path) -> None:
-    assert rules.check_shadowed_rules([]) == []
+    assert rules.warn_shadowed_rules([]) == []
     loaded = _rules(tmp_path, """
 - name: "narrow"
   message: "m"
@@ -587,4 +587,4 @@ def test_no_rules_and_no_unconditional_rule_report_nothing(one_code: None, tmp_p
     - column: source
       pattern: "^LEGACY"
 """)
-    assert rules.check_shadowed_rules(loaded) == []
+    assert rules.warn_shadowed_rules(loaded) == []

@@ -34,11 +34,11 @@ ContextBuilder = Callable[["pd.Series[Any]"], RowContext | None]
 _EMPTY_CONTEXT = RowContext()
 
 # Why the two guards below exist, in one place so they cannot drift apart. The
-# row loop walks the cached evaluation order and looks every check up in state
-# built from the registry this call, so the two must hold the same checks in a
-# dependency-respecting order. Every route that changes the registry drops the
-# cache, so they agree -- unless a caller edits CHECKS or the cache itself, which
-# is reachable because CHECKS is exported and mutable.
+# row loop walks the cached evaluation order and looks every check up in the
+# enabled-by-code map built from the registry this call, so the two must hold the
+# same checks in a dependency-respecting order. Every route that changes the
+# registry drops the cache, so they agree -- unless a caller edits CHECKS or the
+# cache itself, which is reachable because CHECKS is exported and mutable.
 _STALE_ORDER_CAUSE = (
     "The cached evaluation order and the registry disagree. That happens when CHECKS "
     "or the cached order is edited directly instead of through load_checks(), "
@@ -76,13 +76,13 @@ def _prerequisite_has_not_run(code: str, prerequisite: str) -> ValueError:
 def resolve_enabled_state(
     row: "pd.Series[Any]", rules: list[Rule]
 ) -> dict[str, tuple[bool, str]]:
-    """Effective on/off state of every registered code, for one row, and why.
+    """Whether every registered code is on or off for one row, and why.
 
     Precedence is positional -- there is no priority field -- so the last
     matching rule wins, which is why the order rule files load in matters.
     """
 
-    state = {
+    enabled_by_code = {
         check.code: (check.default_enabled,
                      "default" if check.default_enabled else "off by default")
         for check in CHECKS
@@ -92,9 +92,9 @@ def resolve_enabled_state(
             continue
         enabled = rule.action == "enable"
         for code in rule.codes:
-            if code in state:
-                state[code] = (enabled, f"rule {rule.name!r}")
-    return state
+            if code in enabled_by_code:
+                enabled_by_code[code] = (enabled, f"rule {rule.name!r}")
+    return enabled_by_code
 
 
 def explain_row(
@@ -130,7 +130,7 @@ def explain_row(
     if context is None:
         context = _EMPTY_CONTEXT
 
-    state = resolve_enabled_state(row, rules or [])
+    enabled_by_code = resolve_enabled_state(row, rules or [])
     passed: dict[str, bool] = {}
     disabled: set[str] = set()
     outcomes: list[CheckOutcome] = []
@@ -139,9 +139,10 @@ def explain_row(
         # try/except rather than `in`: a membership test would run once per check
         # per row, and this loop is most of the cost of a frame.
         try:
-            enabled, reason = state[check.code]
+            enabled, reason = enabled_by_code[check.code]
         except KeyError:
-            raise _order_names_an_unregistered_check(check.code, len(state)) from None
+            raise _order_names_an_unregistered_check(
+                check.code, len(enabled_by_code)) from None
         if not enabled:
             passed[check.code] = False
             disabled.add(check.code)
@@ -221,7 +222,7 @@ def validate_row(
 def root_causes(row_outcomes: list[CheckOutcome]) -> list[str]:
     """Every failure at the shallowest failing layer, in evaluation order.
 
-    Every one, not the first: two failures at the same depth are two causes.
+    Every one, not the first: two failures in the same layer are two causes.
     Deeper failures are downstream of these, so they are left out.
     """
 

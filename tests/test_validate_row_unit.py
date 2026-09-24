@@ -472,7 +472,7 @@ def test_check_rule_columns_is_quiet_when_every_criterion_column_is_present(
     rule = reg.Rule(
         name="on_age", action="disable", codes=["CODE"],
         criteria=[reg.MatchCriterion("age", "^1$", re.compile("^1$"))], match_all=False, message="why the rule exists")
-    assert rules.check_rule_columns(pd.DataFrame({"age": [1]}), [rule]) == []
+    assert rules.warn_missing_rule_columns(pd.DataFrame({"age": [1]}), [rule]) == []
 
 
 def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: None) -> None:
@@ -483,7 +483,7 @@ def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: 
         name="legacy_only", action="disable", codes=["CODE"],
         criteria=[reg.MatchCriterion("source_sytem", "^LEGACY", re.compile("^LEGACY"))],
         match_all=False, message="why the rule exists")
-    assert rules.check_rule_columns(pd.DataFrame({"age": [1]}), [rule]) == [
+    assert rules.warn_missing_rule_columns(pd.DataFrame({"age": [1]}), [rule]) == [
         "rule 'legacy_only' matches on column 'source_sytem', which is not in the data: "
         "the rule will never apply"
     ]
@@ -491,7 +491,7 @@ def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: 
 
 def test_check_rule_columns_ignores_a_match_all_rule(fresh_registry: None) -> None:
     make_check("CODE")
-    assert rules.check_rule_columns(pd.DataFrame({"age": [1]}), [disable("CODE")]) == []
+    assert rules.warn_missing_rule_columns(pd.DataFrame({"age": [1]}), [disable("CODE")]) == []
 
 
 # --- example check helpers at their edges ------------------------------------

@@ -22,7 +22,7 @@ import pandas as pd
 
 from .engine import root_causes
 from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, render_status
-from .tables import _check_extra_columns, _format_cell, format_table
+from .tables import _reject_unknown_columns, _format_cell, format_table
 
 REPORT_COLUMNS = ["row", "code", "status", "layer", "outcome", "message", "detail", "comments",
                   "is_root_cause"]
@@ -136,7 +136,7 @@ def build_report(
     labels = list(df.columns)
     available = [str(column) for column in labels
                  if labels.count(column) == 1 and column not in REPORT_COLUMNS]
-    _check_extra_columns(extra_columns, available, "the report")
+    _reject_unknown_columns(extra_columns, available, "the report")
 
     row_labels = _row_labels(df, key_column)
     extra = _extra_values(df, extra_columns, len(frame_outcomes))

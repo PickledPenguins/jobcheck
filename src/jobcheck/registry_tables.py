@@ -21,7 +21,7 @@ import pandas as pd
 
 from .registry import CHECKS
 from .rules import Rule
-from .tables import _check_extra_columns, format_table
+from .tables import _reject_unknown_columns, format_table
 
 #: Extra columns the check tables offer. ``source_file`` is where the check was
 #: registered; ``could_be_overridden_by`` and ``effective_state`` read the loaded
@@ -55,7 +55,7 @@ def get_registry_table(extra_columns: list[str] | None = None) -> pd.DataFrame:
     """
 
     extra_columns = list(extra_columns or [])
-    _check_extra_columns(extra_columns, CHECK_EXTRA_COLUMNS, "the registry table")
+    _reject_unknown_columns(extra_columns, CHECK_EXTRA_COLUMNS, "the registry table")
     columns = ["code", "layer", "default", "message", "depends_on", *extra_columns]
 
     rows: list[dict[str, Any]] = []
@@ -92,7 +92,7 @@ def print_registry(
     """
 
     extra_columns = list(extra_columns or [])
-    _check_extra_columns(extra_columns, REGISTRY_EXTRA_COLUMNS, "the registry table")
+    _reject_unknown_columns(extra_columns, REGISTRY_EXTRA_COLUMNS, "the registry table")
     table = get_registry_table(
         extra_columns=[name for name in extra_columns if name in CHECK_EXTRA_COLUMNS])
     if table.empty:
@@ -128,7 +128,7 @@ def print_rules(
     """
 
     extra_columns = list(extra_columns or [])
-    _check_extra_columns(extra_columns, RULE_EXTRA_COLUMNS, "the rules table")
+    _reject_unknown_columns(extra_columns, RULE_EXTRA_COLUMNS, "the rules table")
     columns = ["name", "action", "codes_hit_count", "match", "message", *extra_columns]
 
     rows: list[dict[str, Any]] = []

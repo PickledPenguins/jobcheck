@@ -66,7 +66,7 @@ reason several obvious-looking shortcuts are absent:
   function takes; the detail of arguments, return shapes and errors lives in
   [interfaces.md](interfaces.md), which a test keeps in step with the code.
 - **A leading underscore means "outside the public surface", not "inside this
-  file".** `tables.py`'s `_format_cell` and `_check_extra_columns` are imported by
+  file".** `tables.py`'s `_format_cell` and `_reject_unknown_columns` are imported by
   three other modules on purpose. What the underscore rules out is a *user*
   calling them: a name without one has to be in `__all__`, which
   `tests/test_api_contract.py` enforces, and anything exported needs a use case a

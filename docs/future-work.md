@@ -129,11 +129,11 @@ two. If the suite is ever split or reorganized, spell the rest out in the files 
 and let the others converge.
 
 **Renaming `tables.py`'s two cross-module helpers to look public** (F.22, decided
-2026-09-23). `_format_cell` and `_check_extra_columns` carry a leading underscore and are
+2026-09-23). `_format_cell` and `_reject_unknown_columns` carry a leading underscore and are
 imported by `report.py`, `rules.py` and `registry_tables.py`, while `is_null` and
 `format_table` sit in the same file without one and are exported. Dropping the underscore
 was rejected: `tests/test_api_contract.py` fails on a public callable that is not in
-`__all__`, so the rename forces both into the public surface, and `_check_extra_columns`
+`__all__`, so the rename forces both into the public surface, and `_reject_unknown_columns`
 exists to reject a bad `extra_columns=` argument -- there is no use for it outside the three
 tables that take one, which makes it exactly the kind of export that has to be removed
 again later. Keeping a public-looking name deliberately out of `__all__` is worse still: a
@@ -184,7 +184,7 @@ contract on user files, and its recorded 3.4s-against-6.6s win predates validati
 7.6x cheaper; `params` changes the on-disk rule format, which is a design decision rather
 than a rebuild. `lint` was the one with obvious value -- warnings about rule files that
 parse but can never fire, fire everywhere, or were superseded. The one part of that with a
-decidable answer was built separately on 2026-09-24 as `rules.check_shadowed_rules`: a rule
+decidable answer was built separately on 2026-09-24 as `rules.warn_shadowed_rules`: a rule
 a later `match: all` rule overrules for every row, which is dead for that code however the
 data looks. What stays unbuilt is the undecidable rest, where two conditional rules may or
 may not overlap -- that needs the patterns compared rather than read.

@@ -38,7 +38,7 @@ from .registry_tables import (
     print_rules,
     print_registry,
 )
-from .rules import check_rule_columns, check_shadowed_rules
+from .rules import warn_missing_rule_columns, warn_shadowed_rules
 from .report import (
     build_report,
     escape_for_spreadsheet,
@@ -83,8 +83,6 @@ __all__ = [
     "SKIPPED",
     "Status",
     "build_report",
-    "check_rule_columns",
-    "check_shadowed_rules",
     "clear_registry",
     "escape_for_spreadsheet",
     "explain_row",
@@ -114,5 +112,7 @@ __all__ = [
     "validate_registry",
     "validate_row",
     "__version__",
+    "warn_missing_rule_columns",
+    "warn_shadowed_rules",
     "write_report",
 ]
