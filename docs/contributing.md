@@ -54,9 +54,13 @@ reason several obvious-looking shortcuts are absent:
   package, and a new one is a review comment.
 - **No dense one-liners.** A comprehension with two conditions, or one indexing
   into a nested structure, gets unpacked into a named value or a plain loop.
-- **Lines stay under 100 characters.** Nothing enforces it -- there is no linter
-  here -- but the package sits under it, and a long error message is wrapped as
-  adjacent string literals rather than run out to 120.
+- **Lines stay under 100 characters** in `src/`, `examples/` and `scripts/`, and a
+  test enforces it there, naming the file, the line and its width. There is no
+  linter here; the check is twenty lines in `tests/test_docs_unit.py`, beside the
+  others that keep a document honest about the code. A long error message is
+  wrapped as adjacent string literals rather than run out to 120. `tests/` is
+  exempt: 74 of its lines are over, and they are table rows, pinned messages and
+  parametrize entries where wrapping costs more than it buys.
 - **A line is either obvious or carries a brief comment saying what it does.**
   Docstrings say what a function is for and why it exists, in less space than the
   function takes; the detail of arguments, return shapes and errors lives in

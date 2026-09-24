@@ -471,3 +471,40 @@ def test_no_document_says_a_bare_bool_or_status_is_converted() -> None:
             f"{path.name} says a bare bool is accepted; normalize_result refuses it")
         assert "status value is converted" not in text, (
             f"{path.name} says a bare status is accepted; normalize_result refuses it")
+
+
+#: The width `contributing.md` claims, and the directories it is claimed for.
+#: `tests/` is deliberately absent: 74 of its lines are over, and they are table
+#: rows, pinned error messages and parametrize entries where wrapping costs more
+#: than it buys. The claim and this list are stated together in that document.
+MAX_LINE_WIDTH = 100
+WIDTH_GATED_DIRS = ("src", "examples", "scripts")
+
+
+def test_the_gated_directories_sit_under_the_documented_line_width() -> None:
+    """`contributing.md` says lines stay under 100 characters and that nothing
+    enforces it. Something does now: the claim was false on 2026-09-23, when two
+    lines had drifted to 101 and 103, and nothing would have stopped the next two.
+    """
+
+    too_long = [
+        f"{path.relative_to(ROOT)}:{number} is {len(line)} characters"
+        for directory in WIDTH_GATED_DIRS
+        for path in sorted((ROOT / directory).rglob("*.py"))
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if len(line) > MAX_LINE_WIDTH
+    ]
+    assert too_long == [], (
+        f"over {MAX_LINE_WIDTH} characters, the width contributing.md claims:\n  "
+        + "\n  ".join(too_long)
+    )
+
+
+def test_contributing_names_what_the_width_gate_covers() -> None:
+    """A rule enforced for three directories out of four has to say so, or the
+    document is misleading in a new way."""
+
+    contributing = (ROOT / "docs" / "contributing.md").read_text(encoding="utf-8")
+    for directory in WIDTH_GATED_DIRS:
+        assert f"`{directory}/`" in contributing, (
+            f"contributing.md does not say the width rule covers {directory}/")
