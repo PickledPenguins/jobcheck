@@ -61,18 +61,6 @@ a design call the owner has not made. The reviews' own fixes to the same commit 
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
 
-**F.27 — no gate on line width.** `contributing.md` states "Lines stay under 100
-characters. Nothing enforces it -- there is no linter here -- but the package sits under
-it". On 2026-09-23 it did not: two lines were 101 and 103 characters. They were wrapped, and
-nothing stops the next two. Gain: the one style rule with no enforcement gets one, in the
-file that already enforces the other layout rules. Loss: a width check has to decide what it
-covers — the package only, or the tests and scripts too, where several long lines are
-deliberate table rows and error-message literals — and a gate that has to carry exceptions
-is worth less than the rule. ~20 test lines. Priority: low. Blast radius: the fast suite; a
-false positive blocks a commit. Recommendation: add it for `src/` and `examples/` only,
-where the rule is actually claimed, and leave `tests/` and `scripts/` out rather than
-writing an exception list.
-
 **F.28 — `CHECKS` is an exported mutable list.** `jobcheck.CHECKS` is the registry itself,
 exported from `__init__.py` and documented as the center of the design
 (`architecture.md`). Nothing stops a caller appending to it, popping from it, sorting it or
