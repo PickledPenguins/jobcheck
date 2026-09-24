@@ -32,6 +32,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -70,16 +71,27 @@ def stable_root() -> Path:
     Falls back to the real root if the filesystem refuses symlinks, in which case
     a case that renders absolute paths compares its padding against whatever this
     machine produces -- the old behavior, and the reason this exists.
+
+    Created under a private name and moved into place, because two runs of one
+    clone would otherwise race: both see the link missing, both unlink, and the
+    loser of the symlink call used to take the filesystem fallback and render
+    every path at a different width, failing the whole catalog on padding.
+    `os.replace` is atomic, so both racers end up with a link to the clone they
+    both wanted. The temporary name is unique per call -- a pid is not enough,
+    since two threads of one process share it -- and is never rendered into a
+    case's output, so it does not disturb the fixed width the final name keeps.
     """
 
     try:
-        if STABLE_ROOT.is_symlink() or STABLE_ROOT.exists():
-            if STABLE_ROOT.is_symlink() and STABLE_ROOT.readlink() == ROOT:
-                return STABLE_ROOT
-            STABLE_ROOT.unlink()
-        STABLE_ROOT.symlink_to(ROOT, target_is_directory=True)
+        if STABLE_ROOT.is_symlink() and STABLE_ROOT.readlink() == ROOT:
+            return STABLE_ROOT
+        pending = STABLE_ROOT.with_name(f"{STABLE_ROOT.name}.{uuid.uuid4().hex[:12]}")
+        pending.symlink_to(ROOT, target_is_directory=True)
+        os.replace(pending, STABLE_ROOT)
         return STABLE_ROOT
-    except OSError:  # pragma: no cover - no symlinks on this filesystem
+    except OSError:
+        # Only what it says: a filesystem that refuses symlinks, or refuses to
+        # replace one. The race above is handled rather than caught here.
         return ROOT
 
 
