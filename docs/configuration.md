@@ -144,6 +144,20 @@ In `examples/rules/error_overrides.yaml` the third rule (`match: all`, disable) 
 (enable for legacy batch rows) and therefore wins on every row, including legacy batch
 rows — that is the precedence demonstration, not a mistake.
 
+It is also the shape worth finding when it *is* a mistake, so it is reported.
+`check_shadowed_rules` takes the loaded rules and names every rule a later
+`match: all` rule overrules for every row; `python3 examples/main.py --rules-table`
+prints those warnings under the rules table, which is why the shipped file's own
+demonstration shows up there. Nothing else tells you: the registry table lists both
+rules under `could_be_overridden_by` and answers `depends on row`, which is right in
+general and unhelpful in this one case where every row gives the same answer. The
+pattern that works is the reverse order — disable for every row, then enable for the
+rows that match — and it reports nothing.
+
+Two conditional rules are not compared. Whether their patterns overlap is a question
+about the regexes rather than about the file, and a wrong answer would be worse than
+none.
+
 ## Errors
 
 Everything is validated when the file loads, never when a rule first meets a row, so a

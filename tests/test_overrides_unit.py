@@ -8,8 +8,9 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import enabled_only, make_check
+from conftest import PROJECT_ROOT, enabled_only, make_check
 from jobcheck import registry as reg
+from jobcheck import rules
 from jobcheck import engine
 from jobcheck import registry_tables
 from jobcheck.results import DISABLED, PASSED
@@ -459,3 +460,131 @@ def test_a_null_cell_never_matches_a_rule(fresh_registry: None) -> None:
     assert rules.cell_text(row, "age") is None
     assert rules.cell_text(row, "absent") is None
     assert rules.cell_text(row, "name") == "real"
+
+
+# --- rules a later rule overrules for every row ------------------------------
+
+
+def _rules(tmp_path: Path, text: str) -> list[Any]:
+    return reg.load_overrides([write(tmp_path, "rules.yaml", text)])
+
+
+def test_a_rule_a_later_unconditional_rule_overrules_is_reported(
+    one_code: None, tmp_path: Path
+) -> None:
+    """Positional precedence means a `match: all` rule later in the file is the
+    last match on every row, so anything before it touching the same code can
+    never decide. Nothing else says so: the registry table lists both rules and
+    answers "depends on row", which is right in general and wrong here."""
+
+    overrides = _rules(tmp_path, """
+- name: "narrow_enable"
+  message: "only legacy rows"
+  action: enable
+  codes: [A_CODE]
+  match:
+    - column: source
+      pattern: "^LEGACY"
+""" + GLOBAL_DISABLE)
+
+    assert rules.check_shadowed_rules(overrides) == [
+        "rule 'narrow_enable' is overruled for A_CODE by the later rule 'kill_it', "
+        "which matches every row: it can never apply to A_CODE"
+    ]
+
+
+def test_a_rule_after_the_unconditional_one_is_not_reported(
+    one_code: None, tmp_path: Path
+) -> None:
+    """The same two rules the other way round is the pattern that works: off for
+    every row, back on for the rows that match."""
+
+    overrides = _rules(tmp_path, GLOBAL_DISABLE + """
+- name: "narrow_enable"
+  message: "only legacy rows"
+  action: enable
+  codes: [A_CODE]
+  match:
+    - column: source
+      pattern: "^LEGACY"
+""")
+
+    assert rules.check_shadowed_rules(overrides) == []
+
+
+def test_two_conditional_rules_are_not_reported(one_code: None, tmp_path: Path) -> None:
+    """Deliberately out of scope: whether two patterns overlap needs them
+    compared rather than read, and a wrong answer is worse than none."""
+
+    overrides = _rules(tmp_path, """
+- name: "first"
+  message: "m"
+  action: enable
+  codes: [A_CODE]
+  match:
+    - column: source
+      pattern: "."
+- name: "second"
+  message: "m"
+  action: disable
+  codes: [A_CODE]
+  match:
+    - column: source
+      pattern: "^LEGACY"
+""")
+
+    assert rules.check_shadowed_rules(overrides) == []
+
+
+def test_a_rule_is_judged_per_code_not_per_rule(fresh_registry: None, tmp_path: Path) -> None:
+    """A rule carrying two codes can be overruled for one and decisive for the
+    other, so the warning names the code rather than condemning the rule."""
+
+    make_check("A_CODE")
+    make_check("B_CODE")
+    overrides = _rules(tmp_path, """
+- name: "both"
+  message: "m"
+  action: enable
+  codes: [A_CODE, B_CODE]
+  match: all
+- name: "kills_a_only"
+  message: "m"
+  action: disable
+  codes: [A_CODE]
+  match: all
+""")
+
+    assert rules.check_shadowed_rules(overrides) == [
+        "rule 'both' is overruled for A_CODE by the later rule 'kills_a_only', "
+        "which matches every row: it can never apply to A_CODE"
+    ]
+
+
+def test_the_shipped_example_reports_its_deliberate_shadowed_rule(
+    example_checks: None,
+) -> None:
+    """`examples/rules/error_overrides.yaml` shadows a rule on purpose -- it is the
+    precedence demonstration `docs/configuration.md` describes -- so the shipped
+    file is also the worked example of this warning."""
+
+    overrides = reg.load_overrides([str(Path(PROJECT_ROOT) / "examples/rules/error_overrides.yaml")])
+    assert rules.check_shadowed_rules(overrides) == [
+        "rule 'enable_legacy_integer_check' is overruled for AGE_NOT_INTEGER by the later "
+        "rule 'disable_age_integer_check_globally', which matches every row: it can never "
+        "apply to AGE_NOT_INTEGER"
+    ]
+
+
+def test_no_rules_and_no_unconditional_rule_report_nothing(one_code: None, tmp_path: Path) -> None:
+    assert rules.check_shadowed_rules([]) == []
+    overrides = _rules(tmp_path, """
+- name: "narrow"
+  message: "m"
+  action: disable
+  codes: [A_CODE]
+  match:
+    - column: source
+      pattern: "^LEGACY"
+""")
+    assert rules.check_shadowed_rules(overrides) == []

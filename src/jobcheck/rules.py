@@ -243,9 +243,10 @@ def check_override_columns(df: pd.DataFrame, overrides: list[OverrideRule]) -> l
     """Warn about columns an override rule matches on that the data lacks.
 
     A criterion naming a column that is not there never matches, so the rule
-    silently never applies -- the one rule mistake nothing else catches, since
-    the loader has no data to compare against. It warns rather than raises: one
-    rule file may deliberately cover several data shapes.
+    silently never applies, and the loader cannot catch it because it has no data
+    to compare against. It warns rather than raises: one rule file may
+    deliberately cover several data shapes. `check_shadowed_rules` is the other
+    half -- a rule that can never apply whatever the data says.
     """
 
     present = set(df.columns)
@@ -257,4 +258,46 @@ def check_override_columns(df: pd.DataFrame, overrides: list[OverrideRule]) -> l
                     f"rule {rule.name!r} matches on column {criterion.column!r}, which is not "
                     "in the data: the rule will never apply"
                 )
+    return warnings
+
+
+def check_shadowed_rules(overrides: list[OverrideRule]) -> list[str]:
+    """Warn about rules a later rule overrules for every row.
+
+    Precedence is positional and the last matching rule wins, so a rule that
+    touches a code is dead for that code as soon as a *later* rule touches it
+    with `match: all`: the later one matches every row, so the earlier one can
+    never be the last match. Nothing else reports this. The registry table's
+    `could_be_overridden_by` column lists both rules, and `effective_state` says
+    "depends on row" -- correct in general, because whether a rule fires is a
+    property of the row, but this is the one case where the answer is the same for
+    every row and can be given.
+
+    Only that case. Two conditional rules may overlap for some rows and not
+    others, which needs the patterns compared rather than read, and a wrong answer
+    there would be worse than no answer.
+
+    Per code rather than per rule, because a rule carrying several codes can be
+    overruled for one and decisive for another. Warns rather than raises: shipping
+    a shadowed rule can be deliberate, and `examples/rules/error_overrides.yaml`
+    does it on purpose to demonstrate precedence.
+    """
+
+    warnings: list[str] = []
+    seen: list[str] = []
+    for rule in overrides:
+        for code in rule.codes:
+            if code not in seen:
+                seen.append(code)
+    for code in seen:
+        touching = [rule for rule in overrides if code in rule.codes]
+        unconditional = [index for index, rule in enumerate(touching) if rule.match_all]
+        if not unconditional:
+            continue
+        winner = touching[unconditional[-1]]
+        for rule in touching[:unconditional[-1]]:
+            warnings.append(
+                f"rule {rule.name!r} is overruled for {code} by the later rule "
+                f"{winner.name!r}, which matches every row: it can never apply to {code}"
+            )
     return warnings

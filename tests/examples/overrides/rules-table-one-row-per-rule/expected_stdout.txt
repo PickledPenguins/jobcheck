@@ -9,6 +9,7 @@ suppress_email_checks_for_test_accounts | disable | 2               | email~=/@i
                                         |         |                 |                              | email format errors                     
 disable_age_integer_check_globally      | disable | 1               | all                          | Example: disable AGE_NOT_INTEGER for    
                                         |         |                 |                              | every row, no filtering                 
+warning: rule 'enable_legacy_integer_check' is overruled for AGE_NOT_INTEGER by the later rule 'disable_age_integer_check_globally', which matches every row: it can never apply to AGE_NOT_INTEGER
 
 == Registry ==
 code                 | layer | default | message                                 | depends_on       | could_be_overridden_by                 
