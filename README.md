@@ -82,7 +82,7 @@ row | code             | status        | layer | outcome | message          | de
 - One line per failure, not one per row.
 - `write_report(report, "report.csv")` saves it; `render_report(report, fmt="csv")`
   returns the text.
-- `extra_columns=[...]` adds columns from the frame next to the row key.
+- `add_columns=[...]` adds columns from the frame next to the row key.
 
 Row 104 reports only `AGE_PRESENT` — the four age checks below it never ran. To see
 why a check did not fire, ask about the row:

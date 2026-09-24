@@ -306,13 +306,18 @@ they appear.
 
 ## Reporting
 
-`build_report(frame_outcomes, df, key_column=None, extra_columns=None,
-include="failures")` — `df` is required, since the outcomes describe its rows;
-`key_column` names the single column that identifies a row — one that is not in the
-frame, or is in it more than once, raises `ValueError`; `extra_columns` copies
-frame columns into the report just after `row`; `include` is `"failures"`,
-`"blocked"` or `"all"`. See
+`build_report(frame_outcomes, df, key_column=None, add_columns=None,
+include="failures", drop_columns=None)` — `df` is required, since the outcomes
+describe its rows; `key_column` names the single column that identifies a row — one
+that is not in the frame, or is in it more than once, raises `ValueError`;
+`add_columns` copies frame columns into the report just after `row`;
+`drop_columns` takes the report's own columns out, validated against
+`REPORT_COLUMNS`; `include` is `"failures"`, `"blocked"` or `"all"`. See
 [reporting.md](reporting.md#showing-data-alongside-the-failures).
+
+`REPORT_COLUMNS` is that list, as a tuple: the report's own column names in
+order. Read it to build a `drop_columns` from the other direction — the columns a
+production run keeps — without hard-coding the set.
 
 `build_report`, `render_report`, `render_comments`,
 `escape_for_spreadsheet`, `write_report`,
@@ -322,14 +327,14 @@ documented in [reporting.md](reporting.md).
 
 Registry tables:
 
-Every one of these takes `extra_columns`, the same argument `build_report` takes
+Every one of these takes `add_columns`, the same argument `build_report` takes
 for columns of the data: the names you want beyond the base columns, refused
 rather than ignored when the name is not on offer.
 
-- `get_registry_table(extra_columns=None)` — one row per check, sorted layer, then
+- `get_registry_table(add_columns=None, drop_columns=None)` — one row per check, sorted layer, then
   code. Columns `code`, `layer`, `default`, `message`, `depends_on`; offers
   `source_file`.
-- `print_registry(rules=None, extra_columns=None, title=True)` — prints it. Offers
+- `print_registry(rules=None, add_columns=None, title=True, drop_columns=None)` — prints it. Offers
   `source_file`, plus the two columns that read the loaded rules:
   `could_be_overridden_by`, the rules that *reference* each code with the action
   each would take, and `effective_state`, which says `DEFAULT (ON)` when no rule
@@ -337,13 +342,15 @@ rather than ignored when the name is not on offer.
   overridden by" — whether a rule fires is a per-row question this table cannot
   answer. `rules` feeds those two columns and nothing else, so passing rules
   without asking for either prints the same table as passing none.
-- `print_rules(rules, extra_columns=None, title=True)` — one row per rule:
+- `get_rules_table(rules, add_columns=None, drop_columns=None)` — one row per rule:
   `name`, `action`, `codes_hit_count`, `match`, `message`. Offers `source_file`.
+  The frame without the output, as every other table here offers.
+- `print_rules(rules, add_columns=None, title=True, drop_columns=None)` — prints it.
 
 `format_table(table, wrap_columns=None)` renders any frame as bordered text. A cell
 holding line breaks (`\n`, `\r\n` or `\r`) renders as a tall cell rather than breaking
 the row, wrapped column or not, and tabs are expanded — a quoted multi-line CSV field
-reaching the row key or an `extra_columns` value is the usual way one arrives.
+reaching the row key or an `add_columns` value is the usual way one arrives.
 `is_null(value)` is the null check both the engine and the renderer use — reach for
 it in your own checks too, since `NaN` is truthy and `pd.isna` returns an array for
 list-like values.

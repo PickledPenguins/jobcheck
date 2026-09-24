@@ -74,7 +74,7 @@ def render_all() -> dict[str, str]:
     report = build_report(outcomes, df=df, key_column="id")
     with_skipped = build_report(outcomes, df=df, key_column="id", include="blocked")
     with_data = build_report(outcomes, df=df, key_column="id",
-                             extra_columns=["source_system", "record_type", "age"])
+                             add_columns=["source_system", "record_type", "age"])
 
     explanation = io.StringIO()
     with redirect_stdout(explanation):

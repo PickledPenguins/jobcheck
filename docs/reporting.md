@@ -62,12 +62,12 @@ report would be labeled with the column's *name* instead of the row's key.
 
 ## Showing data alongside the failures
 
-`extra_columns` copies fields from the frame into the report, in the order given,
+`add_columns` copies fields from the frame into the report, in the order given,
 immediately after `row`:
 
 ```python
 build_report(outcomes, df=df, key_column="id",
-             extra_columns=["source_system", "record_type", "age"])
+             add_columns=["source_system", "record_type", "age"])
 ```
 
 ```
@@ -145,6 +145,47 @@ Nothing is escaped in the table view, which cannot execute anything, and the
 outcomes themselves always hold the value the check actually saw. There is no
 switch for it: a report is written to be opened by a person, and a CSV that can
 execute on open is not one.
+
+## Leaving columns out
+
+`add_columns` copies frame columns in; `drop_columns` takes the report's own
+columns out. That is the pair a run needs when some columns are for whoever is
+debugging and not for what ships:
+
+```python
+debug = False                       # your run's own flag
+debug_only = ["comments", "detail", "layer"]
+report = build_report(outcomes, df=df, key_column="id",
+                      drop_columns=[] if debug else debug_only)
+print_report(report, key_column="id")
+```
+```
+row | code         | status      | outcome | message         | is_root_cause
+----+--------------+-------------+---------+-----------------+--------------
+1   | AGE_NEGATIVE | INVALID (3) | failed  | Age is negative | True
+```
+
+The remaining columns keep the report's order, not the caller's, and added columns
+still land straight after `row`. A dropped column is gone from the CSV too, since
+both formats render the frame they are given.
+
+`REPORT_COLUMNS` is the report's own column names, in order, as a tuple. Read it to
+say which columns a run *keeps* rather than which it drops:
+
+```python
+keep = ("row", "code", "message")
+report = build_report(outcomes, df=df, key_column="id",
+                      drop_columns=[c for c in REPORT_COLUMNS if c not in keep])
+```
+
+A name that is not a report column, or asked for twice, is refused and the message
+lists what can go — the same shape `add_columns` uses, because a column silently
+still there reads as proof it is empty. `row` can be dropped like any other:
+`drop_columns` is a choice about your own output, not a judgement about which
+columns matter.
+
+The same pair is on `get_registry_table`, `print_registry`, `get_rules_table` and
+`print_rules`.
 
 ## Every table names itself
 

@@ -241,15 +241,15 @@ UNUSABLE = (
 def test_extra_columns_that_are_not_there_list_the_columns(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     with pytest.raises(ValueError) as raised:
-        build_report(validate(FRAME), df=FRAME, extra_columns=["nope"])
-    assert message_of(raised) == f"extra_columns ['nope'] {UNUSABLE}id, age."
+        build_report(validate(FRAME), df=FRAME, add_columns=["nope"])
+    assert message_of(raised) == f"add_columns ['nope'] {UNUSABLE}id, age."
 
 
 def test_a_repeated_data_column_names_the_repeat(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     with pytest.raises(ValueError) as raised:
-        build_report(validate(FRAME), df=FRAME, extra_columns=["age", "age"])
-    assert message_of(raised) == f"extra_columns ['age'] {UNUSABLE}id, age."
+        build_report(validate(FRAME), df=FRAME, add_columns=["age", "age"])
+    assert message_of(raised) == f"add_columns ['age'] {UNUSABLE}id, age."
 
 
 def test_an_ambiguous_data_column_is_refused_with_the_frame_columns(
@@ -259,16 +259,16 @@ def test_an_ambiguous_data_column_is_refused_with_the_frame_columns(
     frame = pd.DataFrame([[1, 2, 3]], columns=["id", "age", "age"])
     outcomes = validate(FRAME)
     with pytest.raises(ValueError) as raised:
-        build_report(outcomes, df=frame, extra_columns=["age"])
-    assert message_of(raised) == f"extra_columns ['age'] {UNUSABLE}id."
+        build_report(outcomes, df=frame, add_columns=["age"])
+    assert message_of(raised) == f"add_columns ['age'] {UNUSABLE}id."
 
 
 def test_a_data_column_clashing_with_a_report_column_is_refused(fresh_registry: None) -> None:
     make_check("CODE", passes=False)
     frame = pd.DataFrame([{"id": 1, "code": "x"}])
     with pytest.raises(ValueError) as raised:
-        build_report(validate(frame), df=frame, extra_columns=["code"])
-    assert message_of(raised) == f"extra_columns ['code'] {UNUSABLE}id."
+        build_report(validate(frame), df=frame, add_columns=["code"])
+    assert message_of(raised) == f"add_columns ['code'] {UNUSABLE}id."
 
 
 def test_a_frame_of_the_wrong_length_says_to_pass_the_same_one(fresh_registry: None) -> None:

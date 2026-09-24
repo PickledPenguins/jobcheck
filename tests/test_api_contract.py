@@ -119,10 +119,10 @@ def test_outcome_names_are_permanent() -> None:
 def test_report_columns_are_stable() -> None:
     """Anything reading the CSV depends on these names and this order."""
 
-    assert rep.REPORT_COLUMNS == [
+    assert rep.REPORT_COLUMNS == (
         "row", "code", "status", "layer", "outcome", "message", "detail", "comments",
-        "is_root_cause"
-    ]
+        "is_root_cause",
+    )
 
 
 def test_registry_table_columns_are_stable(example_checks: None) -> None:
@@ -157,8 +157,9 @@ def defaults(fn: Any) -> dict[str, Any]:
                      {"rules": None, "context_builder": None,
                       "on_error": "record", "context_args": None}, id="validate"),
         pytest.param(rep.build_report,
-                     {"key_column": None, "extra_columns": None,
-                      "include": "failures"}, id="build_report"),
+                     {"key_column": None, "add_columns": None,
+                      "include": "failures", "drop_columns": None},
+                     id="build_report"),
         pytest.param(rep.render_report,
                      {"fmt": "table", "wrap_width": 48}, id="render_report"),
         pytest.param(rep.write_report,

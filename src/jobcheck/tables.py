@@ -6,7 +6,7 @@ library would be a runtime dependency for formatting alone.
 A leading underscore here marks a name outside the package's *public surface*,
 not one that stays in this file. `_format_cell` and `_reject_unknown_columns` are
 imported by `report.py`, `rules.py` and `registry_tables.py`, and are meant to
-be: they are how three tables render a cell and reject an unknown extra column
+be: they are how three tables render a cell and reject an unknown column name
 the same way. `_print_title` is imported by both table modules for the same reason.
 `_cell_lines`, `_padded_line` and `_LINE_BREAKS` are internal to the file as well,
 and nothing outside it should reach for them. The two names
@@ -16,7 +16,7 @@ without an underscore, `is_null` and `format_table`, are exported from
 The underscore stays on the shared two rather than coming off. Dropping it would
 put them in `__all__` -- `tests/test_api_contract.py` fails on a public callable
 that is not exported -- and `_reject_unknown_columns`, which exists to reject a bad
-`extra_columns=` argument, has no use for a caller outside those three tables.
+`add_columns=` argument, has no use for a caller outside those three tables.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ def _format_cell(value: Any, missing: str = "") -> str:
 
 
 def _reject_unknown_columns(requested: list[str], available: list[str], subject: str) -> None:
-    """Reject `extra_columns` names that are not on offer, or asked for twice.
+    """Reject `add_columns` names that are not on offer, or asked for twice.
 
     Shared by every table that takes the argument, so one mistake is reported the
     same way whichever table it was made against. A name quietly dropped is a
@@ -69,9 +69,34 @@ def _reject_unknown_columns(requested: list[str], available: list[str], subject:
     )
     if unusable:
         raise ValueError(
-            f"extra_columns {unusable} cannot be used for {subject}. Each name must be "
+            f"add_columns {unusable} cannot be used for {subject}. Each name must be "
             f"asked for once and be one of: {', '.join(available) or '(none available)'}."
         )
+
+
+def _keep_columns(base: list[str], drop_columns: list[str] | None, subject: str) -> list[str]:
+    """`base` without the names `drop_columns` asks to remove.
+
+    The inverse of `add_columns`, and validated the same way: a name that is not
+    there, or asked for twice, is refused rather than ignored, because a caller
+    dropping `comment` and getting `comments` anyway would read the table as
+    proof the column is empty.
+
+    Only the table's own columns can be dropped. Dropping one that `add_columns`
+    put there is spelled by not adding it, and a caller who does both has said two
+    things about one column.
+    """
+
+    requested = list(drop_columns or [])
+    unusable = sorted(
+        {name for name in requested if name not in base or requested.count(name) > 1}
+    )
+    if unusable:
+        raise ValueError(
+            f"drop_columns {unusable} cannot be used for {subject}. Each name must be "
+            f"asked for once and be one of: {', '.join(base) or '(none to drop)'}."
+        )
+    return [name for name in base if name not in requested]
 
 
 # The breaks a terminal acts on. Not `str.splitlines`, which also splits on

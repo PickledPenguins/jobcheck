@@ -134,7 +134,7 @@ imported by `report.py`, `rules.py` and `registry_tables.py`, while `is_null` an
 `format_table` sit in the same file without one and are exported. Dropping the underscore
 was rejected: `tests/test_api_contract.py` fails on a public callable that is not in
 `__all__`, so the rename forces both into the public surface, and `_reject_unknown_columns`
-exists to reject a bad `extra_columns=` argument -- there is no use for it outside the three
+exists to reject a bad `add_columns=` argument -- there is no use for it outside the three
 tables that take one, which makes it exactly the kind of export that has to be removed
 again later. Keeping a public-looking name deliberately out of `__all__` is worse still: a
 second rule to learn, and an exception to explain in the contract test. What was wrong was
@@ -356,7 +356,7 @@ recursive version.
 
 **A cell's own line breaks corrupting the bordered table (was F.7).** Fixed 2026-09-22.
 `_cell_lines` returned `str(value)` unchanged for a column with no wrap width, so a row
-key or an `extra_columns` value holding a newline emitted its own line break and slid
+key or an `add_columns` value holding a newline emitted its own line break and slid
 every column after it — a quoted multi-line CSV field is the ordinary way one arrives,
 and `read_csv` accepts those. It now splits on `\r\n`, `\r`, `\n` and `\f` and expands
 tabs (`len()` counts one character where a terminal draws eight), in the wrapped branch

@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 695 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 710 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 253 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 948 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 963 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -214,7 +214,7 @@ fix in the review report of the same date.
 
 The earlier runs, for the shape of what a survivor tends to be. The 2026-09-11 run at
 `9fe2207` scored 89.5%; its first pass scored 87.9%, and 20 of the survivors were the new
-`extra_columns` selection on the registry tables, where no test asked a table for
+`add_columns` selection on the registry tables, where no test asked a table for
 `source_file` and read it back, and the report's "(none available)" message for a
 frame with nothing left to offer. Both are covered now. The four extra survivors in `rules` are the
 wording of the new `message` and bare-string-path errors — the same gap the 2026-09-21
