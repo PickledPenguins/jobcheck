@@ -61,22 +61,6 @@ a design call the owner has not made. The reviews' own fixes to the same commit 
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
 
-**F.24 — the enabled-state lookup carries a fallback nothing explains.** `engine.py`'s
-per-row loop reads each check's state with a dict `get` and a default, but the dict is
-built from the same registry list the loop walks, in the same call, so the default cannot
-fire unless the cached evaluation order is stale with respect to the registry — the exact
-state the cache invalidation exists to prevent. A `get` default is not a branch, so the
-100% branch figure does not cover it, and no test reaches it. Gain: either the reader
-learns in one line what the fallback guards, or the guard goes and a stale cache raises
-where it happens instead of silently running a check under its declared default. Loss if
-the default is dropped: a stale cache becomes a `KeyError` from inside the row loop rather
-than a quietly wrong-but-plausible run. That is the right trade for a library that refuses
-to guess elsewhere — but it converts a silent state into a crash, which is a behavior change
-and needs the owner's word. 1 line either way; ~15 test lines if the raise is asserted.
-Priority: low. Blast radius: the per-row loop, which is every validation. Recommendation:
-drop the default and index directly, with a test that a stale cache raises. The silent path
-is the one this project would not accept anywhere else.
-
 **F.25 — `print_report` returns nothing while its four siblings return their frame.**
 `registry_tables.py`'s module docstring states the convention — every function returns the
 DataFrame it prints, so a caller can take the data without the output — and
@@ -121,6 +105,32 @@ is worth less than the rule. ~20 test lines. Priority: low. Blast radius: the fa
 false positive blocks a commit. Recommendation: add it for `src/` and `examples/` only,
 where the rule is actually claimed, and leave `tests/` and `scripts/` out rather than
 writing an exception list.
+
+**F.28 — `CHECKS` is an exported mutable list.** `jobcheck.CHECKS` is the registry itself,
+exported from `__init__.py` and documented as the center of the design
+(`architecture.md`). Nothing stops a caller appending to it, popping from it, sorting it or
+clearing it, and none of those routes drops the cached evaluation order the way
+`register_check` and `clear_registry` do. That is what made F.24 reachable: `CHECKS.pop()`
+left the order naming a check the registry no longer had, and until 2026-09-23 the row loop
+ran it anyway under its declared default. The guard added then turns that into a `ValueError`
+naming the cause, so the symptom is loud -- but a caller can still desynchronize the two, and
+a caller who sorts `CHECKS` in place gets an order that silently contradicts the dependency
+graph until something invalidates the cache.
+
+What a fix would be: return a copy from a `checks` function and drop the list from
+`__all__`, or keep the name and make it a read-only view (a `tuple`, or a sequence proxy).
+Gain: the registry can only be changed through the three functions that maintain its
+invariants. Loss: `CHECKS` is in `docs/architecture.md`, `docs/interfaces.md` and the README
+as a name a reader looks at, and `tests/` reads it in 24 files -- a copy per read costs an
+allocation in code that is sometimes per row, and a tuple means `clear_registry` and
+`register_check` rebind a module global rather than mutating in place, which every `from
+jobcheck import CHECKS` then misses. That last point is the real cost: rebinding breaks
+importers silently, in the same way the module cache does, so the change is either a
+function or nothing. ~20 source lines, ~30 test lines touched across 24 files, plus three
+documents. Priority: low -- with the F.24 guards in place nothing is silently wrong any
+more, only reachable. Blast radius: the public API, the docs that name it, and every test
+that reads the registry. Recommendation: not now. Revisit if a second silent
+desynchronization turns up; the guards are the cheap half and they are in.
 
 ## Considered and deliberately not done
 

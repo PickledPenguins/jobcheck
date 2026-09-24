@@ -221,6 +221,13 @@ not a result always raises — that is an authoring bug, not a data problem.
 Raises `ValueError` when the row has duplicate column labels, before running
 anything.
 
+Also raises `ValueError` when the cached evaluation order and the registry hold
+different checks, naming the check and the likely cause. Every route the package
+offers drops the cache, so this needs a caller who edited `CHECKS` — which is
+exported and mutable — or the cache itself. It used to run the check under its
+declared default instead, and the report then said `disabled by default` about a
+check that was no longer registered.
+
 A `context` of `None` — the default — becomes an empty `RowContext`, so a check
 taking `(row, context)` is handed the same type here, in `validate_row` and in
 `validate`.
