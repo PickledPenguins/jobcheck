@@ -531,6 +531,68 @@ def test_a_written_report_escapes_formulas_by_default(fresh_registry: None,
     assert "'=SUM(A1:A9)" in path.read_text(encoding="utf-8")
 
 
+def test_a_rejected_format_leaves_the_existing_file_alone(fresh_registry: None,
+                                                          tmp_path: Path) -> None:
+    """Regression: the file was opened -- and so truncated -- before the render
+    that decides whether there is anything to write, so a rejected fmt replaced
+    last night's report with nothing."""
+
+    path = tmp_path / "report.csv"
+    path.write_text("the previous report\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=r"fmt must be 'table' or 'csv'"):
+        rep.write_report(one_row_report(), str(path), fmt="nope")
+    assert path.read_text(encoding="utf-8") == "the previous report\n"
+
+
+def test_a_rejected_format_creates_no_file_at_all(fresh_registry: None,
+                                                  tmp_path: Path) -> None:
+    path = tmp_path / "report.csv"
+    with pytest.raises(ValueError):
+        rep.write_report(one_row_report(), str(path), fmt="nope")
+    assert not path.exists()
+
+
+def test_a_formula_column_name_is_escaped_in_the_csv_header(fresh_registry: None) -> None:
+    """Regression: only the cells were escaped. An add_columns name comes from
+    the data's own columns, so a frame column called `=...` wrote that formula
+    into the header row, where a spreadsheet runs it exactly as it would a cell."""
+
+    make_check("CELL", passes=False)
+    frame = pd.DataFrame([{"id": 1, "=SUM(A1:A9)": "x"}])
+    report = rep.build_report(validate(frame), df=frame, key_column="id",
+                              add_columns=["=SUM(A1:A9)"])
+    header = rep.render_report(report, fmt="csv").splitlines()[0]
+    assert "'=SUM(A1:A9)" in header
+    assert ",=SUM(A1:A9)," not in header
+
+
+def test_escaping_the_header_does_not_rename_the_caller_s_report(
+    fresh_registry: None,
+) -> None:
+    """The escape happens on the way out: the frame the caller still holds keeps
+    the column name it asked for."""
+
+    make_check("CELL", passes=False)
+    frame = pd.DataFrame([{"id": 1, "=SUM(A1:A9)": "x"}])
+    report = rep.build_report(validate(frame), df=frame, key_column="id",
+                              add_columns=["=SUM(A1:A9)"])
+    rep.render_report(report, fmt="csv")
+    assert "=SUM(A1:A9)" in list(report.columns)
+
+
+def test_print_summary_reads_a_generator_once_and_still_finds_the_root_causes(
+    two_layers: None, capsys: Any,
+) -> None:
+    """Regression: the outcomes were walked twice -- once for the table, once for
+    the causes -- so a generator was spent by the second walk and the tally read
+    "every row passed" under a table of failures."""
+
+    rep.print_summary((row for row in outcomes()), title=False)
+    printed = capsys.readouterr().out
+    assert "Root cause of each failing row:" in printed
+    assert "every row passed" not in printed
+
+
 def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> None:
     """A caller building a frame from several explanations needs the shape even
     when one row explained nothing."""

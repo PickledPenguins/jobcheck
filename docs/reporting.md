@@ -139,7 +139,9 @@ broken check, not bad data.
 Comments carry values that came from the data, and a spreadsheet runs any cell
 starting with `=`, `+`, `@`, a tab or a carriage return as a formula. CSV output
 therefore prefixes such a cell with an apostrophe, which makes it display as
-text — the standard neutralizer. A negative number keeps its minus sign.
+text — the standard neutralizer. A negative number keeps its minus sign. Column
+*headings* are neutralized the same way: an `add_columns` name is one of the
+data's own column names, so it can carry a formula as easily as a value can.
 
 Nothing is escaped in the table view, which cannot execute anything, and the
 outcomes themselves always hold the value the check actually saw. There is no
@@ -225,6 +227,8 @@ write_report(report, "report.txt", fmt="table")
 cell in a notebook — is the caller's choice. `fmt` is validated: anything but
 `table` or `csv` raises, and so does a `wrap_width` of zero or less — there is no
 spelling of "do not wrap", since a column no wider than its heading is unreadable.
+`write_report` renders before it opens the file, so a rejected `fmt` leaves the
+file that is already there untouched rather than truncating it to nothing.
 
 ## What to include
 

@@ -145,10 +145,21 @@ def format_table(table: pd.DataFrame, wrap_columns: dict[str, int] | None = None
     cell in it has been wrapped.
     """
 
+    # Argued before the empty frame is answered, so a bad width is refused whether
+    # or not there is anything to wrap. textwrap refuses a width below 1 with a
+    # message naming neither the column nor this function, and there is no spelling
+    # of "do not wrap": leave the column out of wrap_columns instead.
+    # render_report guards its own width the same way.
+    wrap = wrap_columns or {}
+    unusable = sorted(name for name, width in wrap.items() if width <= 0)
+    if unusable:
+        raise ValueError(
+            f"wrap_columns width for {unusable} must be greater than 0. Leave a column "
+            "out of wrap_columns rather than asking for a width of zero.")
+
     if table.empty:
         return "(empty)"
 
-    wrap = wrap_columns or {}
     headers = [str(column) for column in table.columns]
 
     # First pass: wrap every cell. rows[r][c] is the list of lines that column c

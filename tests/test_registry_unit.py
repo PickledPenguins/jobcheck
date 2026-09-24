@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import sys
 from typing import Any
 
@@ -54,6 +55,39 @@ def test_duplicate_code_raises_naming_the_code(fresh_registry: None) -> None:
 def test_source_file_points_at_the_defining_file(example_checks: None) -> None:
     check = next(t for t in reg._CHECKS if t.code == "AGE_NEGATIVE")
     assert check.source_file.endswith("examples/checks/check_age.py")
+
+
+def test_a_partial_registers_and_is_named_by_its_own_kind(fresh_registry: None) -> None:
+    """Regression: `fn.__name__` was reached for before any of the library's own
+    messages, so a functools.partial -- the obvious way to write a parameterized
+    check factory -- died with a bare AttributeError naming nothing."""
+
+    def above(limit: int, row: "pd.Series[Any]") -> Verdict:
+        return Verdict(Status.INVALID) if row["age"] > limit else OK
+
+    reg.register_check(code="AGE_ABOVE", message="m")(functools.partial(above, 130))
+    registered = reg._CHECKS[0]
+    assert registered.code == "AGE_ABOVE"
+    assert registered.source_file == "<unknown>"
+    assert engine.validate_row(pd.Series({"age": 200}))[0].code == "AGE_ABOVE"
+
+
+def test_a_callable_object_of_the_wrong_shape_is_refused_with_a_message(
+    fresh_registry: None,
+) -> None:
+    """The same name lookup, on the path that rejects: the message has to name
+    something, and a callable object has no __name__ either."""
+
+    class TooManyArguments:
+        def __call__(self, row: Any, context: Any, extra: Any) -> Verdict:
+            return OK
+
+    with pytest.raises(ValueError) as raised:
+        reg.register_check(code="OBJ", message="m")(TooManyArguments())
+    assert str(raised.value) == (
+        "Check 'OBJ': TooManyArguments(row: 'Any', context: 'Any', extra: 'Any') "
+        "-> 'Verdict' must take (row) or (row, context), not 3 positional argument(s)."
+    )
 
 
 def test_a_check_defined_by_exec_registers(fresh_registry: None) -> None:

@@ -79,12 +79,15 @@ def get_registry_table(add_columns: list[str] | None = None,
             "source_file": check.source_file,
         })
 
-    # Columns are passed explicitly so an empty registry still yields a frame
-    # with columns to sort by; pd.DataFrame([]) has none and sort_values raises.
+    # Built with every column, sorted, and only then narrowed to the ones asked
+    # for: `layer` and `code` are what the sort reads, and `drop_columns` is
+    # allowed to take either out. Columns are passed explicitly so an empty
+    # registry still yields a frame with columns to sort by; pd.DataFrame([])
+    # has none and sort_values raises.
     return (
-        pd.DataFrame(rows, columns=columns)
+        pd.DataFrame(rows, columns=[*REGISTRY_BASE_COLUMNS, *CHECK_OPTIONAL_COLUMNS])
         .sort_values(["layer", "code"])
-        .reset_index(drop=True)
+        .reset_index(drop=True)[columns]
     )
 
 

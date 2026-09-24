@@ -124,6 +124,13 @@ def explain_row(
 
     if on_error not in ("record", "raise"):
         raise ValueError(f"on_error must be 'record' or 'raise', got {on_error!r}.")
+    # Named before it is used: a dict reaches `.index` and dies on `.has_duplicates`,
+    # and a list has an `.index` method, so the failure names a bound method rather
+    # than the argument. `validate` guards its own frame the same way.
+    if not isinstance(row, pd.Series):
+        raise TypeError(
+            f"A row must be a pandas Series -- one row of a DataFrame -- got "
+            f"{type(row).__name__}; for a whole frame, call validate.")
     if row.index.has_duplicates:
         duplicated = sorted({str(label) for label in row.index[row.index.duplicated()]})
         raise ValueError(
