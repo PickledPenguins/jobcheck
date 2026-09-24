@@ -1,7 +1,7 @@
 """Row-validation framework.
 
 Importing this package registers **no** checks: an entry point calls
-`load_checks` with the files it wants, and `load_overrides` with the rule files
+`load_checks` with the files it wants, and `load_rules` with the rule files
 that switch individual checks off for chosen rows.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 __version__ = "0.2.0"
 """Pre-1.0: the API may change between versions. Check codes, status values and
-the override YAML schema are permanent -- data written against them outlives the
+the rule YAML schema are permanent -- data written against them outlives the
 code."""
 
 from .context import RowContext
@@ -17,10 +17,10 @@ from .registry import (
     CHECKS,
     Check,
     MatchCriterion,
-    OverrideRule,
+    Rule,
     clear_registry,
     load_checks,
-    load_overrides,
+    load_rules,
     loaded_check_files,
     register_check,
     validate_registry,
@@ -35,10 +35,10 @@ from .engine import (
 from .registry_tables import (
     get_registry_table,
     list_rule_codes,
-    print_override_rules,
+    print_rules,
     print_registry,
 )
-from .rules import check_override_columns, check_shadowed_rules
+from .rules import check_rule_columns, check_shadowed_rules
 from .report import (
     build_report,
     escape_for_spreadsheet,
@@ -76,15 +76,14 @@ __all__ = [
     "ERRORED",
     "FAILED",
     "MatchCriterion",
-    "OverrideRule",
     "PASS",
     "PASSED",
     "RowContext",
+    "Rule",
     "SKIPPED",
     "Status",
-    "__version__",
     "build_report",
-    "check_override_columns",
+    "check_rule_columns",
     "check_shadowed_rules",
     "clear_registry",
     "escape_for_spreadsheet",
@@ -94,13 +93,13 @@ __all__ = [
     "is_null",
     "list_rule_codes",
     "load_checks",
-    "load_overrides",
+    "load_rules",
     "loaded_check_files",
     "normalize_result",
-    "print_override_rules",
     "print_registry",
     "print_report",
     "print_row_explanation",
+    "print_rules",
     "print_summary",
     "register_check",
     "render_comments",
@@ -114,5 +113,6 @@ __all__ = [
     "validate",
     "validate_registry",
     "validate_row",
+    "__version__",
     "write_report",
 ]

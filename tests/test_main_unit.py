@@ -49,7 +49,7 @@ def test_the_default_run_prints_the_registry_and_the_report(fresh_registry: None
 
 def test_the_loaded_line_counts_the_rules_it_read(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys)
-    assert "Loaded 3 override rule(s) from 1 file(s)" in out
+    assert "Loaded 3 rule(s) from 1 file(s)" in out
 
 
 def test_summary_adds_the_per_check_counts(fresh_registry: None, capsys: Any) -> None:
@@ -133,7 +133,7 @@ def test_a_rule_naming_a_column_the_data_lacks_warns_on_stderr(fresh_registry: N
 
 def test_rules_with_no_paths_loads_none(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys, "--rules")
-    assert "Loaded 0 override rule(s) from 0 file(s)" in out
+    assert "Loaded 0 rule(s) from 0 file(s)" in out
     # Row 4 is qa@internal.test, whose email checks the default rule file
     # switches off; with no rules the demo frame fails nothing for it either,
     # so the difference that shows is the registry's rule column being absent.
@@ -151,7 +151,7 @@ def test_the_rules_table_prints_one_row_per_rule_not_per_code(fresh_registry: No
     codes is two lines there and one line here."""
 
     out = run(capsys, "--rules-table")
-    rules = out.split("== Override rules ==")[1].split("== Registry ==")[0]
+    rules = out.split("== Rules ==")[1].split("== Registry ==")[0]
     assert "codes_hit_count" in rules
     assert rules.count("suppress_email_checks_for_test_accounts") == 1
     # The same rule, twice in the registry table: once per code it can reach.
@@ -162,7 +162,7 @@ def test_the_rules_table_prints_one_row_per_rule_not_per_code(fresh_registry: No
 def test_the_rules_table_is_empty_when_no_rules_were_loaded(fresh_registry: None,
                                                             capsys: Any) -> None:
     out = run(capsys, "--rules-table", "--rules")
-    rules = out.split("== Override rules ==")[1].split("== Registry ==")[0]
+    rules = out.split("== Rules ==")[1].split("== Registry ==")[0]
     assert "enable_legacy_integer_check" not in rules
 
 

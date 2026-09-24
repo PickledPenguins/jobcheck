@@ -82,13 +82,13 @@ def test_summarizing_has_not_got_slower(example_checks: None) -> None:
 def test_resolving_many_rules_has_not_got_slower(fresh_registry: None, tmp_path: Path) -> None:
     for index in range(50):
         make_check(f"CODE_{index}")
-    rules = "\n".join(
+    text = "\n".join(
         f"- name: rule_{index}\n  message: \"why the rule exists\"\n  action: disable\n  codes: [CODE_{index}]\n"
         f"  match:\n    - column: email\n      pattern: '^no'"
         for index in range(50)
     )
     path = tmp_path / "rules.yaml"
-    path.write_text(rules)
-    overrides = reg.load_overrides([str(path)])
+    path.write_text(text)
+    rules = reg.load_rules([str(path)])
     df = frame(1_000)
-    gate("validate/1000-rows-50-rules", lambda: validate(df, overrides=overrides))
+    gate("validate/1000-rows-50-rules", lambda: validate(df, rules=rules))

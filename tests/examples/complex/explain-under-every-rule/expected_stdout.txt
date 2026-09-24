@@ -1,4 +1,4 @@
-Loaded 6 override rule(s) from 4 file(s)
+Loaded 6 rule(s) from 4 file(s)
 
 == Row 1999 ==
 layer | code                 | outcome  | status   | detail                                            

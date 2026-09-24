@@ -1,4 +1,4 @@
-"""Override rules: the YAML format that switches checks on and off per row.
+"""Rules: the YAML format that switches checks on and off per row.
 
 Nothing here knows how a check is registered or evaluated -- the loaders are
 handed the codes that exist, so this module never reaches into the registry.
@@ -27,7 +27,7 @@ RULE_KEYS = {"name", "action", "codes", "match", "message"}
 
 @dataclass
 class MatchCriterion:
-    """One ``{column, pattern}`` filter inside an override rule's ``match``."""
+    """One ``{column, pattern}`` filter inside a rule's ``match``."""
 
     column: str
     pattern: str
@@ -35,7 +35,7 @@ class MatchCriterion:
 
 
 @dataclass
-class OverrideRule:
+class Rule:
     """A non-developer instruction to enable or disable codes for matching rows.
 
     `match_all` is a flag rather than "empty criteria list" so an accidentally
@@ -102,7 +102,7 @@ def parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[MatchC
     return criteria, False
 
 
-def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRule:
+def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
     """Validate and build one rule, failing at load time rather than part-way
     through a long run.
 
@@ -139,7 +139,7 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRul
         if code not in known_codes:
             raise ValueError(
                 f"rule {name!r} in {source_file}: unknown code {code!r}. "
-                "Load the check file that defines it before loading overrides, or fix the code."
+                "Load the check file that defines it before loading rules, or fix the code."
             )
 
     criteria, match_all = parse_match(raw.get("match"), name, source_file)
@@ -150,7 +150,7 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRul
             "rule exists. It is printed beside the rule wherever the rules are listed."
         )
 
-    return OverrideRule(
+    return Rule(
         name=name,
         action=action,
         codes=list(codes),
@@ -162,7 +162,7 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> OverrideRul
 
 
 def parse_file(path: str, known_codes: set[str],
-               base_dir: str | Path | None = None) -> list[OverrideRule]:
+               base_dir: str | Path | None = None) -> list[Rule]:
     """Parse one YAML file into rules. The file is a flat top-level list.
 
     The rules record the path as the caller wrote it, relative or not: it is
@@ -170,21 +170,21 @@ def parse_file(path: str, known_codes: set[str],
     there would be this machine's, not the one the caller would recognize.
     """
 
-    with open(resolve_input_file(path, "override file", "load_overrides()", base_dir),
+    with open(resolve_input_file(path, "rule file", "load_rules()", base_dir),
               "r", encoding="utf-8") as handle:
         raw = yaml.safe_load(handle)
     if raw is None:
         return []
     if not isinstance(raw, list):
         raise ValueError(
-            f"{path}: override files must contain a flat top-level list of rules "
+            f"{path}: rule files must contain a flat top-level list of rules "
             f"(no 'rules:' key), got {type(raw).__name__}."
         )
     return [parse_rule(entry, path, known_codes) for entry in raw]
 
 
-def load_overrides(paths: list[str], known_codes: set[str],
-                   base_dir: str | Path | None = None) -> list[OverrideRule]:
+def load_rules(paths: list[str], known_codes: set[str],
+                   base_dir: str | Path | None = None) -> list[Rule]:
     """Parse the named YAML files into rules, in the order given, which is also
     their precedence: for a given row, the last matching rule wins.
 
@@ -195,16 +195,16 @@ def load_overrides(paths: list[str], known_codes: set[str],
 
     if isinstance(paths, str):
         raise TypeError(
-            f"load_overrides takes a list of paths, not one string: pass [{paths!r}]. "
+            f"load_rules takes a list of paths, not one string: pass [{paths!r}]. "
             "A bare string would be read as a list of its characters."
         )
     seen: dict[str, str] = {}
-    loaded: list[OverrideRule] = []
+    loaded: list[Rule] = []
     for path in list(paths):
         for rule in parse_file(path, known_codes, base_dir):
             if rule.name in seen:
                 raise ValueError(
-                    f"Duplicate override rule name {rule.name!r}: defined in "
+                    f"Duplicate rule name {rule.name!r}: defined in "
                     f"{seen[rule.name]} and again in {rule.source_file}."
                 )
             seen[rule.name] = rule.source_file
@@ -224,7 +224,7 @@ def cell_text(row: "pd.Series[Any]", column: str) -> str | None:
     return _format_cell(value)
 
 
-def rule_matches(rule: OverrideRule, row: "pd.Series[Any]") -> bool:
+def rule_matches(rule: Rule, row: "pd.Series[Any]") -> bool:
     """Whether every criterion of *rule* matches *row* (AND semantics).
 
     An absent or null value cannot satisfy a pattern, so it does not match.
@@ -239,8 +239,8 @@ def rule_matches(rule: OverrideRule, row: "pd.Series[Any]") -> bool:
     return True
 
 
-def check_override_columns(df: pd.DataFrame, overrides: list[OverrideRule]) -> list[str]:
-    """Warn about columns an override rule matches on that the data lacks.
+def check_rule_columns(df: pd.DataFrame, rules: list[Rule]) -> list[str]:
+    """Warn about columns a rule matches on that the data lacks.
 
     A criterion naming a column that is not there never matches, so the rule
     silently never applies, and the loader cannot catch it because it has no data
@@ -251,7 +251,7 @@ def check_override_columns(df: pd.DataFrame, overrides: list[OverrideRule]) -> l
 
     present = set(df.columns)
     warnings: list[str] = []
-    for rule in overrides:
+    for rule in rules:
         for criterion in rule.criteria:
             if criterion.column not in present:
                 warnings.append(
@@ -261,7 +261,7 @@ def check_override_columns(df: pd.DataFrame, overrides: list[OverrideRule]) -> l
     return warnings
 
 
-def check_shadowed_rules(overrides: list[OverrideRule]) -> list[str]:
+def check_shadowed_rules(rules: list[Rule]) -> list[str]:
     """Warn about rules a later rule overrules for every row.
 
     Precedence is positional and the last matching rule wins, so a rule that
@@ -279,18 +279,18 @@ def check_shadowed_rules(overrides: list[OverrideRule]) -> list[str]:
 
     Per code rather than per rule, because a rule carrying several codes can be
     overruled for one and decisive for another. Warns rather than raises: shipping
-    a shadowed rule can be deliberate, and `examples/rules/error_overrides.yaml`
+    a shadowed rule can be deliberate, and `examples/rules/error_rules.yaml`
     does it on purpose to demonstrate precedence.
     """
 
     warnings: list[str] = []
     seen: list[str] = []
-    for rule in overrides:
+    for rule in rules:
         for code in rule.codes:
             if code not in seen:
                 seen.append(code)
     for code in seen:
-        touching = [rule for rule in overrides if code in rule.codes]
+        touching = [rule for rule in rules if code in rule.codes]
         unconditional = [index for index, rule in enumerate(touching) if rule.match_all]
         if not unconditional:
             continue

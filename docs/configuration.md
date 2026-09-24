@@ -1,6 +1,6 @@
-# Configuration: override rule files
+# Configuration: rule files
 
-The only configuration this project has is the override YAML. There are no environment
+The only configuration this project has is the rule YAML. There are no environment
 variables and no settings file: check files and rule paths are chosen by the entry point, on
 the command line or in code.
 
@@ -9,13 +9,13 @@ call names — an entry point passes the directory its own files sit in, a wrapp
 the directory of the configuration the paths were read from. Nothing is searched for: a
 path that is not a file is an error naming the absolute path that was tried.
 
-Override rules let a non-developer enable a normally-off code, or disable a normally-on
+Rules let a non-developer enable a normally-off code, or disable a normally-on
 code, **for specific rows**, without touching Python. They cannot define new checks,
 change a message, or alter what a check does.
 
 Back to the [README](../README.md). Checks themselves are written in
 [Python](writing-checks.md); the Python loaders are in
-[interfaces.md](interfaces.md#loading-override-rules).
+[interfaces.md](interfaces.md#loading-rules).
 
 ## File shape
 
@@ -53,7 +53,7 @@ write code.
   match: all
 ```
 
-That is `examples/rules/error_overrides.yaml` in the project root, verbatim. The same rules split across
+That is `examples/rules/error_rules.yaml` in the project root, verbatim. The same rules split across
 files live in `examples/rules/split_by_topic/` and `examples/rules/from_another_directory/`.
 
 ## Keys
@@ -64,7 +64,7 @@ files live in `examples/rules/split_by_topic/` and `examples/rules/from_another_
 | `action` | yes | `enable` or `disable` | Exactly one of the two literals; anything else is an error. |
 | `codes` | yes | non-empty list of strings | The codes the rule switches. Every code must already be registered when the file loads. |
 | `match` | yes | list of criteria, or the literal `all` | Which rows the rule applies to. See below. |
-| `message` | yes | string | Why the rule exists, in your words. Printed beside the rule by `print_override_rules`, so somebody deciding whether it still applies can read it. |
+| `message` | yes | string | Why the rule exists, in your words. Printed beside the rule by `print_rules`, so somebody deciding whether it still applies can read it. |
 
 There are no other keys. An unrecognized key is rejected, naming the rule and listing what
 is allowed: in a file edited by hand, a key that is silently ignored is a setting that
@@ -135,12 +135,12 @@ configuration:
 | Loader | Order |
 |---|---|
 | one file | position in the file |
-| `load_overrides(paths)` / `--rules` | the order the paths are given |
+| `load_rules(paths)` / `--rules` | the order the paths are given |
 
 With directory loading, filenames carry precedence: name files `01_x.yaml`, `02_y.yaml`
 when the ordering between them matters.
 
-In `examples/rules/error_overrides.yaml` the third rule (`match: all`, disable) is listed after the first
+In `examples/rules/error_rules.yaml` the third rule (`match: all`, disable) is listed after the first
 (enable for legacy batch rows) and therefore wins on every row, including legacy batch
 rows — that is the precedence demonstration, not a mistake.
 
@@ -172,9 +172,9 @@ the file it came from.
 | criterion missing a key | `'match' entry {'column': 'email'} needs both 'column' and 'pattern'.` |
 | bad regex | `invalid regex '([unclosed' for column 'email': unterminated character set at position 1` |
 | bad action | `'action' must be exactly 'enable' or 'disable', got 'turn_on'.` |
-| unknown code | `unknown code 'NO_SUCH_CODE'. Load the check file that defines it before loading overrides, or fix the code.` |
-| duplicate name | `Duplicate override rule name 'same_name': defined in a.yaml and again in b.yaml.` |
-| nested under a key | `override files must contain a flat top-level list of rules (no 'rules:' key), got dict.` |
+| unknown code | `unknown code 'NO_SUCH_CODE'. Load the check file that defines it before loading rules, or fix the code.` |
+| duplicate name | `Duplicate rule name 'same_name': defined in a.yaml and again in b.yaml.` |
+| nested under a key | `rule files must contain a flat top-level list of rules (no 'rules:' key), got dict.` |
 | misspelled key | `unknown key(s) codez. Allowed: action, codes, match, message, name.` |
 
 An "unknown code" that you know exists usually means its check file was not loaded by this
@@ -184,4 +184,4 @@ entry point — see [writing-checks.md](writing-checks.md#troubleshooting).
 
 Rule files are matching patterns and code names only. Nothing in the format is a
 credential, and none should be put there: patterns are echoed verbatim into the
-`print_override_rules` table.
+`print_rules` table.

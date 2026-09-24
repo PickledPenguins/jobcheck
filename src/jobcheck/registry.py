@@ -19,10 +19,10 @@ import pandas as pd
 from .context import RowContext
 from .paths import resolve_input_file
 from . import rules
-# MatchCriterion and OverrideRule are re-exported from here for
+# MatchCriterion and Rule are re-exported from here for
 # __init__.py, which imports the public rule types from the registry
 # rather than reaching into .rules directly.
-from .rules import MatchCriterion, OverrideRule
+from .rules import MatchCriterion, Rule
 
 # What an author writes: (row) or (row, context), returning PASS or a
 # CheckResult. The engine stores the normalized two-argument form.
@@ -411,11 +411,11 @@ def _get_topo_order() -> list[Check]:
     return order
 
 
-def load_overrides(paths: list[str],
-                   base_dir: str | Path | None = None) -> list[OverrideRule]:
-    """Load override rules from the named YAML files, in precedence order. Load
+def load_rules(paths: list[str],
+                   base_dir: str | Path | None = None) -> list[Rule]:
+    """Load rules from the named YAML files, in precedence order. Load
     the check files first: a rule naming an unregistered code is an error.
 
     *base_dir* anchors relative paths exactly as it does in `load_checks`."""
 
-    return rules.load_overrides(paths, {check.code for check in CHECKS}, base_dir)
+    return rules.load_rules(paths, {check.code for check in CHECKS}, base_dir)

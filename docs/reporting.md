@@ -14,7 +14,7 @@ Back to the [README](../README.md). The value types are in
 from jobcheck import build_report, load_checks, print_report, validate
 
 load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
-outcomes = validate(df, overrides=overrides)
+outcomes = validate(df, rules=rules)
 report = build_report(outcomes, df=df, key_column="id")
 print_report(report)                       # or render_report / write_report
 ```
@@ -91,7 +91,7 @@ overwriting the report's own data.
 ```python
 from jobcheck import explain_row, print_row_explanation
 
-print_row_explanation(explain_row(row, overrides=overrides), include="blocked")
+print_row_explanation(explain_row(row, rules=rules), include="blocked")
 ```
 
 For a row with no age, against the shipped age checks and no rules:

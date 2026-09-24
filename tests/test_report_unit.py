@@ -63,10 +63,10 @@ def test_validate_returns_one_list_per_row(two_layers: None) -> None:
     assert [o.code for o in collected[0]] == ["AGE_PRESENT", "AGE_IN_RANGE"]
 
 
-def test_validate_passes_overrides_through(two_layers: None) -> None:
-    rule = reg.OverrideRule(name="off", action="disable", codes=["AGE_IN_RANGE"],
+def test_validate_passes_rules_through(two_layers: None) -> None:
+    rule = reg.Rule(name="off", action="disable", codes=["AGE_IN_RANGE"],
                             criteria=[], match_all=True, message="why the rule exists")
-    collected = validate(FRAME, overrides=[rule])
+    collected = validate(FRAME, rules=[rule])
     assert {o.outcome for row in collected for o in row if o.code == "AGE_IN_RANGE"} == {"disabled"}
 
 

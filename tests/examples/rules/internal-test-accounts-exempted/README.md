@@ -4,7 +4,7 @@ One rule, on its own, applied to a real export: the rows it exempts simply stop 
 reported. Row 1018's address is `load-test@@internal.test`, two `@` signs, so
 `EMAIL_MISSING_AT` fails on it — and the rule matching `@internal\.test$` switches that
 check off for the row. The email rule file is used rather than the shipped
-`error_overrides.yaml` so that the exemption is the only thing in force: diff this output
+`error_rules.yaml` so that the exemption is the only thing in force: diff this output
 against `data/no-rules-at-all`, which runs the same file with `--rules` and no paths, and
 row 1018's failure is the one line that differs.
 

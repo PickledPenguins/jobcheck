@@ -258,10 +258,10 @@ def test_the_scope_limits_the_readme_states_hold(fresh_registry: None) -> None:
 
 
 def test_rule_files_can_only_switch_existing_codes(fresh_registry: None, tmp_path: Any) -> None:
-    """"the override rule files can only switch existing checks on or off ...
+    """"the rule files can only switch existing checks on or off ...
     never define new ones"."""
 
-    from jobcheck import load_overrides, load_checks
+    from jobcheck import load_rules, load_checks
 
     assert "they cannot define new ones" in readme_text()
     load_checks(EXAMPLE_CHECK_FILES)
@@ -271,7 +271,7 @@ def test_rule_files_can_only_switch_existing_codes(fresh_registry: None, tmp_pat
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="unknown code 'BRAND_NEW_CODE'"):
-        load_overrides([str(path)])
+        load_rules([str(path)])
 
 
 def test_the_check_files_the_readme_names_exist(fresh_registry: None) -> None:

@@ -17,7 +17,7 @@ entry point
   |                             -> @register_check appends to CHECKS
   |                             -> validate_registry(): depends_on, cycles, layers, topo order
   |
-  +-- load_overrides(...)   -> parse YAML -> validate each rule against CHECKS -> [OverrideRule]
+  +-- load_rules(...)   -> parse YAML -> validate each rule against CHECKS -> [Rule]
   |
   +-- validate(df)          -> explain_row per row
   |       resolve state (defaults, then matching rules, last wins)
@@ -66,7 +66,7 @@ the package by accident from the working directory. The demos and the scripts ad
 | `src/jobcheck/registry_tables.py` | The registry and the rules as tables: what is registered, which rules could touch each code, what each rule covers. |
 | `src/jobcheck/report.py` | Collecting outcomes for a frame, the long-format failure table, summaries, explanations, and rendering them as text or CSV. |
 | `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `CheckResult`, `CheckOutcome`. |
-| `src/jobcheck/rules.py` | The override rule file format and its parser. Knows nothing about the registry. |
+| `src/jobcheck/rules.py` | The rule file format and its parser. Knows nothing about the registry. |
 | `src/jobcheck/tables.py` | Table rendering and null handling, shared by every view. |
 | `src/jobcheck/paths.py` | The path a caller named, turned into a file on disk, and the error when it is not one. Used by both loaders. |
 | `src/jobcheck/context.py` | The per-row metadata type — the one adopter-supplied hook. |
@@ -165,7 +165,7 @@ import.
 and many weigh several fields together, so a single "the" column was a fiction.
 The cost is that a misspelled field is no longer detectable before the run: it
 raises `KeyError` from the check and lands as an `ERROR` outcome naming the
-column. `check_override_columns` still covers the rule side, where nothing else
+column. `check_rule_columns` still covers the rule side, where nothing else
 would catch it.
 
 **A check returns a status and comments, not a bool.** "Age is out of range" is
@@ -203,7 +203,7 @@ go stale the moment a prerequisite moved.
 **The rule format is its own module, and knows nothing about the registry.** A
 rule file changes for reasons the engine does not share -- a new key, a new
 matcher -- and the only thing the parser needs from the registry is the set of
-codes that exist, which the registry's `load_overrides` wrapper hands it. That keeps
+codes that exist, which the registry's `load_rules` wrapper hands it. That keeps
 the import one-directional and lets the format be read, tested and changed on its
 own.
 

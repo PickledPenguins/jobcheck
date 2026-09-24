@@ -44,21 +44,21 @@ def test_rule_fields_are_parsed(one_code: None, tmp_path: Path) -> None:
         '- name: "n"\n  message: "d"\n  action: enable\n  codes: [A_CODE]\n'
         '  match:\n    - column: email\n      pattern: "x$"\n',
     )
-    rule = reg.load_overrides([path])[0]
+    rule = reg.load_rules([path])[0]
     assert (rule.name, rule.action, rule.codes, rule.message) == ("n", "enable", ["A_CODE"], "d")
     assert (rule.criteria[0].column, rule.criteria[0].pattern) == ("email", "x$")
     assert rule.match_all is False
 
 
 def test_match_all_sets_the_flag_and_leaves_criteria_empty(one_code: None, tmp_path: Path) -> None:
-    rule = reg.load_overrides([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])[0]
+    rule = reg.load_rules([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])[0]
     assert rule.match_all is True
     assert rule.criteria == []
 
 
 def test_source_file_records_the_file_the_rule_came_from(one_code: None, tmp_path: Path) -> None:
     path = write(tmp_path, "rules.yaml", GLOBAL_DISABLE)
-    assert reg.load_overrides([path])[0].source_file == path
+    assert reg.load_rules([path])[0].source_file == path
 
 
 def test_a_rule_without_a_message_is_refused(one_code: None, tmp_path: Path) -> None:
@@ -66,7 +66,7 @@ def test_a_rule_without_a_message_is_refused(one_code: None, tmp_path: Path) -> 
 
     body = '- name: "silent"\n  action: disable\n  codes: [A_CODE]\n  match: all\n'
     with pytest.raises(ValueError) as excinfo:
-        reg.load_overrides([write(tmp_path, "r.yaml", body)])
+        reg.load_rules([write(tmp_path, "r.yaml", body)])
     assert "'message' must be the text saying why the rule exists" in str(excinfo.value)
 
 
@@ -77,14 +77,14 @@ def test_an_unknown_key_is_rejected_rather_than_silently_ignored(
 
     path = write(tmp_path, "r.yaml", GLOBAL_DISABLE + "  bogus_key: 1\n")
     with pytest.raises(ValueError) as excinfo:
-        reg.load_overrides([path])
+        reg.load_rules([path])
     assert "unknown key(s) bogus_key" in str(excinfo.value)
     assert "Allowed: action, codes, match, message, name." in str(excinfo.value)
 
     # Two typos are listed together, sorted, so one run reports both.
     path = write(tmp_path, "r2.yaml", GLOBAL_DISABLE + "  zzz: 1\n  bogus_key: 1\n")
     with pytest.raises(ValueError) as excinfo:
-        reg.load_overrides([path])
+        reg.load_rules([path])
     assert "unknown key(s) bogus_key, zzz." in str(excinfo.value)
 
 
@@ -94,11 +94,11 @@ def test_every_documented_key_is_accepted(one_code: None, tmp_path: Path) -> Non
         '- name: "full"\n  message: "d"\n  action: disable\n  codes: [A_CODE]\n'
         "  match: all\n",
     )
-    assert reg.load_overrides([path])[0].message == "d"
+    assert reg.load_rules([path])[0].message == "d"
 
 
 def test_empty_file_contributes_no_rules(one_code: None, tmp_path: Path) -> None:
-    assert reg.load_overrides([write(tmp_path, "empty.yaml", "")]) == []
+    assert reg.load_rules([write(tmp_path, "empty.yaml", "")]) == []
 
 
 def test_base_dir_anchors_a_relative_rule_path(one_code: None, tmp_path: Path,
@@ -107,7 +107,7 @@ def test_base_dir_anchors_a_relative_rule_path(one_code: None, tmp_path: Path,
     started_in = tmp_path / "started-in"
     started_in.mkdir()
     monkeypatch.chdir(started_in)
-    assert [rule.name for rule in reg.load_overrides(["rules.yaml"], base_dir=tmp_path)] == ["kill_it"]
+    assert [rule.name for rule in reg.load_rules(["rules.yaml"], base_dir=tmp_path)] == ["kill_it"]
 
 
 def test_a_rule_records_the_path_the_caller_wrote(one_code: None, tmp_path: Path) -> None:
@@ -115,14 +115,14 @@ def test_a_rule_records_the_path_the_caller_wrote(one_code: None, tmp_path: Path
     text: an absolute path resolved out of base_dir would be this machine's."""
 
     write(tmp_path, "rules.yaml", GLOBAL_DISABLE)
-    rule = reg.load_overrides(["rules.yaml"], base_dir=tmp_path)[0]
+    rule = reg.load_rules(["rules.yaml"], base_dir=tmp_path)[0]
     assert rule.source_file == "rules.yaml"
 
 
 def test_missing_file_is_refused_the_way_a_missing_check_file_is(one_code: None,
                                                                  tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="No override file at"):
-        reg.load_overrides([str(tmp_path / "absent.yaml")])
+    with pytest.raises(ValueError, match="No rule file at"):
+        reg.load_rules([str(tmp_path / "absent.yaml")])
 
 
 @pytest.mark.parametrize(
@@ -198,7 +198,7 @@ def test_missing_file_is_refused_the_way_a_missing_check_file_is(one_code: None,
         pytest.param(
             '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [NO_SUCH_CODE]\n  match: all\n',
             "unknown code 'NO_SUCH_CODE'. Load the check file that defines it before "
-            "loading overrides, or fix the code.",
+            "loading rules, or fix the code.",
             id="unknown-code",
         ),
         pytest.param(
@@ -223,7 +223,7 @@ def test_missing_file_is_refused_the_way_a_missing_check_file_is(one_code: None,
         ),
         pytest.param(
             "rules:\n  - name: r\n",
-            "override files must contain a flat top-level list of rules (no 'rules:' key), got dict.",
+            "rule files must contain a flat top-level list of rules (no 'rules:' key), got dict.",
             id="nested-under-a-key",
         ),
     ],
@@ -233,7 +233,7 @@ def test_malformed_rule_is_rejected_at_load_time(
 ) -> None:
     path = write(tmp_path, "bad.yaml", body)
     with pytest.raises(ValueError) as excinfo:
-        reg.load_overrides([path])
+        reg.load_rules([path])
     assert expected in str(excinfo.value)
     assert path in str(excinfo.value)
     # A rule that got as far as having a name is named in the message, so the
@@ -244,15 +244,15 @@ def test_malformed_rule_is_rejected_at_load_time(
 
 def test_duplicate_rule_name_within_one_file_is_rejected(one_code: None, tmp_path: Path) -> None:
     path = write(tmp_path, "dup.yaml", GLOBAL_DISABLE + GLOBAL_DISABLE)
-    with pytest.raises(ValueError, match=r"Duplicate override rule name 'kill_it'"):
-        reg.load_overrides([path])
+    with pytest.raises(ValueError, match=r"Duplicate rule name 'kill_it'"):
+        reg.load_rules([path])
 
 
 def test_duplicate_rule_name_across_files_names_both_files(one_code: None, tmp_path: Path) -> None:
     first = write(tmp_path, "a.yaml", GLOBAL_DISABLE)
     second = write(tmp_path, "b.yaml", GLOBAL_DISABLE)
     with pytest.raises(ValueError) as excinfo:
-        reg.load_overrides([first, second])
+        reg.load_rules([first, second])
     message = str(excinfo.value)
     assert f"defined in {first} and again in {second}" in message
 
@@ -261,26 +261,26 @@ def test_duplicate_rule_name_across_files_names_both_files(one_code: None, tmp_p
 
 
 def test_loading_no_files_returns_nothing(one_code: None) -> None:
-    assert reg.load_overrides([]) == []
+    assert reg.load_rules([]) == []
 
 
-def test_load_overrides_keeps_the_given_order_not_alphabetical(
+def test_load_rules_keeps_the_given_order_not_alphabetical(
     one_code: None, tmp_path: Path
 ) -> None:
     first = write(tmp_path, "a.yaml", GLOBAL_DISABLE.replace("kill_it", "alpha"))
     second = write(tmp_path, "z.yaml", GLOBAL_DISABLE.replace("kill_it", "zulu"))
-    rules = reg.load_overrides([second, first])
-    assert [r.name for r in rules] == ["zulu", "alpha"]
+    loaded = reg.load_rules([second, first])
+    assert [r.name for r in loaded] == ["zulu", "alpha"]
 
 
-def test_load_overrides_spans_directories(one_code: None, tmp_path: Path) -> None:
+def test_load_rules_spans_directories(one_code: None, tmp_path: Path) -> None:
     left = tmp_path / "left"
     right = tmp_path / "right"
     left.mkdir()
     right.mkdir()
     a = write(left, "a.yaml", GLOBAL_DISABLE.replace("kill_it", "from_left"))
     b = write(right, "b.yaml", GLOBAL_DISABLE.replace("kill_it", "from_right"))
-    assert [r.name for r in reg.load_overrides([a, b])] == ["from_left", "from_right"]
+    assert [r.name for r in reg.load_rules([a, b])] == ["from_left", "from_right"]
 
 
 def test_list_rule_codes_returns_the_exact_codes(one_code: None, tmp_path: Path) -> None:
@@ -288,21 +288,21 @@ def test_list_rule_codes_returns_the_exact_codes(one_code: None, tmp_path: Path)
     path = write(
         tmp_path, "r.yaml", '- name: "two"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE, B_CODE]\n  match: all\n'
     )
-    rules = reg.load_overrides([path])
-    assert registry_tables.list_rule_codes("two", rules) == ["A_CODE", "B_CODE"]
+    loaded = reg.load_rules([path])
+    assert registry_tables.list_rule_codes("two", loaded) == ["A_CODE", "B_CODE"]
 
 
 def test_list_rule_codes_prints_the_rule(one_code: None, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    rules = reg.load_overrides([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
-    registry_tables.list_rule_codes("kill_it", rules)
+    loaded = reg.load_rules([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
+    registry_tables.list_rule_codes("kill_it", loaded)
     assert capsys.readouterr().out == "kill_it (disable) -> A_CODE\n"
 
 
 def test_list_rule_codes_unknown_name_lists_what_is_loaded(one_code: None, tmp_path: Path) -> None:
-    rules = reg.load_overrides([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
+    loaded = reg.load_rules([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
     with pytest.raises(ValueError) as excinfo:
-        registry_tables.list_rule_codes("nope", rules)
-    assert str(excinfo.value) == "No override rule named 'nope'. Loaded rules: kill_it"
+        registry_tables.list_rule_codes("nope", loaded)
+    assert str(excinfo.value) == "No rule named 'nope'. Loaded rules: kill_it"
 
 
 def test_list_rule_codes_with_no_rules_loaded_says_so(one_code: None) -> None:
@@ -314,13 +314,13 @@ def test_list_rule_codes_with_no_rules_loaded_says_so(one_code: None) -> None:
 
 
 def rule(name: str, action: str, codes: list[str], criteria: list[tuple[str, str]] | None,
-         ) -> reg.OverrideRule:
+         ) -> reg.Rule:
     """Build a rule directly, bypassing YAML, to isolate matching behavior."""
 
     import re
 
     made = [reg.MatchCriterion(c, p, re.compile(p)) for c, p in (criteria or [])]
-    return reg.OverrideRule(name=name, action=action, codes=codes, criteria=made,
+    return reg.Rule(name=name, action=action, codes=codes, criteria=made,
                             match_all=criteria is None, message="why the rule exists")
 
 
@@ -385,12 +385,12 @@ def test_a_whole_number_is_matched_as_the_report_prints_it(fresh_registry: None)
     on_age = rule("r", "disable", ["A_CODE"], [("age", "^41$")])
     blank_in_column = pd.read_csv(StringIO("id,name,age\n1,a,41\n2,b,\n"))
     assert str(blank_in_column.dtypes["age"]) == "float64"
-    outcomes = engine.validate(blank_in_column, overrides=[on_age])
+    outcomes = engine.validate(blank_in_column, rules=[on_age])
     assert [row[0].outcome for row in outcomes] == [DISABLED, PASSED]
 
     on_id = rule("r", "disable", ["A_CODE"], [("id", "^102$")])
     all_numeric = pd.DataFrame({"id": [101, 102], "age": [1.5, 2.0]})
-    outcomes = engine.validate(all_numeric, overrides=[on_id])
+    outcomes = engine.validate(all_numeric, rules=[on_id])
     assert [row[0].outcome for row in outcomes] == [PASSED, DISABLED]
 
 
@@ -409,20 +409,20 @@ def test_matching_is_case_sensitive(fresh_registry: None) -> None:
 
 def test_last_matching_rule_wins(fresh_registry: None) -> None:
     make_check("A_CODE", default_enabled=False)
-    rules = [rule("on", "enable", ["A_CODE"], None), rule("off", "disable", ["A_CODE"], None)]
-    assert enabled_only(engine.resolve_enabled_state(pd.Series({"age": 1}), rules))["A_CODE"] is False
+    loaded = [rule("on", "enable", ["A_CODE"], None), rule("off", "disable", ["A_CODE"], None)]
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"age": 1}), loaded))["A_CODE"] is False
     assert enabled_only(
-        engine.resolve_enabled_state(pd.Series({"age": 1}), list(reversed(rules)))
+        engine.resolve_enabled_state(pd.Series({"age": 1}), list(reversed(loaded)))
     )["A_CODE"] is True
 
 
 def test_a_non_matching_later_rule_does_not_override(fresh_registry: None) -> None:
     make_check("A_CODE", default_enabled=False)
-    rules = [
+    loaded = [
         rule("on", "enable", ["A_CODE"], None),
         rule("off", "disable", ["A_CODE"], [("email", "@internal")]),
     ]
-    assert enabled_only(engine.resolve_enabled_state(pd.Series({"email": "a@b.com"}), rules))["A_CODE"] is True
+    assert enabled_only(engine.resolve_enabled_state(pd.Series({"email": "a@b.com"}), loaded))["A_CODE"] is True
 
 
 def test_one_rule_switches_several_codes(fresh_registry: None) -> None:
@@ -466,7 +466,7 @@ def test_a_null_cell_never_matches_a_rule(fresh_registry: None) -> None:
 
 
 def _rules(tmp_path: Path, text: str) -> list[Any]:
-    return reg.load_overrides([write(tmp_path, "rules.yaml", text)])
+    return reg.load_rules([write(tmp_path, "rules.yaml", text)])
 
 
 def test_a_rule_a_later_unconditional_rule_overrules_is_reported(
@@ -474,10 +474,10 @@ def test_a_rule_a_later_unconditional_rule_overrules_is_reported(
 ) -> None:
     """Positional precedence means a `match: all` rule later in the file is the
     last match on every row, so anything before it touching the same code can
-    never decide. Nothing else says so: the registry table lists both rules and
+    never decide. Nothing else says so: the registry table lists both loaded and
     answers "depends on row", which is right in general and wrong here."""
 
-    overrides = _rules(tmp_path, """
+    loaded = _rules(tmp_path, """
 - name: "narrow_enable"
   message: "only legacy rows"
   action: enable
@@ -487,7 +487,7 @@ def test_a_rule_a_later_unconditional_rule_overrules_is_reported(
       pattern: "^LEGACY"
 """ + GLOBAL_DISABLE)
 
-    assert rules.check_shadowed_rules(overrides) == [
+    assert rules.check_shadowed_rules(loaded) == [
         "rule 'narrow_enable' is overruled for A_CODE by the later rule 'kill_it', "
         "which matches every row: it can never apply to A_CODE"
     ]
@@ -496,10 +496,10 @@ def test_a_rule_a_later_unconditional_rule_overrules_is_reported(
 def test_a_rule_after_the_unconditional_one_is_not_reported(
     one_code: None, tmp_path: Path
 ) -> None:
-    """The same two rules the other way round is the pattern that works: off for
+    """The same two loaded the other way round is the pattern that works: off for
     every row, back on for the rows that match."""
 
-    overrides = _rules(tmp_path, GLOBAL_DISABLE + """
+    loaded = _rules(tmp_path, GLOBAL_DISABLE + """
 - name: "narrow_enable"
   message: "only legacy rows"
   action: enable
@@ -509,14 +509,14 @@ def test_a_rule_after_the_unconditional_one_is_not_reported(
       pattern: "^LEGACY"
 """)
 
-    assert rules.check_shadowed_rules(overrides) == []
+    assert rules.check_shadowed_rules(loaded) == []
 
 
 def test_two_conditional_rules_are_not_reported(one_code: None, tmp_path: Path) -> None:
     """Deliberately out of scope: whether two patterns overlap needs them
     compared rather than read, and a wrong answer is worse than none."""
 
-    overrides = _rules(tmp_path, """
+    loaded = _rules(tmp_path, """
 - name: "first"
   message: "m"
   action: enable
@@ -533,7 +533,7 @@ def test_two_conditional_rules_are_not_reported(one_code: None, tmp_path: Path) 
       pattern: "^LEGACY"
 """)
 
-    assert rules.check_shadowed_rules(overrides) == []
+    assert rules.check_shadowed_rules(loaded) == []
 
 
 def test_a_rule_is_judged_per_code_not_per_rule(fresh_registry: None, tmp_path: Path) -> None:
@@ -542,7 +542,7 @@ def test_a_rule_is_judged_per_code_not_per_rule(fresh_registry: None, tmp_path: 
 
     make_check("A_CODE")
     make_check("B_CODE")
-    overrides = _rules(tmp_path, """
+    loaded = _rules(tmp_path, """
 - name: "both"
   message: "m"
   action: enable
@@ -555,7 +555,7 @@ def test_a_rule_is_judged_per_code_not_per_rule(fresh_registry: None, tmp_path: 
   match: all
 """)
 
-    assert rules.check_shadowed_rules(overrides) == [
+    assert rules.check_shadowed_rules(loaded) == [
         "rule 'both' is overruled for A_CODE by the later rule 'kills_a_only', "
         "which matches every row: it can never apply to A_CODE"
     ]
@@ -564,12 +564,12 @@ def test_a_rule_is_judged_per_code_not_per_rule(fresh_registry: None, tmp_path: 
 def test_the_shipped_example_reports_its_deliberate_shadowed_rule(
     example_checks: None,
 ) -> None:
-    """`examples/rules/error_overrides.yaml` shadows a rule on purpose -- it is the
+    """`examples/rules/error_rules.yaml` shadows a rule on purpose -- it is the
     precedence demonstration `docs/configuration.md` describes -- so the shipped
     file is also the worked example of this warning."""
 
-    overrides = reg.load_overrides([str(Path(PROJECT_ROOT) / "examples/rules/error_overrides.yaml")])
-    assert rules.check_shadowed_rules(overrides) == [
+    loaded = reg.load_rules([str(Path(PROJECT_ROOT) / "examples/rules/error_rules.yaml")])
+    assert rules.check_shadowed_rules(loaded) == [
         "rule 'enable_legacy_integer_check' is overruled for AGE_NOT_INTEGER by the later "
         "rule 'disable_age_integer_check_globally', which matches every row: it can never "
         "apply to AGE_NOT_INTEGER"
@@ -578,7 +578,7 @@ def test_the_shipped_example_reports_its_deliberate_shadowed_rule(
 
 def test_no_rules_and_no_unconditional_rule_report_nothing(one_code: None, tmp_path: Path) -> None:
     assert rules.check_shadowed_rules([]) == []
-    overrides = _rules(tmp_path, """
+    loaded = _rules(tmp_path, """
 - name: "narrow"
   message: "m"
   action: disable
@@ -587,4 +587,4 @@ def test_no_rules_and_no_unconditional_rule_report_nothing(one_code: None, tmp_p
     - column: source
       pattern: "^LEGACY"
 """)
-    assert rules.check_shadowed_rules(overrides) == []
+    assert rules.check_shadowed_rules(loaded) == []

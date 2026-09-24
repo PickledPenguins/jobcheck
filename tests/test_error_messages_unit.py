@@ -9,7 +9,7 @@ So these compare the whole string, not a fragment. Mutation testing is what made
 the gap obvious: rewriting a message wholesale left most of these paths passing,
 because nothing asserted more than a keyword.
 
-The rule-file messages are pinned in `tests/test_overrides_unit.py`, which
+The rule-file messages are pinned in `tests/test_rules_unit.py`, which
 already compares them exactly, and the CLI's own messages in
 `tests/failures/`, which compares stderr byte for byte.
 """
@@ -26,7 +26,7 @@ from jobcheck import (
     build_report,
     validate,
     explain_row,
-    load_overrides,
+    load_rules,
     registry as reg,
     render_report,
     validate_row,
@@ -134,9 +134,9 @@ def test_a_bare_string_path_is_refused_by_both_loaders(fresh_registry: None) -> 
         "A bare string would be read as a list of its characters."
     )
     with pytest.raises(TypeError) as raised:
-        load_overrides("rules.yaml")  # type: ignore[arg-type]
+        load_rules("rules.yaml")  # type: ignore[arg-type]
     assert message_of(raised) == (
-        "load_overrides takes a list of paths, not one string: pass ['rules.yaml']. "
+        "load_rules takes a list of paths, not one string: pass ['rules.yaml']. "
         "A bare string would be read as a list of its characters."
     )
 
@@ -150,13 +150,13 @@ def test_a_missing_check_file_says_nothing_is_discovered(fresh_registry: None) -
     )
 
 
-def test_a_missing_override_file_says_it_the_same_way(fresh_registry: None) -> None:
+def test_a_missing_rule_file_says_it_the_same_way(fresh_registry: None) -> None:
     """The two loaders are one mistake apart, so they are one message apart."""
 
     with pytest.raises(ValueError) as raised:
-        load_overrides(["/no/such/rules.yaml"])
+        load_rules(["/no/such/rules.yaml"])
     assert message_of(raised) == (
-        "No override file at '/no/such/rules.yaml'. load_overrides() names files "
+        "No rule file at '/no/such/rules.yaml'. load_rules() names files "
         "explicitly; nothing is discovered."
     )
 

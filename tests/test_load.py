@@ -42,11 +42,11 @@ def frame(rows: int) -> pd.DataFrame:
 
 
 def test_twenty_thousand_rows_validate_within_the_time_ceiling(example_checks: None) -> None:
-    overrides = reg.load_overrides(["examples/rules/error_overrides.yaml"])
+    rules = reg.load_rules(["examples/rules/error_rules.yaml"])
     df = frame(ROWS)
     start = time.monotonic()
     errors = df.apply(lambda row: engine.validate_row(row, context=RowContext(),
-                                                   overrides=overrides), axis=1)
+                                                   rules=rules), axis=1)
     elapsed = time.monotonic() - start
     assert len(errors) == ROWS
     assert elapsed < 60.0, f"{ROWS} rows took {elapsed:.1f}s"
@@ -115,7 +115,7 @@ def test_many_rules_resolve_within_the_ceiling(fresh_registry: None) -> None:
 
     make_check("A_CODE")
     rules = [
-        reg.OverrideRule(
+        reg.Rule(
             name=f"rule_{i}", action="disable", codes=["A_CODE"],
             criteria=[reg.MatchCriterion("email", "@internal", re.compile("@internal"))],
             match_all=False, message="why the rule exists",

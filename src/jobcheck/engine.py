@@ -23,7 +23,7 @@ from .results import (
     Status,
     normalize_result,
 )
-from .rules import OverrideRule, rule_matches
+from .rules import Rule, rule_matches
 
 ContextBuilder = Callable[["pd.Series[Any]"], RowContext | None]
 
@@ -74,7 +74,7 @@ def _prerequisite_has_not_run(code: str, prerequisite: str) -> ValueError:
 
 
 def resolve_enabled_state(
-    row: "pd.Series[Any]", overrides: list[OverrideRule]
+    row: "pd.Series[Any]", rules: list[Rule]
 ) -> dict[str, tuple[bool, str]]:
     """Effective on/off state of every registered code, for one row, and why.
 
@@ -87,7 +87,7 @@ def resolve_enabled_state(
                      "default" if check.default_enabled else "off by default")
         for check in CHECKS
     }
-    for rule in overrides:
+    for rule in rules:
         if not rule_matches(rule, row):
             continue
         enabled = rule.action == "enable"
@@ -100,7 +100,7 @@ def resolve_enabled_state(
 def explain_row(
     row: "pd.Series[Any]",
     context: RowContext | None = None,
-    overrides: list[OverrideRule] | None = None,
+    rules: list[Rule] | None = None,
     on_error: str = "record",
 ) -> list[CheckOutcome]:
     """Run the checks against one row and report what *every* check did.
@@ -130,7 +130,7 @@ def explain_row(
     if context is None:
         context = _EMPTY_CONTEXT
 
-    state = resolve_enabled_state(row, overrides or [])
+    state = resolve_enabled_state(row, rules or [])
     passed: dict[str, bool] = {}
     disabled: set[str] = set()
     outcomes: list[CheckOutcome] = []
@@ -202,7 +202,7 @@ def explain_row(
 def validate_row(
     row: "pd.Series[Any]",
     context: RowContext | None = None,
-    overrides: list[OverrideRule] | None = None,
+    rules: list[Rule] | None = None,
     on_error: str = "record",
 ) -> list[CheckOutcome]:
     """Run every enabled check against one row and return only the failures.
@@ -213,7 +213,7 @@ def validate_row(
 
     return [
         outcome
-        for outcome in explain_row(row, context=context, overrides=overrides, on_error=on_error)
+        for outcome in explain_row(row, context=context, rules=rules, on_error=on_error)
         if outcome.failed
     ]
 
@@ -235,7 +235,7 @@ def root_causes(row_outcomes: list[CheckOutcome]) -> list[str]:
 
 def validate(
     df: pd.DataFrame,
-    overrides: list[OverrideRule] | None = None,
+    rules: list[Rule] | None = None,
     context_builder: ContextBuilder | None = None,
     on_error: str = "record",
 ) -> list[list[CheckOutcome]]:
@@ -261,5 +261,5 @@ def validate(
     for _, row in df.iterrows():
         context = None if context_builder is None else context_builder(row)
         frame_outcomes.append(
-            explain_row(row, context=context, overrides=overrides, on_error=on_error))
+            explain_row(row, context=context, rules=rules, on_error=on_error))
     return frame_outcomes

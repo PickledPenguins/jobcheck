@@ -1,4 +1,4 @@
-Loaded 0 override rule(s) from 0 file(s)
+Loaded 0 rule(s) from 0 file(s)
 
 == Registry ==
 code                 | layer | default | message                                 | depends_on       | could_be_overridden_by

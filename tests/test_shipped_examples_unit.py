@@ -20,9 +20,9 @@ import yaml
 
 from conftest import PROJECT_ROOT
 from jobcheck import (
-    check_override_columns,
+    check_rule_columns,
     validate,
-    load_overrides,
+    load_rules,
     registry as reg,
 )
 
@@ -42,7 +42,7 @@ def test_there_are_rule_files_to_check() -> None:
 
 def test_every_shipped_rule_file_loads_on_its_own(example_checks: None) -> None:
     for path in rule_files():
-        assert load_overrides([str(path)]), path
+        assert load_rules([str(path)]), path
 
 
 def test_all_shipped_rule_files_load_together(example_checks: None) -> None:
@@ -54,8 +54,8 @@ def test_all_shipped_rule_files_load_together(example_checks: None) -> None:
     fails with a duplicate-name error.
     """
 
-    overrides = load_overrides([str(path) for path in rule_files()])
-    names = [rule.name for rule in overrides]
+    rules = load_rules([str(path) for path in rule_files()])
+    names = [rule.name for rule in rules]
     assert len(names) == len(set(names))
 
 
@@ -83,9 +83,9 @@ def test_every_shipped_rule_names_a_code_the_example_checks_define(
 def test_every_shipped_rule_matches_a_column_the_data_has(example_checks: None) -> None:
     """A rule filtering on a column the example data lacks can never fire."""
 
-    overrides = load_overrides([str(path) for path in rule_files()])
+    rules = load_rules([str(path) for path in rule_files()])
     frame = pd.read_csv(DATA_DIR / "customers.csv", dtype=str)
-    assert check_override_columns(frame, overrides) == []
+    assert check_rule_columns(frame, rules) == []
 
 
 # --- the data files ---------------------------------------------------------

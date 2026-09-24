@@ -20,11 +20,11 @@ import pandas as pd
 
 from jobcheck import (
     build_report,
-    check_override_columns,
+    check_rule_columns,
     check_shadowed_rules,
     load_checks,
-    load_overrides,
-    print_override_rules,
+    load_rules,
+    print_rules,
     print_registry,
     print_report,
     print_row_explanation,
@@ -45,7 +45,7 @@ CHECK_FILES = [
 #: The rule files a run applies when --rules names none. Absolute, because it
 #: is this script's own file rather than something the user typed: a path on
 #: the command line still means what it means from where the user is standing.
-DEFAULT_RULES = [os.path.join(PROJECT_ROOT, "examples/rules/error_overrides.yaml")]
+DEFAULT_RULES = [os.path.join(PROJECT_ROOT, "examples/rules/error_rules.yaml")]
 
 #: The column that identifies a row in the report. Every demo data file has it.
 KEY_COLUMN = "id"
@@ -64,10 +64,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data", metavar="PATH",
                         help="CSV file to validate (default: the built-in demo frame).")
     # nargs="*" rather than "+": `--rules` with nothing after it means no
-    # overrides at all, which is the baseline every rule file is a deviation
+    # rules at all, which is the baseline every rule file is a deviation
     # from and the first thing somebody adopting this wants to see.
     parser.add_argument("--rules", nargs="*", default=DEFAULT_RULES, metavar="PATH",
-                        help="Override YAML files, in precedence order (last match wins). "
+                        help="Rule YAML files, in precedence order (last match wins). "
                              "Pass --rules with no paths to apply none.")
     parser.add_argument("--report", choices=("table", "csv"), default="table",
                         help="Report format (default table).")
@@ -76,7 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--summary", action="store_true",
                         help="Print per-check counts and the root cause of each failing row.")
     parser.add_argument("--rules-table", action="store_true",
-                        help="Print one row per loaded override rule before the registry.")
+                        help="Print one row per loaded rule before the registry.")
     parser.add_argument("--write", metavar="PATH",
                         help="Also write the report to this file, in the --report format.")
     return parser
@@ -138,14 +138,14 @@ def main(argv: list[str] | None = None) -> None:
             raise SystemExit(2)
 
     load_checks(CHECK_FILES, base_dir=PROJECT_ROOT)
-    overrides = load_overrides(args.rules)
-    print(f"Loaded {len(overrides)} override rule(s) from {len(args.rules)} file(s)\n")
+    rules = load_rules(args.rules)
+    print(f"Loaded {len(rules)} rule(s) from {len(args.rules)} file(s)\n")
 
     df = load_frame(args.data)
-    for warning in check_override_columns(df, overrides):
+    for warning in check_rule_columns(df, rules):
         print(f"warning: {warning}", file=sys.stderr)
 
-    outcomes = validate(df, overrides=overrides)
+    outcomes = validate(df, rules=rules)
 
     if args.explain is not None:
         if not 0 <= args.explain < len(df):
@@ -157,15 +157,15 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     if args.rules_table:
-        print("== Override rules ==")
+        print("== Rules ==")
         # One row per rule, where the registry table below is one row per code:
         # a rule touching eight codes is one line here and eight there, which is
         # the view that answers "what did this file actually say".
-        print_override_rules(overrides)
+        print_rules(rules)
         # Beside the rules themselves, because "this rule can never apply" is a
         # fact about the file rather than about a row. The shipped rule file has
         # one on purpose: it is the precedence demonstration.
-        for warning in check_shadowed_rules(overrides):
+        for warning in check_shadowed_rules(rules):
             print(f"warning: {warning}")
         print()
 
@@ -173,7 +173,7 @@ def main(argv: list[str] | None = None) -> None:
     # could_be_overridden_by is the only use print_registry makes of the rules:
     # without it the argument is inert and the demo never shows which rule
     # touches which code.
-    print_registry(overrides=overrides, extra_columns=["could_be_overridden_by"])
+    print_registry(rules=rules, extra_columns=["could_be_overridden_by"])
 
     print("\n== Failures ==")
     report = build_report(outcomes, df=df, key_column=KEY_COLUMN)

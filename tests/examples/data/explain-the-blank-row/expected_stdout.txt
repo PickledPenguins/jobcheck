@@ -1,4 +1,4 @@
-Loaded 3 override rule(s) from 1 file(s)
+Loaded 3 rule(s) from 1 file(s)
 
 == Row 21 ==
 layer | code                 | outcome  | status      | detail                                               

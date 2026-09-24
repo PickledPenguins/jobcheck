@@ -376,9 +376,9 @@ def test_a_bare_string_path_is_refused_by_load_checks(fresh_registry: None) -> N
         reg.load_checks("checks.py")  # type: ignore[arg-type]
 
 
-def test_a_bare_string_path_is_refused_by_load_overrides(fresh_registry: None) -> None:
-    with pytest.raises(TypeError, match=r"load_overrides takes a list of paths"):
-        reg.load_overrides("rules.yaml")  # type: ignore[arg-type]
+def test_a_bare_string_path_is_refused_by_load_rules(fresh_registry: None) -> None:
+    with pytest.raises(TypeError, match=r"load_rules takes a list of paths"):
+        reg.load_rules("rules.yaml")  # type: ignore[arg-type]
 
 
 # --- bundles: a check file that loads check files ----------------------------

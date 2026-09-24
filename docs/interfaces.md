@@ -8,7 +8,7 @@ Back to the [README](../README.md). Authoring guidance is in
 and the rule file format in [configuration.md](configuration.md).
 
 `jobcheck.__version__` is the package version, pre-1.0: the API may change
-between versions, while check codes, status values and the override YAML schema
+between versions, while check codes, status values and the rule YAML schema
 are treated as permanent.
 
 ## The short list
@@ -17,7 +17,7 @@ Writing checks and running them needs eight names, and nothing else here is
 required reading:
 
 `register_check`, `PASS`, `CheckResult`, `Status` for a check file;
-`load_checks`, `load_overrides`, `validate` and `build_report` for the pipeline
+`load_checks`, `load_rules`, `validate` and `build_report` for the pipeline
 that runs them. Add `RowContext` when a check needs per-row state the frame does
 not carry, and `validate_row` for a frame too large to keep every outcome.
 
@@ -91,7 +91,7 @@ the pipeline — a classmethod, a factory, or one object built outside the loop.
 Whatever builds it is `validate`'s `context_builder`, a callable taking the row and
 returning a `RowContext`. Without one, every row is handed the same empty context.
 
-### `MatchCriterion`, `OverrideRule`
+### `MatchCriterion`, `Rule`
 
 A rule's `{column, pattern}` filter, and the rule itself: `name`, `action`,
 `codes`, `criteria`, `match_all`, `message`, `source_file`.
@@ -188,10 +188,10 @@ which is what the process-global registry means (see
 [architecture](architecture.md)). A load that fails needs no help either: it
 rolls back per file on its own.
 
-## Loading override rules
+## Loading rules
 
-`load_overrides(paths, base_dir=None)` takes a list of paths and anchors them
-exactly as `load_checks` does, and returns `list[OverrideRule]` in the order given — which is
+`load_rules(paths, base_dir=None)` takes a list of paths and anchors them
+exactly as `load_checks` does, and returns `list[Rule]` in the order given — which is
 the precedence order, since the last matching rule wins. It raises `ValueError` at
 load time for every malformed rule, and for a rule name used twice anywhere in the
 call; a path that is not a file raises `ValueError` naming it, the way
@@ -204,12 +204,12 @@ parser and is handed the codes that exist rather than reaching into the registry
 Load the check files first: a rule naming an unregistered code is an error. See
 [configuration.md](configuration.md).
 
-`list_rule_codes(rule_name, overrides) -> list[str]` prints and returns the codes
+`list_rule_codes(rule_name, rules) -> list[str]` prints and returns the codes
 one named rule touches.
 
 ## Running checks
 
-### `explain_row(row, context=None, overrides=None, on_error="record") -> list[CheckOutcome]`
+### `explain_row(row, context=None, rules=None, on_error="record") -> list[CheckOutcome]`
 
 What every check did on one row, in evaluation order. The single implementation of
 the per-row algorithm.
@@ -232,7 +232,7 @@ A `context` of `None` — the default — becomes an empty `RowContext`, so a ch
 taking `(row, context)` is handed the same type here, in `validate_row` and in
 `validate`.
 
-### `validate_row(row, context=None, overrides=None, on_error="record") -> list[CheckOutcome]`
+### `validate_row(row, context=None, rules=None, on_error="record") -> list[CheckOutcome]`
 
 The failing outcomes from `explain_row`, in evaluation order. Does not mutate `row`
 or `context`. For the one to read first, ask `root_causes`.
@@ -248,20 +248,20 @@ only runs once its prerequisites passed. Empty for a row that passed.
 A caller wanting a single label per row (a tally, a column in a frame) takes the
 first. Accepts either `validate_row` or `explain_row` output.
 
-### `resolve_enabled_state(row, overrides) -> dict[str, tuple[bool, str]]`
+### `resolve_enabled_state(row, rules) -> dict[str, tuple[bool, str]]`
 
 The effective on/off state of every registered code for one row, and why: each
 check's `default_enabled`, then every matching rule in order, last match winning.
 The reason is `"default"`, `"off by default"`, or `"rule 'name'"` — which is what
 an explanation prints beside a `disabled` outcome.
 
-### `check_override_columns(df, overrides) -> list[str]`
+### `check_rule_columns(df, rules) -> list[str]`
 
 One line per rule criterion naming a column the frame lacks — a rule that can
 never fire. Checks are not checked: they read the row themselves, so a missing
 field raises and is recorded as an `ERROR` outcome naming the column.
 
-### `check_shadowed_rules(overrides) -> list[str]`
+### `check_shadowed_rules(rules) -> list[str]`
 
 One line per rule a later rule overrules for every row: precedence is positional,
 so a rule touching a code is dead for that code once a later rule touches it with
@@ -272,11 +272,11 @@ rather than reading them.
 
 Judged per code, not per rule: a rule carrying several codes can be overruled for
 one and decisive for another. Warns rather than raises, like
-`check_override_columns` — `examples/rules/error_overrides.yaml` ships a shadowed
+`check_rule_columns` — `examples/rules/error_rules.yaml` ships a shadowed
 rule on purpose, as the precedence demonstration, and
 `python3 examples/main.py --rules-table` prints the warning under the rules table.
 
-### `validate(df, overrides=None, context_builder=None, on_error="record") -> list[list[CheckOutcome]]`
+### `validate(df, rules=None, context_builder=None, on_error="record") -> list[list[CheckOutcome]]`
 
 Every check against every row: one `explain_row` call per row, and one list of
 outcomes per row, in frame order. That is the shape `build_report` and
@@ -320,15 +320,15 @@ rather than ignored when the name is not on offer.
 - `get_registry_table(extra_columns=None)` — one row per check, sorted layer, then
   code. Columns `code`, `layer`, `default`, `message`, `depends_on`; offers
   `source_file`.
-- `print_registry(overrides=None, extra_columns=None)` — prints it. Offers
+- `print_registry(rules=None, extra_columns=None)` — prints it. Offers
   `source_file`, plus the two columns that read the loaded rules:
   `could_be_overridden_by`, the rules that *reference* each code with the action
   each would take, and `effective_state`, which says `DEFAULT (ON)` when no rule
   references the code and "depends on row" when one does. Neither is "was
   overridden by" — whether a rule fires is a per-row question this table cannot
-  answer. `overrides` feeds those two columns and nothing else, so passing rules
+  answer. `rules` feeds those two columns and nothing else, so passing rules
   without asking for either prints the same table as passing none.
-- `print_override_rules(overrides, extra_columns=None)` — one row per rule:
+- `print_rules(rules, extra_columns=None)` — one row per rule:
   `name`, `action`, `codes_hit_count`, `match`, `message`. Offers `source_file`.
 
 `format_table(table, wrap_columns=None)` renders any frame as bordered text. A cell
@@ -342,5 +342,5 @@ list-like values.
 ## Stability
 
 Pre-1.0 and unversioned. The parts most likely to stay fixed are check codes,
-status values, the `(row, ctx)` signature, and the override YAML schema, since
+status values, the `(row, ctx)` signature, and the rule YAML schema, since
 data written against them outlives the code.
