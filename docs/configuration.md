@@ -1,8 +1,10 @@
-# Configuration: rule files
+# Configuration: rule files and setup files
 
-The only configuration this project has is the rule YAML. There are no environment
-variables and no settings file: check files and rule paths are chosen by the entry point, on
-the command line or in code.
+Two YAML files, and no others. A **rule file** switches check codes on and off for chosen
+rows, and is the subject of this document. A **setup file** names which check files and
+which rule files a run loads, so configuring the library is one call instead of two — the
+last section here covers it. There are no environment variables and nothing is read from a
+fixed location: every path comes from the entry point, on the command line or in code.
 
 A relative path is resolved against the working directory, or against the `base_dir` the
 call names — an entry point passes the directory its own files sit in, a wrapper passes
@@ -185,3 +187,53 @@ entry point — see [writing-checks.md](writing-checks.md#troubleshooting).
 Rule files are matching patterns and code names only. Nothing in the format is a
 credential, and none should be put there: patterns are echoed verbatim into the
 `print_rules` table.
+
+## Setup files: naming the checks and the rules at once
+
+Configuring this library is two calls -- `load_checks` for the check files, `load_rules` for
+the rule files. A setup file is those two lists in one place, so it is one call and the
+lists are a file you can commit beside a bug report rather than arguments typed twice:
+
+```yaml
+checks:
+  - checks/all_checks.py        # a bundle, or list the files
+rules:
+  - rules/error_rules.yaml      # precedence order; optional
+```
+
+```python
+import pandas as pd
+from jobcheck import build_report, load_setup, print_report, validate
+
+rules = load_setup("examples/setup.yaml")
+frame = pd.DataFrame([{"id": 1, "age": -5, "email": "nope"}])
+report = build_report(validate(frame, rules=rules), df=frame, key_column="id")
+print(len(report), "failure(s)")
+```
+
+```
+3 failure(s)
+```
+
+`load_setup` returns the rules for `validate`, having already registered the check files.
+Both lists resolve against **the setup file's own directory**, so a setup file and the paths
+in it travel together; the setup file's own path is relative to where you stand, like any
+path you type.
+
+`checks` is required: a setup naming only rules configures nothing, because rules switch
+checks on and off. `rules` may be absent or empty -- the no-rules baseline every rule file
+is a deviation from.
+
+Rules are named by path rather than written into the setup file. A rule file is a flat
+top-level list with no `rules:` key, which a setup file would have to contradict, and a rule
+file is meant to be shared between runs -- inline rules would be copied into every setup
+that wanted them and drift apart. `examples/setup.yaml` is the shipped example.
+
+`load_checks` and `load_rules` stay: this composes them and does nothing they do not. A
+bundle calls `load_checks` from inside a check file, and a caller that computed its paths
+itself -- jobchain reads them from its own run configuration -- has no file to write.
+
+Every refusal names the file: a document that is not a mapping (a flat list is the *rule*
+file's shape, and the mistake somebody makes having written one first), an unknown key, a
+string where a list belongs (`checks: one.py` is a string, and a string is a list of
+characters), an entry that is not a path, and an empty `checks`.

@@ -1,0 +1,15 @@
+# A setup file: the whole of configuring jobcheck, in one file.
+#
+#   rules = jobcheck.load_setup("examples/setup.yaml")
+#   outcomes = jobcheck.validate(df, rules=rules)
+#
+# Both lists are resolved against this file's own directory, so the file and the
+# paths in it travel together.
+
+checks:
+  # A bundle: one path, four check files behind it.
+  - checks/all_checks.py
+
+rules:
+  # In precedence order -- the last matching rule wins.
+  - rules/error_rules.yaml

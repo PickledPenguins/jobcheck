@@ -75,10 +75,13 @@ more, only reachable. Blast radius: the public API, the docs that name it, and e
 that reads the registry. Recommendation: not now. Revisit if a second silent
 desynchronization turns up; the guards are the cheap half and they are in.
 
-**F.29 — no single file defines a whole run.** Reproducing a run means retyping its
-parts: `--data`, `--rules` and `--report` on the command line, the check files named inside
-the entry point, and the report's columns and `key_column` given in code at the
-`build_report` call. There is no artifact that says "this is the run" -- nothing to commit
+**F.29 — no single file defines a whole run.** Half of this was built on 2026-09-24 as
+`load_setup`, which takes one YAML naming `checks` and `rules` -- so the *setup* is a file
+now, and configuring the library is one call. What is still open is the rest of the ask:
+the data, which tables to print, and which columns each carries. Reproducing a run means retyping its
+parts: `--data` and `--report` on the command line, and the report's columns and `key_column` in
+code at the `build_report` call. The check files and rule files no longer need retyping --
+`load_setup` holds them -- but nothing names the data or the output. There is no artifact that says "this is the run" -- nothing to commit
 beside a bug report, diff against last week's, or hand to somebody else. The ask (owner,
 2026-09-24) is one YAML file naming the data, the check files, the rule files, which tables
 to print and which columns each carries, passed as the only argument.

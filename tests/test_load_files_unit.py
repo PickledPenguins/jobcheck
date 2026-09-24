@@ -7,11 +7,13 @@ nothing, and that a bad path is loud rather than silently empty.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from conftest import PROJECT_ROOT
 from jobcheck import registry as reg
 
 pytestmark = pytest.mark.fast
@@ -613,3 +615,165 @@ def test_a_file_interrupted_part_way_drops_its_checks_like_any_other_failure(
     )
     reg.load_checks([str(path)])
     assert [t.code for t in reg.CHECKS] == ["INTERRUPTED"]
+
+
+# --- load_setup: one file, one call -----------------------------------------
+
+
+def _setup(tmp_path: Path, text: str) -> str:
+    path = tmp_path / "setup.yaml"
+    path.write_text(text, encoding="utf-8")
+    return str(path)
+
+
+def test_a_setup_file_loads_the_checks_and_returns_the_rules(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """The whole of configuring this library in one call: the check files are
+    registered, the rules come back to hand to `validate`."""
+
+    (tmp_path / "check_one.py").write_text(
+        "from jobcheck import OK, register_check\n"
+        "@register_check('A_CODE', 'm')\n"
+        "def one(row): return OK\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "r.yaml").write_text(
+        "- name: off_everywhere\n  message: \"m\"\n  action: disable\n"
+        "  codes: [A_CODE]\n  match: all\n",
+        encoding="utf-8",
+    )
+    rules = reg.load_setup(_setup(tmp_path, "checks: [check_one.py]\nrules: [r.yaml]\n"))
+
+    assert [check.code for check in reg.CHECKS] == ["A_CODE"]
+    assert [rule.name for rule in rules] == ["off_everywhere"]
+
+
+def test_setup_paths_are_relative_to_the_setup_file_not_the_caller(
+    fresh_registry: None, tmp_path: Path, monkeypatch: Any
+) -> None:
+    """The file and the paths in it travel together: a setup file moved to another
+    machine, or run from another directory, still finds its own check files."""
+
+    (tmp_path / "check_one.py").write_text(
+        "from jobcheck import OK, register_check\n"
+        "@register_check('A_CODE', 'm')\n"
+        "def one(row): return OK\n",
+        encoding="utf-8",
+    )
+    setup = _setup(tmp_path, "checks: [check_one.py]\n")
+    monkeypatch.chdir(tmp_path.parent)
+
+    assert reg.load_setup(setup) == []
+    assert [check.code for check in reg.CHECKS] == ["A_CODE"]
+
+
+def test_a_setup_file_without_rules_registers_the_checks_and_returns_none(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    (tmp_path / "check_one.py").write_text(
+        "from jobcheck import OK, register_check\n"
+        "@register_check('A_CODE', 'm')\n"
+        "def one(row): return OK\n",
+        encoding="utf-8",
+    )
+    assert reg.load_setup(_setup(tmp_path, "checks: [check_one.py]\n")) == []
+
+
+def test_a_setup_file_that_is_not_a_mapping_says_so(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """A flat list is the rule file's shape, and the mistake somebody makes having
+    written one of those first."""
+
+    path = _setup(tmp_path, "- checks/all_checks.py\n")
+    with pytest.raises(ValueError) as raised:
+        reg.load_setup(path)
+    assert str(raised.value) == (
+        f"{path}: a setup file is a mapping of 'checks' and 'rules', got list.")
+
+
+def test_an_unknown_setup_key_is_refused_and_lists_the_two(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """A misspelled `rule:` would otherwise apply no rules and say nothing."""
+
+    path = _setup(tmp_path, "checks: [x.py]\nrule: [y.yaml]\n")
+    with pytest.raises(ValueError) as raised:
+        reg.load_setup(path)
+    assert str(raised.value) == (
+        f"{path}: unknown key(s) ['rule']. A setup file holds 'checks', 'rules'.")
+
+
+def test_a_setup_file_naming_only_rules_is_refused(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """Rules switch checks on and off, so a setup with none configures nothing."""
+
+    path = _setup(tmp_path, "rules: [r.yaml]\n")
+    with pytest.raises(ValueError) as raised:
+        reg.load_setup(path)
+    assert str(raised.value) == (
+        f"{path}: 'checks' is required: a setup file names the files to load.")
+
+
+def test_a_string_where_a_list_belongs_is_refused(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """YAML reads `checks: one.py` as a string, and a string is a list of
+    characters -- without this it would try to load a file per character."""
+
+    path = _setup(tmp_path, "checks: one.py\n")
+    with pytest.raises(ValueError) as raised:
+        reg.load_setup(path)
+    assert str(raised.value) == (
+        f"{path}: 'checks' must be a list of paths, got str. "
+        "Write it as a list even for one file.")
+
+
+def test_an_empty_checks_list_is_refused(fresh_registry: None, tmp_path: Path) -> None:
+    path = _setup(tmp_path, "checks: []\n")
+    with pytest.raises(ValueError) as raised:
+        reg.load_setup(path)
+    assert str(raised.value) == f"{path}: 'checks' is empty: name at least one file."
+
+
+def test_a_setup_entry_that_is_not_a_path_names_its_position(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    path = _setup(tmp_path, "checks: [ok.py, 7]\n")
+    with pytest.raises(ValueError) as raised:
+        reg.load_setup(path)
+    assert str(raised.value) == f"{path}: 'checks' entry 2 must be a path, got int."
+
+
+def test_an_empty_rules_list_is_allowed(fresh_registry: None, tmp_path: Path) -> None:
+    """`rules: []` is the baseline every rule file is a deviation from, the same
+    reading `--rules` with no paths has."""
+
+    (tmp_path / "check_one.py").write_text(
+        "from jobcheck import OK, register_check\n"
+        "@register_check('A_CODE', 'm')\n"
+        "def one(row): return OK\n",
+        encoding="utf-8",
+    )
+    assert reg.load_setup(_setup(tmp_path, "checks: [check_one.py]\nrules: []\n")) == []
+
+
+def test_a_missing_setup_file_says_where_it_looked(fresh_registry: None) -> None:
+    with pytest.raises(ValueError) as raised:
+        reg.load_setup("nope.yaml")
+    assert "No setup file at 'nope.yaml'" in str(raised.value)
+    assert "load_setup() names files explicitly" in str(raised.value)
+
+
+def test_the_shipped_setup_file_loads_the_demo(fresh_registry: None) -> None:
+    """`examples/setup.yaml` is the worked example, so the suite runs it."""
+
+    rules = reg.load_setup(os.path.join(PROJECT_ROOT, "examples/setup.yaml"))
+    assert len(reg.loaded_check_files()) == 5
+    assert [rule.name for rule in rules] == [
+        "enable_legacy_integer_check",
+        "suppress_email_checks_for_test_accounts",
+        "disable_age_integer_check_globally",
+    ]

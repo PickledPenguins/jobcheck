@@ -210,6 +210,38 @@ Load the check files first: a rule naming an unregistered code is an error. See
 `list_rule_codes(rule_name, rules) -> list[str]` prints and returns the codes
 one named rule touches.
 
+## Loading both at once
+
+`load_setup(path) -> list[Rule]` is the whole of configuring this library in one
+call: it loads the check files a YAML file names and returns the rules from the rule
+files it names.
+
+```yaml
+checks:
+  - checks/all_checks.py        # a bundle, or list the files
+rules:
+  - rules/01_age.yaml           # in precedence order; optional
+```
+
+Both lists are resolved against the **setup file's own directory**, so the file and
+the paths in it travel together; the setup file's own path is relative to where the
+caller stands, like any path a user types. `checks` is required — a setup naming only
+rules configures nothing, since rules switch checks on and off. `rules` may be
+absent or empty, which is the no-rules baseline.
+
+`ValueError` names the file for each refusal: a document that is not a mapping (a
+flat list is the *rule* file's shape), an unknown key, a string where a list belongs
+(`checks: one.py` is a string, and a string is a list of characters), an entry that
+is not a path, an empty `checks`, and anything `load_checks` or `load_rules` would
+refuse.
+
+Rules are named by path rather than written inline: a rule file is a flat top-level
+list *without* a `rules:` key, which a setup file would contradict, and rule files
+are meant to be shared between runs. `load_checks` and `load_rules` stay public —
+this composes them, a bundle calls `load_checks` from inside a check file, and a
+caller holding paths of its own has no file to write. `examples/setup.yaml` is the
+worked example.
+
 ## Running checks
 
 ### `explain_row(row, context=None, rules=None, on_error="record") -> list[CheckOutcome]`
