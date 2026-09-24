@@ -6,6 +6,7 @@ a behavior change fails here before it reaches a user.
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 import pytest
@@ -139,7 +140,7 @@ def test_cases_run_through_a_root_of_a_fixed_length() -> None:
     from catalog import STABLE_ROOT, stable_root
 
     root = stable_root()
-    if root == ROOT:  # pragma: no cover - filesystem without symlinks
+    if root == ROOT:
         pytest.skip("this filesystem refuses symlinks")
     assert root == STABLE_ROOT
     assert root.readlink() == ROOT
@@ -147,3 +148,54 @@ def test_cases_run_through_a_root_of_a_fixed_length() -> None:
     # the same number of characters, so two accounts, or two clones of one
     # account, on one machine still agree.
     assert len(STABLE_ROOT.name) == len("prv-catalog-root-") + 8 + 1 + 8
+
+
+def test_a_link_pointing_somewhere_else_is_replaced() -> None:
+    """A clone that moved, or a link left by another checkout that shared the
+    name, must not send this run's cases at the wrong tree."""
+
+    from catalog import STABLE_ROOT, stable_root
+
+    if stable_root() == ROOT:
+        pytest.skip("this filesystem refuses symlinks")
+    STABLE_ROOT.unlink()
+    STABLE_ROOT.symlink_to(ROOT.parent, target_is_directory=True)
+
+    assert stable_root() == STABLE_ROOT
+    assert STABLE_ROOT.readlink() == ROOT
+
+
+def test_two_runs_racing_for_the_link_both_get_it() -> None:
+    """Regression: the link was unlinked and re-created, so two runs of one clone
+    both saw it missing, both unlinked, and the loser of the symlink call took the
+    no-symlinks fallback -- rendering every path at a different width and failing
+    the whole catalog on padding, with a comment blaming the filesystem.
+
+    Threads rather than processes: the failure needs two callers between the
+    unlink and the create, and threads reach that window in-process. It is also
+    why the temporary name cannot just carry the pid.
+    """
+
+    from catalog import STABLE_ROOT, stable_root
+
+    if stable_root() == ROOT:
+        pytest.skip("this filesystem refuses symlinks")
+    # What is already there stays out of the comparison: /tmp is shared, and a
+    # run that was killed between creating its link and moving it into place
+    # leaves one behind. This asserts that *these* calls clean up after
+    # themselves, not that nobody ever failed to.
+    pending_before = set(STABLE_ROOT.parent.glob(f"{STABLE_ROOT.name}.*"))
+    STABLE_ROOT.unlink()
+
+    roots: list[Path] = []
+    threads = [threading.Thread(target=lambda: roots.append(stable_root()))
+               for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert roots == [STABLE_ROOT] * 8
+    # And none of them left its own link behind in a directory every clone and
+    # every user on the machine shares.
+    assert set(STABLE_ROOT.parent.glob(f"{STABLE_ROOT.name}.*")) == pending_before

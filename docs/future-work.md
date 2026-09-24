@@ -61,24 +61,6 @@ a design call the owner has not made. The reviews' own fixes to the same commit 
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
 
-**F.26 — the catalog's stable-root fallback swallows more than its comment admits.**
-`tests/catalog.py` creates a fixed-length symlink to the clone so the recorded column
-widths do not depend on where the repository sits, and falls back to the real root inside
-an `except OSError` marked `# pragma: no cover - no symlinks on this filesystem`. That
-handler also catches the `FileExistsError` two runs in one clone produce by racing between
-the unlink and the symlink call: the fallback then returns the real root, the rendered
-paths change width, and the byte-for-byte cases fail with a padding diff the comment blames
-on the filesystem, while the pragma tells coverage never to look. Gain: a concurrent run
-stops producing a failure that reads as somebody else's fault. Loss: the fix is either a
-narrower `except` plus a re-read of the link, or creating the link under a unique name and
-`os.replace`-ing it, which is atomic — the second is right but adds a temporary name to a
-directory shared by every clone of every user, which is what the current zero-padded name
-scheme was carefully built to avoid. ~12 lines in one file. Priority: low — the handoff
-already says not to run two timing suites at once, and the catalog is not a timing suite
-but shares the constraint. Blast radius: the 64 catalog cases, and only when two runs of
-one clone overlap. Recommendation: do the atomic-replace version, and narrow the comment to
-say what it is excusing. The pragma should move to whatever is genuinely unreachable.
-
 **F.27 — no gate on line width.** `contributing.md` states "Lines stay under 100
 characters. Nothing enforces it -- there is no linter here -- but the package sits under
 it". On 2026-09-23 it did not: two lines were 101 and 103 characters. They were wrapped, and
