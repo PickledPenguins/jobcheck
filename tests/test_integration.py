@@ -175,7 +175,7 @@ def test_a_check_file_written_at_runtime_is_loaded_by_path(fresh_registry: None,
 
 
 def test_source_file_of_a_shipped_check_exists_on_disk(example_checks: None) -> None:
-    for check in reg.CHECKS:
+    for check in reg._CHECKS:
         assert os.path.isfile(check.source_file), check.code
 
 

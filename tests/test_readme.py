@@ -126,7 +126,7 @@ def test_the_writing_a_check_block_registers_a_working_check(fresh_registry: Non
     namespace: dict[str, Any] = {}
     exec(compile(source, "README.md:writing-a-check", "exec"), namespace)
 
-    registered = {check.code: check for check in reg.CHECKS}
+    registered = {check.code: check for check in reg._CHECKS}
     assert "AGE_ABOVE_LIMIT" in registered
     assert registered["AGE_ABOVE_LIMIT"].depends_on == ["AGE_PRESENT"]
 
@@ -144,7 +144,7 @@ def test_the_example_code_does_not_collide_with_the_shipped_checks(
     anyone who pasted it into a project with the example suites loaded."""
 
     reg.load_checks(EXAMPLE_CHECK_FILES)
-    shipped = {check.code for check in reg.CHECKS}
+    shipped = {check.code for check in reg._CHECKS}
     for _, source, _ in python_blocks():
         for code in re.findall(r'@\w+\(\s*"([A-Z_]+)"', source):
             assert code not in shipped, f"README defines {code}, which the suites already own"

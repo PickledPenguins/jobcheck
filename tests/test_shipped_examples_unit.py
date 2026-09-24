@@ -73,7 +73,7 @@ def test_every_shipped_rule_name_is_unique_in_its_own_right() -> None:
 def test_every_shipped_rule_names_a_code_the_example_checks_define(
     example_checks: None,
 ) -> None:
-    known = {check.code for check in reg.CHECKS}
+    known = {check.code for check in reg._CHECKS}
     for path in rule_files():
         for rule in yaml.safe_load(path.read_text(encoding="utf-8")) or []:
             for code in rule["codes"]:

@@ -4,7 +4,9 @@ Back to the [README](../README.md).
 
 ## Shape
 
-One process-global list of checks, `CHECKS`, is the center. Checks are ordinary functions
+One process-global list of checks, `registry._CHECKS`, is the center. It is internal: a
+caller reads the registry through `get_registry_table`, because nothing that mutates the
+list directly drops the cached evaluation order the row loop walks. Checks are ordinary functions
 that register themselves into it when their module is imported; which modules get
 imported is the loading mechanism. Everything else reads that list: rule files are
 validated against it, the tables render it, and `explain_row` walks it once per row in a
@@ -14,10 +16,10 @@ precomputed order.
 entry point
   |
   +-- load_checks([...]) -> imports the named .py files by path
-  |                             -> @register_check appends to CHECKS
+  |                             -> @register_check appends to _CHECKS
   |                             -> validate_registry(): depends_on, cycles, layers, topo order
   |
-  +-- load_rules(...)   -> parse YAML -> validate each rule against CHECKS -> [Rule]
+  +-- load_rules(...)   -> parse YAML -> validate each rule against _CHECKS -> [Rule]
   |
   +-- validate(df)          -> explain_row per row
   |       resolve state (defaults, then matching rules, last wins)

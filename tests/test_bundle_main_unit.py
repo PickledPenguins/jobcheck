@@ -32,7 +32,7 @@ def test_the_shipped_bundle_loads_the_four_example_check_files(fresh_registry: N
     loaded = [os.path.basename(path) for path in reg.loaded_check_files()]
     assert loaded == ["check_row_shape.py", "check_age.py", "check_dates.py",
                       "check_email.py", "all_checks.py"]
-    assert sorted(check.code for check in reg.CHECKS) == sorted(SHIPPED_CHECKS)
+    assert sorted(check.code for check in reg._CHECKS) == sorted(SHIPPED_CHECKS)
 
 
 def test_the_entry_point_prints_the_loaded_files_then_the_registry(
@@ -64,7 +64,7 @@ def test_an_argument_names_a_different_bundle(fresh_registry: None, capsys: Any,
 
     bundle_main.main([str(bundle)])
 
-    assert [check.code for check in reg.CHECKS] == ["ONLY_ONE"]
+    assert [check.code for check in reg._CHECKS] == ["ONLY_ONE"]
     assert "ONLY_ONE" in capsys.readouterr().out
 
 

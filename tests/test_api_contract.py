@@ -81,7 +81,7 @@ def test_the_rule_parser_does_not_import_the_registry() -> None:
     ]
     imports = [line for line in code if line.startswith(("import ", "from "))]
     assert not any("registry" in line for line in imports), imports
-    assert not any("CHECKS" in line for line in code)
+    assert not any("_CHECKS" in line for line in code)
 
 
 def test_every_public_function_is_exported() -> None:

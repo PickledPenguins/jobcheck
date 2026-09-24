@@ -145,7 +145,7 @@ def test_an_unreadable_check_file_raises_and_registers_nothing(fresh_registry: N
     unreadable(path)
     with pytest.raises(PermissionError):
         load_checks([str(path)])
-    assert reg.CHECKS == []
+    assert reg._CHECKS == []
 
 
 def test_a_check_file_symlink_pointing_nowhere_is_reported_as_missing(fresh_registry: None,
@@ -162,7 +162,7 @@ def test_a_check_file_holding_a_syntax_error_propagates_it(fresh_registry: None,
     path.write_text("def rule(row:\n")
     with pytest.raises(SyntaxError):
         load_checks([str(path)])
-    assert reg.CHECKS == []
+    assert reg._CHECKS == []
 
 
 def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
@@ -179,7 +179,7 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
     broken.write_text("raise RuntimeError('boom')\n")
     with pytest.raises(RuntimeError):
         load_checks([str(good), str(broken)])
-    assert [t.code for t in reg.CHECKS] == ["FROM_FILE"]
+    assert [t.code for t in reg._CHECKS] == ["FROM_FILE"]
     assert reg.loaded_check_files() == [str(good.resolve())]
     # And the survivor runs: the failure path must leave the evaluation order
     # recomputed, not a stale cache that would validate a row against nothing.

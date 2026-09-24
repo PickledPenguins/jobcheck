@@ -57,7 +57,7 @@ class Check:
     fundamental check, which is what makes it a root cause."""
 
 
-CHECKS: list[Check] = []
+_CHECKS: list[Check] = []
 
 # Check files imported by path through load_checks(), resolved and in load
 # order.
@@ -138,7 +138,7 @@ def _reject_bad_registration(
         raise ValueError(f"Check code must be a non-empty string, got {code!r}.")
     if not isinstance(message, str) or not message:
         raise ValueError(f"Check {code!r}: message must be the text a person sees on failure.")
-    if any(check.code == code for check in CHECKS):
+    if any(check.code == code for check in _CHECKS):
         raise ValueError(
             f"Duplicate check code {code!r} (registering {where}). "
             "Codes are permanent identifiers and must be unique."
@@ -191,7 +191,7 @@ def register_check(
             default_enabled=default_enabled,
             depends_on=list(dict.fromkeys(prerequisites)),
         )
-        CHECKS.append(check)
+        _CHECKS.append(check)
         if _LOADING:
             _LOADING[-1][1].append(check)
         _TOPO_ORDER = None
@@ -210,7 +210,7 @@ def clear_registry() -> None:
     """
 
     global _TOPO_ORDER, _LOAD_SEQUENCE
-    CHECKS.clear()
+    _CHECKS.clear()
     _LOADED_FILES.clear()
     _LOAD_SEQUENCE = 0
     # Evict the check modules too: Python caches a module after its first import,
@@ -296,14 +296,14 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
             # any other failure, and the retry afterwards reported the author's
             # own check as a duplicate of itself.
             # The file's decorators ran up to the line that raised, so its
-            # earlier checks are in CHECKS while the file is not in
+            # earlier checks are in _CHECKS while the file is not in
             # _LOADED_FILES. Drop them: a file that failed to load loaded
             # nothing, and the corrected file must not be refused as a
             # duplicate of itself. Files loaded before it stay -- loading is
             # per file, not per call, at every depth: a bundle keeps what its
             # completed members registered, which is what _LOADING separates.
             mine = {id(check) for check in _LOADING[-1][1]}
-            CHECKS[:] = [check for check in CHECKS if id(check) not in mine]
+            _CHECKS[:] = [check for check in _CHECKS if id(check) not in mine]
             _LOADED_MODULES.discard(module_name)
             sys.modules.pop(module_name, None)
             _TOPO_ORDER = None
@@ -327,7 +327,7 @@ def _topological_order() -> list[Check]:
     detection share the traversal.
     """
 
-    by_code = {check.code: check for check in CHECKS}
+    by_code = {check.code: check for check in _CHECKS}
     order: list[Check] = []
     done: set[str] = set()
     visiting: list[str] = []
@@ -348,7 +348,7 @@ def _topological_order() -> list[Check]:
         done.add(code)
         order.append(by_code[code])
 
-    for check in CHECKS:
+    for check in _CHECKS:
         visit(check.code)
     return order
 
@@ -363,8 +363,8 @@ def validate_registry() -> None:
     """
 
     global _TOPO_ORDER
-    known = {check.code for check in CHECKS}
-    for check in CHECKS:
+    known = {check.code for check in _CHECKS}
+    for check in _CHECKS:
         for prerequisite in check.depends_on:
             if prerequisite not in known:
                 raise ValueError(
@@ -383,15 +383,15 @@ def validate_registry() -> None:
         # so the message names the limit it ran into instead. The widest
         # declared depends_on is a different number, and said so wrongly until
         # 2026-09-22.
-        widest = max((len(check.depends_on) for check in CHECKS), default=0)
+        widest = max((len(check.depends_on) for check in _CHECKS), default=0)
         raise ValueError(
-            f"Dependency chain too deep to resolve among {len(CHECKS)} checks: the "
+            f"Dependency chain too deep to resolve among {len(_CHECKS)} checks: the "
             f"ordering walk is recursive and gives out near Python's recursion limit "
             f"of {sys.getrecursionlimit()} (widest declared depends_on: {widest}). "
             "Shorten the chain, or register prerequisites before the checks that "
             "depend on them."
         ) from None
-    by_code = {check.code: check for check in CHECKS}
+    by_code = {check.code: check for check in _CHECKS}
     for check in order:
         check.layer = (
             0 if not check.depends_on
@@ -419,7 +419,7 @@ def load_rules(paths: list[str],
 
     *base_dir* anchors relative paths exactly as it does in `load_checks`."""
 
-    return rules.load_rules(paths, {check.code for check in CHECKS}, base_dir)
+    return rules.load_rules(paths, {check.code for check in _CHECKS}, base_dir)
 
 
 #: The only two keys a setup file holds. Named so the rejection can list them,

@@ -39,7 +39,7 @@ class SavedRegistry:
     __slots__ = ("checks", "loaded_files", "loaded_modules", "topo_order", "load_sequence")
 
     def __init__(self) -> None:
-        self.checks: list[Any] = list(reg.CHECKS)
+        self.checks: list[Any] = list(reg._CHECKS)
         self.loaded_files: list[str] = list(reg._LOADED_FILES)
         self.loaded_modules: set[str] = set(reg._LOADED_MODULES)
         self.topo_order: list[Any] | None = reg._TOPO_ORDER
@@ -59,7 +59,7 @@ class SavedRegistry:
         """
 
         reg.clear_registry()
-        reg.CHECKS.extend(self.checks)
+        reg._CHECKS.extend(self.checks)
         reg._LOADED_FILES.extend(self.loaded_files)
         reg._LOADED_MODULES.update(self.loaded_modules)
         reg._TOPO_ORDER = self.topo_order

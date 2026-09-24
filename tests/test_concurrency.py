@@ -86,12 +86,12 @@ def test_whole_frames_validated_on_threads_agree_with_one_thread(example_checks:
 def test_validation_does_not_mutate_the_registry_under_threads(example_checks: None) -> None:
     from jobcheck import registry as reg
 
-    before = [(check.code, check.layer, check.default_enabled) for check in reg.CHECKS]
+    before = [(check.code, check.layer, check.default_enabled) for check in reg._CHECKS]
     df = frame(100)
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         list(pool.map(lambda _: validate(df), range(WORKERS)))
 
-    assert [(t.code, t.layer, t.default_enabled) for t in reg.CHECKS] == before
+    assert [(t.code, t.layer, t.default_enabled) for t in reg._CHECKS] == before
 
 
 # --- separate processes -----------------------------------------------------
@@ -100,10 +100,10 @@ CHILD = textwrap.dedent(
     """
     import sys
     sys.path.insert(0, {src!r})
-    from jobcheck import load_checks, loaded_check_files, CHECKS
+    from jobcheck import get_registry_table, load_checks, loaded_check_files
 
     load_checks([{path!r}])
-    print(",".join(sorted(t.code for t in CHECKS)))
+    print(",".join(sorted(get_registry_table()["code"])))
     print(len(loaded_check_files()))
     """
 )

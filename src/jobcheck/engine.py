@@ -13,7 +13,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from .context import RowContext
-from .registry import CHECKS, _get_topo_order
+from .registry import _CHECKS, _get_topo_order
 from .results import (
     DISABLED,
     ERRORED,
@@ -42,10 +42,10 @@ _EMPTY_CONTEXT = RowContext()
 # row loop walks the cached evaluation order and looks every check up in the
 # enabled-by-code map built from the registry this call, so the two must hold the
 # same checks in a dependency-respecting order. Every route that changes the
-# registry drops the cache, so they agree -- unless a caller edits CHECKS or the
-# cache itself, which is reachable because CHECKS is exported and mutable.
+# registry drops the cache, so they agree -- unless a caller edits _CHECKS or the
+# cache itself, which is reachable because _CHECKS is exported and mutable.
 _STALE_ORDER_CAUSE = (
-    "The cached evaluation order and the registry disagree. That happens when CHECKS "
+    "The cached evaluation order and the registry disagree. That happens when _CHECKS "
     "or the cached order is edited directly instead of through load_checks(), "
     "register_check() or clear_registry()."
 )
@@ -90,7 +90,7 @@ def resolve_enabled_state(
     enabled_by_code = {
         check.code: (check.default_enabled,
                      "default" if check.default_enabled else "off by default")
-        for check in CHECKS
+        for check in _CHECKS
     }
     for rule in rules:
         if not rule_matches(rule, row):

@@ -14,7 +14,6 @@ code."""
 
 from .context import RowContext
 from .registry import (
-    CHECKS,
     Check,
     MatchCriterion,
     Rule,
@@ -71,7 +70,6 @@ from .results import (
 from .tables import format_table, is_null
 
 __all__ = [
-    "CHECKS",
     "Check",
     "CheckOutcome",
     "DISABLED",
