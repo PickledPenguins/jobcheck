@@ -2,6 +2,20 @@
 
 `DataFrame.to_string()` is cramped and unbordered for auditing, and a table
 library would be a runtime dependency for formatting alone.
+
+A leading underscore here marks a name outside the package's *public surface*,
+not one that stays in this file. `_format_cell` and `_check_extra_columns` are
+imported by `report.py`, `rules.py` and `registry_tables.py`, and are meant to
+be: they are how three tables render a cell and reject an unknown extra column
+the same way. `_cell_lines`, `_padded_line` and `_LINE_BREAKS` are internal to
+the file as well, and nothing outside it should reach for them. The two names
+without an underscore, `is_null` and `format_table`, are exported from
+`__init__.py` and are the only part of this module a user calls.
+
+The underscore stays on the shared two rather than coming off. Dropping it would
+put them in `__all__` -- `tests/test_api_contract.py` fails on a public callable
+that is not exported -- and `_check_extra_columns`, which exists to reject a bad
+`extra_columns=` argument, has no use for a caller outside those three tables.
 """
 
 from __future__ import annotations

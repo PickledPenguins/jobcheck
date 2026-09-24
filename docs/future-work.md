@@ -61,22 +61,6 @@ a design call the owner has not made. The reviews' own fixes to the same commit 
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
 
-**F.22 — two private-by-name helpers in `tables.py` are package-internal API.** The cell
-formatter and the extra-columns validator carry a leading underscore and are imported by
-`rules.py`, `report.py` and `registry_tables.py`; `format_table` and `is_null`, in the same
-file and used the same way, carry none and are exported from `__init__.py`. A reader cannot
-derive the rule, and the underscore is the only signal a junior has for "do not call this
-from elsewhere". Gain: the convention becomes legible — either the underscore means
-"not public API" and is documented as such, or the two helpers are named like the rest of
-the file. Loss if renamed: they would look exported without being in `__all__`, which is a
-different confusion, and `test_api_contract.py` checks that the public surface is complete
-and sorted — a public-looking name that is deliberately absent from `__all__` is a new
-exception to explain there. 5 lines if documented; ~12 lines across 4 files if renamed.
-Priority: low. Blast radius: three modules and their unit tests; no behavior. Recommendation:
-document rather than rename. One sentence in `tables.py`'s module docstring saying an
-underscore there means "internal to the package, not to this file" costs nothing and does
-not disturb the export contract.
-
 **F.23 — the test suite's module aliases.** `tests/conftest.py` imports the package's
 modules as `eng`, `reg` and `res`, and roughly twenty test modules use them. The package
 itself spells everything out, and `contributing.md` names the junior reader as the bar.
@@ -163,6 +147,21 @@ so, and an environment variable makes a run irreproducible from its command line
 would also cost the sentence every failure prints, "load_checks() names files explicitly;
 nothing is discovered", which is pinned in eleven places and is the invariant the whole
 loader is built on.
+
+**Renaming `tables.py`'s two cross-module helpers to look public** (F.22, decided
+2026-09-23). `_format_cell` and `_check_extra_columns` carry a leading underscore and are
+imported by `report.py`, `rules.py` and `registry_tables.py`, while `is_null` and
+`format_table` sit in the same file without one and are exported. Dropping the underscore
+was rejected: `tests/test_api_contract.py` fails on a public callable that is not in
+`__all__`, so the rename forces both into the public surface, and `_check_extra_columns`
+exists to reject a bad `extra_columns=` argument -- there is no use for it outside the three
+tables that take one, which makes it exactly the kind of export that has to be removed
+again later. Keeping a public-looking name deliberately out of `__all__` is worse still: a
+second rule to learn, and an exception to explain in the contract test. What was wrong was
+that the convention was nowhere written; it now is, in `tables.py`'s docstring and in
+`contributing.md`'s style list. An underscore marks a name outside the *public surface*,
+not one that stays in its file -- `_cell_lines`, `_padded_line` and `_LINE_BREAKS` happen to
+be both.
 
 **One shared `sys.path` bootstrap helper** (F.21, decided 2026-09-23). Seven files compute
 the clone root and prepend some subset of `src`, `examples`, `tests` and the root to
