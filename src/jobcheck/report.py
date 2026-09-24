@@ -4,6 +4,14 @@ The report is **long format** -- one line per failed check per data row -- which
 is the diagnostic unit, survives being written as CSV, and sorts and filters
 cleanly downstream. There is no command line; a pipeline decides where output
 goes.
+
+Who owns the frame decides what a function returns, which is the same rule
+`registry_tables.py` states from its own side. `build_report`, `row_explanation`
+and `summarize_outcomes` build a frame and return it. `print_row_explanation` and
+`print_summary` build one too, so they return it as well rather than making the
+caller build it twice. `print_report` and `write_report` are handed a finished
+report and return `None` -- handing back the caller's own argument would say
+nothing -- and `render_report` returns the text it produced instead.
 """
 
 from __future__ import annotations
