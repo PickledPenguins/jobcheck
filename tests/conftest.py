@@ -16,12 +16,17 @@ from typing import Any, Iterator
 import pandas as pd
 import pytest
 
+from jobcheck import engine as eng
+from jobcheck import registry as reg
+from jobcheck import report
+from jobcheck import results as res
+from registry_state import SavedRegistry
+
+#: The clone this suite runs against. `src`, `examples` and the root itself are
+#: on the path already: `pythonpath` in pyproject.toml puts them there before
+#: this file is imported, which is why the imports above need no bootstrap under
+#: them.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# src layout: importable without installing, which is what the entry points and
-# the catalog rely on. `pip install -e .` puts it on the path the normal way.
-sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
-sys.path.insert(0, os.path.join(PROJECT_ROOT, "examples"))
-sys.path.insert(0, PROJECT_ROOT)
 
 # Hypothesis keeps its example database and its constants cache in .hypothesis
 # in the working directory. There is no pyproject setting for it, only this
@@ -31,12 +36,6 @@ sys.path.insert(0, PROJECT_ROOT)
 os.environ.setdefault(
     "HYPOTHESIS_STORAGE_DIRECTORY", os.path.join(PROJECT_ROOT, ".build", "hypothesis")
 )
-
-from jobcheck import engine as eng  # noqa: E402
-from jobcheck import registry as reg  # noqa: E402
-from jobcheck import report  # noqa: E402
-from jobcheck import results as res  # noqa: E402
-from registry_state import SavedRegistry  # noqa: E402
 
 
 @pytest.fixture

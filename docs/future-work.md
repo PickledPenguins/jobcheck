@@ -61,25 +61,6 @@ a design call the owner has not made. The reviews' own fixes to the same commit 
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
 
-**F.21 — the `sys.path` bootstrap is written eight times, three ways.** `tests/conftest.py`,
-`tests/test_docs_unit.py`, `tests/test_concurrency.py`, `examples/main.py`,
-`examples/bundle_main.py`, `scripts/regen_catalog.py`, `scripts/regen_golden.py`,
-`scripts/profile_examples.py` and `scripts/new_catalog_case.py` each compute the clone root
-and put some subset of `src`, `examples`, `tests` and the root itself on the path. The root
-is `PROJECT_ROOT` in some and `ROOT` in others, `os.path` in some and `pathlib` in others,
-and no two insert the same set. Gain: one place to change when the layout moves, and one
-name for one concept, which is the rule `contributing.md` states. Loss: the two files under
-`examples/` must keep their own copy whatever happens — they are what an adopter copies, and
-a demo that imports a private test helper to find its own package is worse than a repeated
-three lines. So the de-duplication can only ever cover six of the eight, which weakens it:
-a reader still meets two spellings, and now also has to know which files are allowed to use
-the helper. ~25 source lines removed, ~15 added, 6 files touched. Priority: low — it has
-never caused a failure. Blast radius: import bootstrapping for the whole suite and every
-script; a mistake here is a collection error, loud and immediate. Recommendation: do the
-smaller half instead — make the six agree on the name `ROOT` and on `pathlib`, and leave
-them separate. The shared helper buys less than it costs once the two entry points are
-carved out.
-
 **F.22 — two private-by-name helpers in `tables.py` are package-internal API.** The cell
 formatter and the extra-columns validator carry a leading underscore and are imported by
 `rules.py`, `report.py` and `registry_tables.py`; `format_table` and `is_null`, in the same
@@ -182,6 +163,34 @@ so, and an environment variable makes a run irreproducible from its command line
 would also cost the sentence every failure prints, "load_checks() names files explicitly;
 nothing is discovered", which is pinned in eleven places and is the invariant the whole
 loader is built on.
+
+**One shared `sys.path` bootstrap helper** (F.21, decided 2026-09-23). Seven files compute
+the clone root and prepend some subset of `src`, `examples`, `tests` and the root to
+`sys.path`: `tests/conftest.py`, the two entry points under `examples/`, and four scripts
+under `scripts/`. Five distinct insert sets, two spellings of the root (`PROJECT_ROOT`,
+`ROOT`) and two libraries (`os.path`, `pathlib`). A shared helper was rejected. The two
+files under `examples/` have to keep their own copy whatever happens -- they are what an
+adopter copies, and a demo importing a private test helper to find its own package is worse
+than three repeated lines -- so the helper could never cover more than five of the seven,
+after which a reader meets two spellings *and* a rule about which files may use the helper.
+It has no honest home either: not `src/`, which must not carry a bootstrap for the
+repository that develops it; not `tests/`, which the scripts would then import from; and a
+new root-level module for it works against the rule that the project root stays readable.
+The insert sets differ for real reasons (`new_catalog_case.py` needs only `tests`,
+`regen_golden.py` needs the root because it imports a root-level module), so a helper
+taking "which of the four" has moved the decision rather than removed it -- and each file
+inserts at position 0, so a helper with a fixed order silently changes which module wins
+for at least one caller.
+
+Renaming `PROJECT_ROOT` to `ROOT` for consistency was rejected with it: eight sites across
+four files to turn two correct spellings into one, and `PROJECT_ROOT` is the clearer of the
+two. The entry's citation of a "one name for one concept" rule in `contributing.md` was
+checked and no such rule is there. Its counts were wrong as well -- "eight times" counted
+`tests/test_docs_unit.py`, which computes a root and inserts nothing, and
+`tests/test_concurrency.py`, which imports the root from `conftest` and writes an insert
+into *generated subprocess source*. What was taken instead is in the git log: `pythonpath`
+in `pyproject.toml` replaced `conftest.py`'s three inserts, which was the one place a
+declaration could do the job.
 
 **Registry snapshot and restore as library API** (F.18 and F.19, decided 2026-09-23).
 `snapshot` and `restore` copied the registry's module globals and put them back. Both were

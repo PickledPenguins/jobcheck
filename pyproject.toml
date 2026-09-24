@@ -37,6 +37,15 @@ jobcheck = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# src layout: importable without installing, which is what the entry points and
+# the catalog rely on. `pip install -e .` puts it on the path the normal way.
+# Declared here rather than as sys.path inserts at the top of conftest.py, which
+# is the file every other test module imports names from: a bootstrap that runs
+# before its own imports forces them below it, and every one of them then needs
+# a `noqa: E402`. The order is the order they are prepended in; the scripts under
+# scripts/ and the two entry points under examples/ keep their own inserts,
+# because they run without pytest.
+pythonpath = [".", "examples", "src"]
 # -p no:benchmark: pytest-benchmark is not used here, and merely loading it
 # creates a .benchmarks directory in the project root at configure time. It goes
 # in addopts rather than on the command line so the suites that spawn a pytest

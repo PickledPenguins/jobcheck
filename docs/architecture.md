@@ -53,8 +53,9 @@ which `mutmut` writes beside the project because it hardcodes the path; delete
 it when a mutation run is finished.
 
 A src layout, so an installed copy and a clone behave the same: nothing imports
-the package by accident from the working directory. The demos add `src/` to
-`sys.path` themselves, so the repository runs without being installed.
+the package by accident from the working directory. The demos and the scripts add
+`src/` to `sys.path` themselves, and the suite gets it from `pythonpath` in
+`pyproject.toml`, so the repository runs without being installed.
 
 ## Modules
 
