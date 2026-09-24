@@ -19,13 +19,13 @@ pytestmark = pytest.mark.fast
 
 def test_register_check_captures_code_and_message(fresh_registry: None) -> None:
     make_check("A_CODE")
-    check = reg.CHECKS[0]
+    check = reg._CHECKS[0]
     assert (check.code, check.message) == ("A_CODE", "A_CODE failed")
 
 
 def test_register_check_defaults_are_enabled_with_no_dependencies(fresh_registry: None) -> None:
     make_check("A_CODE")
-    check = reg.CHECKS[0]
+    check = reg._CHECKS[0]
     assert (check.default_enabled, check.depends_on) == (True, [])
 
 
@@ -42,7 +42,7 @@ def test_register_check_copies_depends_on_so_caller_list_cannot_mutate_it(fresh_
     make_check("FIRST")
     make_check("SECOND", depends_on=codes)
     codes.append("LATER")
-    assert reg.CHECKS[1].depends_on == ["FIRST"]
+    assert reg._CHECKS[1].depends_on == ["FIRST"]
 
 
 def test_duplicate_code_raises_naming_the_code(fresh_registry: None) -> None:
@@ -52,7 +52,7 @@ def test_duplicate_code_raises_naming_the_code(fresh_registry: None) -> None:
 
 
 def test_source_file_points_at_the_defining_file(example_checks: None) -> None:
-    check = next(t for t in reg.CHECKS if t.code == "AGE_NEGATIVE")
+    check = next(t for t in reg._CHECKS if t.code == "AGE_NEGATIVE")
     assert check.source_file.endswith("examples/checks/check_age.py")
 
 
@@ -68,7 +68,7 @@ def test_a_check_defined_by_exec_registers(fresh_registry: None) -> None:
         "    return OK\n",
         namespace,
     )
-    registered = reg.CHECKS[0]
+    registered = reg._CHECKS[0]
     assert registered.code == "EXECED"
     assert registered.source_file == "<unknown>"
     assert engine.validate_row(pd.Series({"age": 1})) == []
@@ -88,14 +88,18 @@ def test_a_duplicate_code_from_exec_still_names_the_function(fresh_registry: Non
 
 
 def test_importing_the_package_alone_registers_nothing(fresh_registry: None) -> None:
+    """Asserted through the public read path rather than the registry list, which
+    is internal: `get_registry_table` is what a caller has."""
+
     import jobcheck
 
-    assert jobcheck.CHECKS == []
+    assert jobcheck.get_registry_table().empty
+    assert jobcheck.loaded_check_files() == []
 
 
 def test_clear_registry_empties_the_checks_and_the_loaded_files(example_checks: None) -> None:
     reg.clear_registry()
-    assert reg.CHECKS == []
+    assert reg._CHECKS == []
     assert reg.loaded_check_files() == []
 
 
@@ -106,7 +110,7 @@ def test_clear_registry_then_load_checks_re_registers(fresh_registry: None) -> N
     reg.load_checks(EXAMPLE_CHECK_FILES)
     reg.clear_registry()
     reg.load_checks(EXAMPLE_CHECK_FILES)
-    assert sorted(t.code for t in reg.CHECKS) == [
+    assert sorted(t.code for t in reg._CHECKS) == [
         "AGE_NEGATIVE",
         "AGE_NOT_A_NUMBER",
         "AGE_NOT_INTEGER",
@@ -318,9 +322,22 @@ def test_putting_the_registry_back_restores_checks_that_still_run(
     reg.load_checks([_check_file(tmp_path / "outer.py", "OUTER")])
     saved = SavedRegistry()
     reg.load_checks([_check_file(tmp_path / "inner.py", "INNER")])
-    assert sorted(c.code for c in reg.CHECKS) == ["INNER", "OUTER"]
+    assert sorted(c.code for c in reg._CHECKS) == ["INNER", "OUTER"]
 
     saved.restore()
-    assert [c.code for c in reg.CHECKS] == ["OUTER"]
+    assert [c.code for c in reg._CHECKS] == ["OUTER"]
     outcomes = engine.explain_row(pd.Series({"a": 1}))
     assert [o.code for o in outcomes] == ["OUTER"]
+
+
+def test_the_registry_list_is_not_part_of_the_public_surface() -> None:
+    """It was exported until 2026-09-24, with `interfaces.md` asking callers not to
+    mutate it and nothing enforcing that. Nothing outside this package ever read it:
+    the read path is `get_registry_table`, which every legitimate use wanted."""
+
+    import jobcheck
+
+    assert "_CHECKS" not in jobcheck.__all__
+    assert not hasattr(jobcheck, "CHECKS")
+    assert set(jobcheck.get_registry_table().columns) >= {
+        "code", "layer", "default", "message", "depends_on"}

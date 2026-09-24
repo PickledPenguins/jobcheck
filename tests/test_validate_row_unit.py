@@ -367,7 +367,7 @@ def test_an_errored_check_can_be_the_root_cause(fresh_registry: None) -> None:
 def test_layer_is_zero_without_prerequisites(fresh_registry: None) -> None:
     make_check("ROOT")
     reg.validate_registry()
-    assert reg.CHECKS[0].layer == 0
+    assert reg._CHECKS[0].layer == 0
 
 
 def test_layer_counts_the_deepest_chain(fresh_registry: None) -> None:
@@ -376,7 +376,7 @@ def test_layer_counts_the_deepest_chain(fresh_registry: None) -> None:
     make_check("L2", depends_on=["L1"])
     make_check("WIDE", depends_on=["L0", "L2"])
     reg.validate_registry()
-    assert {t.code: t.layer for t in reg.CHECKS} == {"L0": 0, "L1": 1, "L2": 2, "WIDE": 3}
+    assert {t.code: t.layer for t in reg._CHECKS} == {"L0": 0, "L1": 1, "L2": 2, "WIDE": 3}
 
 
 def test_outcomes_carry_the_layer(fresh_registry: None) -> None:

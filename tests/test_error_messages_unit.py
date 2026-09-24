@@ -295,7 +295,7 @@ def test_an_unknown_format_names_the_two_that_work(fresh_registry: None) -> None
 # --- a registry the cached evaluation order no longer matches ----------------
 
 STALE = (
-    "The cached evaluation order and the registry disagree. That happens when CHECKS "
+    "The cached evaluation order and the registry disagree. That happens when _CHECKS "
     "or the cached order is edited directly instead of through load_checks(), "
     "register_check() or clear_registry()."
 )
@@ -304,7 +304,7 @@ STALE = (
 def test_an_order_naming_an_unregistered_check_says_so_rather_than_running_it(
     fresh_registry: None,
 ) -> None:
-    """`CHECKS` is exported and mutable, so a caller can drop a check without the
+    """`_CHECKS` is exported and mutable, so a caller can drop a check without the
     cached order being recomputed. The check used to run anyway, under its
     declared default, and the report said `disabled by default` about a check
     that was no longer registered."""
@@ -312,7 +312,7 @@ def test_an_order_naming_an_unregistered_check_says_so_rather_than_running_it(
     make_check("FIRST")
     make_check("SECOND")
     validate_row(FRAME.iloc[0])          # warm the cached order
-    reg.CHECKS.pop()                     # ... and then disagree with it
+    reg._CHECKS.pop()                     # ... and then disagree with it
 
     with pytest.raises(ValueError) as raised:
         explain_row(FRAME.iloc[0])

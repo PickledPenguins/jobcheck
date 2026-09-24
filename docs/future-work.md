@@ -12,7 +12,7 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-Two gaps are open. Every other item raised by the reviews of 2026-09-15, 2026-09-21 and
+One gap is open. Every other item raised by the reviews of 2026-09-15, 2026-09-21 and
 2026-09-23 was worked through on 2026-09-23 and 2026-09-24: what was built is in the git
 log, and what was decided against is in the section below, with the reason. An entry there
 is closed, not pending.
@@ -48,32 +48,6 @@ the code, and were held rather than fixed because each changes behavior, an API,
 a design call the owner has not made. The reviews' own fixes to the same commit are in the
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
-
-**F.28 — `CHECKS` is an exported mutable list.** `jobcheck.CHECKS` is the registry itself,
-exported from `__init__.py` and documented as the center of the design
-(`architecture.md`). Nothing stops a caller appending to it, popping from it, sorting it or
-clearing it, and none of those routes drops the cached evaluation order the way
-`register_check` and `clear_registry` do. That is what made F.24 reachable: `CHECKS.pop()`
-left the order naming a check the registry no longer had, and until 2026-09-23 the row loop
-ran it anyway under its declared default. The guard added then turns that into a `ValueError`
-naming the cause, so the symptom is loud -- but a caller can still desynchronize the two, and
-a caller who sorts `CHECKS` in place gets an order that silently contradicts the dependency
-graph until something invalidates the cache.
-
-What a fix would be: return a copy from a `checks` function and drop the list from
-`__all__`, or keep the name and make it a read-only view (a `tuple`, or a sequence proxy).
-Gain: the registry can only be changed through the three functions that maintain its
-invariants. Loss: `CHECKS` is in `docs/architecture.md`, `docs/interfaces.md` and the README
-as a name a reader looks at, and `tests/` reads it in 24 files -- a copy per read costs an
-allocation in code that is sometimes per row, and a tuple means `clear_registry` and
-`register_check` rebind a module global rather than mutating in place, which every `from
-jobcheck import CHECKS` then misses. That last point is the real cost: rebinding breaks
-importers silently, in the same way the module cache does, so the change is either a
-function or nothing. ~20 source lines, ~30 test lines touched across 24 files, plus three
-documents. Priority: low -- with the F.24 guards in place nothing is silently wrong any
-more, only reachable. Blast radius: the public API, the docs that name it, and every test
-that reads the registry. Recommendation: not now. Revisit if a second silent
-desynchronization turns up; the guards are the cheap half and they are in.
 
 **F.29 — no single file defines a whole run.** Half of this was built on 2026-09-24 as
 `load_setup`, which takes one YAML naming `checks` and `rules` -- so the *setup* is a file
@@ -136,6 +110,33 @@ rules and would need report and column keys added -- one format, in the project 
 it is.
 
 ## Considered and deliberately not done
+
+**Keeping the registry list public, or making it a tuple** (F.28, decided 2026-09-24).
+`CHECKS` was exported and mutable, and nothing that mutated it directly dropped the cached
+evaluation order -- which is how F.24 was reachable: `CHECKS.pop()` left the order naming a
+check the registry no longer had. It is `registry._CHECKS` now, internal, and the read path
+is `get_registry_table`.
+
+Measured before deciding: the exported name had **no caller outside the test suite** -- zero
+in `examples/`, zero in jobchain, zero in the documents' code blocks, two in `tests/` against
+55 that reached the module attribute instead. `interfaces.md` stated the contract as "read it
+freely; mutate it only through the decorators and `clear_registry`", a rule with nothing
+enforcing it. Every legitimate read was already served: `get_registry_table` gives code,
+layer, default, message and `depends_on` as a frame, and `loaded_check_files` the files
+behind them.
+
+The two fixes on record were both worse. A **tuple** would make `clear_registry` and
+`register_check` rebind a module global, which `from .registry import CHECKS` in `engine.py`
+and `registry_tables.py` would never see -- and any external `from jobcheck import CHECKS`
+would silently keep the old list. A **copy-returning `checks` function** would be a new
+export needing its own use case when `get_registry_table` is already it. Private costs
+neither, and the F.24 guards mean a caller who reaches in anyway gets a `ValueError` from the
+row loop rather than a plausible wrong report.
+
+What went with it: a caller wanting the `Check` objects themselves rather than the table --
+the runner function, and `source_file` except as an optional column. Nothing here or in
+jobchain wanted `fn`, and handing out the runner invites calling it outside the engine, which
+bypasses rules, dependencies and error recording.
 
 **A search path for check and rule files** (F.17, decided 2026-09-23). `base_dir`
 anchors a relative path to one directory the caller names. What it does not serve is the

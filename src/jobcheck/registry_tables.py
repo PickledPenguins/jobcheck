@@ -19,7 +19,7 @@ from typing import Any
 
 import pandas as pd
 
-from .registry import CHECKS
+from .registry import _CHECKS
 from .rules import Rule
 from .tables import _keep_columns, _print_title, _reject_unknown_columns, format_table
 
@@ -69,7 +69,7 @@ def get_registry_table(add_columns: list[str] | None = None,
                *add_columns]
 
     rows: list[dict[str, Any]] = []
-    for check in CHECKS:
+    for check in _CHECKS:
         rows.append({
             "code": check.code,
             "layer": check.layer,

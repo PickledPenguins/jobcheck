@@ -78,7 +78,8 @@ def test_every_shipped_module_is_importable_on_its_own(tmp_path: Path) -> None:
 
 def test_importing_the_library_registers_nothing(tmp_path: Path) -> None:
     result = run_isolated(
-        "import jobcheck as v; print(len(v.CHECKS), v.__version__)", cwd=tmp_path
+        "import jobcheck as v; print(len(v.get_registry_table()), v.__version__)",
+        cwd=tmp_path
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.split() == ["0", "0.2.0"]
@@ -105,9 +106,9 @@ def test_an_adopter_gets_only_their_own_checks(tmp_path: Path) -> None:
     home = adopter_package(tmp_path)
     result = run_isolated(
         "import pandas as pd\n"
-        "from jobcheck import load_checks, CHECKS, validate_row\n"
+        "from jobcheck import get_registry_table, load_checks, validate_row\n"
         "load_checks(['their_checks/check_theirs.py'])\n"
-        "print(sorted(t.code for t in CHECKS))\n"
+        "print(sorted(get_registry_table()['code']))\n"
         "print([o.code for o in validate_row(pd.Series({'field': None}))])\n",
         cwd=home,
         extra_path=[home],

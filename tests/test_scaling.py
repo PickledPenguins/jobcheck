@@ -94,7 +94,7 @@ def test_twice_the_checks_costs_about_twice_as_much(fresh_registry: None) -> Non
     # Four times the checks: linear is 4. A per-row topological sort over a
     # growing registry would show here as well above that.
     assert ratio < 8, f"4x the checks cost {ratio:.1f}x the time"
-    assert len(reg.CHECKS) == 200
+    assert len(reg._CHECKS) == 200
 
 
 def test_a_deep_dependency_chain_does_not_cost_more_than_a_flat_one(

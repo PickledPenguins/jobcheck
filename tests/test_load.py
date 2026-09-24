@@ -132,10 +132,10 @@ def test_many_rules_resolve_within_the_ceiling(fresh_registry: None) -> None:
 
 def test_repeated_validation_does_not_leak_registry_state(example_checks: None) -> None:
     row = pd.Series({"age": -1, "email": "nope"})
-    before = len(reg.CHECKS)
+    before = len(reg._CHECKS)
     for _ in range(1000):
         engine.validate_row(row)
-    assert len(reg.CHECKS) == before
+    assert len(reg._CHECKS) == before
     assert [r.code for r in engine.validate_row(row)] == [
         "AGE_NEGATIVE", "DATES_PRESENT", "EMAIL_MISSING_AT"
     ]

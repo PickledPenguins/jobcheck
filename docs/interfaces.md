@@ -80,8 +80,11 @@ hand. `layer` is computed by `validate_registry`. What a check is *for* is its
 `message`, printed wherever it fails and shown in the registry table; there is no
 second description field to keep in step with it.
 
-`CHECKS` is the live registry list, in registration order. Read it freely; mutate
-it only through the decorators and `clear_registry`.
+The registry list itself is internal (`registry._CHECKS`). Read the registry through
+`get_registry_table`, which gives every check's code, layer, default, message and
+`depends_on` as a frame, and `loaded_check_files` for the files behind them. Nothing that
+mutates the list directly drops the cached evaluation order, so a caller editing it gets a
+`ValueError` from the row loop rather than the result they intended.
 
 ### `RowContext`
 
@@ -258,8 +261,8 @@ anything.
 
 Also raises `ValueError` when the cached evaluation order and the registry hold
 different checks, naming the check and the likely cause. Every route the package
-offers drops the cache, so this needs a caller who edited `CHECKS` — which is
-exported and mutable — or the cache itself. It used to run the check under its
+offers drops the cache, so this needs a caller who reached into `registry._CHECKS` or the
+cache itself. It used to run the check under its
 declared default instead, and the report then said `disabled by default` about a
 check that was no longer registered.
 

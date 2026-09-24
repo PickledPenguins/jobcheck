@@ -148,7 +148,7 @@ def test_the_engine_holds_its_invariants_on_generated_frames(example_checks: Non
 
             for outcome in outcomes:
                 if outcome.outcome in (PASSED, FAILED, ERRORED):
-                    check = next(t for t in reg.CHECKS if t.code == outcome.code)
+                    check = next(t for t in reg._CHECKS if t.code == outcome.code)
                     for prerequisite in check.depends_on:
                         assert by_code[prerequisite].outcome == PASSED, (
                             f"seed {SEED} case {case}: {outcome.code} ran with "

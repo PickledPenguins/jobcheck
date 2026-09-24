@@ -67,7 +67,7 @@ def test_a_check_file_name_is_a_path_never_a_module_name(fresh_registry: None) -
 
     with pytest.raises(ValueError, match="No check file at"):
         reg.load_checks(["os"])
-    assert reg.CHECKS == []
+    assert reg._CHECKS == []
 
 
 def test_a_catastrophic_regex_on_a_short_value_finishes_in_seconds(one_code: None, tmp_path: Path) -> None:
