@@ -21,7 +21,7 @@ import pandas as pd
 
 from .registry import CHECKS
 from .rules import Rule
-from .tables import _reject_unknown_columns, format_table
+from .tables import _print_title, _reject_unknown_columns, format_table
 
 #: Extra columns the check tables offer. ``source_file`` is where the check was
 #: registered; ``could_be_overridden_by`` and ``effective_state`` read the loaded
@@ -79,9 +79,10 @@ def get_registry_table(extra_columns: list[str] | None = None) -> pd.DataFrame:
 
 
 def print_registry(
-    rules: list[Rule] | None = None, extra_columns: list[str] | None = None
+    rules: list[Rule] | None = None, extra_columns: list[str] | None = None,
+    title: bool = True,
 ) -> pd.DataFrame:
-    """Print the registry table and return the frame behind it.
+    """Print the registry table, under its own heading, and return the frame.
 
     `could_be_overridden_by` and `effective_state` are the two extra columns that
     read the rules, and `rules` feeds nothing else -- passing rules without
@@ -95,11 +96,13 @@ def print_registry(
     _reject_unknown_columns(extra_columns, REGISTRY_EXTRA_COLUMNS, "the registry table")
     table = get_registry_table(
         extra_columns=[name for name in extra_columns if name in CHECK_EXTRA_COLUMNS])
+    rules = rules or []
+    if title:
+        _print_title("Registry", f"{len(table)} check(s)",
+                     f"{len(rules)} rule(s) considered" if rules else "")
     if table.empty:
         print("No checks registered.")
         return table
-
-    rules = rules or []
     matching = {code: _rules_for_code(code, rules) for code in table["code"]}
     if "could_be_overridden_by" in extra_columns:
         table["could_be_overridden_by"] = [
@@ -119,14 +122,16 @@ def print_registry(
 
 
 def print_rules(
-    rules: list[Rule], extra_columns: list[str] | None = None
+    rules: list[Rule], extra_columns: list[str] | None = None, title: bool = True
 ) -> pd.DataFrame:
-    """Print one row per rule, rather than per code.
+    """Print one row per rule, rather than per code, under its own heading.
 
     `codes_hit_count` is a count rather than the code list, so a rule touching
     many codes does not blow the table apart; `list_rule_codes` gives the detail.
     """
 
+    if title:
+        _print_title("Rules", f"{len(rules)} loaded")
     extra_columns = list(extra_columns or [])
     _reject_unknown_columns(extra_columns, RULE_EXTRA_COLUMNS, "the rules table")
     columns = ["name", "action", "codes_hit_count", "match", "message", *extra_columns]

@@ -260,6 +260,35 @@ a total) cheap: the counts are built once, not per row. Where the context really
 is per row, a `build` classmethod on your subclass is the tidy place for it:
 `validate(df, context_builder=FileContext.build)`.
 
+A builder usually needs the run's own arguments — where the file came from, which
+flags were passed — and it takes them as a second parameter rather than closing
+over them:
+
+```python
+from argparse import Namespace
+from dataclasses import dataclass
+
+from jobcheck import RowContext, validate
+
+
+@dataclass
+class RunContext(RowContext):
+    source: str = ""
+    strict: bool = False
+
+
+def build_context(row, args):
+    return RunContext(source=args.data, strict=args.strict)
+
+
+args = Namespace(data="customers.csv", strict=True)   # your parsed command line
+outcomes = validate(df, context_builder=build_context, context_args=args)
+```
+
+`context_args` is passed through untouched, once per row, so a named function is
+the common case and a lambda is the corner case. A builder taking `(row)` alone
+still works and is never handed the arguments.
+
 Without a `context_builder` every row is handed the same empty `RowContext`, and so
 is every row of `validate_row` and `explain_row` called without one: a check taking
 `(row, context)` never sees `None`.

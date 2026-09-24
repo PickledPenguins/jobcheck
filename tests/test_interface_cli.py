@@ -49,7 +49,7 @@ def test_the_entry_point_runs_from_any_directory(tmp_path: Any) -> None:
     result = run_cli(os.path.join(PROJECT_ROOT, "examples/main.py"), cwd=str(tmp_path))
     assert result.returncode == 0, result.stderr
     assert result.stdout.startswith("Loaded 3 rule(s) from 1 file(s)")
-    assert "== Failures ==" in result.stdout
+    assert "== Report" in result.stdout
 
 
 # --- exit codes -------------------------------------------------------------
@@ -70,7 +70,7 @@ def test_failing_rows_still_exit_zero(default_run: CommandResult) -> None:
 def test_the_report_names_each_row_by_its_key_column_and_root_cause(
     default_run: CommandResult,
 ) -> None:
-    failures = default_run.stdout.split("== Failures ==")[1]
+    failures = default_run.stdout.split("== Report")[1]
     assert "2        | AGE_NEGATIVE" in failures
     assert "minimum=0; value=-5.0" in failures
     assert "<no key>" in failures
@@ -79,7 +79,7 @@ def test_the_report_names_each_row_by_its_key_column_and_root_cause(
 def test_cascading_checks_are_absent_from_the_report(default_run: CommandResult) -> None:
     """Row 5 has no age at all: only AGE_PRESENT is reported for it."""
 
-    failures = default_run.stdout.split("== Failures ==")[1]
+    failures = default_run.stdout.split("== Report")[1]
     age_lines = [line for line in failures.splitlines() if line.startswith("5 ")]
     assert [line.split("|")[1].strip() for line in age_lines] == [
         "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"
@@ -87,13 +87,17 @@ def test_cascading_checks_are_absent_from_the_report(default_run: CommandResult)
 
 
 def test_the_csv_report_format_is_selectable() -> None:
-    out = run_cli("examples/main.py", "--report", "csv").stdout.split("== Failures ==")[1]
-    assert out.splitlines()[1].startswith("row,code,status,layer,outcome")
+    """And carries no heading of its own: a title line above CSV would make the
+    output unparseable, so `print_report` writes one for the table only."""
+
+    out = run_cli("examples/main.py", "--report", "csv").stdout
+    assert "row,code,status,layer,outcome" in out
+    assert "== Report" not in out
 
 
 def test_explain_prints_one_row_and_its_root_cause() -> None:
     out = run_cli("examples/main.py", "--explain", "5").stdout
-    assert "== Row 5 ==" in out
+    assert "== Row explanation: row 5" in out
     assert "prerequisite did not pass: AGE_PRESENT" in out
     # Row 5 is entirely empty, so every layer-0 check fails and all of them are
     # root causes -- none is upstream of another.
@@ -110,7 +114,7 @@ def test_explain_outside_the_frame_exits_two() -> None:
 
 def test_summary_reports_counts_and_root_causes() -> None:
     out = run_cli("examples/main.py", "--summary").stdout
-    assert "== Summary ==" in out
+    assert "== Summary" in out
     assert "skipped" in out
     assert "Root cause of each failing row:" in out
 
@@ -155,13 +159,13 @@ def test_results_go_to_stdout_and_nothing_to_stderr(default_run: CommandResult) 
 def test_errors_go_to_stderr_and_leave_stdout_clean() -> None:
     result = run_cli("examples/main.py", "--rules", "no_such_file.yaml")
     assert "Traceback" in result.stderr
-    assert "== Registry ==" not in result.stdout
+    assert "== Registry" not in result.stdout
 
 
 def test_the_default_run_prints_the_registry_and_the_failures(default_run: CommandResult) -> None:
     out = default_run.stdout
-    assert "== Registry ==" in out
-    assert "== Failures ==" in out
+    assert "== Registry" in out
+    assert "== Report" in out
 
 
 # --- reading a data file ----------------------------------------------------

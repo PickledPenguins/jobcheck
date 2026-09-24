@@ -22,7 +22,7 @@ def test_main_validates_the_demo_frame() -> None:
 def test_a_clean_row_produces_no_report_line() -> None:
     """Row 1 of the demo frame is clean, so its key never appears in the report."""
 
-    failures = run_cli("examples/main.py").stdout.split("== Failures ==")[1]
+    failures = run_cli("examples/main.py").stdout.split("== Report")[1]
     assert "\n1   " not in failures
 
 

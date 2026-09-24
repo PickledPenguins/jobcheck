@@ -7,6 +7,7 @@ result, because a second implementation could disagree with it.
 
 from __future__ import annotations
 
+import inspect
 from typing import Any, Callable
 
 import pandas as pd
@@ -25,7 +26,11 @@ from .results import (
 )
 from .rules import Rule, rule_matches
 
-ContextBuilder = Callable[["pd.Series[Any]"], RowContext | None]
+#: A builder takes `(row)` or `(row, context_args)`, the same way a check takes
+#: `(row)` or `(row, context)`. The two-argument form is the common one -- a
+#: pipeline's context is usually built from the run's own arguments -- so it is
+#: called that way by default rather than through a lambda that closes over them.
+ContextBuilder = Callable[..., RowContext | None]
 
 # What a check is handed when the caller names no context, or a builder returns
 # None. Shared rather than built per row: the base class carries no fields, so
@@ -234,11 +239,44 @@ def root_causes(row_outcomes: list[CheckOutcome]) -> list[str]:
 
 
 
+
+def _context_caller(
+    builder: ContextBuilder,
+) -> Callable[["pd.Series[Any]", Any], RowContext | None]:
+    """Settle how a context builder is called, once per `validate` rather than
+    per row.
+
+    A builder takes `(row)` or `(row, context_args)`. The second is the shape a
+    pipeline wants -- its context is built from the run's own arguments, which are
+    the same for every row -- and making it the declared form means a caller
+    writes `context_builder=build_context` instead of a lambda that closes over
+    them. The one-argument form stays, for a builder that needs nothing but the
+    row.
+
+    The same rule as a check function's `(row)` or `(row, context)`, deliberately:
+    one convention for both, and `*args` counts as taking the second argument
+    because the builder will accept it.
+    """
+
+    parameters = list(inspect.signature(builder).parameters.values())
+    positional = [p for p in parameters
+                  if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+    if any(p.kind is p.VAR_POSITIONAL for p in parameters) or len(positional) == 2:
+        return lambda row, context_args: builder(row, context_args)
+    if len(positional) == 1:
+        return lambda row, context_args: builder(row)
+    raise ValueError(
+        f"context_builder {getattr(builder, '__name__', builder)!r} must take (row) or "
+        f"(row, context_args), not {len(positional)} positional argument(s)."
+    )
+
+
 def validate(
     df: pd.DataFrame,
     rules: list[Rule] | None = None,
     context_builder: ContextBuilder | None = None,
     on_error: str = "record",
+    context_args: Any = None,
 ) -> list[list[CheckOutcome]]:
     """Run every check against every row: one list of outcomes per row, in frame
     order.
@@ -246,6 +284,12 @@ def validate(
     Keeps the checks that did not run too, since the explanation and summary
     views are built from them -- one outcome per check per row. For a frame large
     enough that those objects matter, call `validate_row` per row instead.
+
+    `context_builder` takes `(row)` or `(row, context_args)` and is called once
+    per row. `context_args` is whatever the entry point wants every row's context
+    built from -- its parsed command line, a connection, a configuration -- passed
+    through untouched, so the common case is a named function rather than a lambda
+    closing over them.
     """
 
     # Checked here, not only in explain_row: an empty frame never reaches it,
@@ -258,9 +302,10 @@ def validate(
             f"validate takes a DataFrame, got {type(df).__name__}; for one row, call "
             "validate_row or explain_row.")
 
+    build = None if context_builder is None else _context_caller(context_builder)
     frame_outcomes = []
     for _, row in df.iterrows():
-        context = None if context_builder is None else context_builder(row)
+        context = None if build is None else build(row, context_args)
         frame_outcomes.append(
             explain_row(row, context=context, rules=rules, on_error=on_error))
     return frame_outcomes

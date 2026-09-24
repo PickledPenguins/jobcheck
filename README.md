@@ -67,10 +67,11 @@ df = pd.DataFrame([
     {"id": 104, "age": None, "email": "c@d.com", "start_date": "2024-01-01", "end_date": "2024-02-01"},
 ])
 outcomes = validate(df)                      # add rules=... to apply rule files
-print_report(build_report(outcomes, df=df, key_column="id"))
+print_report(build_report(outcomes, df=df, key_column="id"), key_column="id")
 ```
 
 ```
+== Report: 3 line(s), keyed by id ==
 row | code             | status        | layer | outcome | message          | detail | comments               | is_root_cause
 ----+------------------+---------------+-------+---------+------------------+--------+------------------------+--------------
 102 | AGE_NEGATIVE     | INVALID (3)   | 2     | failed  | Age is negative  |        | minimum=0; value=-5.0  | True         
@@ -93,6 +94,7 @@ print_row_explanation(explain_row(df.loc[2]), include="blocked")
 ```
 
 ```
+== Row explanation: 5 of 8 check(s), include=blocked ==
 layer | code             | outcome  | status      | detail                                     
 ------+------------------+----------+-------------+--------------------------------------------
 0     | AGE_PRESENT      | failed   | MISSING (1) | Age is missing                             
@@ -118,6 +120,7 @@ print_summary(outcomes)
 ```
 
 ```
+== Summary: 3 row(s), 8 check(s) ==
 code                 | layer | failed | errored | skipped | disabled | passed
 ---------------------+-------+--------+---------+---------+----------+-------
 AGE_NEGATIVE         | 2     | 1      | 0       | 1       | 0        | 1     

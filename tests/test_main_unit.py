@@ -43,8 +43,8 @@ def run(capsys: Any, *argv: str) -> str:
 def test_the_default_run_prints_the_registry_and_the_report(fresh_registry: None,
                                                             capsys: Any) -> None:
     out = run(capsys)
-    assert "== Registry ==" in out
-    assert "== Failures ==" in out
+    assert "== Registry" in out
+    assert "== Report" in out
 
 
 def test_the_loaded_line_counts_the_rules_it_read(fresh_registry: None, capsys: Any) -> None:
@@ -54,14 +54,14 @@ def test_the_loaded_line_counts_the_rules_it_read(fresh_registry: None, capsys: 
 
 def test_summary_adds_the_per_check_counts(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys, "--summary")
-    assert "== Summary ==" in out
+    assert "== Summary" in out
     assert "Root cause of each failing row:" in out
 
 
 def test_explain_prints_one_row_and_stops(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys, "--explain", "1")
-    assert "== Row 1 ==" in out
-    assert "== Registry ==" not in out
+    assert "== Row explanation: row 1" in out
+    assert "== Registry" not in out
 
 
 def test_explain_past_the_end_exits_two(fresh_registry: None, capsys: Any) -> None:
@@ -137,7 +137,7 @@ def test_rules_with_no_paths_loads_none(fresh_registry: None, capsys: Any) -> No
     # Row 4 is qa@internal.test, whose email checks the default rule file
     # switches off; with no rules the demo frame fails nothing for it either,
     # so the difference that shows is the registry's rule column being absent.
-    assert "(disable)" not in out.split("== Registry ==")[1].split("== Failures ==")[0]
+    assert "(disable)" not in out.split("== Registry")[1].split("== Report")[0]
 
 
 def test_the_csv_report_format_is_comma_separated(fresh_registry: None, capsys: Any) -> None:
@@ -151,18 +151,18 @@ def test_the_rules_table_prints_one_row_per_rule_not_per_code(fresh_registry: No
     codes is two lines there and one line here."""
 
     out = run(capsys, "--rules-table")
-    rules = out.split("== Rules ==")[1].split("== Registry ==")[0]
+    rules = out.split("== Rules")[1].split("== Registry")[0]
     assert "codes_hit_count" in rules
     assert rules.count("suppress_email_checks_for_test_accounts") == 1
     # The same rule, twice in the registry table: once per code it can reach.
-    registry = out.split("== Registry ==")[1].split("== Failures ==")[0]
+    registry = out.split("== Registry")[1].split("== Report")[0]
     assert registry.count("suppress_email_checks_for_test_accounts") == 2
 
 
 def test_the_rules_table_is_empty_when_no_rules_were_loaded(fresh_registry: None,
                                                             capsys: Any) -> None:
     out = run(capsys, "--rules-table", "--rules")
-    rules = out.split("== Rules ==")[1].split("== Registry ==")[0]
+    rules = out.split("== Rules")[1].split("== Registry")[0]
     assert "enable_legacy_integer_check" not in rules
 
 

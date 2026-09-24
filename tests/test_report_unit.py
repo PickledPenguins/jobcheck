@@ -326,7 +326,8 @@ def test_write_report_can_write_the_table_format(two_layers: None, tmp_path: Pat
 def test_print_report_prints_the_rendered_table(
     two_layers: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    rep.print_report(rep.build_report(outcomes(), df=FRAME, key_column="id"))
+    rep.print_report(rep.build_report(outcomes(), df=FRAME, key_column="id"),
+                     title=False)
     out = capsys.readouterr().out
     assert "AGE_IN_RANGE" in out
     assert out.splitlines()[0].startswith("row")
@@ -335,7 +336,7 @@ def test_print_report_prints_the_rendered_table(
 def test_print_report_says_so_when_nothing_failed(
     two_layers: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    rep.print_report(report_for(pd.DataFrame([{"id": 1, "age": 30}])))
+    rep.print_report(report_for(pd.DataFrame([{"id": 1, "age": 30}])), title=False)
     assert capsys.readouterr().out == "No failures.\n"
 
 
@@ -448,7 +449,7 @@ def test_print_summary_says_when_every_row_passed(
 def test_print_summary_with_no_rows_says_nothing_ran(
     fresh_registry: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    table = rep.print_summary([])
+    table = rep.print_summary([], title=False)
     assert capsys.readouterr().out == "No checks ran.\n"
     assert table.empty
 
@@ -630,3 +631,62 @@ def test_a_frame_offering_no_extra_columns_says_so(fresh_registry: None) -> None
     frame = pd.DataFrame([{"code": "x", "status": "y"}])
     with pytest.raises(ValueError, match=r"be one of: \(none available\)"):
         rep.build_report(validate(frame), df=frame, extra_columns=["code"])
+
+
+def test_the_report_title_counts_lines_and_names_the_key_column(
+    two_layers: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`key_column` is the one fact about a report `print_report` cannot read off
+    the frame -- the name is not a column -- and it is what says what the `row`
+    values are."""
+
+    rep.print_report(rep.build_report(outcomes(), df=FRAME, key_column="id"),
+                     key_column="id")
+    assert capsys.readouterr().out.splitlines()[0] == "== Report: 2 line(s), keyed by id =="
+
+
+def test_the_report_title_is_left_off_csv(
+    two_layers: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A heading above CSV makes it unparseable, and CSV is the format a caller
+    redirects to a file. The table gets one, the CSV does not."""
+
+    rep.print_report(rep.build_report(outcomes(), df=FRAME, key_column="id"), fmt="csv")
+    out = capsys.readouterr().out
+    assert "== Report" not in out
+    assert out.splitlines()[0].startswith("row,code,status")
+
+
+def test_the_row_explanation_title_names_the_row_and_the_include_level(
+    two_layers: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The outcomes say nothing about which row they came from, so the caller
+    supplies it; `include` the function knows itself."""
+
+    rep.print_row_explanation(outcomes()[1], include="blocked", row_key=103)
+    assert capsys.readouterr().out.splitlines()[0] == (
+        "== Row explanation: row 103, 1 of 2 check(s), include=blocked ==")
+
+
+def test_the_row_explanation_title_drops_the_row_when_it_is_not_given(
+    two_layers: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rep.print_row_explanation(outcomes()[1])
+    assert capsys.readouterr().out.splitlines()[0] == (
+        "== Row explanation: 2 of 2 check(s), include=all ==")
+
+
+def test_the_summary_title_counts_rows_and_checks(
+    two_layers: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rep.print_summary(outcomes())
+    assert capsys.readouterr().out.splitlines()[0] == "== Summary: 3 row(s), 2 check(s) =="
+
+
+def test_a_row_explanation_can_be_printed_without_its_heading(
+    two_layers: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`title=False` is the escape hatch for a caller labelling its own output."""
+
+    rep.print_row_explanation(outcomes()[1], title=False)
+    assert capsys.readouterr().out.splitlines()[0].startswith("layer")

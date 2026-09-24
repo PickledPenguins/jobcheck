@@ -1,3 +1,4 @@
+== Summary: 4 row(s), 11 check(s) ==
 code                 | layer | failed | errored | skipped | disabled | passed
 ---------------------+-------+--------+---------+---------+----------+-------
 EMAIL_DOMAIN_INVALID | 2     | 2      | 0       | 1       | 0        | 1     

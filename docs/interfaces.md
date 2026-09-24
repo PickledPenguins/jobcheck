@@ -88,8 +88,11 @@ it only through the decorators and `clear_registry`.
 Per-row metadata kept out of the DataFrame. **Bare**: the library defines the type
 and no fields. Subclass it, add what your checks read, and build it however suits
 the pipeline — a classmethod, a factory, or one object built outside the loop.
-Whatever builds it is `validate`'s `context_builder`, a callable taking the row and
-returning a `RowContext`. Without one, every row is handed the same empty context.
+Whatever builds it is `validate`'s `context_builder`, a callable taking `(row)` or
+`(row, context_args)` and returning a `RowContext`. The two-argument form is the
+common one — a pipeline's context is built from the run's own arguments — so a
+named function is passed directly rather than wrapped in a lambda that closes over
+them. Without a builder, every row is handed the same empty context.
 
 ### `MatchCriterion`, `Rule`
 
@@ -276,7 +279,7 @@ one and decisive for another. Warns rather than raises, like
 rule on purpose, as the precedence demonstration, and
 `python3 examples/main.py --rules-table` prints the warning under the rules table.
 
-### `validate(df, rules=None, context_builder=None, on_error="record") -> list[list[CheckOutcome]]`
+### `validate(df, rules=None, context_builder=None, on_error="record", context_args=None) -> list[list[CheckOutcome]]`
 
 Every check against every row: one `explain_row` call per row, and one list of
 outcomes per row, in frame order. That is the shape `build_report` and
@@ -286,6 +289,12 @@ outcomes per row, in frame order. That is the shape `build_report` and
 every check; hand back one shared object when a check needs the whole frame.
 Without one, and for a builder that returns `None`, every row is handed the same
 empty `RowContext`.
+
+It takes `(row)` or `(row, context_args)`, settled once per `validate` rather than
+per row, the same way a check takes `(row)` or `(row, context)`. `context_args` is
+whatever the entry point wants every context built from — its parsed command line,
+a connection, a configuration — passed through untouched. A builder taking neither
+shape raises `ValueError` naming what it takes, before any row is read.
 
 An `on_error` that is neither `"record"` nor `"raise"` raises `ValueError` before
 any row is read, an empty frame included; anything but a `DataFrame` raises
@@ -320,7 +329,7 @@ rather than ignored when the name is not on offer.
 - `get_registry_table(extra_columns=None)` — one row per check, sorted layer, then
   code. Columns `code`, `layer`, `default`, `message`, `depends_on`; offers
   `source_file`.
-- `print_registry(rules=None, extra_columns=None)` — prints it. Offers
+- `print_registry(rules=None, extra_columns=None, title=True)` — prints it. Offers
   `source_file`, plus the two columns that read the loaded rules:
   `could_be_overridden_by`, the rules that *reference* each code with the action
   each would take, and `effective_state`, which says `DEFAULT (ON)` when no rule
@@ -328,7 +337,7 @@ rather than ignored when the name is not on offer.
   overridden by" — whether a rule fires is a per-row question this table cannot
   answer. `rules` feeds those two columns and nothing else, so passing rules
   without asking for either prints the same table as passing none.
-- `print_rules(rules, extra_columns=None)` — one row per rule:
+- `print_rules(rules, extra_columns=None, title=True)` — one row per rule:
   `name`, `action`, `codes_hit_count`, `match`, `message`. Offers `source_file`.
 
 `format_table(table, wrap_columns=None)` renders any frame as bordered text. A cell

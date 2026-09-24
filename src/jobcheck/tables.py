@@ -7,8 +7,9 @@ A leading underscore here marks a name outside the package's *public surface*,
 not one that stays in this file. `_format_cell` and `_reject_unknown_columns` are
 imported by `report.py`, `rules.py` and `registry_tables.py`, and are meant to
 be: they are how three tables render a cell and reject an unknown extra column
-the same way. `_cell_lines`, `_padded_line` and `_LINE_BREAKS` are internal to
-the file as well, and nothing outside it should reach for them. The two names
+the same way. `_print_title` is imported by both table modules for the same reason.
+`_cell_lines`, `_padded_line` and `_LINE_BREAKS` are internal to the file as well,
+and nothing outside it should reach for them. The two names
 without an underscore, `is_null` and `format_table`, are exported from
 `__init__.py` and are the only part of this module a user calls.
 
@@ -152,3 +153,18 @@ def format_table(table: pd.DataFrame, wrap_columns: dict[str, int] | None = None
                 texts.append(lines[line_index] if line_index < len(lines) else "")
             out.append(_padded_line(texts, widths))
     return "\n".join(out)
+
+
+def _print_title(subject: str, *facts: str) -> None:
+    """Print a table's own heading: ``== Registry: 11 checks ==``.
+
+    Every `print_*` function writes one, so a caller printing three tables in a
+    row does not have to label them itself -- which is what every entry point
+    using this library ended up doing, in its own wording each time. The facts
+    are the arguments the function was given, because "which table is this" and
+    "what was it asked for" are the same question once two of them are on screen:
+    a row explanation is `include=blocked` or it is not the table you meant.
+    """
+
+    detail = ", ".join(fact for fact in facts if fact)
+    print(f"== {subject}: {detail} ==" if detail else f"== {subject} ==")

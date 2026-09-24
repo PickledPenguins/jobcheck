@@ -155,7 +155,7 @@ def defaults(fn: Any) -> dict[str, Any]:
         pytest.param(reg.load_rules, {"base_dir": None}, id="load_rules"),
         pytest.param(engine.validate,
                      {"rules": None, "context_builder": None,
-                      "on_error": "record"}, id="validate"),
+                      "on_error": "record", "context_args": None}, id="validate"),
         pytest.param(rep.build_report,
                      {"key_column": None, "extra_columns": None,
                       "include": "failures"}, id="build_report"),
