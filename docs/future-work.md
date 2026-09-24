@@ -12,10 +12,11 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-One gap is open. Every other item raised by the reviews of 2026-09-15, 2026-09-21 and
-2026-09-23 was worked through on 2026-09-23 and 2026-09-24: what was built is in the git
-log, and what was decided against is in the section below, with the reason. An entry there
-is closed, not pending.
+Eight gaps are open: F.29, and F.30 to F.36, which came out of the review of
+`src/jobcheck/` on 2026-09-24. Every other item raised by the reviews of 2026-09-15,
+2026-09-21 and 2026-09-23 was worked through on 2026-09-23 and 2026-09-24: what was built
+is in the git log, and what was decided against is in the section below, with the reason.
+An entry there is closed, not pending.
 
 
 
@@ -108,6 +109,269 @@ having one: the file is the whole input. If the real need is a production runner
 than a demo, the answer is jobchain's run configuration, which already names checks and
 rules and would need report and column keys added -- one format, in the project whose job
 it is.
+
+The seven items below came out of the review of `src/jobcheck/` on 2026-09-24. Each was
+sniff-tested against the code and reproduced where there was behavior to reproduce; each
+was held rather than fixed because it changes an API, adds a rejection, or needs a design
+call the owner has not made. That review's seven silent fixes are in the git log.
+
+**F.30 — a failed `validate_registry` leaves the registry wedged, and only
+`clear_registry` gets out.** `load_checks` appends each file to `_LOADED_FILES` as its
+import completes (`registry.py:341`) and calls `validate_registry()` only after the loop
+(`registry.py:345-346`). When that raises — a `depends_on` naming a code nothing
+registered — the file is already recorded as loaded and its checks are already in
+`_CHECKS`. Correcting the typo in that same file and calling `load_checks` again is a
+no-op: the path is skipped at `registry.py:291`, the broken check is still registered, and
+every later `validate_registry` raises the same error. Reproduced 2026-09-24. The remedy
+the message names — load the other file that defines the missing code — does work, and a
+file that *raises during import* rolls back cleanly (`registry.py:331`), which is what
+makes this inconsistent: `load_checks`'s own docstring promises "a file that raises drops
+its own checks alone", and a reader does not expect the validation failure to behave
+differently.
+
+What it would gain: the edit-and-rerun loop a notebook or REPL user actually has. Today
+re-running the cell reports the same error forever, and nothing on screen says
+`clear_registry()` is the way out.
+
+What it would cost depends on which of the two fixes is chosen, and that is the design
+call. **Validating before the files are recorded** means `_LOADED_FILES.append` moves
+below `validate_registry()`, which changes what `loaded_check_files()` returns after a
+failed load — today it lists the files that imported successfully, which is the honest
+answer to "what did you read", and a caller logging it would start seeing an empty list
+for a load that genuinely read five files. It also has to decide what happens to the
+checks those five files registered: dropping them makes a dangling prerequisite roll back
+five files where a raising file rolls back one, and keeping them means the recorded list
+and the registry disagree, which is the very thing F.24's guards exist to catch.
+**Naming `clear_registry()` in the message** costs nothing structural but adds a line to a
+message pinned word for word in `tests/test_error_messages_unit.py`, and it is advice
+rather than a fix: the wedge is still there, the user is just told about it.
+
+Estimated 5 source lines and ~25 test lines for the message, or ~20 source and ~60 test
+lines for the reordering, plus the pinned message either way. Priority: medium — a real
+dead end, reached only by a typo in `depends_on`, and with a documented way out once the
+message says so. Blast radius: `loaded_check_files()`'s contract after a failure, the
+rollback rule `docs/architecture.md` states, and one pinned message.
+
+Recommendation: **the message, not the reordering.** The recorded-files list is currently
+a truthful record of what was imported, and the reordering trades that for a recovery
+path the message can give just as well — the second sentence of the existing error, naming
+`clear_registry()` and saying that the file will not be re-read until then. Revisit only
+if somebody hits the wedge with the message in place.
+
+**F.31 — `format_table` renders a duplicate-labeled frame as garbage.** `row[column]` in
+the wrapping pass (`tables.py:169`) returns a *Series* when the label is duplicated, and
+`_cell_lines` calls `str()` on it: a one-row two-column frame whose columns are both
+called `a` renders as three lines of `a 1 / a 2 / Name: 0, dtype: int64` in every cell.
+Reproduced 2026-09-24. `explain_row` (`engine.py:134`), `_row_labels` (`report.py:80`) and
+`build_report` (`report.py:146`) each detect duplicate labels and raise something a reader
+can act on; this one, which is exported and is the function an adopter reaches for to
+render a frame of their own, does not.
+
+What it would gain: the same answer from the one public renderer that every other entry
+point already gives, instead of output that looks like a rendering bug in this library.
+
+What it would cost: it is a **new rejection of input the function accepts today**. A
+caller rendering a frame they built themselves — a pivot, a concat, a `groupby` result
+with a repeated label — gets an exception where they used to get a table, and the table
+they used to get was readable in the one case that matters: when the duplicated columns
+hold the same value, `str(Series)` is ugly but not wrong, and somebody may well be
+printing one to a log and never looking closely. The library has no deprecation path and
+no shim policy, so the change lands at once. There is also a second shape to pick from:
+rendering positionally with `table.iloc[:, index]` instead of by label would make every
+duplicate-labeled frame render correctly rather than refusing it, which is a *larger*
+behavior change but one nobody has to react to. Choosing between "refuse it" and "render
+it properly" is the design call.
+
+Estimated 6 source lines and ~30 test lines for the guard, or ~10 source and ~40 test
+lines for positional rendering, plus a pinned message for the first. Priority: medium —
+wrong output rather than a crash, on an input the library's own paths never produce.
+Blast radius: `format_table` is called by `print_report`, `print_registry`, `print_rules`,
+`print_summary` and `print_row_explanation`, none of which can hand it a duplicate label,
+so the blast radius is external callers only.
+
+Recommendation: **render positionally**, and raise nothing. The guard buys consistency
+with three functions that have a reason to refuse — they are about to hand a cell to a
+check, or to use it as a row key — whereas this one only has to draw what it was given,
+and drawing it correctly is both fewer lines than the guard plus its pinned message and
+nobody's migration. Take the guard instead only if the owner wants one rule about
+duplicate labels across the whole package.
+
+**F.32 — the arity rule is implemented twice.** `_make_runner` (`registry.py:118`) and
+`_context_caller` (`engine.py:250`) both take a callable, list its parameters, count the
+positional ones, treat `*args` as "takes the second argument", dispatch to a one- or
+two-argument wrapper, and raise otherwise. The comment at `engine.py:256` says the
+duplication is deliberate — "one convention for both" — but it is the *convention* that
+should be shared, not restated, and the two have already drifted: `_make_runner` rejects a
+required keyword-only parameter with a message naming the fix (`registry.py:130`),
+`_context_caller` does not, so a context builder with one gets a bare `TypeError` from the
+call site instead of a message at setup.
+
+What it would gain: one place where "(row) or (row, second thing)" is decided, so the next
+change to the rule — a third shape, a different treatment of `**kwargs`, the keyword-only
+check the builder path is missing — lands once. A junior fixing one today will not find
+the other.
+
+What it would cost: the shared helper has no obvious home. `registry.py` cannot import
+`engine.py` (the dependency runs the other way), `engine.py` importing it from
+`registry.py` deepens a coupling that is currently one private name and the topological
+order, and a new module for twelve lines adds a file to a package whose smallest module,
+`context.py`, is four executable lines and earns its place by being the adopter's one
+hook. `paths.py` is the precedent for a module that exists to stop two callers drifting,
+which argues for a `signatures.py` — and argues just as well that the package is
+accumulating one-function modules. The error wording must stay per-caller, so the helper
+returns the arity and each caller writes its own message, which means the thing actually
+shared is about six lines.
+
+Estimated ~25 source lines (a new module, two call sites) and ~20 test lines, across three
+or four files. Priority: medium as maintainability, low as a defect — nothing is wrong
+today except the missing keyword-only check on the builder path, which is five lines on
+its own. Blast radius: two error messages pinned in `tests/test_error_messages_unit.py`,
+and the check-authoring contract `docs/writing-checks.md` describes, if the wording moves.
+
+Recommendation: **fix the drift, not the duplication.** Add the keyword-only rejection to
+`_context_caller` with its own message, and leave the two implementations where they are
+until a third caller appears — six lines of shared code in a new module is a worse trade
+than twelve lines of parallel code that each read straight through. Revisit if the rule
+gains a third shape.
+
+**F.33 — the export list is derived by a test, so names with no caller are in it.**
+`tests/test_api_contract.py:87` asserts that every module-level public callable in every
+non-internal module appears in `__all__` (`__init__.py:72`). That rule, not a decision, is
+what put `normalize_verdict` and `MatchCriterion` on the public surface. Neither has an
+honest use case: `normalize_verdict(returned, check_code)` is the engine's boundary against
+a check that fell off the end, called once, in `explain_row`; `MatchCriterion` is built by
+the rule parser and never by a caller, who has no way to get a compiled `re.Pattern` into a
+`Rule` that any loader would produce. Neither appears in `examples/` or in any narrative
+document — only in the `docs/interfaces.md` inventory, which lists them *because* they are
+exported, which closes the circle. `render_status` and `render_comments` are defensible (a
+caller rendering outcomes their own way needs both) and the five outcome constants earn
+their place by being what `outcome.outcome` is compared against.
+
+What it would gain: an export list somebody chose. The standing rule since 2026-09-24 is
+that every exported name needs an example with a real use case and that a name for which
+no honest example can be written is debt to remove rather than document; this is that
+rule applied to the mechanism that keeps producing the debt.
+
+What it would cost: renaming `normalize_verdict` to `_normalize_verdict` and
+`MatchCriterion` to `_MatchCriterion` is a **breaking API change** for anyone who imported
+them, which is nobody found in `examples/`, jobchain or the documents' executed blocks,
+but the package is pre-1.0 with no shim policy, so "nobody found" is the whole safety
+argument. `MatchCriterion` is the larger loss of the two: it is a *type*, and a caller
+annotating a function that takes a `Rule` reaches for its field types, so the private
+spelling makes a legitimate annotation look like a reach into the internals. Both appear
+in `docs/interfaces.md`, which would lose a section and gain a sentence saying why.
+Changing the test is the other half and the more delicate one: replacing "every public
+callable" with "every public callable except this list" reintroduces exactly the hand-kept
+list whose failure the test's own docstring records — `root_cause_counts` was documented
+and never exported, and importing it raised — so the exception list needs its own guard
+against growing quietly.
+
+Estimated ~15 source lines, ~25 test lines, two documentation edits, four files.
+Priority: medium — no defect, and the surface is ten names smaller than it was two days
+ago, but the mechanism is still pointing the wrong way. Blast radius: `__all__`,
+`docs/interfaces.md`, `tests/test_api_contract.py`, and any external import of the two
+names.
+
+Recommendation: **demote `normalize_verdict`, keep `MatchCriterion`, and invert the
+test.** The verdict normalizer has no caller and no annotation use, so it is the clean
+case. `MatchCriterion` stays because a type a caller may legitimately annotate against is
+not the same kind of leak, even with no example. The test should assert that `__all__`
+matches a list written down *in the test*, rather than deriving the surface from what
+happens to be public: a name added to a module then fails the suite until somebody decides
+whether it belongs, which is the decision point this project keeps not having.
+
+**F.34 — `_reject_unknown_columns` and `_keep_columns` are one validation written
+twice.** Both (`tables.py:58` and `tables.py:77`) build `unusable` as "the sorted set of
+names that are not in the allowed list, or were asked for more than once", and both raise
+"... Each name must be asked for once and be one of: ...". The difference is the list they
+check against and the noun in the message.
+
+What it would gain: twelve lines where there are twenty, and one place to change when the
+rule changes. The two messages are pinned separately in
+`tests/test_error_messages_unit.py` and in `tests/test_tables_unit.py`, so they can drift
+without anything noticing.
+
+What it would cost: the shared function takes four arguments — requested, allowed,
+subject, and the argument name to print — where each of the two takes three, and the
+call sites get harder to read to make the definition shorter. The two also differ in what
+they return: one returns `None` and raises, the other returns the surviving list, so the
+merged version either does both (a function that validates *and* filters, which is the
+kind of double duty this package has been taking apart) or the callers keep a wrapper
+each, which is most of the lines back.
+
+Estimated ~15 source lines net, ~10 test lines, one file. Priority: low — no defect, and
+the duplication is twenty lines in the most-read module in the package. Blast radius:
+two error messages pinned in two test files.
+
+Recommendation: **leave it, and revisit if a third column argument appears.** Two copies
+of a six-line rule that each read straight through are cheaper than one four-argument
+helper plus two wrappers, and the divergence risk is covered by the pinned messages —
+a reworded one fails the suite. A third caller flips the trade.
+
+**F.35 — the setup-file format lives in the registry.** The setup-key tuple,
+`_setup_paths` and `load_setup` (`registry.py:453-514`) are about sixty lines of YAML
+schema validation — the
+same job `rules.py` does for its own file — inside a module whose docstring says it holds
+"everything about the *set* of checks: registration, file loading, dependency validation,
+ordering and layers". The stated reason for putting it here (`registry.py:505`) is that it
+composes both loaders, which explains why it cannot live in `rules.py`, not why the
+*parsing* has to live here.
+
+What it would gain: `registry.py` back to one subject, and the setup schema beside the
+rule schema where a reader looking for "what file formats does this library read" finds
+both. `registry.py` is the 262-executable-line module a newcomer meets first, and this is
+the largest single thing in it that is not about checks.
+
+What it would cost: a fourth small module in a ten-module package, and a split seam
+between `load_setup` (which must stay in `registry.py`, since it calls both loaders) and
+the schema it reads, so the function and its rejections live in different files — which is
+the arrangement `paths.py` already has and which is defensible, but it is one more hop for
+the reader the split is meant to help. The pinned messages move test files with it. And
+the split is worth least right now: F.29's other half would add the data and output keys
+to this same schema, so doing it before that lands means touching the new module
+immediately.
+
+Estimated ~80 lines moved, no net change, three files plus a test file. Priority: low — no
+defect, and the module is coherent enough that nobody has been lost in it. Blast radius:
+`docs/architecture.md`'s module table, the import in `__init__.py`, and four pinned
+messages.
+
+Recommendation: **wait for F.29.** If the setup file grows the data and output keys, the
+schema is large enough to be its own module and the move pays for itself; if F.29 lands
+somewhere else, sixty lines is not worth a file. Either way this is a move, not a
+redesign, and it will not get harder by waiting.
+
+**F.36 — `list_rule_codes` is the one reader that prints.** Every other function in
+`registry_tables.py` is either `get_*` (builds and returns) or `print_*` (prints and
+returns), which is the package-wide rule the module docstring states at
+`registry_tables.py:12`. `list_rule_codes` (`registry_tables.py:189`) prints, returns,
+*and* raises on an unknown name, under a third prefix. A caller who wants the codes
+without the output has no way to ask.
+
+What it would gain: one naming rule with no exception, and a way to ask a question without
+writing to stdout — which is what a caller building a frame, a test asserting on codes, or
+a pipeline logging its own way all want.
+
+What it would cost: it is an **API change with no compatible shape**. Splitting it into
+`get_rule_codes` and `print_rule_codes` is two new exported names and one removed, which
+the suite calls in several places and `docs/interfaces.md` and `docs/configuration.md`
+both describe. Adding `title: bool` instead — the shape the other five functions took on
+2026-09-24 — is smaller and compatible, but it is a poor fit here: `title=False` on those
+five suppresses a *heading* above a table, whereas here it would have to suppress the only
+line the function prints, so the argument would mean something different in the one place
+it is spelled the same. Keeping `list_rule_codes` as a deprecated alias is not an option
+the project takes (no shims, by standing preference).
+
+Estimated ~15 source lines, ~20 test lines, two documentation edits, four files.
+Priority: low — an inconsistency, not a defect, on the least-used function in the module.
+Blast radius: one export becomes two, `docs/interfaces.md`, `docs/configuration.md`, and
+the suite's call sites.
+
+Recommendation: **split it into `get_rule_codes` and `print_rule_codes`**, when something
+else is already touching this module. The `title` flag is the cheaper change and the wrong
+one — reusing a name for a different meaning is what the 2026-09-24 vocabulary work spent
+three commits undoing — and the split is the shape every other reader in the package
+already has.
 
 ## Considered and deliberately not done
 

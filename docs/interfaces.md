@@ -256,8 +256,8 @@ the per-row algorithm.
 outcome and continues; `"raise"` propagates it. A check returning something that is
 not a result always raises — that is an authoring bug, not a data problem.
 
-Raises `ValueError` when the row has duplicate column labels, before running
-anything.
+Raises `TypeError` when `row` is not a `pandas.Series`, and `ValueError` when it
+has duplicate column labels — both before running anything.
 
 Also raises `ValueError` when the cached evaluation order and the registry hold
 different checks, naming the check and the likely cause. Every route the package
@@ -385,7 +385,9 @@ rather than ignored when the name is not on offer.
 `format_table(table, wrap_columns=None)` renders any frame as bordered text. A cell
 holding line breaks (`\n`, `\r\n` or `\r`) renders as a tall cell rather than breaking
 the row, wrapped column or not, and tabs are expanded — a quoted multi-line CSV field
-reaching the row key or an `add_columns` value is the usual way one arrives.
+reaching the row key or an `add_columns` value is the usual way one arrives. A
+`wrap_columns` width of zero or less raises `ValueError` naming the column: there is
+no spelling of "do not wrap", so leave the column out instead.
 `is_null(value)` is the null check both the engine and the renderer use — reach for
 it in your own checks too, since `NaN` is truthy and `pd.isna` returns an array for
 list-like values.

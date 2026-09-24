@@ -89,6 +89,32 @@ _TOPO_ORDER: list[Check] | None = None
 _LOAD_SEQUENCE = 0
 
 
+def _name_of(fn: CheckFn) -> str:
+    """What to call the thing being registered, in a message.
+
+    A plain function carries `__name__`; a `functools.partial` or a callable
+    object does not, and reaching for it raised an AttributeError naming neither
+    the check nor the file -- before any of the messages below got their chance.
+    """
+
+    return getattr(fn, "__name__", type(fn).__name__)
+
+
+def _source_file_of(fn: CheckFn) -> str:
+    """The file a check was written in, or `<unknown>`.
+
+    `inspect.getsourcefile` takes a function and refuses anything else, so the
+    same two shapes `_name_of` covers raise here instead. Where a partial was
+    built is not a question this can answer, and it is one column of one table --
+    not a reason to refuse the registration.
+    """
+
+    try:
+        return inspect.getsourcefile(fn) or "<unknown>"
+    except TypeError:
+        return "<unknown>"
+
+
 def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
     """Wrap an author's function so the engine can always call `fn(row, context)`.
 
@@ -103,7 +129,7 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
               if p.kind is p.KEYWORD_ONLY and p.default is p.empty]
     if needed:
         raise ValueError(
-            f"Check {code!r}: {fn.__name__}{signature} needs keyword argument(s) "
+            f"Check {code!r}: {_name_of(fn)}{signature} needs keyword argument(s) "
             f"{', '.join(needed)} that the engine cannot supply. Give them defaults, "
             "or read them from the row or the context."
         )
@@ -119,7 +145,7 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
     if len(positional) == 1:
         return call_with_row_only
     raise ValueError(
-        f"Check {code!r}: {fn.__name__}{signature} must take (row) or (row, context), "
+        f"Check {code!r}: {_name_of(fn)}{signature} must take (row) or (row, context), "
         f"not {len(positional)} positional argument(s)."
     )
 
@@ -178,7 +204,7 @@ def register_check(
         prerequisites = [] if depends_on is None else depends_on
         _reject_bad_registration(
             code, message, default_enabled, prerequisites,
-            where=f"{module}.{fn.__name__}" if module else fn.__name__,
+            where=f"{module}.{_name_of(fn)}" if module else _name_of(fn),
         )
 
         if module:
@@ -187,7 +213,7 @@ def register_check(
             code=code,
             message=message,
             fn=_make_runner(fn, code),
-            source_file=inspect.getsourcefile(fn) or "<unknown>",
+            source_file=_source_file_of(fn),
             default_enabled=default_enabled,
             depends_on=list(dict.fromkeys(prerequisites)),
         )

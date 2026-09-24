@@ -35,6 +35,29 @@ def test_format_table_renders_headers_divider_and_rows() -> None:
     )
 
 
+def test_a_wrap_width_of_zero_is_refused_by_name(fresh_registry: None) -> None:
+    """Regression: textwrap's own "invalid width 0 (must be > 0)" names neither
+    the column nor this function. render_report guards its own width; the public
+    function underneath it did not."""
+
+    df = pd.DataFrame([{"a": "hi"}])
+    for widths in ({"a": 0}, {"a": -5}):
+        with pytest.raises(ValueError) as raised:
+            tables.format_table(df, wrap_columns=widths)
+        assert str(raised.value) == (
+            "wrap_columns width for ['a'] must be greater than 0. Leave a column "
+            "out of wrap_columns rather than asking for a width of zero."
+        )
+
+
+def test_a_bad_wrap_width_is_refused_for_an_empty_frame_too() -> None:
+    """The argument is wrong whether or not there is anything to wrap, so it is
+    checked before the empty frame is answered with `(empty)`."""
+
+    with pytest.raises(ValueError, match=r"wrap_columns width for \['a'\]"):
+        tables.format_table(pd.DataFrame(), wrap_columns={"a": 0})
+
+
 def test_format_table_sizes_a_column_to_its_widest_cell() -> None:
     df = pd.DataFrame([{"c": "x"}, {"c": "much longer"}])
     assert tables.format_table(df).splitlines()[1] == "-----------"
@@ -523,6 +546,30 @@ def test_dropping_a_registry_column_leaves_the_added_ones_working(
     assert list(table.columns) == ["layer", "default", "depends_on",
                                    "could_be_overridden_by"]
     assert "off_everywhere (disable)" in capsys.readouterr().out
+
+
+def test_dropping_a_column_the_table_is_sorted_by_still_works(
+    example_checks: None,
+) -> None:
+    """Regression: the frame was built with only the kept columns and then sorted
+    by `layer` and `code`, so dropping either raised a bare KeyError -- against a
+    docstring that says a base column can still be dropped."""
+
+    assert list(registry_tables.get_registry_table(drop_columns=["code"]).columns) == [
+        "layer", "default", "message", "depends_on"]
+    assert list(registry_tables.get_registry_table(drop_columns=["layer"]).columns) == [
+        "code", "default", "message", "depends_on"]
+
+
+def test_dropping_the_sort_column_leaves_the_rows_in_sorted_order(
+    example_checks: None,
+) -> None:
+    """The sort still happens; only the column it read is gone from the output."""
+
+    with_code = registry_tables.get_registry_table()
+    without = registry_tables.get_registry_table(drop_columns=["code"])
+    assert list(without["layer"]) == list(with_code["layer"])
+    assert list(without["message"]) == list(with_code["message"])
 
 
 def test_an_unknown_registry_drop_name_is_refused(example_checks: None) -> None:

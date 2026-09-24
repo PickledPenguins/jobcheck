@@ -217,15 +217,25 @@ def render_report(report: pd.DataFrame, fmt: str = "table", wrap_width: int = 48
                           "comments": wrap_width},
         )
     if fmt == "csv":
-        return report.map(escape_for_spreadsheet).to_csv(index=False)
+        # Headings too, not only cells: an add_columns name comes from the data's
+        # own columns, so a frame with a column called `=cmd|'/c calc'!A1` would
+        # otherwise write that formula into the header row unescaped.
+        escaped = report.map(escape_for_spreadsheet)
+        escaped.columns = [escape_for_spreadsheet(str(name)) for name in escaped.columns]
+        return escaped.to_csv(index=False)
     raise ValueError(f"fmt must be 'table' or 'csv', got {fmt!r}.")
 
 
 def write_report(report: pd.DataFrame, path: str, fmt: str = "csv") -> None:
-    """Write a rendered report to a file, creating or replacing it."""
+    """Write a rendered report to a file, creating or replacing it.
 
+    Rendered before the file is opened: opening for writing truncates it, so a
+    rejected *fmt* would otherwise leave nothing where the last good report was.
+    """
+
+    text = render_report(report, fmt=fmt)
     with open(path, "w", encoding="utf-8", newline="") as handle:
-        handle.write(render_report(report, fmt=fmt))
+        handle.write(text)
 
 
 def print_report(report: pd.DataFrame, fmt: str = "table", wrap_width: int = 48,
@@ -368,10 +378,16 @@ def root_cause_counts(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataFr
     )
 
 
-def print_summary(frame_outcomes: list[list[CheckOutcome]],
+def print_summary(frame_outcomes: Iterable[list[CheckOutcome]],
                   title: bool = True) -> pd.DataFrame:
-    """Print the per-check summary, worst first, and the root-cause tally."""
+    """Print the per-check summary, worst first, and the root-cause tally.
 
+    The outcomes are walked twice -- once for the summary, once for the root
+    causes -- so they are materialized first: handed a generator, the second walk
+    would find it spent and print "every row passed" under a table of failures.
+    """
+
+    frame_outcomes = list(frame_outcomes)
     table = summarize_outcomes(frame_outcomes)
     if title:
         _print_title("Summary", f"{len(frame_outcomes)} row(s)",

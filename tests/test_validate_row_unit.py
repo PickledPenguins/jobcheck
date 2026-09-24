@@ -43,6 +43,30 @@ def detail(outcomes: list[res.CheckOutcome], code: str) -> str:
 # --- results ----------------------------------------------------------------
 
 
+def test_something_that_is_not_a_row_is_refused_by_name(fresh_registry: None) -> None:
+    """Regression: a dict reached `.index` and died on `.has_duplicates`, and a
+    list has an `.index` *method*, so the failure named a bound builtin rather
+    than the argument. `validate` has guarded its own frame all along."""
+
+    make_check("A_CODE")
+    for not_a_row in ({"age": 30}, [30], None):
+        for call in (engine.explain_row, engine.validate_row):
+            with pytest.raises(TypeError) as raised:
+                call(not_a_row)  # type: ignore[arg-type]
+            assert str(raised.value) == (
+                f"A row must be a pandas Series -- one row of a DataFrame -- got "
+                f"{type(not_a_row).__name__}; for a whole frame, call validate."
+            )
+
+
+def test_a_frame_handed_to_explain_row_is_refused(fresh_registry: None) -> None:
+    """The likeliest mistake of the three, and the one the message answers."""
+
+    make_check("A_CODE")
+    with pytest.raises(TypeError, match=r"for a whole frame, call validate"):
+        engine.explain_row(pd.DataFrame([{"age": 30}]))  # type: ignore[arg-type]
+
+
 def test_a_passing_row_produces_no_failures(fresh_registry: None) -> None:
     make_check("PASSES", passes=True)
     assert engine.validate_row(ROW) == []

@@ -24,6 +24,7 @@ import pytest
 from conftest import make_check
 from jobcheck import (
     build_report,
+    format_table,
     validate,
     explain_row,
     load_rules,
@@ -221,6 +222,16 @@ def test_a_frame_that_is_not_a_frame_points_at_the_per_row_calls(fresh_registry:
     )
 
 
+def test_a_row_that_is_not_a_series_names_what_it_got(fresh_registry: None) -> None:
+    make_check("CODE")
+    with pytest.raises(TypeError) as raised:
+        explain_row({"age": 30})  # type: ignore[arg-type]
+    assert message_of(raised) == (
+        "A row must be a pandas Series -- one row of a DataFrame -- got dict; "
+        "for a whole frame, call validate."
+    )
+
+
 # --- reporting --------------------------------------------------------------
 
 
@@ -289,6 +300,17 @@ def test_an_unknown_format_names_the_two_that_work(fresh_registry: None) -> None
     with pytest.raises(ValueError) as raised:
         render_report(report, fmt="pdf")
     assert message_of(raised) == "fmt must be 'table' or 'csv', got 'pdf'."
+
+
+def test_a_wrap_width_of_zero_names_the_column_that_asked_for_it(
+    fresh_registry: None,
+) -> None:
+    with pytest.raises(ValueError) as raised:
+        format_table(FRAME, wrap_columns={"age": 0})
+    assert message_of(raised) == (
+        "wrap_columns width for ['age'] must be greater than 0. Leave a column "
+        "out of wrap_columns rather than asking for a width of zero."
+    )
 
 
 
