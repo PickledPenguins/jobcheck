@@ -5,8 +5,12 @@ that grows: every question about the configuration becomes another column rather
 than another engine feature. Each table carries the columns a reader always
 wants and takes `extra_columns` for the ones only some readers do.
 
-Every function returns the DataFrame it prints, so a caller can take the data
-without the output.
+Every function here returns the DataFrame it prints, so a caller can take the data
+without printing it twice. That is the package-wide rule, and it is about who owns
+the frame rather than about the `print_` prefix: a function that *builds* a frame
+returns it, and a function *handed* one returns nothing, or the artifact it made
+instead. `report.py` holds the other side -- `print_report` and `write_report` take
+a built report and return `None`, `render_report` returns its text.
 """
 
 from __future__ import annotations

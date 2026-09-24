@@ -61,21 +61,6 @@ a design call the owner has not made. The reviews' own fixes to the same commit 
 git log; these are what was deliberately left. Each says what would be gained, what would
 be lost, the size, and the recommendation, so none has to be re-derived.
 
-**F.25 — `print_report` returns nothing while its four siblings return their frame.**
-`registry_tables.py`'s module docstring states the convention — every function returns the
-DataFrame it prints, so a caller can take the data without the output — and
-`print_registry`, `print_override_rules`, `print_summary` and `print_row_explanation` all
-follow it. `print_report` returns `None`, and `report.py`'s module docstring does not
-mention the convention, so a reader meets the rule only by opening the other file. Gain:
-one rule, stated in both files, and a caller that prints and keeps the frame without
-building it twice. Loss: it is a public API change. Additive — nothing can depend on
-`None` — but `interfaces.md` documents the return, `test_api_contract.py` checks
-signatures, and the golden and catalog outputs would need re-reading to confirm nothing
-prints twice. ~4 source lines, 2 doc lines, ~10 test lines. Priority: low. Blast radius:
-one exported function's signature and its documentation. Recommendation: do it with the
-next API change rather than alone, and state the convention in `report.py`'s docstring at
-the same time.
-
 **F.26 — the catalog's stable-root fallback swallows more than its comment admits.**
 `tests/catalog.py` creates a fixed-length symlink to the clone so the recorded column
 widths do not depend on where the repository sits, and falls back to the real root inside
@@ -147,6 +132,25 @@ so, and an environment variable makes a run irreproducible from its command line
 would also cost the sentence every failure prints, "load_checks() names files explicitly;
 nothing is discovered", which is pinned in eleven places and is the invariant the whole
 loader is built on.
+
+**Making `print_report` return its frame** (F.25, decided 2026-09-24). Four `print_*`
+functions return the DataFrame they print and `print_report` returns `None`, which read as
+an inconsistency. It is not one: the other four *build* their frame -- `print_registry` from
+the registry, `print_override_rules` from a rule list, `print_row_explanation` and
+`print_summary` from outcomes -- so returning it saves the caller building it twice.
+`print_report` is handed the finished report as its first argument, and returning it would
+hand back what the caller passed in. Its real siblings are the other two functions with that
+argument, and both agree with it: `write_report` returns `None`, `render_report` returns its
+text.
+
+So the change was rejected. It adds a public return value with no use case a user outside
+the package has -- the test any export has to pass here -- and it makes the convention worse,
+because afterwards `print_report` and `write_report` take the same argument and return
+different things, and the rule becomes "whatever starts with print_" rather than "whoever
+built the frame". Two of the entry's supporting claims did not hold either:
+`test_api_contract.py` pins defaults, not returns, and `interfaces.md` documents no return
+for `print_report`. What was real was that the convention lived in one module's docstring
+and was narrower than the truth; both docstrings now state it in full.
 
 **Spelling out the test suite's module aliases** (F.23, decided 2026-09-23). The suite
 writes `reg`, `rep` and `res` where the package spells `registry`, `report` and `results`
