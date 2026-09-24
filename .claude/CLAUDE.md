@@ -42,10 +42,16 @@ the fuller evidence is below. Read it before deciding anything about recovery.
 `src/jobcheck/` still exists on disk holding **only** `__pycache__`, and that bytecode is
 the whole of the record from before the rename. It was copied into `recovery/bytecode/`
 and committed, because the `*.pyc` rules meant one `git clean` would have destroyed the
-only copy. **That directory lives on `main`, not on this branch**, where it was removed
-to keep the project root readable; `main` is pushed, so the copy is permanent. Bring it
-back with `git restore --source=origin/main -- recovery`, or read one file out of it with
-`git show origin/main:recovery/README.md`, which is its entry point.
+only copy. **That directory is not in the working tree on either branch.** It lives on
+`main`, which is pushed, so that copy is permanent; and on this branch it is in history
+only -- commit `3fce4b4` added the whole directory for the sole purpose of making the next
+commit, `92b06d4`, able to delete it without losing it. Rebuilding any of the three modules
+it holds was declined on 2026-09-24; see `docs/future-work.md` under "Considered and
+deliberately not done" for what each would have cost.
+
+Bring it back with `git restore --source=3fce4b4 -- recovery`, or from the other branch with
+`git restore --source=origin/main -- recovery`; read one file out of either with
+`git show 3fce4b4:recovery/README.md`, which is its entry point.
 `scripts/read_bytecode_api.py` regenerates `recovery/recovered-api.md` from a restored
 copy.
 
