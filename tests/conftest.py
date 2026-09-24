@@ -16,7 +16,7 @@ from typing import Any, Iterator
 import pandas as pd
 import pytest
 
-from jobcheck import engine as eng
+from jobcheck import engine
 from jobcheck import registry as reg
 from jobcheck import report
 from jobcheck import results as res
@@ -108,7 +108,7 @@ def one_row_report(
         return res.CheckResult(res.Status.INVALID, comments or {})
 
     frame = pd.DataFrame([{"id": 1}])
-    return report.build_report(eng.validate(frame), df=frame, key_column="id")
+    return report.build_report(engine.validate(frame), df=frame, key_column="id")
 
 
 @dataclass
@@ -145,7 +145,7 @@ def first_cause(row_outcomes: list[Any]) -> str | None:
     take the first, which is what this says in one place rather than thirty.
     """
 
-    causes = eng.root_causes(row_outcomes)
+    causes = engine.root_causes(row_outcomes)
     return causes[0] if causes else None
 
 
