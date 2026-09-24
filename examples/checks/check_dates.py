@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from jobcheck import PASS, Status, CheckResult, is_null, register_check
+from jobcheck import OK, Status, Verdict, is_null, register_check
 
 
 def _date(row: "pd.Series[Any]", column: str) -> pd.Timestamp | None:
@@ -27,13 +27,13 @@ def _date(row: "pd.Series[Any]", column: str) -> pd.Timestamp | None:
 
 
 @register_check(code="DATES_PRESENT", message="Both start_date and end_date are needed")
-def dates_present(row: "pd.Series[Any]") -> CheckResult:
+def dates_present(row: "pd.Series[Any]") -> Verdict:
     """Pass when both dates are readable."""
 
     missing = [column for column in ("start_date", "end_date") if _date(row, column) is None]
     if missing:
-        return CheckResult(Status.MISSING, {"columns": ", ".join(missing)})
-    return PASS
+        return Verdict(Status.MISSING, {"columns": ", ".join(missing)})
+    return OK
 
 
 @register_check(
@@ -41,11 +41,11 @@ def dates_present(row: "pd.Series[Any]") -> CheckResult:
     "start_date is after end_date",
     depends_on=["DATES_PRESENT"],
 )
-def dates_in_order(row: "pd.Series[Any]") -> CheckResult:
+def dates_in_order(row: "pd.Series[Any]") -> Verdict:
     """Pass when start_date is not later than end_date."""
 
     start = _date(row, "start_date")
     end = _date(row, "end_date")
     if start is not None and end is not None and start > end:
-        return CheckResult(Status.INVALID, {"start_date": start.date(), "end_date": end.date()})
-    return PASS
+        return Verdict(Status.INVALID, {"start_date": start.date(), "end_date": end.date()})
+    return OK

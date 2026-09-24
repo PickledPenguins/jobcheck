@@ -90,10 +90,10 @@ def adopter_package(tmp_path: Path) -> Path:
     theirs = tmp_path / "their_checks"
     theirs.mkdir(parents=True)
     (theirs / "check_theirs.py").write_text(
-        "from jobcheck import PASS, Status, CheckResult, is_null, register_check\n\n\n"
+        "from jobcheck import OK, Status, Verdict, is_null, register_check\n\n\n"
         '@register_check("FIELD_MISSING", "Their field is missing")\n'
         "def field_present(row):\n"
-        "    return CheckResult(Status.MISSING) if is_null(row['field']) else PASS\n",
+        "    return Verdict(Status.MISSING) if is_null(row['field']) else OK\n",
         encoding="utf-8",
     )
     return tmp_path

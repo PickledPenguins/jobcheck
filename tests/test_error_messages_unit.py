@@ -31,8 +31,8 @@ from jobcheck import (
     render_report,
     validate_row,
 )
-from jobcheck.results import CheckResult, normalize_result
-from jobcheck.results import PASS
+from jobcheck.results import Verdict, normalize_verdict
+from jobcheck.results import OK
 
 pytestmark = pytest.mark.fast
 
@@ -93,7 +93,7 @@ def test_a_three_argument_check_is_rejected_with_its_signature(fresh_registry: N
     with pytest.raises(ValueError) as raised:
         @reg.register_check(code="CODE", message="m")
         def check(row, ctx, extra):  # type: ignore[no-untyped-def]
-            return PASS
+            return OK
     assert message_of(raised) == (
         "Check 'CODE': check(row, ctx, extra) must take (row) or (row, context), "
         "not 3 positional argument(s)."
@@ -104,7 +104,7 @@ def test_a_required_keyword_argument_says_how_to_fix_it(fresh_registry: None) ->
     with pytest.raises(ValueError) as raised:
         @reg.register_check(code="CODE", message="m")
         def check(row, *, limit):  # type: ignore[no-untyped-def]
-            return PASS
+            return OK
     assert message_of(raised) == (
         "Check 'CODE': check(row, *, limit) needs keyword argument(s) "
         "limit that the engine cannot supply. Give them defaults, or read them "
@@ -198,16 +198,16 @@ def test_an_unknown_on_error_names_the_two_that_work(fresh_registry: None) -> No
 
 def test_a_check_returning_nonsense_says_what_it_may_return(fresh_registry: None) -> None:
     with pytest.raises(TypeError) as raised:
-        normalize_result(object(), "CODE")
+        normalize_verdict(object(), "CODE")
     assert message_of(raised).startswith("Check 'CODE' returned ")
     assert message_of(raised).endswith(
-        "A check must return PASS or a CheckResult; CheckResult(condition) wraps a "
+        "A check must return OK or a Verdict; Verdict(condition) wraps a "
         "bare comparison.")
 
 
 def test_a_result_with_an_unknown_status_names_the_registered_ones(fresh_registry: None) -> None:
     with pytest.raises(ValueError) as raised:
-        CheckResult(99)
+        Verdict(99)
     assert message_of(raised).startswith("Unknown status 99.")
 
 

@@ -17,11 +17,11 @@ from jobcheck import registry as reg
 pytestmark = pytest.mark.fast
 
 FILE_WITH_ONE_CHECK = '''
-from jobcheck import PASS, Status, CheckResult, register_check
+from jobcheck import OK, Status, Verdict, register_check
 
 @register_check("{code}", "{code} failed")
 def rule(row):
-    return PASS if row.get("value") == 1 else CheckResult(Status.INVALID, {{"value": row.get("value")}})
+    return OK if row.get("value") == 1 else Verdict(Status.INVALID, {{"value": row.get("value")}})
 '''
 
 
@@ -139,11 +139,11 @@ def test_a_file_that_raises_after_registering_leaves_none_of_its_checks_behind(
     good = write_check_file(tmp_path, "good.py", "KEPT")
     broken = tmp_path / "broken.py"
     broken.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('A', 'a')\n"
-        "def a(row): return PASS\n"
+        "def a(row): return OK\n"
         "@register_check('B', 'b')\n"
-        "def b(row): return PASS\n"
+        "def b(row): return OK\n"
         "raise RuntimeError('boom after two registrations')\n"
     )
     with pytest.raises(RuntimeError, match="boom"):
@@ -152,9 +152,9 @@ def test_a_file_that_raises_after_registering_leaves_none_of_its_checks_behind(
     assert reg.loaded_check_files() == [str(Path(good).resolve())]
 
     broken.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('A', 'a')\n"
-        "def a(row): return PASS\n"
+        "def a(row): return OK\n"
     )
     reg.load_checks([str(broken)])
     assert [t.code for t in reg.CHECKS] == ["KEPT", "A"]
@@ -179,10 +179,10 @@ def test_a_prerequisite_may_live_in_another_file_of_the_same_call(
     base.write_text(FILE_WITH_ONE_CHECK.format(code="BASE"))
     dependent = tmp_path / "dependent.py"
     dependent.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('DEPENDENT', 'DEPENDENT failed', depends_on=['BASE'])\n"
         "def rule(row):\n"
-        "    return PASS\n"
+        "    return OK\n"
     )
     reg.load_checks([str(dependent), str(base)])
     assert sorted(t.code for t in reg.CHECKS) == ["BASE", "DEPENDENT"]
@@ -193,10 +193,10 @@ def test_a_dangling_prerequisite_raises_at_the_end_of_the_call(
 ) -> None:
     path = tmp_path / "dependent.py"
     path.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('DEPENDENT', 'DEPENDENT failed', depends_on=['ABSENT'])\n"
         "def rule(row):\n"
-        "    return PASS\n"
+        "    return OK\n"
     )
     with pytest.raises(ValueError, match="ABSENT"):
         reg.load_checks([str(path)])
@@ -437,9 +437,9 @@ def test_a_prerequisite_may_arrive_after_the_bundle_that_needs_it(
 
     dependent = tmp_path / "check_dependent.py"
     dependent.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
-        "def needs_base(row): return PASS\n"
+        "def needs_base(row): return OK\n"
     )
     bundle = write_bundle(tmp_path, "all_checks.py", ["check_dependent.py"])
     base = write_check_file(tmp_path, "check_base.py", "BASE")
@@ -456,9 +456,9 @@ def test_a_prerequisite_nothing_provides_still_fails_the_whole_load(
 
     dependent = tmp_path / "check_dependent.py"
     dependent.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
-        "def needs_base(row): return PASS\n"
+        "def needs_base(row): return OK\n"
     )
     bundle = write_bundle(tmp_path, "all_checks.py", ["check_dependent.py"])
     with pytest.raises(ValueError, match="depends on 'BASE', which is not registered"):
@@ -475,9 +475,9 @@ def test_a_member_that_raises_leaves_the_earlier_members_loaded(
     write_check_file(tmp_path, "check_first.py", "FIRST")
     broken = tmp_path / "check_broken.py"
     broken.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('BROKEN', 'broken')\n"
-        "def broken(row): return PASS\n"
+        "def broken(row): return OK\n"
         "raise RuntimeError('boom half way through the bundle')\n"
     )
     bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py", "check_broken.py"])
@@ -490,9 +490,9 @@ def test_a_member_that_raises_leaves_the_earlier_members_loaded(
 
     # The author fixes the member and runs the same command again.
     broken.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('BROKEN', 'broken')\n"
-        "def broken(row): return PASS\n"
+        "def broken(row): return OK\n"
     )
     reg.load_checks([bundle])
     assert [t.code for t in reg.CHECKS] == ["FIRST", "BROKEN"]
@@ -505,9 +505,9 @@ def test_a_bundle_that_raises_drops_its_own_checks_and_keeps_its_members(
     bundle = tmp_path / "all_checks.py"
     bundle.write_text(
         "import os\n"
-        "from jobcheck import PASS, load_checks, register_check\n"
+        "from jobcheck import OK, load_checks, register_check\n"
         "@register_check('BUNDLE_OWN', 'the bundle registered this itself')\n"
-        "def own(row): return PASS\n"
+        "def own(row): return OK\n"
         "load_checks(['check_first.py'], base_dir=os.path.dirname(os.path.abspath(__file__)))\n"
         "raise RuntimeError('boom after the members loaded')\n"
     )
@@ -539,9 +539,9 @@ def test_two_bundles_that_name_each_other_both_load(fresh_registry: None,
                               ("right.py", "RIGHT", "left.py")):
         (tmp_path / name).write_text(
             "import os\n"
-            "from jobcheck import PASS, load_checks, register_check\n"
+            "from jobcheck import OK, load_checks, register_check\n"
             f"@register_check({code!r}, 'from {name}')\n"
-            "def check(row): return PASS\n"
+            "def check(row): return OK\n"
             f"load_checks([{other!r}], base_dir=os.path.dirname(os.path.abspath(__file__)))\n"
         )
     reg.load_checks([str(tmp_path / "left.py")])
@@ -565,12 +565,12 @@ def test_a_bundle_and_a_member_of_one_name_get_different_module_names(
     bundle = tmp_path / "checks.py"
     bundle.write_text(
         "import os, sys\n"
-        "from jobcheck import PASS, load_checks, register_check\n"
+        "from jobcheck import OK, load_checks, register_check\n"
         "load_checks([os.path.join(os.path.dirname(os.path.abspath(__file__)),\n"
         "                          'inner', 'checks.py')])\n"
         "MARKER = 'the bundle'\n"
         "@register_check('OUTER', 'from the bundle itself')\n"
-        "def own(row): return PASS\n"
+        "def own(row): return OK\n"
         "assert sys.modules[__name__].MARKER == 'the bundle', sys.modules[__name__]\n"
     )
 
@@ -592,9 +592,9 @@ def test_a_file_interrupted_part_way_drops_its_checks_like_any_other_failure(
 
     path = tmp_path / "check_interrupted.py"
     path.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('INTERRUPTED', 'registered before the interrupt')\n"
-        "def rule(row): return PASS\n"
+        "def rule(row): return OK\n"
         "raise KeyboardInterrupt('ctrl-c during the import')\n"
     )
 
@@ -607,9 +607,9 @@ def test_a_file_interrupted_part_way_drops_its_checks_like_any_other_failure(
 
     # The author runs the same command again, uninterrupted this time.
     path.write_text(
-        "from jobcheck import PASS, register_check\n"
+        "from jobcheck import OK, register_check\n"
         "@register_check('INTERRUPTED', 'registered before the interrupt')\n"
-        "def rule(row): return PASS\n"
+        "def rule(row): return OK\n"
     )
     reg.load_checks([str(path)])
     assert [t.code for t in reg.CHECKS] == ["INTERRUPTED"]

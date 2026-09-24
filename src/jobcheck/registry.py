@@ -24,8 +24,8 @@ from . import rules
 # rather than reaching into .rules directly.
 from .rules import MatchCriterion, Rule
 
-# What an author writes: (row) or (row, context), returning PASS or a
-# CheckResult. The engine stores the normalized two-argument form.
+# What an author writes: (row) or (row, context), returning OK or a
+# Verdict. The engine stores the normalized two-argument form.
 CheckFn = Callable[..., Any]
 RunnerFn = Callable[["pd.Series[Any]", RowContext | None], Any]
 

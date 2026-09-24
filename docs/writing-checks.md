@@ -6,13 +6,13 @@ Back to the [README](../README.md). For what happens to the results, see
 ## The shape of a check
 
 ```python
-from jobcheck import PASS, Status, CheckResult, register_check
+from jobcheck import OK, Status, Verdict, register_check
 
 @register_check("AGE_NEGATIVE", "Age is negative")
 def age_negative(row):
     if row["age"] < 0:
-        return CheckResult(Status.INVALID, {"value": row["age"], "minimum": 0})
-    return PASS
+        return Verdict(Status.INVALID, {"value": row["age"], "minimum": 0})
+    return OK
 ```
 
 A check takes `(row)` or `(row, ctx)` — nothing else; any other signature is
@@ -33,17 +33,17 @@ codes, so a reused code silently changes the meaning of data already written.
 
 | Return | Meaning |
 |---|---|
-| `PASS` | The check is happy with the row. |
-| `CheckResult(Status.X, {...})` | Failed, with a kind and comments for the report. |
-| `CheckResult(condition)` | Wraps a bare comparison: a pass, or an `INVALID` failure with no comments. |
-| `CheckResult(Status.MISSING)` (etc.) | Failed with that kind and no comments. |
+| `OK` | The check is happy with the row. |
+| `Verdict(Status.X, {...})` | Failed, with a kind and comments for the report. |
+| `Verdict(condition)` | Wraps a bare comparison: a pass, or an `INVALID` failure with no comments. |
+| `Verdict(Status.MISSING)` (etc.) | Failed with that kind and no comments. |
 
 Anything else — a bare `True`, a bare `Status` value, or falling off the end of
 the function and returning `None` — raises `TypeError` naming the check. A check
 that forgets to return must never be read as a pass, and a bare bool is refused
 rather than guessed at, since `True == 1 == Status.MISSING`.
 
-`CheckResult` is truthy when the check **passed**, so `if result:` reads as "if the
+`Verdict` is truthy when the check **passed**, so `if result:` reads as "if the
 check was happy". Do not lean on the raw `status` for truthiness: `0` is a pass but
 is falsy as an integer, which is the opposite meaning.
 
@@ -55,11 +55,11 @@ passes on exactly the rows it exists to catch. The library exports the check it
 uses internally:
 
 ```python
-from jobcheck import PASS, Status, CheckResult, is_null, register_check
+from jobcheck import OK, Status, Verdict, is_null, register_check
 
 @register_check("EMAIL_PRESENT", "Email is missing")
 def email_present(row):
-    return CheckResult(Status.MISSING) if is_null(row["email"]) else PASS
+    return Verdict(Status.MISSING) if is_null(row["email"]) else OK
 ```
 
 `is_null` is `None`-and-`NaN` aware and never raises on a list or an array, where
@@ -77,7 +77,7 @@ Five built-ins, values 0–9 reserved:
 | `INVALID` (3) | Right shape, wrong content: out of range, unknown value. |
 | `ERROR` (9) | The check raised. Recorded by the engine; a check **returning** it is refused, since that would report as a failure while claiming to be a broken check. |
 
-The vocabulary is fixed: these five are the whole of it, and a `CheckResult`
+The vocabulary is fixed: these five are the whole of it, and a `Verdict`
 carrying anything else is refused at construction. What varies between projects is
 the *codes*, not the kinds — a check says which of these five happened, and its
 comments say the rest.

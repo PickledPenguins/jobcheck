@@ -161,10 +161,10 @@ def test_a_check_file_written_at_runtime_is_loaded_by_path(fresh_registry: None,
     added = tmp_path / "check_added.py"
     added.write_text(
         "from jobcheck.registry import register_check\n"
-        "from jobcheck.results import CheckResult\n\n\n"
+        "from jobcheck.results import Verdict\n\n\n"
         '@register_check(code="ADDED_AT_RUNTIME", message="added")\n'
         "def check(row):\n"
-        "    return CheckResult(row['age'] != 99)\n",
+        "    return Verdict(row['age'] != 99)\n",
         encoding="utf-8",
     )
     load_checks([str(added)])

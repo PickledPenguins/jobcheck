@@ -50,15 +50,15 @@ def test_validate_without_a_builder_hands_every_row_a_bare_context(
 ) -> None:
     """The default path: no builder, so a check that reads the context gets one."""
 
-    from jobcheck import PASS, CheckResult, validate
+    from jobcheck import OK, Verdict, validate
     from jobcheck import registry as reg
 
     seen: list[RowContext | None] = []
 
     @reg.register_check(code="SEES_CONTEXT", message="never fails")
-    def check(row: "pd.Series[Any]", context: RowContext | None) -> CheckResult:
+    def check(row: "pd.Series[Any]", context: RowContext | None) -> Verdict:
         seen.append(context)
-        return PASS
+        return OK
 
     validate(pd.DataFrame([{"a": 1}, {"a": 2}]))
     assert seen == [RowContext(), RowContext()]
@@ -70,15 +70,15 @@ def test_a_builder_that_returns_none_gets_the_empty_context_too(
 ) -> None:
     """``ContextBuilder`` may return None; the checks still see a context."""
 
-    from jobcheck import PASS, CheckResult, validate
+    from jobcheck import OK, Verdict, validate
     from jobcheck import registry as reg
 
     seen: list[RowContext | None] = []
 
     @reg.register_check(code="SEES_CONTEXT", message="never fails")
-    def check(row: "pd.Series[Any]", context: RowContext | None) -> CheckResult:
+    def check(row: "pd.Series[Any]", context: RowContext | None) -> Verdict:
         seen.append(context)
-        return PASS
+        return OK
 
     validate(pd.DataFrame([{"a": 1}]), context_builder=lambda row: None)
     assert seen == [RowContext()]
@@ -87,13 +87,13 @@ def test_a_builder_that_returns_none_gets_the_empty_context_too(
 def test_a_caller_supplied_builder_is_what_reaches_the_checks(fresh_registry: None) -> None:
     """The documented replacement path, exercised rather than described."""
 
-    from jobcheck import PASS, CheckResult, Status, validate
+    from jobcheck import OK, Verdict, Status, validate
     from jobcheck import registry as reg
 
     @reg.register_check(code="NEEDS_FLAG", message="the context said no")
-    def check(row: "pd.Series[Any]", context: RowContext | None) -> CheckResult:
+    def check(row: "pd.Series[Any]", context: RowContext | None) -> Verdict:
         counts = getattr(context, "counts", {})
-        return PASS if counts.get("MODERN") else CheckResult(Status.INVALID, {})
+        return OK if counts.get("MODERN") else Verdict(Status.INVALID, {})
 
     frame = pd.DataFrame([{"source": "MODERN"}, {"source": "LEGACY"}])
     outcomes = validate(frame, context_builder=FileContext.build)

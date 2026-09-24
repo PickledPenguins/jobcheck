@@ -7,7 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from jobcheck import PASS, Status, CheckResult, is_null, register_check
+from jobcheck import OK, Status, Verdict, is_null, register_check
 
 _DOMAIN = re.compile(r"^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$")
 
@@ -24,24 +24,24 @@ def _text(row: "pd.Series[Any]", column: str = "email") -> str | None:
 
 
 @register_check(code="EMAIL_PRESENT", message="Email is missing")
-def email_present(row: "pd.Series[Any]") -> CheckResult:
+def email_present(row: "pd.Series[Any]") -> Verdict:
     """Pass when the row carries an email at all."""
 
     text = _text(row)
     if text is None or not text.strip():
-        return CheckResult(Status.MISSING)
-    return PASS
+        return Verdict(Status.MISSING)
+    return OK
 
 
 @register_check("EMAIL_MISSING_AT", "Email has no '@'", depends_on=["EMAIL_PRESENT"])
-def email_missing_at(row: "pd.Series[Any]") -> CheckResult:
+def email_missing_at(row: "pd.Series[Any]") -> Verdict:
     """Pass when the email contains exactly one '@'."""
 
     text = _text(row) or ""
     count = text.count("@")
     if count != 1:
-        return CheckResult(Status.MALFORMED, {"at_signs": count, "value": text})
-    return PASS
+        return Verdict(Status.MALFORMED, {"at_signs": count, "value": text})
+    return OK
 
 
 @register_check(
@@ -49,12 +49,12 @@ def email_missing_at(row: "pd.Series[Any]") -> CheckResult:
     "Email domain looks malformed",
     depends_on=["EMAIL_MISSING_AT"],
 )
-def email_domain(row: "pd.Series[Any]") -> CheckResult:
+def email_domain(row: "pd.Series[Any]") -> Verdict:
     """Pass when the part after '@' looks like a dotted hostname."""
 
     # EMAIL_MISSING_AT is a prerequisite and passed, so there is exactly one
     # '@' here: a check runs only once every check it depends on has passed.
     domain = (_text(row) or "").split("@", 1)[1]
     if not _DOMAIN.match(domain):
-        return CheckResult(Status.MALFORMED, {"domain": domain})
-    return PASS
+        return Verdict(Status.MALFORMED, {"domain": domain})
+    return OK

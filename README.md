@@ -37,19 +37,19 @@ pip install -e .
 ## Writing a check
 
 ```python
-from jobcheck import PASS, Status, CheckResult, register_check
+from jobcheck import OK, Status, Verdict, register_check
 
 @register_check("AGE_ABOVE_LIMIT", "Age is above the limit for this product",
                 depends_on=["AGE_PRESENT"])       # waits for that check to pass
 def age_above_limit(row):                         # or (row, ctx)
     if row["age"] > 130:
-        return CheckResult(Status.INVALID, {"maximum": 130, "actual": row["age"]})
-    return PASS
+        return Verdict(Status.INVALID, {"maximum": 130, "actual": row["age"]})
+    return OK
 ```
 
 - That is the whole change: a function in any `check_*.py` file of your own.
 - The check reads whatever columns it needs from the row.
-- It returns `PASS` or a `CheckResult`; `CheckResult(condition)` wraps a bare comparison.
+- It returns `OK` or a `Verdict`; `Verdict(condition)` wraps a bare comparison.
 - The comments it attaches appear in the report.
 
 ## Validating and reporting

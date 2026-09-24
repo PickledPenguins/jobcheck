@@ -38,10 +38,10 @@ pytestmark = pytest.mark.long
 RULE = ("- name: r\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n")
 
 CHECK_FILE = (
-    "from jobcheck import PASS, register_check\n"
+    "from jobcheck import OK, register_check\n"
     "@register_check('FROM_FILE', 'from file')\n"
     "def rule(row):\n"
-    "    return PASS\n"
+    "    return OK\n"
 )
 
 unwritable_as_root = pytest.mark.skipif(
