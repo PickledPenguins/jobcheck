@@ -108,6 +108,11 @@ and one line here — this is the view that answers "what did this rule file act
 `codes_hit_count` is a count rather than the codes themselves, so a broad rule does not
 widen the table; `jobcheck.list_rule_codes` gives the detail.
 
+Under the table, one `warning:` line per rule a later `match: all` rule overrules for
+every row -- a rule that can never apply, which nothing else reports. The shipped rule
+file has one deliberately, as the precedence demonstration
+[configuration.md](configuration.md#precedence-last-rule-wins) describes.
+
 With `--rules` passed no paths, there are no rules and the table is empty.
 
 ### `--write PATH`

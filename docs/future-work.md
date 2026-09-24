@@ -183,8 +183,11 @@ every check file to be importable and side-effect-free in a fresh interpreter, a
 contract on user files, and its recorded 3.4s-against-6.6s win predates validation getting
 7.6x cheaper; `params` changes the on-disk rule format, which is a design decision rather
 than a rebuild. `lint` was the one with obvious value -- warnings about rule files that
-parse but can never fire, fire everywhere, or were superseded, where
-`engine.resolve_enabled_state` still has no diagnostics for last-wins shadowing.
+parse but can never fire, fire everywhere, or were superseded. The one part of that with a
+decidable answer was built separately on 2026-09-24 as `rules.check_shadowed_rules`: a rule
+a later `match: all` rule overrules for every row, which is dead for that code however the
+data looks. What stays unbuilt is the undecidable rest, where two conditional rules may or
+may not overlap -- that needs the patterns compared rather than read.
 
 The bytecode was committed to this branch and then deleted in the next commit, so it is
 recoverable from history rather than carried: `git restore --source=3fce4b4 -- recovery`

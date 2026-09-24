@@ -38,7 +38,7 @@ from .registry_tables import (
     print_override_rules,
     print_registry,
 )
-from .rules import check_override_columns
+from .rules import check_override_columns, check_shadowed_rules
 from .report import (
     build_report,
     escape_for_spreadsheet,
@@ -85,6 +85,7 @@ __all__ = [
     "__version__",
     "build_report",
     "check_override_columns",
+    "check_shadowed_rules",
     "clear_registry",
     "escape_for_spreadsheet",
     "explain_row",

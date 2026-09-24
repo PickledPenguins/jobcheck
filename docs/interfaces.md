@@ -261,6 +261,21 @@ One line per rule criterion naming a column the frame lacks — a rule that can
 never fire. Checks are not checked: they read the row themselves, so a missing
 field raises and is recorded as an `ERROR` outcome naming the column.
 
+### `check_shadowed_rules(overrides) -> list[str]`
+
+One line per rule a later rule overrules for every row: precedence is positional,
+so a rule touching a code is dead for that code once a later rule touches it with
+`match: all`. Needs no data — the answer is the same for every row, which is why
+this is the one shadowing case reported. Two conditional rules that may or may not
+overlap are left alone deliberately, since deciding that means comparing patterns
+rather than reading them.
+
+Judged per code, not per rule: a rule carrying several codes can be overruled for
+one and decisive for another. Warns rather than raises, like
+`check_override_columns` — `examples/rules/error_overrides.yaml` ships a shadowed
+rule on purpose, as the precedence demonstration, and
+`python3 examples/main.py --rules-table` prints the warning under the rules table.
+
 ### `validate(df, overrides=None, context_builder=None, on_error="record") -> list[list[CheckOutcome]]`
 
 Every check against every row: one `explain_row` call per row, and one list of

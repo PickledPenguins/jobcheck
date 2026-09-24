@@ -21,6 +21,7 @@ import pandas as pd
 from jobcheck import (
     build_report,
     check_override_columns,
+    check_shadowed_rules,
     load_checks,
     load_overrides,
     print_override_rules,
@@ -161,6 +162,11 @@ def main(argv: list[str] | None = None) -> None:
         # a rule touching eight codes is one line here and eight there, which is
         # the view that answers "what did this file actually say".
         print_override_rules(overrides)
+        # Beside the rules themselves, because "this rule can never apply" is a
+        # fact about the file rather than about a row. The shipped rule file has
+        # one on purpose: it is the precedence demonstration.
+        for warning in check_shadowed_rules(overrides):
+            print(f"warning: {warning}")
         print()
 
     print("== Registry ==")
