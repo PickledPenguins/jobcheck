@@ -12,22 +12,10 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-**F.1 — `lint`, `parallel` and `params` exist only as bytecode.** Three modules were lost
-when the repository was re-initialized on 2026-09-09. Their `.pyc` files, and the
-interface read out of them, are on `main`: `git show origin/main:recovery/README.md`
-records what each did and the reason to rebuild it, and
-`git restore --source=origin/main -- recovery` brings the whole directory back. None is
-rebuilt because nothing calls them today. `lint` is the one with obvious value — warnings
-about rule files that parse but can never fire, fire everywhere, or were superseded.
-
-
-
-
-
-The items below were raised by the 2026-09-15 and 2026-09-21 reviews, each sniff-tested
-against the code and, where a behavior is involved, reproduced. The owner chose on
-2026-09-21 to record them here rather than build any of them yet. Each says what the fix
-would be, so a later session can take one without re-deriving it.
+One gap is open. Every other item raised by the reviews of 2026-09-15, 2026-09-21 and
+2026-09-23 was worked through on 2026-09-23 and 2026-09-24: what was built is in the git
+log, and what was decided against is in the section below, with the reason. An entry there
+is closed, not pending.
 
 
 
@@ -182,6 +170,27 @@ checked and no such rule is there. Its counts were wrong as well -- "eight times
 into *generated subprocess source*. What was taken instead is in the git log: `pythonpath`
 in `pyproject.toml` replaced `conftest.py`'s three inserts, which was the one place a
 declaration could do the job.
+
+**Rebuilding `lint`, `parallel` or `params` (was F.1).** Declined 2026-09-24, and the
+bytecode they existed as is deleted. Three modules were lost when the repository was
+re-initialized on 2026-09-09 and survived only as `.pyc`, which keeps names, parameters,
+annotations and docstrings but never the statements -- so rebuilding any of them always
+meant writing the bodies again from the recovered interface. Nothing calls them, and each
+carries a reason beyond the port: `lint` would be a second, softer rule-validation path
+beside the loader, written against a rule schema that has since changed from
+`column`/`pattern` with `fnmatchcase` to a `match` list of regex criteria; `parallel` needs
+every check file to be importable and side-effect-free in a fresh interpreter, a new
+contract on user files, and its recorded 3.4s-against-6.6s win predates validation getting
+7.6x cheaper; `params` changes the on-disk rule format, which is a design decision rather
+than a rebuild. `lint` was the one with obvious value -- warnings about rule files that
+parse but can never fire, fire everywhere, or were superseded, where
+`engine.resolve_enabled_state` still has no diagnostics for last-wins shadowing.
+
+The bytecode was committed to this branch and then deleted in the next commit, so it is
+recoverable from history rather than carried: `git restore --source=3fce4b4 -- recovery`
+brings the whole directory back, and `git show 3fce4b4:recovery/README.md` is its entry
+point. It is also still on `origin/main`, where it has lived since 2026-09-09.
+`scripts/read_bytecode_api.py` regenerates the interface files from a restored copy.
 
 **Registry snapshot and restore as library API** (F.18 and F.19, decided 2026-09-23).
 `snapshot` and `restore` copied the registry's module globals and put them back. Both were
