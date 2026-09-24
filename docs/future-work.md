@@ -12,7 +12,7 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-One gap is open. Every other item raised by the reviews of 2026-09-15, 2026-09-21 and
+Two gaps are open. Every other item raised by the reviews of 2026-09-15, 2026-09-21 and
 2026-09-23 was worked through on 2026-09-23 and 2026-09-24: what was built is in the git
 log, and what was decided against is in the section below, with the reason. An entry there
 is closed, not pending.
@@ -74,6 +74,63 @@ documents. Priority: low -- with the F.24 guards in place nothing is silently wr
 more, only reachable. Blast radius: the public API, the docs that name it, and every test
 that reads the registry. Recommendation: not now. Revisit if a second silent
 desynchronization turns up; the guards are the cheap half and they are in.
+
+**F.29 — no single file defines a whole run.** Reproducing a run means retyping its
+parts: `--data`, `--rules` and `--report` on the command line, the check files named inside
+the entry point, and the report's columns and `key_column` given in code at the
+`build_report` call. There is no artifact that says "this is the run" -- nothing to commit
+beside a bug report, diff against last week's, or hand to somebody else. The ask (owner,
+2026-09-24) is one YAML file naming the data, the check files, the rule files, which tables
+to print and which columns each carries, passed as the only argument.
+
+What it would gain: reproducibility as a file rather than as a shell history line, and an
+entry point whose argument list stops growing -- it is at seven options now, five of them
+added in the last two days.
+
+What it would cost, in order of weight. **jobchain already is this.** Its run
+configuration names `checks:` and `rules:`, resolves both against the configuration's own
+directory, and refuses `rules` without `checks`
+(`jobchain/config.py:251-256`); a second run-configuration format in the same workspace,
+neither one the other's, is two things for a user to learn where the split is meant to be
+"jobcheck validates rows, jobchain runs the pipeline". **The config becomes a serialized
+API call.** "Which reports, which columns" means keys mapping to `build_report`,
+`print_report`, `print_registry` and `print_rules` arguments, so every signature change
+needs a key: `title` and `drop_columns` were added to five functions on 2026-09-24 alone,
+and each would have been a schema change too. **A second way to say everything.** Whether
+a flag overrides the file, the file overrides the flag, or they cannot be combined has to
+be decided and documented, and whichever is chosen the other reading becomes a trap; the
+`docs/cli.md` gate that checks every flag is documented and every documented flag exists
+would need its equivalent for the schema, or the two drift. **A new rejection
+vocabulary.** The rule-file loader is the precedent: ~200 lines and nineteen messages
+pinned word for word, with failures-catalog cases for each. A run-config loader needs the
+same care or it becomes the one file in the project that fails unhelpfully. **And it
+reopens F.17**: a configuration naming check files bare, from a directory that is not the
+working directory, is the deployment case that was closed by answering "use a bundle" --
+so paths in the config must anchor to the config's own directory, which is what `base_dir`
+exists for.
+
+Where it cannot go is `src/jobcheck/`. The library has no command line --
+`docs/cli.md` says so, and `architecture.md` states that which checks a pipeline runs is a
+property of the pipeline rather than of an invocation -- and its only configuration format
+is the rule file. A run-config loader there would be a second format, a second schema and a
+CLI concept inside a library that deliberately has none.
+
+Estimated ~180 source and ~250 test lines, a `docs/` page, six to ten failures catalog
+cases, and ~40 lines in whichever entry point reads it. Priority: medium as a capability,
+low as a defect -- nothing is broken and the parts are all reachable today. Blast radius:
+one entry point's whole argument surface, `docs/cli.md`, the failures catalog, and the
+recorded outputs of every example case if the config becomes the primary path.
+
+Recommendation: **not in `main.py`, and not in the library.** Build it as a second
+demonstration entry point -- `examples/run_from_config.py`, beside `bundle_main.py` -- that
+reads the file and calls the library, taking the config as its only argument and no flags
+at all. That gives the owner the reproducible artifact, keeps `main.py` the minimal
+flag-driven demo it is, keeps the library free of a second configuration format, and shows
+an adopter the pattern rather than dictating it. Decide the precedence question by not
+having one: the file is the whole input. If the real need is a production runner rather
+than a demo, the answer is jobchain's run configuration, which already names checks and
+rules and would need report and column keys added -- one format, in the project whose job
+it is.
 
 ## Considered and deliberately not done
 
