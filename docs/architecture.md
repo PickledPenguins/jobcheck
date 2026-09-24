@@ -61,7 +61,7 @@ the package by accident from the working directory. The demos and the scripts ad
 
 | File | Responsibility |
 |---|---|
-| `src/jobcheck/registry.py` | The registry: registration, file import, dependency validation, ordering and layers. What checks *exist*. |
+| `src/jobcheck/registry.py` | The registry: registration, file import, dependency validation, ordering and layers. What checks *exist*. `load_setup` lives here too, being the one place that composes both loaders. |
 | `src/jobcheck/engine.py` | What happens to one row: per-row on/off state from the rules, evaluation in dependency order, the outcomes, and the root causes. |
 | `src/jobcheck/registry_tables.py` | The registry and the rules as tables: what is registered, which rules could touch each code, what each rule covers. |
 | `src/jobcheck/report.py` | Collecting outcomes for a frame, the long-format failure table, summaries, explanations, and rendering them as text or CSV. |

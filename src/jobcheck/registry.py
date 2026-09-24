@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 import pandas as pd
+import yaml
 
 from .context import RowContext
 from .paths import resolve_input_file
@@ -419,3 +420,83 @@ def load_rules(paths: list[str],
     *base_dir* anchors relative paths exactly as it does in `load_checks`."""
 
     return rules.load_rules(paths, {check.code for check in CHECKS}, base_dir)
+
+
+#: The only two keys a setup file holds. Named so the rejection can list them,
+#: and so a reader sees the whole schema in one line.
+SETUP_KEYS = ("checks", "rules")
+
+
+def _setup_paths(document: Any, key: str, path: Path, required: bool) -> list[str]:
+    """One key of a setup file, validated as a list of paths.
+
+    Refuses a string where a list belongs. `checks: checks.py` is the shape
+    somebody writes first, and YAML reads it as a string, which would otherwise
+    load a file per character.
+    """
+
+    value = document.get(key)
+    if value is None:
+        if required:
+            raise ValueError(
+                f"{path}: {key!r} is required: a setup file names the files to load.")
+        return []
+    if not isinstance(value, list):
+        raise ValueError(
+            f"{path}: {key!r} must be a list of paths, got {type(value).__name__}. "
+            f"Write it as a list even for one file.")
+    for position, entry in enumerate(value, 1):
+        if not isinstance(entry, str):
+            raise ValueError(
+                f"{path}: {key!r} entry {position} must be a path, "
+                f"got {type(entry).__name__}.")
+    if required and not value:
+        raise ValueError(f"{path}: {key!r} is empty: name at least one file.")
+    return list(value)
+
+
+def load_setup(path: str) -> list[Rule]:
+    """Load the check files and rule files one YAML file names, and return the
+    rules -- the whole of configuring this library, in one call.
+
+    The file holds `checks` and, optionally, `rules`, each a list of paths::
+
+        checks:
+          - checks/all_checks.py
+        rules:
+          - rules/01_age.yaml
+
+    Both are resolved against the **setup file's own directory**, so the file and
+    the paths in it travel together; the setup file's own path is relative to where
+    the caller stands, like any path a user types. `checks` is required, because a
+    setup naming only rules configures nothing -- rules switch checks on and off.
+
+    Rules are named by path rather than written inline. A rule file is a flat
+    top-level list *without* a `rules:` key, which a setup file would have to
+    contradict, and rule files are meant to be shared between runs -- inline rules
+    would be copied into each one and drift.
+
+    This composes `load_checks` and `load_rules` and does nothing they do not:
+    both stay public, because a bundle calls `load_checks` from inside a check
+    file and a caller with paths of its own has no file to write.
+    """
+
+    setup_file = resolve_input_file(path, "setup file", "load_setup()")
+    with open(setup_file, encoding="utf-8") as handle:
+        document = yaml.safe_load(handle)
+    if not isinstance(document, dict):
+        raise ValueError(
+            f"{setup_file}: a setup file is a mapping of "
+            f"{' and '.join(repr(key) for key in SETUP_KEYS)}, "
+            f"got {type(document).__name__}.")
+    unknown = sorted(set(document) - set(SETUP_KEYS))
+    if unknown:
+        raise ValueError(
+            f"{setup_file}: unknown key(s) {unknown}. A setup file holds "
+            f"{', '.join(repr(key) for key in SETUP_KEYS)}.")
+
+    here = setup_file.parent
+    check_files = _setup_paths(document, "checks", setup_file, required=True)
+    rule_files = _setup_paths(document, "rules", setup_file, required=False)
+    load_checks(check_files, base_dir=here)
+    return load_rules(rule_files, base_dir=here)
