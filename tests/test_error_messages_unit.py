@@ -291,3 +291,54 @@ def test_an_unknown_format_names_the_two_that_work(fresh_registry: None) -> None
     assert message_of(raised) == "fmt must be 'table' or 'csv', got 'pdf'."
 
 
+
+# --- a registry the cached evaluation order no longer matches ----------------
+
+STALE = (
+    "The cached evaluation order and the registry disagree. That happens when CHECKS "
+    "or the cached order is edited directly instead of through load_checks(), "
+    "register_check() or clear_registry()."
+)
+
+
+def test_an_order_naming_an_unregistered_check_says_so_rather_than_running_it(
+    fresh_registry: None,
+) -> None:
+    """`CHECKS` is exported and mutable, so a caller can drop a check without the
+    cached order being recomputed. The check used to run anyway, under its
+    declared default, and the report said `disabled by default` about a check
+    that was no longer registered."""
+
+    make_check("FIRST")
+    make_check("SECOND")
+    validate_row(FRAME.iloc[0])          # warm the cached order
+    reg.CHECKS.pop()                     # ... and then disagree with it
+
+    with pytest.raises(ValueError) as raised:
+        explain_row(FRAME.iloc[0])
+    assert message_of(raised) == (
+        f"The evaluation order names check 'SECOND', which is not among the "
+        f"1 registered check(s). {STALE}"
+    )
+
+
+def test_a_prerequisite_reached_too_late_says_so_rather_than_skipping(
+    fresh_registry: None,
+) -> None:
+    """The other direction: an order that runs a check before something it
+    depends on. No route the package offers produces one -- registering
+    invalidates the cache -- so the cache is set by hand here. The default it
+    replaces reported the dependent as `skipped -- prerequisite did not pass`,
+    about a prerequisite that had not run at all."""
+
+    make_check("BASE")
+    make_check("DEPENDENT", depends_on=["BASE"])
+    order = {check.code: check for check in reg._get_topo_order()}
+    reg._TOPO_ORDER = [order["DEPENDENT"], order["BASE"]]
+
+    with pytest.raises(ValueError) as raised:
+        explain_row(FRAME.iloc[0])
+    assert message_of(raised) == (
+        f"Check 'DEPENDENT' was reached before its prerequisite 'BASE', "
+        f"which has not run. {STALE}"
+    )
