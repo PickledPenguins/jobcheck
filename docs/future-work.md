@@ -12,8 +12,10 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-Eight gaps are open: F.29, and F.30 to F.36, which came out of the review of
-`src/jobcheck/` on 2026-09-24. Every other item raised by the reviews of 2026-09-15,
+Seven gaps are open: F.29, and F.31 to F.36, which came out of the review of
+`src/jobcheck/` on 2026-09-24. F.30 was closed on 2026-09-24 by naming the way out in
+the message rather than reordering the load; the half that was declined is in the
+section below. Every other item raised by the reviews of 2026-09-15,
 2026-09-21 and 2026-09-23 was worked through on 2026-09-23 and 2026-09-24: what was built
 is in the git log, and what was decided against is in the section below, with the reason.
 An entry there is closed, not pending.
@@ -110,53 +112,11 @@ than a demo, the answer is jobchain's run configuration, which already names che
 rules and would need report and column keys added -- one format, in the project whose job
 it is.
 
-The seven items below came out of the review of `src/jobcheck/` on 2026-09-24. Each was
+The six items below came out of the review of `src/jobcheck/` on 2026-09-24. Each was
 sniff-tested against the code and reproduced where there was behavior to reproduce; each
 was held rather than fixed because it changes an API, adds a rejection, or needs a design
-call the owner has not made. That review's seven silent fixes are in the git log.
-
-**F.30 — a failed `validate_registry` leaves the registry wedged, and only
-`clear_registry` gets out.** `load_checks` appends each file to `_LOADED_FILES` as its
-import completes (`registry.py:341`) and calls `validate_registry()` only after the loop
-(`registry.py:345-346`). When that raises — a `depends_on` naming a code nothing
-registered — the file is already recorded as loaded and its checks are already in
-`_CHECKS`. Correcting the typo in that same file and calling `load_checks` again is a
-no-op: the path is skipped at `registry.py:291`, the broken check is still registered, and
-every later `validate_registry` raises the same error. Reproduced 2026-09-24. The remedy
-the message names — load the other file that defines the missing code — does work, and a
-file that *raises during import* rolls back cleanly (`registry.py:331`), which is what
-makes this inconsistent: `load_checks`'s own docstring promises "a file that raises drops
-its own checks alone", and a reader does not expect the validation failure to behave
-differently.
-
-What it would gain: the edit-and-rerun loop a notebook or REPL user actually has. Today
-re-running the cell reports the same error forever, and nothing on screen says
-`clear_registry()` is the way out.
-
-What it would cost depends on which of the two fixes is chosen, and that is the design
-call. **Validating before the files are recorded** means `_LOADED_FILES.append` moves
-below `validate_registry()`, which changes what `loaded_check_files()` returns after a
-failed load — today it lists the files that imported successfully, which is the honest
-answer to "what did you read", and a caller logging it would start seeing an empty list
-for a load that genuinely read five files. It also has to decide what happens to the
-checks those five files registered: dropping them makes a dangling prerequisite roll back
-five files where a raising file rolls back one, and keeping them means the recorded list
-and the registry disagree, which is the very thing F.24's guards exist to catch.
-**Naming `clear_registry()` in the message** costs nothing structural but adds a line to a
-message pinned word for word in `tests/test_error_messages_unit.py`, and it is advice
-rather than a fix: the wedge is still there, the user is just told about it.
-
-Estimated 5 source lines and ~25 test lines for the message, or ~20 source and ~60 test
-lines for the reordering, plus the pinned message either way. Priority: medium — a real
-dead end, reached only by a typo in `depends_on`, and with a documented way out once the
-message says so. Blast radius: `loaded_check_files()`'s contract after a failure, the
-rollback rule `docs/architecture.md` states, and one pinned message.
-
-Recommendation: **the message, not the reordering.** The recorded-files list is currently
-a truthful record of what was imported, and the reordering trades that for a recovery
-path the message can give just as well — the second sentence of the existing error, naming
-`clear_registry()` and saying that the file will not be re-read until then. Revisit only
-if somebody hits the wedge with the message in place.
+call the owner has not made. That review's seven silent fixes are in the git log, and so
+is F.30's.
 
 **F.31 — `format_table` renders a duplicate-labeled frame as garbage.** `row[column]` in
 the wrapping pass (`tables.py:169`) returns a *Series* when the label is duplicated, and
@@ -374,6 +334,28 @@ three commits undoing — and the split is the shape every other reader in the p
 already has.
 
 ## Considered and deliberately not done
+
+**Rolling the loaded-file list back when the dependency validation fails** (F.30's other
+half, decided 2026-09-24). `load_checks` records each file as its import finishes and
+validates the graph once, after the last one, so a dangling `depends_on` leaves the file
+recorded, the broken check registered, and the next call skipping the path -- correcting
+the typo in that same file changes nothing until `clear_registry()`. Reproduced. What was
+built is the sentence saying so, in the error itself; what was declined is moving
+`_LOADED_FILES.append` below `validate_registry()`.
+
+Three reasons. **It would make one dangling prerequisite discard every file of the call**,
+where a file that raises during import discards only its own (`registry.py:331`) -- two
+rollback granularities for two failure kinds, in a package whose loading rule is stated as
+"per file, not per call, at every depth". **Or it would leave the recorded list and the
+registry disagreeing**, which is exactly the state F.24's guards exist to catch. **And
+`loaded_check_files()` would stop being a record of what was read**: today it lists the
+files that imported successfully after a failed load, which is the honest answer to "what
+did you read", and a caller logging it would start seeing an empty list for a load that
+genuinely read five files.
+
+The message is the cheaper fix and the honest one: the wedge is a consequence of two rules
+that are each right, so the thing to fix was that nothing told the user how to get out of
+it. Revisit only if somebody hits it with the message in place.
 
 **Keeping the registry list public, or making it a tuple** (F.28, decided 2026-09-24).
 `CHECKS` was exported and mutable, and nothing that mutated it directly dropped the cached

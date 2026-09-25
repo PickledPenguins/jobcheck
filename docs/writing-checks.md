@@ -337,6 +337,10 @@ entirely — absent means its module was never loaded.
 
 **`Check 'X' depends on 'Y', which is not registered.`** `Y` is a typo, or it
 lives in a check file that was not loaded. The message lists the files that were.
+Loading the missing file fixes it. Correcting the typo in the file that is already
+loaded does not: `load_checks` skips a path it has read, so that file is never
+re-imported and the bad check stays registered. Call `clear_registry()` first, which
+is what the message says.
 
 **`Dependency cycle among checks: A -> B -> A`.** Two checks require each other —
 often a presence check given a `depends_on` naming something that waits for it.

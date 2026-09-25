@@ -386,6 +386,16 @@ def validate_registry() -> None:
     An unregistered prerequisite raises, including one that merely lives in a
     file this entry point did not load: skipping the dependent silently would
     change which checks run based on an unrelated argument.
+
+    The message names `clear_registry` because this failure does not undo the load
+    that reached it. `load_checks` records a file the moment its import finishes
+    and validates the graph once, after the last one, so the file holding the bad
+    `depends_on` is already recorded and already skipped by the next call -- and
+    correcting the typo in it changes nothing until the registry is emptied.
+    Naming the way out is deliberately all this does: rolling the files back
+    instead would mean one dangling prerequisite discarded every file of the call,
+    where a file that *raises* discards only its own, and `loaded_check_files`
+    would stop being a record of what was read. See `docs/future-work.md` F.30.
     """
 
     global _TOPO_ORDER
@@ -396,7 +406,9 @@ def validate_registry() -> None:
                 raise ValueError(
                     f"Check {check.code!r} depends on {prerequisite!r}, which is not registered. "
                     "Either the code is a typo, or it lives in a check file that was not loaded "
-                    f"(currently loaded: {loaded_check_files()})."
+                    f"(currently loaded: {loaded_check_files()}). Loading the missing file "
+                    "works; correcting an already-loaded one does not, because load_checks "
+                    "skips a path it has already read -- call clear_registry() first."
                 )
     try:
         order = _topological_order()
