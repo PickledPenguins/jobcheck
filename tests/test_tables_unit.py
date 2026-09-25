@@ -12,6 +12,7 @@ from conftest import make_check
 from jobcheck import registry as reg
 from jobcheck import registry_tables
 from jobcheck import tables
+from jobcheck.results import OK
 from jobcheck.rules import _MatchCriterion
 
 pytestmark = pytest.mark.fast
@@ -280,8 +281,10 @@ def test_both_rule_columns_can_be_asked_for_at_once(fresh_registry: None) -> Non
 def test_rules_table_is_one_row_per_rule(fresh_registry: None) -> None:
     make_check("A_CODE")
     make_check("B_CODE")
-    table = registry_tables.print_rules([a_rule("one", codes=["A_CODE", "B_CODE"]), a_rule("two")])
+    table = registry_tables.print_rules([a_rule("one", codes=["A_CODE", "B_CODE"]),
+                                         a_rule("two", action="enable")])
     assert list(table["name"]) == ["one", "two"]
+    assert list(table["action"]) == ["disable", "enable"]
     assert list(table["codes_hit_count"]) == [2, 1]
 
 
@@ -639,3 +642,53 @@ def test_integers_stay_integers_in_an_all_numeric_frame() -> None:
 
     frame = pd.DataFrame({"n": [1, 2], "x": [2.5, 3.0]})
     assert tables.format_table(frame).splitlines()[2:] == ["1 | 2.5", "2 | 3.0"]
+
+
+# --- found by reading the mutation survivors, 2026-09-25 ---------------------
+
+
+def test_print_registry_wraps_its_three_long_columns(
+    fresh_registry: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """message at 40, and the two rules-derived columns at 34: each full text
+    would fit on one line only if its column were left unwrapped."""
+
+    message = "a message long enough that forty characters cannot hold it"
+
+    @reg.register_check(code="A_CODE", message=message)
+    def check(row: Any) -> Any:
+        return OK
+
+    rule = a_rule("a_rule_named_at_some_length_here")
+    table = registry_tables.print_registry(
+        [rule], add_columns=["could_be_overridden_by", "effective_state"], title=False)
+    out = capsys.readouterr().out
+    for column in ("message", "could_be_overridden_by", "effective_state"):
+        assert table.loc[0, column] not in out, f"{column} was not wrapped"
+
+
+def test_print_rules_wraps_match_and_message(
+    fresh_registry: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import re as _re
+
+    make_check("A_CODE")
+    rule = reg.Rule(
+        name="r", action="disable", codes=["A_CODE"],
+        criteria=[_MatchCriterion("source_system", "^LEGACY_SYSTEM_", _re.compile("^L")),
+                  _MatchCriterion("record_type", "^BATCH_RECORD$", _re.compile("^B"))],
+        match_all=False, source_file="rules.yaml",
+        message="a message long enough that forty characters cannot hold it")
+    table = registry_tables.print_rules([rule], title=False)
+    out = capsys.readouterr().out
+    for column in ("match", "message"):
+        assert table.loc[0, column] not in out, f"{column} was not wrapped"
+
+
+def test_print_rules_drops_what_it_is_asked_to(
+    fresh_registry: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    make_check("A_CODE")
+    table = registry_tables.print_rules([a_rule()], drop_columns=["message"], title=False)
+    assert "message" not in table.columns
+    assert "message" not in capsys.readouterr().out.splitlines()[0]

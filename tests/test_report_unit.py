@@ -365,7 +365,9 @@ def test_print_row_explanation_says_when_the_row_passed(
     two_layers: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
     rep.print_row_explanation(outcomes()[0])
-    assert "root cause: none - the row passed" in capsys.readouterr().out
+    # The whole last line, not a substring: a substring test passes for any
+    # message that merely contains this one.
+    assert capsys.readouterr().out.splitlines()[-1] == "root cause: none - the row passed"
 
 
 def test_the_summary_counts_every_status(two_layers: None) -> None:
@@ -443,7 +445,7 @@ def test_print_summary_says_when_every_row_passed(
     two_layers: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
     rep.print_summary(outcomes(pd.DataFrame([{"id": 1, "age": 30}])))
-    assert "Root causes: none - every row passed." in capsys.readouterr().out
+    assert capsys.readouterr().out.splitlines()[-1] == "Root causes: none - every row passed."
 
 
 def test_print_summary_with_no_rows_says_nothing_ran(
@@ -452,6 +454,13 @@ def test_print_summary_with_no_rows_says_nothing_ran(
     table = rep.print_summary([], title=False)
     assert capsys.readouterr().out == "No checks ran.\n"
     assert table.empty
+
+
+def test_the_summary_heading_of_no_rows_names_only_the_rows(
+    fresh_registry: None, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rep.print_summary([])
+    assert capsys.readouterr().out == "== Summary: 0 row(s) ==\nNo checks ran.\n"
 
 
 def test_validate_hands_each_row_the_context_its_builder_returned(
@@ -825,3 +834,77 @@ def test_a_dropped_column_is_absent_from_the_csv_too(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id",
                               drop_columns=["comments"])
     assert "comments" not in rep.render_report(report, fmt="csv").splitlines()[0]
+
+
+# --- found by reading the mutation survivors, 2026-09-25 ---------------------
+
+
+def a_long(word: str, count: int = 12) -> str:
+    """Text wider than any wrap width here, breakable only between words."""
+
+    return " ".join([word] * count)
+
+
+def outcome(code: str, outcome: str, **fields: Any) -> res.CheckOutcome:
+    return res.CheckOutcome(code=code, outcome=outcome, **fields)
+
+
+def test_the_table_report_wraps_message_detail_and_comments_at_wrap_width() -> None:
+    report = pd.DataFrame([{"row": "1", "message": a_long("message"),
+                            "detail": a_long("detail"), "comments": a_long("comment")}])
+    text = rep.render_report(report, wrap_width=20)
+    for column in ("message", "detail", "comments"):
+        assert report.loc[0, column] not in text, f"{column} was not wrapped"
+    assert max(len(line) for line in text.splitlines()) < 80
+
+
+def test_print_report_passes_its_wrap_width_on(capsys: pytest.CaptureFixture[str]) -> None:
+    report = pd.DataFrame([{"row": "1", "message": a_long("word", 5)}])   # 24 characters
+    rep.print_report(report, wrap_width=10, title=False)
+    assert "word word word word word" not in capsys.readouterr().out
+
+
+def test_a_wrap_width_of_one_is_accepted() -> None:
+    """The refusal is for zero and below; one is narrow, not wrong."""
+
+    report = pd.DataFrame([{"row": "1", "message": "a b"}])
+    assert "a" in rep.render_report(report, wrap_width=1)
+
+
+def test_print_row_explanation_wraps_a_long_detail(capsys: pytest.CaptureFixture[str]) -> None:
+    detail = a_long("prerequisite", 8)   # 103 characters
+    rep.print_row_explanation([outcome("A_CODE", res.SKIPPED, detail=detail)], title=False)
+    assert detail not in capsys.readouterr().out
+
+
+def test_summary_ties_on_failed_are_broken_by_errored_worst_first() -> None:
+    frame_outcomes = [
+        [outcome("A_CODE", res.FAILED), outcome("Z_CODE", res.FAILED)],
+        [outcome("A_CODE", res.PASSED), outcome("Z_CODE", res.ERRORED)],
+    ]
+    assert list(rep.summarize_outcomes(frame_outcomes)["code"]) == ["Z_CODE", "A_CODE"]
+
+
+def test_root_causes_are_ranked_by_rows_not_by_name() -> None:
+    frame_outcomes = [
+        [outcome("A_CODE", res.FAILED)],
+        [outcome("Z_CODE", res.FAILED)],
+        [outcome("Z_CODE", res.FAILED)],
+    ]
+    table = rep.root_cause_counts(frame_outcomes)
+    assert table.to_dict("records") == [{"root_cause": "Z_CODE", "rows": 2},
+                                        {"root_cause": "A_CODE", "rows": 1}]
+
+
+def test_no_root_causes_is_an_empty_frame_with_both_columns() -> None:
+    assert list(rep.root_cause_counts([]).columns) == ["root_cause", "rows"]
+
+
+def test_a_null_index_label_is_named_no_key(two_layers: None) -> None:
+    """Without a key column the index labels the rows, and an index can hold a
+    null as easily as a column can -- a set_index on a column with blanks."""
+
+    df = FRAME.copy()
+    df.index = pd.Index(["a", "b", None])
+    report = rep.build_report(outcomes(df), df=df)
+    assert "<no key>" in list(report["row"])
