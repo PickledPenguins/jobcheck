@@ -287,7 +287,10 @@ outcomes = validate(df, context_builder=build_context, context_args=args)
 
 `context_args` is passed through untouched, once per row, so a named function is
 the common case and a lambda is the corner case. A builder taking `(row)` alone
-still works and is never handed the arguments.
+still works and is never handed the arguments. A builder is held to the same shape rule
+as a check, and settled once before any row: other arities, and a keyword-only parameter
+without a default, are refused with a `ValueError` naming the builder, even for an empty
+frame.
 
 Without a `context_builder` every row is handed the same empty `RowContext`, and so
 is every row of `validate_row` and `explain_row` called without one: a check taking

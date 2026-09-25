@@ -12,8 +12,11 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-Five gaps are open: F.32 to F.36, which came out of the review of `src/jobcheck/` on
-2026-09-24. F.31 was closed on 2026-09-25 by rendering `format_table` by position, which
+Four gaps are open: F.33 to F.36, which came out of the review of `src/jobcheck/` on
+2026-09-24. F.32 was closed on 2026-09-25 by fixing the drift -- a context builder's
+required keyword-only parameter is now refused at setup, as a check's is -- and leaving
+the two implementations apart; the shared helper that was declined is in the section
+below. F.31 was closed on 2026-09-25 by rendering `format_table` by position, which
 also stopped an all-numeric frame printing its integers as floats. F.29 was closed on 2026-09-25 by building the run file as a third
 demonstration entry point, `examples/run_from_config.py`, rather than in `main.py` or the
 library; the placements it declined are in the section below. F.30 was closed on
@@ -49,49 +52,11 @@ An entry there is closed, not pending.
 
 
 
-The five items below came out of the review of `src/jobcheck/` on 2026-09-24. Each was
+The four items below came out of the review of `src/jobcheck/` on 2026-09-24. Each was
 sniff-tested against the code and reproduced where there was behavior to reproduce; each
 was held rather than fixed because it changes an API, adds a rejection, or needs a design
 call the owner has not made. That review's seven silent fixes are in the git log, and so
 is F.30's.
-
-**F.32 — the arity rule is implemented twice.** `_make_runner` (`registry.py:118`) and
-`_context_caller` (`engine.py:250`) both take a callable, list its parameters, count the
-positional ones, treat `*args` as "takes the second argument", dispatch to a one- or
-two-argument wrapper, and raise otherwise. The comment at `engine.py:256` says the
-duplication is deliberate — "one convention for both" — but it is the *convention* that
-should be shared, not restated, and the two have already drifted: `_make_runner` rejects a
-required keyword-only parameter with a message naming the fix (`registry.py:130`),
-`_context_caller` does not, so a context builder with one gets a bare `TypeError` from the
-call site instead of a message at setup.
-
-What it would gain: one place where "(row) or (row, second thing)" is decided, so the next
-change to the rule — a third shape, a different treatment of `**kwargs`, the keyword-only
-check the builder path is missing — lands once. A junior fixing one today will not find
-the other.
-
-What it would cost: the shared helper has no obvious home. `registry.py` cannot import
-`engine.py` (the dependency runs the other way), `engine.py` importing it from
-`registry.py` deepens a coupling that is currently one private name and the topological
-order, and a new module for twelve lines adds a file to a package whose smallest module,
-`context.py`, is four executable lines and earns its place by being the adopter's one
-hook. `paths.py` is the precedent for a module that exists to stop two callers drifting,
-which argues for a `signatures.py` — and argues just as well that the package is
-accumulating one-function modules. The error wording must stay per-caller, so the helper
-returns the arity and each caller writes its own message, which means the thing actually
-shared is about six lines.
-
-Estimated ~25 source lines (a new module, two call sites) and ~20 test lines, across three
-or four files. Priority: medium as maintainability, low as a defect — nothing is wrong
-today except the missing keyword-only check on the builder path, which is five lines on
-its own. Blast radius: two error messages pinned in `tests/test_error_messages_unit.py`,
-and the check-authoring contract `docs/writing-checks.md` describes, if the wording moves.
-
-Recommendation: **fix the drift, not the duplication.** Add the keyword-only rejection to
-`_context_caller` with its own message, and leave the two implementations where they are
-until a third caller appears — six lines of shared code in a new module is a worse trade
-than twelve lines of parallel code that each read straight through. Revisit if the rule
-gains a third shape.
 
 **F.33 — the export list is derived by a test, so names with no caller are in it.**
 `tests/test_api_contract.py:87` asserts that every module-level public callable in every
@@ -237,6 +202,16 @@ three commits undoing — and the split is the shape every other reader in the p
 already has.
 
 ## Considered and deliberately not done
+
+**One shared helper for the `(row)` or `(row, second)` rule** (F.32, decided 2026-09-25).
+`registry._make_runner` and `engine._context_caller` apply the same arity rule to a check
+and to a context builder. They had drifted -- only the check path refused a required
+keyword-only parameter -- and that was fixed; each docstring now names the other and says
+the two change together. Sharing the code was declined: `registry.py` cannot import
+`engine.py`, the reverse import deepens a coupling that is one private name today, and a new
+module would hold about six lines, since each caller keeps its own messages. Two
+twelve-line bodies that read straight through are cheaper. Revisit when a third caller of
+the rule appears, or the rule gains a third shape.
 
 **Refusing a duplicate-labeled frame in `format_table`** (F.31, decided 2026-09-25).
 `explain_row`, `_row_labels` and `build_report` refuse duplicate column labels, because

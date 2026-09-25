@@ -366,3 +366,21 @@ def test_a_prerequisite_reached_too_late_says_so_rather_than_skipping(
         f"Check 'DEPENDENT' was reached before its prerequisite 'BASE', "
         f"which has not run. {STALE}"
     )
+
+
+def test_a_builder_with_a_required_keyword_argument_says_how_to_fix_it(
+    fresh_registry: None
+) -> None:
+    """Regression: the check path refused this at registration and the builder
+    path did not, so the builder failed on the first row with a bare TypeError."""
+
+    make_check("CODE")
+
+    def build(row, *, mode):  # type: ignore[no-untyped-def]
+        return None
+
+    with pytest.raises(ValueError) as raised:
+        validate(pd.DataFrame([{"a": 1}]), context_builder=build)
+    assert message_of(raised) == (
+        "context_builder 'build' needs keyword argument(s) mode that validate cannot "
+        "supply. Give them defaults, or read them from context_args.")
