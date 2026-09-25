@@ -46,7 +46,7 @@ def test_a_rule_pattern_is_never_evaluated_as_code(one_code: None, tmp_path: Pat
     )
     rules = reg.load_rules([path])
     assert rules[0].criteria[0].pattern == "__import__('os').system('x')"
-    assert enabled_only(engine.resolve_enabled_state(pd.Series({"email": "harmless"}), rules))["A_CODE"] is True
+    assert enabled_only(engine._resolve_enabled_state(pd.Series({"email": "harmless"}), rules))["A_CODE"] is True
 
 
 def test_loading_rules_writes_nothing_to_disk(one_code: None, tmp_path: Path) -> None:
@@ -87,7 +87,7 @@ def test_a_catastrophic_regex_on_a_short_value_finishes_in_seconds(one_code: Non
     )
     row = pd.Series({"email": "a" * 22 + "!"})
     start = time.monotonic()
-    enabled_only(engine.resolve_enabled_state(row, [rule]))
+    enabled_only(engine._resolve_enabled_state(row, [rule]))
     assert time.monotonic() - start < 5.0
 
 
@@ -101,7 +101,7 @@ def test_an_ndarray_cell_does_not_break_rule_matching(one_code: None) -> None:
         name="r", action="disable", codes=["A_CODE"],
         criteria=[_MatchCriterion("data", "x", re.compile("x"))], match_all=False, message="why the rule exists")
     row = pd.Series({"data": numpy.array([1, 2])})
-    assert enabled_only(engine.resolve_enabled_state(row, [rule]))["A_CODE"] is True
+    assert enabled_only(engine._resolve_enabled_state(row, [rule]))["A_CODE"] is True
 
 
 # --- reports opened in a spreadsheet ---------------------------------------

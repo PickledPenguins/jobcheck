@@ -110,7 +110,7 @@ PUBLIC_NAMES = {
     "__version__",
     # Registering and loading checks.
     "Check", "register_check", "load_checks", "loaded_check_files", "clear_registry",
-    "validate_registry", "resolve_enabled_state", "load_setup",
+    "validate_registry", "load_setup",
     # Rules.
     "Rule", "load_rules", "warn_missing_rule_columns", "warn_shadowed_rules",
     # What a check returns and what the engine records.

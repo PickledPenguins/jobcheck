@@ -150,7 +150,7 @@ def first_cause(row_outcomes: list[Any]) -> str | None:
 
 
 def enabled_only(state: dict[str, Any]) -> dict[str, bool]:
-    """Drop the reason from what resolve_enabled_state returns.
+    """Drop the reason from what _resolve_enabled_state returns.
 
     The engine reports ``(enabled, reason)`` per code because an explanation
     prints the reason. A check that only cares which codes are on says so here

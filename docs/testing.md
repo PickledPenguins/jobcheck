@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 771 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 777 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 260 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1031 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1037 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -243,7 +243,7 @@ The other four groups, which no assertion can reach:
   mutated default in the mutant body is never evaluated. Verified by hand on
   `validate(on_error="XXrecordXX")`, which behaves exactly like the original.
 - **Unreachable branches.** `state.get(check.code, <default>)` in `explain_row`
-  cannot miss: `resolve_enabled_state` builds an entry for every registered check.
+  cannot miss: `_resolve_enabled_state` builds an entry for every registered check.
   `passed.get(code, False)` cannot miss either, because the topological order
   evaluates prerequisites first and `validate_registry` rejects dangling ones.
 - **Equivalent mutants.** `False` swapped for `None` where the value is only ever

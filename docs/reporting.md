@@ -134,6 +134,63 @@ is a *layering* signal — some fundamental check is failing often and hiding
 everything below it, so fix that code first; any `errored` count at all is a
 broken check, not bad data.
 
+## The data without the printing
+
+Every `print_*` has a function that returns the frame it prints, for a run that files,
+filters or asserts on the result instead of reading it:
+
+```python
+from jobcheck import root_cause_counts, row_explanation, summarize_outcomes
+
+summary = summarize_outcomes(outcomes)          # the table print_summary prints
+hidden = summary.loc[summary["skipped"] > 0, "code"].tolist()   # checks a failure hid
+causes = root_cause_counts(outcomes)            # root_cause, rows -- most rows first
+story = row_explanation(outcomes[4], include="blocked")   # print_row_explanation's frame
+```
+
+The outcome constants are what `outcome.outcome` is compared against, so a question the
+tables do not ask is a comprehension over `outcomes`:
+
+```python
+from jobcheck import DISABLED, PASSED, SKIPPED
+
+# Rows where a failing prerequisite hid other checks: fixing the one value may
+# surface more, so these are the rows worth a second run.
+hidden_rows = [position for position, row_outcomes in enumerate(outcomes)
+               if any(o.outcome == SKIPPED for o in row_outcomes)]
+# Rows every enabled check was happy with -- a switched-off check is not a failure.
+clean_rows = [position for position, row_outcomes in enumerate(outcomes)
+              if all(o.outcome in (PASSED, DISABLED) for o in row_outcomes)]
+```
+
+The registry and the rules the same way, for a run that keeps what it checked beside
+what it found:
+
+```python
+from jobcheck import get_registry_table, get_rules_table, load_checks
+
+load_checks(["my_checks/check_age.py", "my_checks/check_email.py"])
+registry = get_registry_table(add_columns=["source_file"])
+registry.to_csv("registry.csv", index=False)   # the checks this run had
+off_by_default = registry.loc[registry["default"] == "OFF", "code"].tolist()
+broad_rules = get_rules_table(rules, add_columns=["codes"]).query("codes_hit_count > 1")
+```
+
+And the renderer's pieces, for output of your own that should read like the tables:
+
+```python
+from jobcheck import FAILED, format_table, render_status
+
+# One line per failure in your own log, the status spelled as the report spells it.
+for position, row_outcomes in enumerate(outcomes):
+    for o in row_outcomes:
+        if o.outcome == FAILED:
+            print(f"row {position}: {o.code} {render_status(o.status)}")
+
+# Any frame of your own, bordered like every table here.
+print(format_table(df.groupby("source_system").size().reset_index(name="rows")))
+```
+
 ## Opening the CSV in a spreadsheet
 
 Comments carry values that came from the data, and a spreadsheet runs any cell
@@ -147,6 +204,16 @@ Nothing is escaped in the table view, which cannot execute anything, and the
 outcomes themselves always hold the value the check actually saw. There is no
 switch for it: a report is written to be opened by a person, and a CSV that can
 execute on open is not one.
+
+The same guard is exported for a CSV of your own — the data, say, with a column
+flagging the rows that failed:
+
+```python
+from jobcheck import FAILED, escape_for_spreadsheet
+
+failed = [any(o.outcome == FAILED for o in row_outcomes) for row_outcomes in outcomes]
+df.assign(failed=failed).map(escape_for_spreadsheet).to_csv("flagged.csv", index=False)
+```
 
 ## Leaving columns out
 

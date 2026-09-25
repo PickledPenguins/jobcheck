@@ -26,7 +26,6 @@ from .registry import (
 )
 from .engine import (
     explain_row,
-    resolve_enabled_state,
     root_causes,
     validate,
     validate_row,
@@ -101,7 +100,6 @@ __all__ = [
     "render_comments",
     "render_report",
     "render_status",
-    "resolve_enabled_state",
     "root_cause_counts",
     "root_causes",
     "row_explanation",

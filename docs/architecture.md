@@ -149,7 +149,7 @@ formatting alone. Wrapping never breaks inside a word, so identifiers stay grepp
 
 **Tables state what they cannot know.** `could_be_overridden_by` is named for *reference*,
 not effect, and `effective_state` says "depends on row" instead of picking an answer. Only
-`resolve_enabled_state` against a real row can decide.
+`explain_row` against a real row can decide.
 
 **`clear_registry` evicts the modules a load brought in.** Python caches a module
 after its first import, so clearing the list alone would make the next `load_checks` a

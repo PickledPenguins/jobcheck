@@ -126,7 +126,7 @@ def test_many_rules_resolve_within_the_ceiling(fresh_registry: None) -> None:
     row = pd.Series({"email": "qa@internal.test"})
     start = time.monotonic()
     for _ in range(200):
-        enabled_only(engine.resolve_enabled_state(row, rules))
+        enabled_only(engine._resolve_enabled_state(row, rules))
     elapsed = time.monotonic() - start
     assert elapsed < 30.0, f"500 rules x 200 rows took {elapsed:.1f}s"
 

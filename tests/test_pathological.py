@@ -73,7 +73,7 @@ def test_a_pattern_matching_a_unicode_value(fresh_registry: None, tmp_path: Path
         '  match:\n    - column: city\n      pattern: "^München$"\n',
     )
     rules = reg.load_rules([path])
-    assert enabled_only(engine.resolve_enabled_state(pd.Series({"city": "München"}), rules))["A_CODE"] is False
+    assert enabled_only(engine._resolve_enabled_state(pd.Series({"city": "München"}), rules))["A_CODE"] is False
 
 
 def test_a_thousand_rules_load_and_the_last_wins(fresh_registry: None, tmp_path: Path) -> None:
@@ -85,7 +85,7 @@ def test_a_thousand_rules_load_and_the_last_wins(fresh_registry: None, tmp_path:
     )
     rules = reg.load_rules([write(tmp_path, "many.yaml", body)])
     assert len(rules) == 1000
-    assert enabled_only(engine.resolve_enabled_state(pd.Series({"age": 1}), rules))["A_CODE"] is False
+    assert enabled_only(engine._resolve_enabled_state(pd.Series({"age": 1}), rules))["A_CODE"] is False
 
 
 # --- hostile rows -----------------------------------------------------------
@@ -135,7 +135,7 @@ def test_a_very_long_string_value_is_matched_not_truncated(fresh_registry: None)
         name="r", action="disable", codes=["A_CODE"],
         criteria=[_MatchCriterion("email", "end$", re.compile("end$"))], match_all=False, message="why the rule exists")
     row = pd.Series({"email": "x" * 100_000 + "end"})
-    assert enabled_only(engine.resolve_enabled_state(row, [rule]))["A_CODE"] is False
+    assert enabled_only(engine._resolve_enabled_state(row, [rule]))["A_CODE"] is False
 
 
 def test_a_check_that_raises_is_recorded_as_an_error_not_a_pass(fresh_registry: None) -> None:
