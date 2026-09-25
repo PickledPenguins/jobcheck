@@ -20,10 +20,9 @@ import yaml
 from .context import RowContext
 from .paths import resolve_input_file
 from . import rules
-# MatchCriterion and Rule are re-exported from here for
-# __init__.py, which imports the public rule types from the registry
-# rather than reaching into .rules directly.
-from .rules import MatchCriterion, Rule
+# Rule is re-exported from here for __init__.py, which imports the public rule
+# type from the registry rather than reaching into .rules directly.
+from .rules import Rule
 
 # What an author writes: (row) or (row, context), returning OK or a
 # Verdict. The engine stores the normalized two-argument form.

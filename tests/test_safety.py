@@ -13,6 +13,7 @@ import pytest
 from conftest import enabled_only, make_check, one_row_report
 from jobcheck import registry as reg
 from jobcheck import engine
+from jobcheck.rules import _MatchCriterion
 
 pytestmark = pytest.mark.fast
 
@@ -81,7 +82,7 @@ def test_a_catastrophic_regex_on_a_short_value_finishes_in_seconds(one_code: Non
 
     rule = reg.Rule(
         name="redos", action="disable", codes=["A_CODE"],
-        criteria=[reg.MatchCriterion("email", "(a+)+$", re.compile("(a+)+$"))], match_all=False,
+        criteria=[_MatchCriterion("email", "(a+)+$", re.compile("(a+)+$"))], match_all=False,
         message="why the rule exists",
     )
     row = pd.Series({"email": "a" * 22 + "!"})
@@ -98,7 +99,7 @@ def test_an_ndarray_cell_does_not_break_rule_matching(one_code: None) -> None:
 
     rule = reg.Rule(
         name="r", action="disable", codes=["A_CODE"],
-        criteria=[reg.MatchCriterion("data", "x", re.compile("x"))], match_all=False, message="why the rule exists")
+        criteria=[_MatchCriterion("data", "x", re.compile("x"))], match_all=False, message="why the rule exists")
     row = pd.Series({"data": numpy.array([1, 2])})
     assert enabled_only(engine.resolve_enabled_state(row, [rule]))["A_CODE"] is True
 

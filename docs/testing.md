@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 771 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 772 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 260 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1031 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1032 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -75,7 +75,7 @@ Fast:
 | `tests/test_readme.py` | The README executed, plus the prose claims and the two-way CLI documentation contract: every flag has a section in `docs/cli.md`, and every documented flag exists. |
 | `tests/test_docs_unit.py` | The rest of `docs/`, both directions: every code block runs, in a working directory holding the demo frame, outcomes, rules and the check files the blocks name; every call shown binds against the real signature and names something this package, pandas or the builtins provides; no document says a bare bool or status return is converted; every exported name appears in `interfaces.md` and nothing documented there is gone, every check code a document shows is one that exists, every exit code the entry point can return has a row in `docs/cli.md` and no row describes one it cannot, the README stays an index and links every document, no internal link or anchor is dead, the rule keys, statuses and outcome names are documented where they belong, and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. It also gates line width: no Python line in `src/`, `examples/` or `scripts/` exceeds the 100 characters `contributing.md` claims, and that document names the three directories the gate covers. |
 | `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
-| `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
+| `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, `__all__` equal to the list written in the test so a new export is a decision, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
 | `tests/test_tables_unit.py` | `format_table` rendering, wrapping and empty frames; every column of the three registry tables. |
 | `tests/test_context_unit.py` | `RowContext` as the base type an adopter subclasses. |
 | `tests/test_paths_unit.py` | The step both loaders take before they open anything: an existing file resolved, a symlink followed, and each way a path that is not a file is refused -- relative, absolute and a directory -- word for word. |

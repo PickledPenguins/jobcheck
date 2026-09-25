@@ -32,7 +32,7 @@ from jobcheck import (
     render_report,
     validate_row,
 )
-from jobcheck.results import Verdict, normalize_verdict
+from jobcheck.results import Verdict, _normalize_verdict
 from jobcheck.results import OK
 
 pytestmark = pytest.mark.fast
@@ -201,7 +201,7 @@ def test_an_unknown_on_error_names_the_two_that_work(fresh_registry: None) -> No
 
 def test_a_check_returning_nonsense_says_what_it_may_return(fresh_registry: None) -> None:
     with pytest.raises(TypeError) as raised:
-        normalize_verdict(object(), "CODE")
+        _normalize_verdict(object(), "CODE")
     assert message_of(raised).startswith("Check 'CODE' returned ")
     assert message_of(raised).endswith(
         "A check must return OK or a Verdict; Verdict(condition) wraps a "

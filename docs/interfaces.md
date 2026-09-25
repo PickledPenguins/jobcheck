@@ -35,10 +35,8 @@ these names -- but a first check file needs none of it.
 fixed: these five are the whole of it, and a value outside them is refused.
 
 - `render_status(code) -> str` (`"INVALID (3)"`).
-- `normalize_verdict(returned, code) -> Verdict` — the boundary the engine puts
-  every return value through: a `Verdict` passes straight back; anything
-  else — a bare bool, a bare `Status` value, `None` — raises `TypeError` naming
-  the check. Exported so a wrapper around checks can apply the same rule.
+- A check must return a `Verdict`: anything else — a bare bool, a bare `Status`
+  value, `None` — raises `TypeError` naming the check, as the engine reads it.
 
 ### `Verdict`
 
@@ -97,10 +95,11 @@ common one — a pipeline's context is built from the run's own arguments — so
 named function is passed directly rather than wrapped in a lambda that closes over
 them. Without a builder, every row is handed the same empty context.
 
-### `MatchCriterion`, `Rule`
+### `Rule`
 
-A rule's `{column, pattern}` filter, and the rule itself: `name`, `action`,
-`codes`, `criteria`, `match_all`, `message`, `source_file`.
+One loaded rule: `name`, `action`, `codes`, `criteria`, `match_all`, `message`,
+`source_file`. Each of `criteria` has a `column`, the `pattern` as written, and the
+compiled `regex`; its type is internal, because nothing but the rule parser builds one.
 
 ## Registering checks
 

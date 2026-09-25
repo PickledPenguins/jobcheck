@@ -14,6 +14,7 @@ from jobcheck import results as res
 from jobcheck.results import ERRORED, FAILED, OK, PASSED, SKIPPED, Status, Verdict
 from jobcheck import engine
 from jobcheck import rules
+from jobcheck.rules import _MatchCriterion
 
 pytestmark = pytest.mark.fast
 
@@ -213,7 +214,7 @@ def test_a_rule_applies_only_to_matching_rows(fresh_registry: None) -> None:
     make_check("ON", passes=False)
     only_internal = reg.Rule(
         name="internal", action="disable", codes=["ON"],
-        criteria=[reg.MatchCriterion("email", "@internal", re.compile("@internal"))],
+        criteria=[_MatchCriterion("email", "@internal", re.compile("@internal"))],
         match_all=False, message="why the rule exists")
     assert codes(engine.validate_row(ROW, rules=[only_internal])) == ["ON"]
     internal_row = pd.Series({"age": 30, "email": "qa@internal.test"})
@@ -495,7 +496,7 @@ def test_check_rule_columns_is_quiet_when_every_criterion_column_is_present(
     make_check("CODE")
     rule = reg.Rule(
         name="on_age", action="disable", codes=["CODE"],
-        criteria=[reg.MatchCriterion("age", "^1$", re.compile("^1$"))], match_all=False, message="why the rule exists")
+        criteria=[_MatchCriterion("age", "^1$", re.compile("^1$"))], match_all=False, message="why the rule exists")
     assert rules.warn_missing_rule_columns(pd.DataFrame({"age": [1]}), [rule]) == []
 
 
@@ -505,7 +506,7 @@ def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: 
     make_check("CODE")
     rule = reg.Rule(
         name="legacy_only", action="disable", codes=["CODE"],
-        criteria=[reg.MatchCriterion("source_sytem", "^LEGACY", re.compile("^LEGACY"))],
+        criteria=[_MatchCriterion("source_sytem", "^LEGACY", re.compile("^LEGACY"))],
         match_all=False, message="why the rule exists")
     assert rules.warn_missing_rule_columns(pd.DataFrame({"age": [1]}), [rule]) == [
         "rule 'legacy_only' matches on column 'source_sytem', which is not in the data: "

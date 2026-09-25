@@ -29,6 +29,7 @@ import pytest
 
 import jobcheck as prv
 from jobcheck import rules
+from jobcheck.results import _normalize_verdict
 
 pytestmark = pytest.mark.fast
 
@@ -463,14 +464,14 @@ def test_no_document_says_a_bare_bool_or_status_is_converted() -> None:
 
     for value in (True, False, prv.Status.MISSING):
         with pytest.raises(TypeError):
-            prv.normalize_verdict(value, "X")
+            _normalize_verdict(value, "X")
     for path in DOCS:
         text = path.read_text(encoding="utf-8")
         assert not re.search(r"bare bools? (still work|is converted|are converted)", text,
                              re.I), (
-            f"{path.name} says a bare bool is accepted; normalize_verdict refuses it")
+            f"{path.name} says a bare bool is accepted; _normalize_verdict refuses it")
         assert "status value is converted" not in text, (
-            f"{path.name} says a bare status is accepted; normalize_verdict refuses it")
+            f"{path.name} says a bare status is accepted; _normalize_verdict refuses it")
 
 
 #: The width `contributing.md` claims, and the directories it is claimed for.

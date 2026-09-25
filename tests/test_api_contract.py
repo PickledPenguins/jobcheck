@@ -102,6 +102,42 @@ def test_every_public_function_is_exported() -> None:
     assert unexported == []
 
 
+#: The public surface, written down rather than derived. Every name here has a
+#: use a caller can be shown; a name added to `__all__` fails the test below
+#: until somebody decides it belongs, and one that cannot be given an honest
+#: example is made private instead (docs/future-work.md, F.33).
+PUBLIC_NAMES = {
+    "__version__",
+    # Registering and loading checks.
+    "Check", "register_check", "load_checks", "loaded_check_files", "clear_registry",
+    "validate_registry", "resolve_enabled_state", "load_setup",
+    # Rules.
+    "Rule", "load_rules", "warn_missing_rule_columns", "warn_shadowed_rules",
+    "list_rule_codes",
+    # What a check returns and what the engine records.
+    "Verdict", "OK", "Status", "render_status", "CheckOutcome", "RowContext",
+    "PASSED", "FAILED", "DISABLED", "SKIPPED", "ERRORED",
+    # Running.
+    "validate", "validate_row", "explain_row", "root_causes",
+    # Reports and tables.
+    "build_report", "REPORT_COLUMNS", "render_report", "print_report", "write_report",
+    "render_comments", "escape_for_spreadsheet", "row_explanation",
+    "print_row_explanation", "summarize_outcomes", "root_cause_counts", "print_summary",
+    "get_registry_table", "print_registry", "get_rules_table", "print_rules",
+    "format_table", "is_null",
+}
+
+
+def test_the_export_list_is_the_one_written_down() -> None:
+    """The direction the test above cannot give: it derives the surface from
+    whatever is public, which is how two names with no caller got exported."""
+
+    exported = set(validation.__all__)
+    assert sorted(exported - PUBLIC_NAMES) == [], "exported but not chosen"
+    assert sorted(PUBLIC_NAMES - exported) == [], "chosen but not exported"
+    assert len(validation.__all__) == len(exported), "__all__ names something twice"
+
+
 def test_status_values_are_permanent() -> None:
     """Reports and saved data refer to these numbers; they never move."""
 
@@ -198,7 +234,7 @@ def test_root_cause_accepts_either_functions_output(fresh_registry: None) -> Non
 
 def test_pass_is_a_shared_singleton() -> None:
     assert res.OK is validation.OK
-    assert res.normalize_verdict(res.OK, "CODE") is res.OK
+    assert res._normalize_verdict(res.OK, "CODE") is res.OK
 
 
 def _row() -> Any:

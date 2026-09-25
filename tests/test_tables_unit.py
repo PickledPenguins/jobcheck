@@ -12,6 +12,7 @@ from conftest import make_check
 from jobcheck import registry as reg
 from jobcheck import registry_tables
 from jobcheck import tables
+from jobcheck.rules import _MatchCriterion
 
 pytestmark = pytest.mark.fast
 
@@ -295,8 +296,8 @@ def test_criteria_render_compactly(fresh_registry: None) -> None:
     make_check("A_CODE")
     rule = reg.Rule(
         name="r", action="disable", codes=["A_CODE"],
-        criteria=[reg.MatchCriterion("source_system", "^LEGACY_", _re.compile("^LEGACY_")),
-                  reg.MatchCriterion("record_type", "^BATCH$", _re.compile("^BATCH$"))],
+        criteria=[_MatchCriterion("source_system", "^LEGACY_", _re.compile("^LEGACY_")),
+                  _MatchCriterion("record_type", "^BATCH$", _re.compile("^BATCH$"))],
         match_all=False, message="why the rule exists",
     )
     assert registry_tables.print_rules([rule])["match"][0] == (

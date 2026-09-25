@@ -26,7 +26,7 @@ RULE_KEYS = {"name", "action", "codes", "match", "message"}
 
 
 @dataclass
-class MatchCriterion:
+class _MatchCriterion:
     """One ``{column, pattern}`` filter inside a rule's ``match``."""
 
     column: str
@@ -47,13 +47,13 @@ class Rule:
     name: str
     action: str
     codes: list[str]
-    criteria: list[MatchCriterion]
+    criteria: list[_MatchCriterion]
     match_all: bool
     message: str
     source_file: str = ""
 
 
-def parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[MatchCriterion], bool]:
+def parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[_MatchCriterion], bool]:
     """Parse a rule's `match` value into criteria plus a match-everything flag.
 
     `match: all` is the only wildcard: an empty or missing `match` is rejected
@@ -80,7 +80,7 @@ def parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[MatchC
             f"{where}: 'match' is an empty list. Use 'match: all' if you really mean "
             "every row.")
 
-    criteria: list[MatchCriterion] = []
+    criteria: list[_MatchCriterion] = []
     for entry in raw:
         if not isinstance(entry, dict):
             raise ValueError(
@@ -98,7 +98,7 @@ def parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[MatchC
         except re.error as exc:
             raise ValueError(
                 f"{where}: invalid regex {pattern!r} for column {column!r}: {exc}") from exc
-        criteria.append(MatchCriterion(column=column, pattern=pattern, regex=regex))
+        criteria.append(_MatchCriterion(column=column, pattern=pattern, regex=regex))
     return criteria, False
 
 
