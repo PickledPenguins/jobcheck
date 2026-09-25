@@ -1,0 +1,1 @@
+error: tests/failures/run-file-column-the-data-lacks/run.yaml: table 2 (report): add_columns ['phone'] cannot be used for the report. Each name must be asked for once and be one of: id, name, age, email, start_date, end_date, source_system, record_type, region.

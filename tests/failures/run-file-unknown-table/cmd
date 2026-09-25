@@ -1,0 +1,1 @@
+python3 examples/run_from_config.py tests/failures/run-file-unknown-table/run.yaml

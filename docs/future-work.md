@@ -12,10 +12,12 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-Seven gaps are open: F.29, and F.31 to F.36, which came out of the review of
-`src/jobcheck/` on 2026-09-24. F.30 was closed on 2026-09-24 by naming the way out in
-the message rather than reordering the load; the half that was declined is in the
-section below. Every other item raised by the reviews of 2026-09-15,
+Six gaps are open: F.31 to F.36, which came out of the review of `src/jobcheck/` on
+2026-09-24. F.29 was closed on 2026-09-25 by building the run file as a third
+demonstration entry point, `examples/run_from_config.py`, rather than in `main.py` or the
+library; the placements it declined are in the section below. F.30 was closed on
+2026-09-24 by naming the way out in the message rather than reordering the load; the half
+that was declined is in the section below. Every other item raised by the reviews of 2026-09-15,
 2026-09-21 and 2026-09-23 was worked through on 2026-09-23 and 2026-09-24: what was built
 is in the git log, and what was decided against is in the section below, with the reason.
 An entry there is closed, not pending.
@@ -45,72 +47,6 @@ An entry there is closed, not pending.
 
 
 
-
-The ten items below came out of the two reviews of 2026-09-23, were sniff-tested against
-the code, and were held rather than fixed because each changes behavior, an API, or needs
-a design call the owner has not made. The reviews' own fixes to the same commit are in the
-git log; these are what was deliberately left. Each says what would be gained, what would
-be lost, the size, and the recommendation, so none has to be re-derived.
-
-**F.29 — no single file defines a whole run.** Half of this was built on 2026-09-24 as
-`load_setup`, which takes one YAML naming `checks` and `rules` -- so the *setup* is a file
-now, and configuring the library is one call. What is still open is the rest of the ask:
-the data, which tables to print, and which columns each carries. Reproducing a run means retyping its
-parts: `--data` and `--report` on the command line, and the report's columns and `key_column` in
-code at the `build_report` call. The check files and rule files no longer need retyping --
-`load_setup` holds them -- but nothing names the data or the output. There is no artifact that says "this is the run" -- nothing to commit
-beside a bug report, diff against last week's, or hand to somebody else. The ask (owner,
-2026-09-24) is one YAML file naming the data, the check files, the rule files, which tables
-to print and which columns each carries, passed as the only argument.
-
-What it would gain: reproducibility as a file rather than as a shell history line, and an
-entry point whose argument list stops growing -- it is at seven options now, five of them
-added in the last two days.
-
-What it would cost, in order of weight. **jobchain already is this.** Its run
-configuration names `checks:` and `rules:`, resolves both against the configuration's own
-directory, and refuses `rules` without `checks`
-(`jobchain/config.py:251-256`); a second run-configuration format in the same workspace,
-neither one the other's, is two things for a user to learn where the split is meant to be
-"jobcheck validates rows, jobchain runs the pipeline". **The config becomes a serialized
-API call.** "Which reports, which columns" means keys mapping to `build_report`,
-`print_report`, `print_registry` and `print_rules` arguments, so every signature change
-needs a key: `title` and `drop_columns` were added to five functions on 2026-09-24 alone,
-and each would have been a schema change too. **A second way to say everything.** Whether
-a flag overrides the file, the file overrides the flag, or they cannot be combined has to
-be decided and documented, and whichever is chosen the other reading becomes a trap; the
-`docs/cli.md` gate that checks every flag is documented and every documented flag exists
-would need its equivalent for the schema, or the two drift. **A new rejection
-vocabulary.** The rule-file loader is the precedent: ~200 lines and nineteen messages
-pinned word for word, with failures-catalog cases for each. A run-config loader needs the
-same care or it becomes the one file in the project that fails unhelpfully. **And it
-reopens F.17**: a configuration naming check files bare, from a directory that is not the
-working directory, is the deployment case that was closed by answering "use a bundle" --
-so paths in the config must anchor to the config's own directory, which is what `base_dir`
-exists for.
-
-Where it cannot go is `src/jobcheck/`. The library has no command line --
-`docs/cli.md` says so, and `architecture.md` states that which checks a pipeline runs is a
-property of the pipeline rather than of an invocation -- and its only configuration format
-is the rule file. A run-config loader there would be a second format, a second schema and a
-CLI concept inside a library that deliberately has none.
-
-Estimated ~180 source and ~250 test lines, a `docs/` page, six to ten failures catalog
-cases, and ~40 lines in whichever entry point reads it. Priority: medium as a capability,
-low as a defect -- nothing is broken and the parts are all reachable today. Blast radius:
-one entry point's whole argument surface, `docs/cli.md`, the failures catalog, and the
-recorded outputs of every example case if the config becomes the primary path.
-
-Recommendation: **not in `main.py`, and not in the library.** Build it as a second
-demonstration entry point -- `examples/run_from_config.py`, beside `bundle_main.py` -- that
-reads the file and calls the library, taking the config as its only argument and no flags
-at all. That gives the owner the reproducible artifact, keeps `main.py` the minimal
-flag-driven demo it is, keeps the library free of a second configuration format, and shows
-an adopter the pattern rather than dictating it. Decide the precedence question by not
-having one: the file is the whole input. If the real need is a production runner rather
-than a demo, the answer is jobchain's run configuration, which already names checks and
-rules and would need report and column keys added -- one format, in the project whose job
-it is.
 
 The six items below came out of the review of `src/jobcheck/` on 2026-09-24. Each was
 sniff-tested against the code and reproduced where there was behavior to reproduce; each
@@ -296,10 +232,14 @@ defect, and the module is coherent enough that nobody has been lost in it. Blast
 `docs/architecture.md`'s module table, the import in `__init__.py`, and four pinned
 messages.
 
-Recommendation: **wait for F.29.** If the setup file grows the data and output keys, the
-schema is large enough to be its own module and the move pays for itself; if F.29 lands
-somewhere else, sixty lines is not worth a file. Either way this is a move, not a
-redesign, and it will not get harder by waiting.
+Recommendation, as first written: **wait for F.29.** If the setup file grows the data and
+output keys, the schema is large enough to be its own module and the move pays for itself;
+if F.29 lands somewhere else, sixty lines is not worth a file.
+
+F.29 landed somewhere else (2026-09-25): the data and table keys live in
+`examples/run_from_config.py`'s own run-file format, and the setup schema did not grow. By
+the rule above, the recommendation is now **leave it where it is** -- which would close
+this entry, and is the owner's call.
 
 **F.36 — `list_rule_codes` is the one reader that prints.** Every other function in
 `registry_tables.py` is either `get_*` (builds and returns) or `print_*` (prints and
@@ -334,6 +274,20 @@ three commits undoing — and the split is the shape every other reader in the p
 already has.
 
 ## Considered and deliberately not done
+
+**The run file in `main.py`, in the library, or as jobchain's format** (F.29, decided
+2026-09-25). One YAML file naming the setup, the data and the tables to print was built as
+`examples/run_from_config.py`, a third entry point that takes the file as its only
+argument. Three placements were declined. **A mode on `main.py`** would give every run two
+spellings, flag and file, and a precedence rule whose other reading is a trap; the
+`docs/cli.md` flag gate would need a schema twin. **A loader in `src/jobcheck/`** would put a
+command-line concept and a second configuration format into a library that has neither,
+and every printing function's signature change would become a schema change there. **A
+production runner** already exists: jobchain's run configuration names checks and rules
+(`jobchain/config.py:251-257`), and report and column keys belong there if a pipeline
+needs them -- one format, in the project whose job it is. The entry point's run-file
+format reuses the printing functions' own argument names so it documents itself, and
+reuses `load_setup` for the checks and rules, so it adds no schema of its own for either.
 
 **Rolling the loaded-file list back when the dependency validation fails** (F.30's other
 half, decided 2026-09-24). `load_checks` records each file as its import finishes and

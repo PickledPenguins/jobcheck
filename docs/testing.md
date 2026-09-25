@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 740 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 253 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 993 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 765 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 260 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 1025 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -66,6 +66,7 @@ Fast:
 | `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `warn_missing_rule_columns`, root cause, layers, and the shipped checks at their boundaries. |
 | `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys, `include` levels, table and CSV rendering, writing files, explanations and summaries. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
+| `tests/test_run_from_config_unit.py` | The run-file entry point in this process: the shipped run's tables in order, paths resolved against the run file, repeated tables, every rejection of a malformed run file word for word, and that a table the library refuses prints none of the run. |
 | `tests/test_bundle_main_unit.py` | The bundle entry point in this process, and the shipped bundle it loads: the four members and their order, the printed sections, and the argument that names another bundle. |
 | `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artefact: every rule file loads alone and together, every rule names a real code and a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
 | `tests/test_differential_jobchain.py` | What jobchain's own suite asserted of the pre-rename engine, restated against this one — layering, root cause, cross-row context, crashes, rule-driven disabling. |
@@ -106,10 +107,11 @@ Own gates:
 
 ## The example catalog
 
-`tests/examples/` holds 45 cases at three levels — 19 simple, 16 moderate, 10 complex —
-and `tests/failures/` holds 22, each asserting the exact message and exit code a user
-sees. Both run through a real entry point in a subprocess — `examples/main.py`, or
-`examples/bundle_main.py` for the bundle cases — so the documentation cannot drift from
+`tests/examples/` holds 46 cases at three levels — 19 simple, 17 moderate, 10 complex —
+and `tests/failures/` holds 24, each asserting the exact message and exit code a user
+sees. Both run through a real entry point in a subprocess — `examples/main.py`,
+`examples/bundle_main.py` for the bundle cases, or `examples/run_from_config.py` for the
+run-file cases — so the documentation cannot drift from
 the behavior.
 
 Nothing is faked. The entry point, the library, the rule files and the data files are the

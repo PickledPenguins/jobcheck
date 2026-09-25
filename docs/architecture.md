@@ -76,6 +76,7 @@ the package by accident from the working directory. The demos and the scripts ad
 | `examples/checks/` | The example checks. Outside the package on purpose: nothing of ours should register in an adopter's registry. |
 | `examples/main.py` | Demo entry point and end-to-end driver: registry tables, the report, explanations, summaries. |
 | `examples/bundle_main.py` | Second demo entry point: loads one bundle, prints what it loaded. `examples/checks/all_checks.py` is the bundle it loads by default. |
+| `examples/run_from_config.py` | Third demo entry point: one run file names the setup, the data and the tables to print; `examples/run.yaml` is the shipped one. The run-file format is this script's, not the library's. |
 | `tests/` | pytest suites, split `fast`/`long` by marker, plus the example and failure catalogs and `run-tests.sh`, the entry point for every gate. |
 | `scripts/` | The pre-commit hook installer, the catalog regenerator, the example profiler and the bytecode interface reader. |
 

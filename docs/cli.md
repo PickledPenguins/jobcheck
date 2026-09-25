@@ -1,12 +1,13 @@
 # CLI reference
 
-Two demo entry points. `examples/main.py` is the one to read first: it imports `jobcheck`
+Three demo entry points. `examples/main.py` is the one to read first: it imports `jobcheck`
 from the clone it lives in and names its own check files and its default rule file
 relative to that clone, so it runs the same from any directory; a path *you* pass —
 `--data`, `--rules` — is relative to where you are standing. It loads the example checks,
 prints the registry table and the failure report, and can explain one row or summarize the
 frame. `examples/bundle_main.py` loads a single bundle instead, and is what the bundle
-cases in the catalog drive.
+cases in the catalog drive. `examples/run_from_config.py` takes one run file naming the
+setup, the data and the tables to print, and nothing else.
 
 It is not the product: the library does the work, and this exists to demonstrate it and to
 give the end-to-end checks something to drive. A pipeline calls
@@ -167,13 +168,81 @@ The loaded list is the point: the members appear before the bundle that pulled t
 because each is a loaded file in its own right. See
 [writing-checks.md](writing-checks.md) for what a bundle is and when a failure drops what.
 
+## `examples/run_from_config.py`
+
+Runs the whole of one validation from a **run file**: one YAML file naming the setup file,
+the data, and which tables to print with which columns. The run is then a file — something
+to commit beside a bug report, diff against last week's, or hand to somebody else — rather
+than a shell history line. With no argument it runs the shipped `examples/run.yaml`.
+
+```
+usage: run_from_config.py [-h] [PATH]
+```
+
+```sh
+python3 examples/run_from_config.py
+python3 examples/run_from_config.py path/to/run.yaml
+```
+
+There are no flags. The file is the whole input, so there is no question of whether a flag
+or the file wins. The format belongs to this script, not to the library, which has no
+command line; it is the pattern for an adopter's own runner, not a format jobcheck reads.
+A production pipeline that wants the same thing has jobchain's run configuration.
+
+```yaml
+setup: setup.yaml              # a load_setup file: the check files and the rule files
+data: data/customers.csv       # read as text, exactly as main.py --data reads it
+tables:                        # printed in this order; a table may appear twice
+  - table: rules
+  - table: registry
+    add_columns: [could_be_overridden_by]
+  - table: report
+    key_column: id
+    add_columns: [name]
+    drop_columns: [comments, detail]
+  - table: summary
+```
+
+All three keys are required. `setup` and `data` resolve against **the run file's own
+directory**, as the paths inside a setup file resolve against its, so the run file and what
+it names travel together; the run file's own path is relative to where you stand.
+
+Each entry of `tables` names one `table` and the options it takes, which are the printing
+functions' own argument names:
+
+| `table` | Options | Prints with |
+|---|---|---|
+| `registry` | `add_columns`, `drop_columns` | `print_registry`, handed the loaded rules |
+| `rules` | `add_columns`, `drop_columns` | `print_rules`, then a `warning:` line per shadowed rule |
+| `report` | `key_column`, `add_columns`, `drop_columns`, `include`, `format` | `build_report`, then `print_report`; `format` is `table` (default) or `csv` |
+| `summary` | none | `print_summary` |
+
+A rule naming a column the data lacks is warned about on stderr, as `main.py` does.
+
+Every problem with the run file prints `error: <run file>: <what>` to stderr and exits 2,
+with nothing on stdout. Its shape — keys, types, table names, options — is checked before
+anything is loaded. Whether a column, an `include` level or a `format` exists is the
+library's to say, so those are found once the tables are built; the tables are built before
+any of them prints, so a refused second table does not leave the first on the screen. The
+message names the entry by position: `table 2 (report): add_columns ['phone'] cannot be used
+for the report. ...`. A setup file the library refuses raises its own `ValueError` and exits
+1, as it would from any caller; a data file that cannot be read exits 2 as `--data` does.
+
+### `PATH`
+
+Optional, default the shipped `examples/run.yaml`. A second argument is an error.
+
+### `-h`, `--help`
+
+Prints usage and exits 0.
+
 ## Exit codes
 
-`--explain` outside the frame exits 2 deliberately; the rest are the interpreter's and
-argparse's.
+`--explain` outside the frame and a refused run file exit 2 deliberately; the rest are the
+interpreter's and argparse's.
 
 | Code | Meaning |
 |---|---|
 | 0 | Ran to completion. Rows failing validation still exit 0 — failures are data, printed per row, not a process error. |
-| 1 | An uncaught exception, with traceback. In practice a load-time `ValueError`: a bad rule file, a dependency problem, or a check or rule path that is not a file. |
-| 2 | argparse rejected the command line (unknown flag, missing value); `--explain` named a row outside the frame; `--data` named a path that is missing, a directory, empty, unreadable or not CSV; or `--write` named a path that could not be opened. |
+| 1 | An uncaught exception, with traceback. In practice a load-time `ValueError`: a bad rule file or setup file, a dependency problem, or a check or rule path that is not a file. |
+| 2 | argparse rejected the command line (unknown flag, missing value); `--explain` named a row outside the frame; `--data` or a run file's `data` named a path that is missing, a directory, empty, unreadable or not CSV; `--write` named a path that could not be opened; or a run file was missing, not YAML, malformed, or asked a table for something the library refused. |

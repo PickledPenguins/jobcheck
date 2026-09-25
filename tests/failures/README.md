@@ -13,7 +13,9 @@ past the end of the frame and below its start; an unknown flag and a flag missin
 its value (both exit 2); a missing rule file; and the rule-file rejections a
 non-developer hits — `match: []`, missing `match`, `match: al`, an invalid regex,
 a misspelled code, a bad `action`, a file that is not a list, and a duplicate rule
-name across two files.
+name across two files. Two run files for `examples/run_from_config.py`: one naming a
+table that does not exist, refused before anything loads, and one asking the report for
+a column the data lacks, refused once the data is read and before any table prints.
 
 These are also the troubleshooting reference: `docs/cli.md` quotes the same
 exit codes.
