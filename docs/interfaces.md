@@ -209,8 +209,8 @@ parser and is handed the codes that exist rather than reaching into the registry
 Load the check files first: a rule naming an unregistered code is an error. See
 [configuration.md](configuration.md).
 
-`list_rule_codes(rule_name, rules) -> list[str]` prints and returns the codes
-one named rule touches.
+Which codes a rule touches is `rule.codes`, and as a column,
+`print_rules(rules, add_columns=["codes"])`.
 
 ## Loading both at once
 
@@ -377,7 +377,9 @@ rather than ignored when the name is not on offer.
   answer. `rules` feeds those two columns and nothing else, so passing rules
   without asking for either prints the same table as passing none.
 - `get_rules_table(rules, add_columns=None, drop_columns=None)` — one row per rule:
-  `name`, `action`, `codes_hit_count`, `match`, `message`. Offers `source_file`.
+  `name`, `action`, `codes_hit_count`, `match`, `message`. Offers `codes`, the list
+  behind the count (wrapped by `print_rules`, since a broad rule's list is long), and
+  `source_file`.
   The frame without the output, as every other table here offers.
 - `print_rules(rules, add_columns=None, title=True, drop_columns=None)` — prints it.
 

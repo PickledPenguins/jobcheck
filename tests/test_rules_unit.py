@@ -284,31 +284,38 @@ def test_load_rules_spans_directories(one_code: None, tmp_path: Path) -> None:
     assert [r.name for r in reg.load_rules([a, b])] == ["from_left", "from_right"]
 
 
-def test_list_rule_codes_returns_the_exact_codes(one_code: None, tmp_path: Path) -> None:
+def test_the_codes_column_lists_every_code_a_rule_touches(one_code: None, tmp_path: Path) -> None:
+    """The detail behind codes_hit_count, as a column rather than a lookup function."""
+
     make_check("B_CODE")
     path = write(
         tmp_path, "r.yaml", '- name: "two"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE, B_CODE]\n  match: all\n'
     )
-    loaded = reg.load_rules([path])
-    assert registry_tables.list_rule_codes("two", loaded) == ["A_CODE", "B_CODE"]
+    table = registry_tables.get_rules_table(reg.load_rules([path]), add_columns=["codes"])
+    assert list(table.columns)[-1] == "codes"
+    assert table.loc[0, "codes"] == "A_CODE, B_CODE"
+    assert table.loc[0, "codes_hit_count"] == 2
 
 
-def test_list_rule_codes_prints_the_rule(one_code: None, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_the_codes_column_appears_only_when_asked_for(one_code: None, tmp_path: Path) -> None:
     loaded = reg.load_rules([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
-    registry_tables.list_rule_codes("kill_it", loaded)
-    assert capsys.readouterr().out == "kill_it (disable) -> A_CODE\n"
+    assert "codes" not in registry_tables.get_rules_table(loaded).columns
 
 
-def test_list_rule_codes_unknown_name_lists_what_is_loaded(one_code: None, tmp_path: Path) -> None:
-    loaded = reg.load_rules([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
-    with pytest.raises(ValueError) as excinfo:
-        registry_tables.list_rule_codes("nope", loaded)
-    assert str(excinfo.value) == "No rule named 'nope'. Loaded rules: kill_it"
-
-
-def test_list_rule_codes_with_no_rules_loaded_says_so(one_code: None) -> None:
-    with pytest.raises(ValueError, match=r"Loaded rules: \(none loaded\)"):
-        registry_tables.list_rule_codes("nope", [])
+def test_print_rules_wraps_a_long_codes_column(one_code: None, tmp_path: Path,
+                                               capsys: pytest.CaptureFixture[str]) -> None:
+    codes = [f"CODE_NUMBER_{i:02d}" for i in range(6)]
+    for code in codes:
+        make_check(code)
+    path = write(tmp_path, "r.yaml",
+                 '- name: "broad"\n  message: "why"\n  action: disable\n'
+                 f"  codes: [{', '.join(codes)}]\n  match: all\n")
+    registry_tables.print_rules(reg.load_rules([path]), add_columns=["codes"], title=False)
+    lines = capsys.readouterr().out.splitlines()
+    assert all(any(code in line for line in lines) for code in codes)
+    # Six codes of 14 characters wrapped at 40 is at most two per line: the one
+    # rule is a tall row, not a wide one.
+    assert len(lines) == 2 + 3
 
 
 # --- matching and precedence ------------------------------------------------

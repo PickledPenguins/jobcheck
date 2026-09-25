@@ -62,7 +62,7 @@ files live in `examples/rules/split_by_topic/` and `examples/rules/from_another_
 
 | Key | Required | Type | Meaning |
 |---|---|---|---|
-| `name` | yes | non-empty string | Identifies the rule in tables, errors, and `list_rule_codes`. Must be unique across *every* file loaded together. |
+| `name` | yes | non-empty string | Identifies the rule in tables and errors. Must be unique across *every* file loaded together. |
 | `action` | yes | `enable` or `disable` | Exactly one of the two literals; anything else is an error. |
 | `codes` | yes | non-empty list of strings | The codes the rule switches. Every code must already be registered when the file loads. |
 | `match` | yes | list of criteria, or the literal `all` | Which rows the rule applies to. See below. |

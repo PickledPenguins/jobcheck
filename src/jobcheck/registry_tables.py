@@ -32,9 +32,11 @@ RULES_BASE_COLUMNS = ["name", "action", "codes_hit_count", "match", "message"]
 #: Optional columns the check tables offer. ``source_file`` is where the check was
 #: registered; ``could_be_overridden_by`` and ``effective_state`` read the loaded
 #: rules, so only :func:`print_registry`, which is given them, offers those two.
+#: ``codes`` is the list behind a rule's ``codes_hit_count``, opt-in because a
+#: broad rule's list makes a tall row.
 CHECK_OPTIONAL_COLUMNS = ["source_file"]
 REGISTRY_OPTIONAL_COLUMNS = ["source_file", "could_be_overridden_by", "effective_state"]
-RULE_OPTIONAL_COLUMNS = ["source_file"]
+RULE_OPTIONAL_COLUMNS = ["codes", "source_file"]
 
 
 def _rules_for_code(code: str, rules: list[Rule]) -> list[Rule]:
@@ -148,7 +150,8 @@ def get_rules_table(rules: list[Rule], add_columns: list[str] | None = None,
     did not.
 
     `codes_hit_count` is a count rather than the code list, so a rule touching
-    many codes does not blow the table apart; `list_rule_codes` gives the detail.
+    many codes does not blow the table apart; `add_columns=["codes"]` gives the
+    detail.
     """
 
     add_columns = list(add_columns or [])
@@ -162,6 +165,7 @@ def get_rules_table(rules: list[Rule], add_columns: list[str] | None = None,
             "name": rule.name,
             "action": rule.action,
             "codes_hit_count": len(rule.codes),
+            "codes": ", ".join(rule.codes),
             "match": _render_match(rule),
             "message": rule.message,
             "source_file": rule.source_file,
@@ -182,16 +186,5 @@ def print_rules(
     if table.empty:
         print("No rules loaded.")
         return table
-    print(format_table(table, wrap_columns={"match": 44, "message": 40}))
+    print(format_table(table, wrap_columns={"match": 44, "message": 40, "codes": 40}))
     return table
-
-
-def list_rule_codes(rule_name: str, rules: list[Rule]) -> list[str]:
-    """Print and return the exact codes one named rule touches."""
-
-    for rule in rules:
-        if rule.name == rule_name:
-            print(f"{rule.name} ({rule.action}) -> " + ", ".join(rule.codes))
-            return list(rule.codes)
-    known = ", ".join(rule.name for rule in rules) or "(none loaded)"
-    raise ValueError(f"No rule named {rule_name!r}. Loaded rules: {known}")

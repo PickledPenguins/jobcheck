@@ -113,7 +113,6 @@ PUBLIC_NAMES = {
     "validate_registry", "resolve_enabled_state", "load_setup",
     # Rules.
     "Rule", "load_rules", "warn_missing_rule_columns", "warn_shadowed_rules",
-    "list_rule_codes",
     # What a check returns and what the engine records.
     "Verdict", "OK", "Status", "render_status", "CheckOutcome", "RowContext",
     "PASSED", "FAILED", "DISABLED", "SKIPPED", "ERRORED",

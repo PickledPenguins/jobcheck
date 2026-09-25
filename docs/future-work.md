@@ -12,8 +12,9 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-Two gaps are open: F.36, which came out of the review of `src/jobcheck/` on 2026-09-24,
-and F.37, found while working F.33. F.35 was closed on 2026-09-25 by leaving the setup
+One gap is open: F.37, found while working F.33. F.36 was closed on 2026-09-25 by
+removing `list_rule_codes` and offering the codes as a column of the rules table; the
+split the entry recommended is in the section below. F.35 was closed on 2026-09-25 by leaving the setup
 schema in the registry, since F.29 did not grow it. F.34 was closed on 2026-09-25 by
 deciding against merging the two column validators; the reasons are in the section
 below. F.33 was closed on 2026-09-25 by
@@ -57,8 +58,7 @@ An entry there is closed, not pending.
 
 
 
-F.37 is from the 2026-09-25 audit of `__all__`; the one after it came out of the review
-of `src/jobcheck/` on 2026-09-24. Each was
+F.37 is from the 2026-09-25 audit of `__all__`. Each was
 sniff-tested against the code and reproduced where there was behavior to reproduce; each
 was held rather than fixed because it changes an API, adds a rejection, or needs a design
 call the owner has not made. That review's seven silent fixes are in the git log, and so
@@ -89,39 +89,18 @@ the written export list in `tests/test_api_contract.py` if any name is demoted.
 Recommendation: **write the five examples in `docs/reporting.md`**, one short block
 each, and demote any that cannot be written without inventing a need.
 
-**F.36 — `list_rule_codes` is the one reader that prints.** Every other function in
-`registry_tables.py` is either `get_*` (builds and returns) or `print_*` (prints and
-returns), which is the package-wide rule the module docstring states at
-`registry_tables.py:12`. `list_rule_codes` (`registry_tables.py:189`) prints, returns,
-*and* raises on an unknown name, under a third prefix. A caller who wants the codes
-without the output has no way to ask.
-
-What it would gain: one naming rule with no exception, and a way to ask a question without
-writing to stdout — which is what a caller building a frame, a test asserting on codes, or
-a pipeline logging its own way all want.
-
-What it would cost: it is an **API change with no compatible shape**. Splitting it into
-`get_rule_codes` and `print_rule_codes` is two new exported names and one removed, which
-the suite calls in several places and `docs/interfaces.md` and `docs/configuration.md`
-both describe. Adding `title: bool` instead — the shape the other five functions took on
-2026-09-24 — is smaller and compatible, but it is a poor fit here: `title=False` on those
-five suppresses a *heading* above a table, whereas here it would have to suppress the only
-line the function prints, so the argument would mean something different in the one place
-it is spelled the same. Keeping `list_rule_codes` as a deprecated alias is not an option
-the project takes (no shims, by standing preference).
-
-Estimated ~15 source lines, ~20 test lines, two documentation edits, four files.
-Priority: low — an inconsistency, not a defect, on the least-used function in the module.
-Blast radius: one export becomes two, `docs/interfaces.md`, `docs/configuration.md`, and
-the suite's call sites.
-
-Recommendation: **split it into `get_rule_codes` and `print_rule_codes`**, when something
-else is already touching this module. The `title` flag is the cheaper change and the wrong
-one — reusing a name for a different meaning is what the 2026-09-24 vocabulary work spent
-three commits undoing — and the split is the shape every other reader in the package
-already has.
-
 ## Considered and deliberately not done
+
+**Splitting `list_rule_codes` into `get_rule_codes` and `print_rule_codes`** (F.36,
+decided 2026-09-25). The function was the one reader in `registry_tables.py` that
+printed, returned and raised under a third prefix. The entry recommended the split; it
+would have grown the surface by one name while `get_rule_codes` stayed a lookup by name
+over `Rule.codes`, a public field. Instead the function is gone and `get_rules_table`
+offers `codes` as an optional column, which is the module's own rule -- every question
+about the configuration becomes another column. What that gives up: lookup by name, with
+its `No rule named 'x'. Loaded rules: ...` error for a misspelling, and the one-line
+`name (action) -> A, B` print. A `title: bool` flag was also declined: on this function it
+would have suppressed its only line, a different meaning under the same name.
 
 **Moving the setup-file schema out of `registry.py`** (F.35, decided 2026-09-25).
 The setup-key tuple, `_setup_paths` and `load_setup` are about sixty lines of YAML schema
