@@ -275,7 +275,8 @@ The bytecode was committed to this branch and then deleted in the next commit, s
 recoverable from history rather than carried: `git restore --source=3fce4b4 -- recovery`
 brings the whole directory back, and `git show 3fce4b4:recovery/README.md` is its entry
 point. It is also still on `origin/main`, where it has lived since 2026-09-09.
-`scripts/read_bytecode_api.py` regenerates the interface files from a restored copy.
+`scripts/read_bytecode_api.py` regenerates the package's interface file straight from
+that commit, without restoring anything, or from a restored directory named as its argument.
 
 **Registry snapshot and restore as library API** (F.18 and F.19, decided 2026-09-23).
 `snapshot` and `restore` copied the registry's module globals and put them back. Both were

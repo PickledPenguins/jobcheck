@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 777 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 781 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 260 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1037 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1041 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -73,7 +73,11 @@ Fast:
 | `tests/test_error_messages_unit.py` | Every message the library raises, compared word for word rather than by keyword: registration, loading, per-row evaluation, reporting and the whole-frame entry point. |
 | `tests/test_perf_baseline_unit.py` | The baseline arithmetic itself: recording, comparing, the tolerance floor and cap, and discarding a baseline from another machine. |
 | `tests/test_readme.py` | The README executed, plus the prose claims and the two-way CLI documentation contract: every flag has a section in `docs/cli.md`, and every documented flag exists. |
-| `tests/test_docs_unit.py` | The rest of `docs/`, both directions: every code block runs, in a working directory holding the demo frame, outcomes, rules and the check files the blocks name; every call shown binds against the real signature and names something this package, pandas or the builtins provides; no document says a bare bool or status return is converted; every exported name appears in `interfaces.md` and nothing documented there is gone, every check code a document shows is one that exists, every exit code the entry point can return has a row in `docs/cli.md` and no row describes one it cannot, the README stays an index and links every document, no internal link or anchor is dead, the rule keys, statuses and outcome names are documented where they belong, and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. It also gates line width: no Python line in `src/`, `examples/` or `scripts/` exceeds the 100 characters `contributing.md` claims, and that document names the three directories the gate covers. |
+| `tests/test_docs_api_unit.py` | The documents against the public API, both directions: every call shown binds against the real signature and names something this package, pandas or the builtins provides; every exported name appears in `interfaces.md` and nothing documented there is gone; every check code a document shows is one that exists; no document says a bare bool or status return is converted. |
+| `tests/test_docs_blocks_unit.py` | Every Python block under `docs/` runs, in a working directory holding the demo frame, its outcomes, the rules and the check files the blocks name. One collected test per block. |
+| `tests/test_docs_structure_unit.py` | The documents as a set: the README stays an index and links every document, no internal link or anchor is dead, the rule keys, statuses and outcome names are documented where they belong, every exit code the entry point can return has a row in `docs/cli.md` and no row describes one it cannot, and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. It also gates line width: no Python line in `src/`, `examples/` or `scripts/` exceeds the 100 characters `contributing.md` claims, and that document names the three directories the gate covers. |
+| `tests/test_read_bytecode_api_unit.py` | `scripts/read_bytecode_api.py` reads the check-era bytecode straight out of the recovery commit, and a directory argument reads the same files. Skipped in a clone without that commit. |
+| `tests/doc_files.py` | Not a test: the documents and public names the three `test_docs_*` files share. |
 | `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
 | `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, `__all__` equal to the list written in the test so a new export is a decision, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
 | `tests/test_tables_unit.py` | `format_table` rendering, wrapping and empty frames; every column of the three registry tables. |
@@ -131,7 +135,9 @@ Regenerate expected output after an intended change with
 regeneration defeats the catalog.
 
 Add a case with `scripts/new_catalog_case.py`, which writes the directory, the `cmd` and
-the README, then records the output by running it. It refuses a command another case
+the README, then records the output by running it. A case that carries its own input
+files — a rule file, a run file, a bundle — gets them put in its directory first; the
+script accepts a directory that holds no case files yet and refuses one that does. It refuses a command another case
 already uses: two cases with one command are one case filed twice, and the duplicate is
 invisible in a directory listing because the names differ — three got in that way when the
 catalog was rebuilt by hand.
@@ -168,7 +174,7 @@ in `[tool.mutmut]`:
 - `also_copy = ["examples/", "scripts/"]` — mutmut runs the suite against a copy of the
   tree under `mutants/`; the entry point and example check files the tests load live in
   `examples/`, and one test regenerates the example data from `scripts/` and compares.
-- `pytest_add_cli_args_test_selection` excludes fourteen test files **from mutmut's runs
+- `pytest_add_cli_args_test_selection` excludes seventeen test files **from mutmut's runs
   only** — they still run in every normal suite. Four of them shell out to a subprocess,
   which never loads mutmut's instrumentation, so a mutant would always look like it
   survived; three assert on the module's own structure and on the doc tree, neither of
