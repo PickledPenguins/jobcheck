@@ -266,6 +266,7 @@ def test_every_check_code_a_document_shows_is_a_real_one(
         # Codes the documents invent to show a reader writing their own check.
         "AGE_ABOVE_LIMIT", "THREADS_INT", "BRAND_NEW_CODE", "ADDED_AT_RUNTIME",
         "FIELD_MISSING", "NO_SUCH_CODE", "SOURCE_CODE", "MY_CODE",
+        "ORDER_ID_PRESENT", "ORDER_ID_NUMERIC",
     }
     unknown = sorted(documented_codes()[name] - real)
     assert unknown == [], f"{name}: no such check code: {unknown}"

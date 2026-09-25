@@ -220,6 +220,26 @@ Everything structural fails at load: an unknown prerequisite code, a prerequisit
 in a check file that was not loaded, a cycle (direct or transitive), a duplicate
 code, a signature the engine cannot call.
 
+A check defined in the running process — a notebook, a test, a script registering
+its own — never passes through `load_checks`, so nothing runs the graph checks until
+the first `validate`. `validate_registry()` runs them on demand, before any data is
+read:
+
+```python
+from jobcheck import OK, Status, Verdict, register_check, validate_registry
+
+@register_check("ORDER_ID_PRESENT", "Order id is missing")
+def order_id_present(row):
+    return OK if row.get("order_id") else Verdict(Status.MISSING)
+
+@register_check("ORDER_ID_NUMERIC", "Order id is not a number",
+                depends_on=["ORDER_ID_PRESENT"])
+def order_id_numeric(row):
+    return Verdict(str(row["order_id"]).isdigit())
+
+validate_registry()   # a misspelled depends_on raises here, naming both codes
+```
+
 ## When a check raises
 
 An exception inside a check becomes a `Status.ERROR` outcome carrying the

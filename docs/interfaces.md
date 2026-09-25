@@ -285,12 +285,7 @@ only runs once its prerequisites passed. Empty for a row that passed.
 A caller wanting a single label per row (a tally, a column in a frame) takes the
 first. Accepts either `validate_row` or `explain_row` output.
 
-### `resolve_enabled_state(row, rules) -> dict[str, tuple[bool, str]]`
 
-The effective on/off state of every registered code for one row, and why: each
-check's `default_enabled`, then every matching rule in order, last match winning.
-The reason is `"default"`, `"off by default"`, or `"rule 'name'"` — which is what
-an explanation prints beside a `disabled` outcome.
 
 ### `warn_missing_rule_columns(df, rules) -> list[str]`
 

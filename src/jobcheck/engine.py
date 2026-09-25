@@ -78,7 +78,7 @@ def _prerequisite_has_not_run(code: str, prerequisite: str) -> ValueError:
     )
 
 
-def resolve_enabled_state(
+def _resolve_enabled_state(
     row: "pd.Series[Any]", rules: list[Rule]
 ) -> dict[str, tuple[bool, str]]:
     """Whether every registered code is on or off for one row, and why.
@@ -142,7 +142,7 @@ def explain_row(
     if context is None:
         context = _EMPTY_CONTEXT
 
-    enabled_by_code = resolve_enabled_state(row, rules or [])
+    enabled_by_code = _resolve_enabled_state(row, rules or [])
     passed: dict[str, bool] = {}
     disabled: set[str] = set()
     outcomes: list[CheckOutcome] = []

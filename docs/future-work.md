@@ -12,84 +12,30 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-One gap is open: F.37, found while working F.33. F.36 was closed on 2026-09-25 by
-removing `list_rule_codes` and offering the codes as a column of the rules table; the
-split the entry recommended is in the section below. F.35 was closed on 2026-09-25 by leaving the setup
-schema in the registry, since F.29 did not grow it. F.34 was closed on 2026-09-25 by
-deciding against merging the two column validators; the reasons are in the section
-below. F.33 was closed on 2026-09-25 by
-making `normalize_verdict` and `MatchCriterion` private and writing the export list down
-in the contract test. F.32 was closed on 2026-09-25 by fixing the drift -- a context builder's
-required keyword-only parameter is now refused at setup, as a check's is -- and leaving
-the two implementations apart; the shared helper that was declined is in the section
-below. F.31 was closed on 2026-09-25 by rendering `format_table` by position, which
-also stopped an all-numeric frame printing its integers as floats. F.29 was closed on 2026-09-25 by building the run file as a third
-demonstration entry point, `examples/run_from_config.py`, rather than in `main.py` or the
-library; the placements it declined are in the section below. F.30 was closed on
-2026-09-24 by naming the way out in the message rather than reordering the load; the half
-that was declined is in the section below. Every other item raised by the reviews of 2026-09-15,
-2026-09-21 and 2026-09-23 was worked through on 2026-09-23 and 2026-09-24: what was built
-is in the git log, and what was decided against is in the section below, with the reason.
-An entry there is closed, not pending.
+None are open. Every item raised by the reviews of 2026-09-15, 2026-09-21, 2026-09-23 and
+2026-09-24 has been worked through: what was built is in the git log, and what was decided
+against is in the section below, with the reason. An entry there is closed, not pending.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-F.37 is from the 2026-09-25 audit of `__all__`. Each was
-sniff-tested against the code and reproduced where there was behavior to reproduce; each
-was held rather than fixed because it changes an API, adds a rejection, or needs a design
-call the owner has not made. That review's seven silent fixes are in the git log, and so
-is F.30's.
-
-**F.37 — five exported names have no example.** An audit of `__all__` on 2026-09-25,
-while working F.33, against `examples/`, every document but `interfaces.md` and this one,
-and jobchain's package: `render_status`, `root_cause_counts`, `PASSED`, `SKIPPED` and
-`DISABLED` are used by none of them. Unlike F.33's two, each has an honest use -- a status
-rendered in a caller's own log line, the root-cause frame without the printing, counting
-the rows a fundamental check hid -- so the standing rule asks for the example, not the
-removal.
-
-What it would gain: every exported name shown in use, which is the rule the
-2026-09-24 `creview` change made standing, and the one place an adopter learns these
-exist besides the inventory.
-
-What it would cost: `examples/main.py` is the minimal flag-driven demo and should not
-grow a flag per name; the natural home is `docs/reporting.md`, whose Python blocks are
-executed, so each example becomes a collected test and moves the documented suite size.
-A name for which the example turns out forced should be demoted instead, which is a
-breaking change of the F.33 kind.
-
-Estimated ~30 lines of executed examples across one or two documents, no source change.
-Priority: low -- no defect. Blast radius: `docs/reporting.md`, the suite-size rows, and
-the written export list in `tests/test_api_contract.py` if any name is demoted.
-
-Recommendation: **write the five examples in `docs/reporting.md`**, one short block
-each, and demote any that cannot be written without inventing a need.
+On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
+demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
+builder's required keyword-only parameter is refused at setup), F.33 (two exports with
+no caller made private, and the export list written down), F.36 (`list_rule_codes`
+replaced by a `codes` column) and F.37 (an example for every exported name). Declined:
+F.34 (merging the column validators) and F.35 (moving the setup schema out of the
+registry).
 
 ## Considered and deliberately not done
+
+**Documenting an exported name in prose instead of showing it in use** (F.37, decided
+2026-09-25). F.37 was raised against five names no document mentioned. The owner's rule
+asks for an *example*, so the bar was raised to a runnable use -- `examples/`, an executed
+block in `docs/`, or jobchain -- and thirteen names failed it. Twelve now have one in
+`docs/reporting.md` or `docs/writing-checks.md`, grouped by use rather than one block per
+name: the frames behind the `print_*` functions, the outcome constants, the registry and
+rules frames, the renderer's pieces, the spreadsheet guard, and `validate_registry` for
+checks defined in-process. `resolve_enabled_state` had no honest one -- `explain_row`
+answers the same question and more -- so it is `engine._resolve_enabled_state` now, and a
+caller wanting a row's on/off states without running the checks has no public spelling.
 
 **Splitting `list_rule_codes` into `get_rule_codes` and `print_rule_codes`** (F.36,
 decided 2026-09-25). The function was the one reader in `registry_tables.py` that
