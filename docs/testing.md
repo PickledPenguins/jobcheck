@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 781 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 796 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 260 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1041 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1056 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -200,25 +200,43 @@ read `mutmut results` in between as the suite's score.
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
 
-Measured on 2026-09-21 on a tree cleaned first (`rm -rf mutants .mutmut-cache`), at
-commit `b648bcf`: **1,304 mutants, 1,175 killed, 129 survived, 0 timeouts — 90.1%.**
-The run takes about three and a half minutes at ~6 mutations/second.
+Measured on 2026-09-25 on a tree cleaned first (`rm -rf mutants .mutmut-cache`), at
+commit `7865edc` plus the tests below: **1,656 mutants, 1,566 killed, 90 survived, 0
+timeouts — 94.6%.** The run takes about four and a half minutes at ~6 mutations/second.
+The same tree before those tests: 1,516 killed, 140 survived, 91.5%.
 
 That is a record of one commit, not the current score. Re-run before quoting a number,
-and update this section with what comes back — the survivor counts by module below are
-from the same commit.
+and update this section with what comes back.
 
-Survivors by module: `report` 52, `registry_tables` 30, `engine` 20, `registry` 15,
-`rules` 10, `tables` 2. The 47 outside the two print modules were read one by one: 7 are
-default-argument mutants, 9 unreachable, 14 equivalent (the groups below), and 17 are
-assertions the suite does not make — the second sentence of the bare-string-path
-message in both loaders and the tail of `validate`'s non-DataFrame error, pinned by
-substring rather than word for word; the separator between two unknown rule keys and
-the rule-name prefix on match-block errors, pinned only through the failure catalog's
-subprocess; and the
-order cache after a check file fails part-way, where no test validates a row afterward.
-The 82 in `report` and `registry_tables` are print wording. Each is listed with its
-fix in the review report of the same date.
+Survivors by module: `report` 30, `engine` 22, `registry` 15, `registry_tables` 10,
+`tables` 7, `rules` 6.
+
+The 89 survivors in `report` and `registry_tables` at `7865edc` were read one by one on
+2026-09-25. 49 were assertions the suite did not make, and each now has a test (they
+are the section of `test_report_unit.py` and `test_tables_unit.py` headed "found by
+reading the mutation survivors"): a column wrapped by name in every printer, where a
+renamed key left it unwrapped and nothing looked; `print_report` not passing
+`wrap_width` on; `print_rules` ignoring `drop_columns`; the rules table's `action`
+column; the table name in two `drop_columns` errors and the whole duplicate-key message;
+`<no key>` for a null index label; `wrap_width=1` being accepted; `errored` breaking a
+tie on `failed`; root causes ranked by rows rather than by name, and their columns when
+there are none; and three "none" lines asserted with `in`, which a mutant that wraps
+the text in `XX` still satisfies. The 40 left:
+
+- **19 default-argument mutants** — every `title`, `fmt`, `include` and `wrap_width`
+  default. Unkillable here; see below.
+- **14 equivalent mutants** — `reset_index(drop=None or False)` followed by a column
+  selection that drops the added `index`; `itertuples(index=None)` and its default
+  `name=`; `to_csv(index=None)`, which pandas reads as false; `write_report`'s encoding
+  and newline on a UTF-8 Linux box (five); and `summarize_outcomes` building its frame
+  with `None` rows or no `columns=`, when the rows' own keys are already in order (four).
+- **7 wrap widths moved by one** — 40 to 41 and the like. A width is a presentation
+  choice, and a test pinning it to the character would fail on every deliberate change
+  to it.
+
+The other four modules' 50 survivors were last read at `b648bcf` (47 then): default
+arguments, unreachable branches, equivalents, and assertions the suite does not make.
+Not re-read this time.
 
 The earlier runs, for the shape of what a survivor tends to be. The 2026-09-11 run at
 `9fe2207` scored 89.5%; its first pass scored 87.9%, and 20 of the survivors were the new
@@ -258,13 +276,12 @@ The other four groups, which no assertion can reach:
   the tests that pin them (`test_a_written_report_is_utf_8`,
   `..._uses_unix_line_endings`) exist for that reason even though mutmut cannot
   show it here.
-- **Print-function wording, the largest group.** `registry_tables` is entirely
-  print functions, and most of `report`'s survivors are the same. Those outputs
-  are pinned byte for byte by the example catalog and the golden files; the
-  catalog shells out to a subprocess that never loads mutmut's instrumentation,
-  so mutmut cannot run the thing that would kill them. The library's *error*
-  messages are a different matter and are pinned word for word by
-  `tests/test_error_messages_unit.py`.
+- **Print-function wording — mostly not unkillable after all.** The 2026-09-21 run
+  filed the 82 survivors in `report` and `registry_tables` here, as output pinned byte
+  for byte only by the example catalog and golden files, which run in a subprocess
+  mutmut cannot instrument. Read one by one on 2026-09-25, 49 of the 89 then present
+  were reachable in-process and are killed now; see above. The library's *error*
+  messages are pinned word for word by `tests/test_error_messages_unit.py`.
 
 Writing the message tests found a defect the suite had never noticed:
 `register_check(depends_on="AGE_PRESENT")` did `list(depends_on or [])` before the guard
