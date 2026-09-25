@@ -65,17 +65,15 @@ _LOADED_FILES: list[str] = []
 # Modules clear_registry must evict from sys.modules; without that a later
 # import is a no-op -- Python caches modules -- and the registry would silently
 # stay empty. Two routes fill it, and both are needed: registration, which
-# catches a shared module a check file imported by any route, and a completed
-# load_checks import, which catches a file that registered nothing of its own --
-# a bundle, or a file holding only constants.
+# catches a shared module a check file imported by any route, and load_checks
+# itself, which catches a file that registered nothing of its own -- a bundle,
+# or a file holding only constants.
 _LOADED_MODULES: set[str] = set()
-# The check files whose import is in progress, innermost last, each with the
-# checks that file has registered directly. A check file may itself call
-# load_checks -- a bundle naming the files it collects -- and what that costs is
-# knowing which file a check belongs to: a bundle that fails must drop its own
-# checks and keep the ones its completed members registered. A nested member
-# pushes its own frame, so it is never in its bundle's.
-_LOADING: list[tuple[str, list["Check"]]] = []
+# The check files whose import is in progress, innermost last. A check file may
+# itself call load_checks -- a bundle naming the files it collects -- so this
+# is how a nested call knows it is nested, and how a bundle naming itself is
+# skipped rather than recursed into.
+_LOADING: list[str] = []
 # Cached topological order over depends_on edges.  The graph only changes when
 # the registry changes, so it is computed once per registry state and never
 # inside the per-row loop.
@@ -222,8 +220,6 @@ def register_check(
             depends_on=list(dict.fromkeys(prerequisites)),
         )
         _CHECKS.append(check)
-        if _LOADING:
-            _LOADING[-1][1].append(check)
         _TOPO_ORDER = None
         return fn
 
@@ -233,10 +229,9 @@ def register_check(
 def clear_registry() -> None:
     """Drop every registered check and all loaded-file bookkeeping.
 
-    For a throwaway registry, and for a process validating several runs in turn.
-    The in-progress load stack is not touched: it belongs to a `load_checks`
-    call rather than to the registry, and emptying it under a running load
-    would strand that call's rollback.
+    For a process validating several runs in turn, each with its own check
+    files. The in-progress load stack is not touched: it belongs to a running
+    `load_checks` call rather than to the registry.
     """
 
     global _TOPO_ORDER, _LOAD_SEQUENCE
@@ -269,8 +264,11 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     A check file may call this itself -- a bundle file naming the files it
     collects, so a caller loads one path instead of ten. The dependency graph is
     then validated once, as the outermost call returns, since a prerequisite may
-    arrive in any file of any of the calls; and a file that raises drops its own
-    checks alone, leaving whatever its completed members registered.
+    arrive in any file of any of the calls.
+
+    A file that raises is not rolled back: the error propagates, and whatever
+    was registered before it stays. Loading again in the same process starts
+    with `clear_registry()`.
 
     A relative path is resolved against *base_dir* when one is given and
     against the working directory otherwise. An entry point whose check files
@@ -279,20 +277,19 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     passes that file's directory, so they mean what their author meant.
     """
 
-    global _TOPO_ORDER, _LOAD_SEQUENCE
+    global _LOAD_SEQUENCE
     if isinstance(paths, str):
         raise TypeError(
             f"load_checks takes a list of paths, not one string: pass [{paths!r}]. "
             "A bare string would be read as a list of its characters."
         )
-    in_progress = [name for name, _ in _LOADING]
     resolved: list[str] = []
     for path in list(paths):
         name = str(resolve_input_file(path, "check file", "load_checks()", base_dir))
         # in_progress is what stops a bundle that names itself, or two bundles
         # that name each other, from recursing until the interpreter gives up:
         # the file is mid-import, so its checks are on their way.
-        if name not in _LOADED_FILES and name not in resolved and name not in in_progress:
+        if name not in _LOADED_FILES and name not in resolved and name not in _LOADING:
             resolved.append(name)
 
     for name in resolved:
@@ -306,8 +303,10 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
             raise ValueError(f"Cannot import {name!r} as a Python file.")
         module = importlib.util.module_from_spec(spec)
         # Registered before execution so a check file that imports itself, or is
-        # pickled by a worker, finds the module rather than importing it twice.
+        # pickled by a worker, finds the module rather than importing it twice;
+        # and recorded then too, so clear_registry evicts it even if it fails.
         sys.modules[module_name] = module
+        _LOADED_MODULES.add(module_name)
         # No __pycache__ beside the caller's file. A check file loaded by path
         # comes from a data directory -- a prepared run's inputs, say -- which is
         # a record of what was read, not somewhere to write to; and the module
@@ -316,32 +315,15 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
         # the exec, no thread writes bytecode for anything it imports.
         writing_bytecode = sys.dont_write_bytecode
         sys.dont_write_bytecode = True
-        _LOADING.append((name, []))
+        # A file that raises is not rolled back: whatever it registered before
+        # the failing line stays, and the error ends the run. A caller loading
+        # again in the same process calls clear_registry() first.
+        _LOADING.append(name)
         try:
             spec.loader.exec_module(module)
-        except BaseException:
-            # BaseException, not Exception: a KeyboardInterrupt while a slow
-            # check file imports, or a check file calling sys.exit() over its
-            # own bad configuration, leaves the same half-registered file as
-            # any other failure, and the retry afterwards reported the author's
-            # own check as a duplicate of itself.
-            # The file's decorators ran up to the line that raised, so its
-            # earlier checks are in _CHECKS while the file is not in
-            # _LOADED_FILES. Drop them: a file that failed to load loaded
-            # nothing, and the corrected file must not be refused as a
-            # duplicate of itself. Files loaded before it stay -- loading is
-            # per file, not per call, at every depth: a bundle keeps what its
-            # completed members registered, which is what _LOADING separates.
-            mine = {id(check) for check in _LOADING[-1][1]}
-            _CHECKS[:] = [check for check in _CHECKS if id(check) not in mine]
-            _LOADED_MODULES.discard(module_name)
-            sys.modules.pop(module_name, None)
-            _TOPO_ORDER = None
-            raise
         finally:
             _LOADING.pop()
             sys.dont_write_bytecode = writing_bytecode
-        _LOADED_MODULES.add(module_name)
         _LOADED_FILES.append(name)
 
     # Nested calls leave it to the outermost one: a bundle's members may depend

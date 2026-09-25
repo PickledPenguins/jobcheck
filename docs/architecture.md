@@ -116,10 +116,9 @@ diagnostic.
 validation.** That is a bundle: one path in the caller's list, the files it collects
 behind it. Validating at the end of every call would refuse a bundle whose prerequisite
 the caller names after it — a constraint on the order of a list, for no gain, since the
-whole load is still one moment. The registry tracks which file is being imported, so
-loading stays per file at every depth: a file that raises drops the checks *it*
-registered and keeps whatever its completed members did, leaving the registry and
-`loaded_check_files()` agreeing. A file already being imported further up the call is
+whole load is still one moment. A file that raises is not rolled back: the error ends
+the run, and a process that loads again calls `clear_registry()` first, as jobchain
+does before every load. A file already being imported further up the call is
 skipped like one already loaded, which is what makes a bundle that names itself, or two
 that name each other, finish instead of exhausting the stack.
 

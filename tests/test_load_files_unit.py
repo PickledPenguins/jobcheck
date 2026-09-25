@@ -131,49 +131,6 @@ def test_a_file_that_raises_on_import_propagates(fresh_registry: None, tmp_path:
     assert reg.loaded_check_files() == []
 
 
-def test_a_file_that_raises_after_registering_leaves_none_of_its_checks_behind(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    """A file that registers A and B and then raises must leave neither: the
-    registry and loaded_check_files() would otherwise disagree about it, and a
-    retry of the corrected file would be refused as a duplicate of A."""
-
-    good = write_check_file(tmp_path, "good.py", "KEPT")
-    broken = tmp_path / "broken.py"
-    broken.write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('A', 'a')\n"
-        "def a(row): return OK\n"
-        "@register_check('B', 'b')\n"
-        "def b(row): return OK\n"
-        "raise RuntimeError('boom after two registrations')\n"
-    )
-    with pytest.raises(RuntimeError, match="boom"):
-        reg.load_checks([good, str(broken)])
-    assert [t.code for t in reg._CHECKS] == ["KEPT"]
-    assert reg.loaded_check_files() == [str(Path(good).resolve())]
-
-    broken.write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('A', 'a')\n"
-        "def a(row): return OK\n"
-    )
-    reg.load_checks([str(broken)])
-    assert [t.code for t in reg._CHECKS] == ["KEPT", "A"]
-
-
-def test_a_file_that_raises_on_import_leaves_no_module_behind(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    import sys
-
-    path = tmp_path / "broken.py"
-    path.write_text("raise RuntimeError('boom')\n")
-    with pytest.raises(RuntimeError):
-        reg.load_checks([str(path)])
-    assert not [name for name in sys.modules if name.startswith("jobcheck_check_file_")]
-
-
 def test_a_prerequisite_may_live_in_another_file_of_the_same_call(
     fresh_registry: None, tmp_path: Path
 ) -> None:
@@ -383,6 +340,54 @@ def test_a_bare_string_path_is_refused_by_load_rules(fresh_registry: None) -> No
         reg.load_rules("rules.yaml")  # type: ignore[arg-type]
 
 
+def test_a_file_that_raises_is_not_rolled_back_and_clear_registry_recovers(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """The error reaches the caller and ends a run. What the file registered
+    before the failing line stays, and the file is not recorded as loaded;
+    loading again in the same process starts with clear_registry()."""
+
+    import sys
+
+    good = write_check_file(tmp_path, "good.py", "KEPT")
+    broken = tmp_path / "broken.py"
+    broken.write_text(
+        "from jobcheck import OK, register_check\n"
+        "@register_check('A', 'a')\n"
+        "def a(row): return OK\n"
+        "raise RuntimeError('boom after one registration')\n"
+    )
+    with pytest.raises(RuntimeError, match="boom"):
+        reg.load_checks([good, str(broken)])
+    assert [t.code for t in reg._CHECKS] == ["KEPT", "A"]
+    assert reg.loaded_check_files() == [str(Path(good).resolve())]
+    assert reg._LOADING == []
+
+    broken.write_text(
+        "from jobcheck import OK, register_check\n"
+        "@register_check('A', 'a')\n"
+        "def a(row): return OK\n"
+    )
+    reg.clear_registry()
+    assert not [name for name in sys.modules if name.startswith("jobcheck_check_file_")]
+    reg.load_checks([good, str(broken)])
+    assert [t.code for t in reg._CHECKS] == ["KEPT", "A"]
+
+
+def test_an_interrupted_import_unwinds_the_load_stack(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """KeyboardInterrupt is not an Exception. The in-progress stack must still
+    unwind, or the next load_checks would believe it is nested and never
+    validate the dependency graph."""
+
+    path = tmp_path / "check_interrupted.py"
+    path.write_text("raise KeyboardInterrupt('ctrl-c during the import')\n")
+    with pytest.raises(KeyboardInterrupt):
+        reg.load_checks([str(path)])
+    assert reg._LOADING == []
+
+
 # --- bundles: a check file that loads check files ----------------------------
 #
 # One path in the caller's list, ten files behind it. What this has to get right
@@ -504,61 +509,6 @@ def test_a_dangling_prerequisite_names_the_way_out_of_the_load_it_leaves_behind(
     assert sorted(check.code for check in reg._CHECKS) == ["BASE", "NEEDS_BASE"]
 
 
-def test_a_member_that_raises_leaves_the_earlier_members_loaded(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    """Loading is per file at every depth. The registry and the loaded-file
-    list have to agree afterwards, or the corrected bundle is skipped as
-    already loaded and its missing checks never come back."""
-
-    write_check_file(tmp_path, "check_first.py", "FIRST")
-    broken = tmp_path / "check_broken.py"
-    broken.write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('BROKEN', 'broken')\n"
-        "def broken(row): return OK\n"
-        "raise RuntimeError('boom half way through the bundle')\n"
-    )
-    bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py", "check_broken.py"])
-
-    with pytest.raises(RuntimeError, match="boom half way through the bundle"):
-        reg.load_checks([bundle])
-
-    assert [t.code for t in reg._CHECKS] == ["FIRST"]
-    assert reg.loaded_check_files() == [str((tmp_path / "check_first.py").resolve())]
-
-    # The author fixes the member and runs the same command again.
-    broken.write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('BROKEN', 'broken')\n"
-        "def broken(row): return OK\n"
-    )
-    reg.load_checks([bundle])
-    assert [t.code for t in reg._CHECKS] == ["FIRST", "BROKEN"]
-
-
-def test_a_bundle_that_raises_drops_its_own_checks_and_keeps_its_members(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    write_check_file(tmp_path, "check_first.py", "FIRST")
-    bundle = tmp_path / "all_checks.py"
-    bundle.write_text(
-        "import os\n"
-        "from jobcheck import OK, load_checks, register_check\n"
-        "@register_check('BUNDLE_OWN', 'the bundle registered this itself')\n"
-        "def own(row): return OK\n"
-        "load_checks(['check_first.py'], base_dir=os.path.dirname(os.path.abspath(__file__)))\n"
-        "raise RuntimeError('boom after the members loaded')\n"
-    )
-
-    with pytest.raises(RuntimeError, match="boom after the members loaded"):
-        reg.load_checks([str(bundle)])
-
-    assert [t.code for t in reg._CHECKS] == ["FIRST"]
-    assert reg.loaded_check_files() == [str((tmp_path / "check_first.py").resolve())]
-    assert reg._LOADING == []
-
-
 def test_a_bundle_that_names_itself_is_skipped_rather_than_recursing(
     fresh_registry: None, tmp_path: Path
 ) -> None:
@@ -620,38 +570,19 @@ def test_a_bundle_and_a_member_of_one_name_get_different_module_names(
     assert len(names) == 2, names
 
 
-def test_a_file_interrupted_part_way_drops_its_checks_like_any_other_failure(
+def test_a_member_that_raises_propagates_through_its_bundle(
     fresh_registry: None, tmp_path: Path
 ) -> None:
-    """Written against a defect: the rollback caught ``Exception``, so a
-    ``KeyboardInterrupt`` during a slow import -- or a check file calling
-    ``sys.exit()`` -- left its checks registered while the file stayed out of
-    ``loaded_check_files()``, and the retry refused the author's own check as a
-    duplicate of itself."""
+    """The member's error reaches the caller unchanged, and every level of the
+    in-progress stack unwinds on the way out."""
 
-    path = tmp_path / "check_interrupted.py"
-    path.write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('INTERRUPTED', 'registered before the interrupt')\n"
-        "def rule(row): return OK\n"
-        "raise KeyboardInterrupt('ctrl-c during the import')\n"
-    )
-
-    with pytest.raises(KeyboardInterrupt):
-        reg.load_checks([str(path)])
-
-    assert reg._CHECKS == []
-    assert reg.loaded_check_files() == []
+    write_check_file(tmp_path, "check_first.py", "FIRST")
+    (tmp_path / "check_broken.py").write_text("raise RuntimeError('boom in a member')\n")
+    bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py", "check_broken.py"])
+    with pytest.raises(RuntimeError, match="boom in a member"):
+        reg.load_checks([bundle])
     assert reg._LOADING == []
-
-    # The author runs the same command again, uninterrupted this time.
-    path.write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('INTERRUPTED', 'registered before the interrupt')\n"
-        "def rule(row): return OK\n"
-    )
-    reg.load_checks([str(path)])
-    assert [t.code for t in reg._CHECKS] == ["INTERRUPTED"]
+    assert reg.loaded_check_files() == [str((tmp_path / "check_first.py").resolve())]
 
 
 # --- load_setup: one file, one call -----------------------------------------

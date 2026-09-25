@@ -159,9 +159,9 @@ if the caller also names it. `validate_registry` runs as the *outermost* call
 returns, so a prerequisite may live in a bundle, in another bundle, or in a file
 the caller names after the bundle. A file already being imported further up the
 call is skipped, so a bundle naming itself, or two naming each other, finish
-rather than recursing. A failure stays per file at every depth: the file that
-raises drops its own checks, its completed members keep theirs, and the bundle is
-not recorded as loaded, so the corrected bundle loads on the next call.
+rather than recursing. A file that raises is not rolled back: the error propagates,
+the checks registered before it stay, and the failing file is not recorded as
+loaded. Loading again in the same process starts with `clear_registry()`.
 
 Importing the members instead — `sys.path.insert` and `import check_age` — also
 registers them, but they are then ordinary modules: two bundles holding a
