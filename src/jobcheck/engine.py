@@ -262,12 +262,22 @@ def _context_caller(
 
     The same rule as a check function's `(row)` or `(row, context)`, deliberately:
     one convention for both, and `*args` counts as taking the second argument
-    because the builder will accept it.
+    because the builder will accept it. The rule is written twice -- here and in
+    `registry._make_runner` -- and the two must change together; a keyword-only
+    parameter without a default is refused by both, because neither caller can
+    supply one.
     """
 
     parameters = list(inspect.signature(builder).parameters.values())
     positional = [p for p in parameters
                   if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+    needed = [p.name for p in parameters
+              if p.kind is p.KEYWORD_ONLY and p.default is p.empty]
+    if needed:
+        raise ValueError(
+            f"context_builder {getattr(builder, '__name__', builder)!r} needs keyword "
+            f"argument(s) {', '.join(needed)} that validate cannot supply. Give them "
+            "defaults, or read them from context_args.")
     if any(p.kind is p.VAR_POSITIONAL for p in parameters) or len(positional) == 2:
         return lambda row, context_args: builder(row, context_args)
     if len(positional) == 1:

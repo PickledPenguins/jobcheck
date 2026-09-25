@@ -119,6 +119,8 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
     """Wrap an author's function so the engine can always call `fn(row, context)`.
 
     The shape is settled once, at registration, rather than inspected per row.
+    `engine._context_caller` applies the same rule to a context builder; change
+    the two together.
     """
 
     signature = inspect.signature(fn)
