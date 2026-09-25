@@ -51,7 +51,7 @@ def test_a_check_cannot_return_status_error() -> None:
     with pytest.raises(ValueError, match="Status.ERROR is the engine's, not a check's"):
         Verdict(Status.ERROR)
     with pytest.raises(TypeError, match="Check 'CODE' returned"):
-        res.normalize_verdict(Status.ERROR, "CODE")
+        res._normalize_verdict(Status.ERROR, "CODE")
 
 
 def test_the_engine_can_still_record_an_error_outcome() -> None:
@@ -96,7 +96,7 @@ def test_a_value_outside_the_vocabulary_is_refused(value: int) -> None:
 
 def test_a_result_passes_through() -> None:
     result = Verdict(Status.MISSING)
-    assert res.normalize_verdict(result, "CODE") is result
+    assert res._normalize_verdict(result, "CODE") is result
 
 
 def test_a_condition_wrapped_in_a_result_passes_or_fails_as_invalid() -> None:
@@ -133,5 +133,5 @@ def test_anything_else_raises_naming_the_check(returned: object) -> None:
     """A check falling off the end must not be read as a pass."""
 
     with pytest.raises(TypeError, match=r"Check 'CODE' returned"):
-        res.normalize_verdict(returned, "CODE")
+        res._normalize_verdict(returned, "CODE")
 

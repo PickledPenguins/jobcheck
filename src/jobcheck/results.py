@@ -114,7 +114,7 @@ OK = Verdict()
 """The result of a check that is happy with the row. Shared, and immutable."""
 
 
-def normalize_verdict(returned: Any, check_code: str) -> Verdict:
+def _normalize_verdict(returned: Any, check_code: str) -> Verdict:
     """Confirm a check returned a result, and hand it back.
 
     A check falling off the end, or handing back a bare bool or status, is an

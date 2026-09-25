@@ -15,7 +15,6 @@ code."""
 from .context import RowContext
 from .registry import (
     Check,
-    MatchCriterion,
     Rule,
     clear_registry,
     load_checks,
@@ -64,7 +63,6 @@ from .results import (
     Status,
     CheckOutcome,
     Verdict,
-    normalize_verdict,
     render_status,
 )
 from .tables import format_table, is_null
@@ -75,7 +73,6 @@ __all__ = [
     "DISABLED",
     "ERRORED",
     "FAILED",
-    "MatchCriterion",
     "OK",
     "PASSED",
     "REPORT_COLUMNS",
@@ -97,7 +94,6 @@ __all__ = [
     "load_rules",
     "load_setup",
     "loaded_check_files",
-    "normalize_verdict",
     "print_registry",
     "print_report",
     "print_row_explanation",

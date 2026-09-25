@@ -22,7 +22,7 @@ from .results import (
     SKIPPED,
     CheckOutcome,
     Status,
-    normalize_verdict,
+    _normalize_verdict,
 )
 from .rules import Rule, rule_matches
 
@@ -197,7 +197,7 @@ def explain_row(
             )
             continue
 
-        result = normalize_verdict(returned, check.code)
+        result = _normalize_verdict(returned, check.code)
         passed[check.code] = bool(result)
         outcomes.append(
             CheckOutcome(

@@ -12,8 +12,10 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-Four gaps are open: F.33 to F.36, which came out of the review of `src/jobcheck/` on
-2026-09-24. F.32 was closed on 2026-09-25 by fixing the drift -- a context builder's
+Four gaps are open: F.34 to F.36, which came out of the review of `src/jobcheck/` on
+2026-09-24, and F.37, found while working F.33. F.33 was closed on 2026-09-25 by
+making `normalize_verdict` and `MatchCriterion` private and writing the export list down
+in the contract test. F.32 was closed on 2026-09-25 by fixing the drift -- a context builder's
 required keyword-only parameter is now refused at setup, as a check's is -- and leaving
 the two implementations apart; the shared helper that was declined is in the section
 below. F.31 was closed on 2026-09-25 by rendering `format_table` by position, which
@@ -52,57 +54,37 @@ An entry there is closed, not pending.
 
 
 
-The four items below came out of the review of `src/jobcheck/` on 2026-09-24. Each was
+F.37 is from the 2026-09-25 audit of `__all__`; the three after it came out of the review
+of `src/jobcheck/` on 2026-09-24. Each was
 sniff-tested against the code and reproduced where there was behavior to reproduce; each
 was held rather than fixed because it changes an API, adds a rejection, or needs a design
 call the owner has not made. That review's seven silent fixes are in the git log, and so
 is F.30's.
 
-**F.33 — the export list is derived by a test, so names with no caller are in it.**
-`tests/test_api_contract.py:87` asserts that every module-level public callable in every
-non-internal module appears in `__all__` (`__init__.py:72`). That rule, not a decision, is
-what put `normalize_verdict` and `MatchCriterion` on the public surface. Neither has an
-honest use case: `normalize_verdict(returned, check_code)` is the engine's boundary against
-a check that fell off the end, called once, in `explain_row`; `MatchCriterion` is built by
-the rule parser and never by a caller, who has no way to get a compiled `re.Pattern` into a
-`Rule` that any loader would produce. Neither appears in `examples/` or in any narrative
-document — only in the `docs/interfaces.md` inventory, which lists them *because* they are
-exported, which closes the circle. `render_status` and `render_comments` are defensible (a
-caller rendering outcomes their own way needs both) and the five outcome constants earn
-their place by being what `outcome.outcome` is compared against.
+**F.37 — five exported names have no example.** An audit of `__all__` on 2026-09-25,
+while working F.33, against `examples/`, every document but `interfaces.md` and this one,
+and jobchain's package: `render_status`, `root_cause_counts`, `PASSED`, `SKIPPED` and
+`DISABLED` are used by none of them. Unlike F.33's two, each has an honest use -- a status
+rendered in a caller's own log line, the root-cause frame without the printing, counting
+the rows a fundamental check hid -- so the standing rule asks for the example, not the
+removal.
 
-What it would gain: an export list somebody chose. The standing rule since 2026-09-24 is
-that every exported name needs an example with a real use case and that a name for which
-no honest example can be written is debt to remove rather than document; this is that
-rule applied to the mechanism that keeps producing the debt.
+What it would gain: every exported name shown in use, which is the rule the
+2026-09-24 `creview` change made standing, and the one place an adopter learns these
+exist besides the inventory.
 
-What it would cost: renaming `normalize_verdict` to `_normalize_verdict` and
-`MatchCriterion` to `_MatchCriterion` is a **breaking API change** for anyone who imported
-them, which is nobody found in `examples/`, jobchain or the documents' executed blocks,
-but the package is pre-1.0 with no shim policy, so "nobody found" is the whole safety
-argument. `MatchCriterion` is the larger loss of the two: it is a *type*, and a caller
-annotating a function that takes a `Rule` reaches for its field types, so the private
-spelling makes a legitimate annotation look like a reach into the internals. Both appear
-in `docs/interfaces.md`, which would lose a section and gain a sentence saying why.
-Changing the test is the other half and the more delicate one: replacing "every public
-callable" with "every public callable except this list" reintroduces exactly the hand-kept
-list whose failure the test's own docstring records — `root_cause_counts` was documented
-and never exported, and importing it raised — so the exception list needs its own guard
-against growing quietly.
+What it would cost: `examples/main.py` is the minimal flag-driven demo and should not
+grow a flag per name; the natural home is `docs/reporting.md`, whose Python blocks are
+executed, so each example becomes a collected test and moves the documented suite size.
+A name for which the example turns out forced should be demoted instead, which is a
+breaking change of the F.33 kind.
 
-Estimated ~15 source lines, ~25 test lines, two documentation edits, four files.
-Priority: medium — no defect, and the surface is ten names smaller than it was two days
-ago, but the mechanism is still pointing the wrong way. Blast radius: `__all__`,
-`docs/interfaces.md`, `tests/test_api_contract.py`, and any external import of the two
-names.
+Estimated ~30 lines of executed examples across one or two documents, no source change.
+Priority: low -- no defect. Blast radius: `docs/reporting.md`, the suite-size rows, and
+the written export list in `tests/test_api_contract.py` if any name is demoted.
 
-Recommendation: **demote `normalize_verdict`, keep `MatchCriterion`, and invert the
-test.** The verdict normalizer has no caller and no annotation use, so it is the clean
-case. `MatchCriterion` stays because a type a caller may legitimately annotate against is
-not the same kind of leak, even with no example. The test should assert that `__all__`
-matches a list written down *in the test*, rather than deriving the surface from what
-happens to be public: a name added to a module then fails the suite until somebody decides
-whether it belongs, which is the decision point this project keeps not having.
+Recommendation: **write the five examples in `docs/reporting.md`**, one short block
+each, and demote any that cannot be written without inventing a need.
 
 **F.34 — `_reject_unknown_columns` and `_keep_columns` are one validation written
 twice.** Both (`tables.py:58` and `tables.py:77`) build `unusable` as "the sorted set of
@@ -202,6 +184,16 @@ three commits undoing — and the split is the shape every other reader in the p
 already has.
 
 ## Considered and deliberately not done
+
+**Keeping `MatchCriterion` public for annotations** (F.33, decided 2026-09-25). The entry
+recommended keeping it, as a type a caller may annotate a function over `rule.criteria`
+against. The owner's standing rule decided it: no example needs the name -- reading a
+criterion's `column`, `pattern` or `regex` works by inference -- so it is
+`rules._MatchCriterion` now, and `Rule.criteria` is typed by an internal class. What that
+costs: a caller who annotates must import a private name. `normalize_verdict`, whose
+claimed use was a wrapper around checks that nobody has written, went private with it.
+The derived export test stays, because it catches a public function left out of
+`__all__`; beside it, `__all__` must now equal a list written in the test.
 
 **One shared helper for the `(row)` or `(row, second)` rule** (F.32, decided 2026-09-25).
 `registry._make_runner` and `engine._context_caller` apply the same arity rule to a check

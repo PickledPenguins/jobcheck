@@ -14,6 +14,7 @@ from jobcheck import rules
 from jobcheck import engine
 from jobcheck import registry_tables
 from jobcheck.results import DISABLED, PASSED
+from jobcheck.rules import _MatchCriterion
 
 pytestmark = pytest.mark.fast
 
@@ -319,7 +320,7 @@ def rule(name: str, action: str, codes: list[str], criteria: list[tuple[str, str
 
     import re
 
-    made = [reg.MatchCriterion(c, p, re.compile(p)) for c, p in (criteria or [])]
+    made = [_MatchCriterion(c, p, re.compile(p)) for c, p in (criteria or [])]
     return reg.Rule(name=name, action=action, codes=codes, criteria=made,
                             match_all=criteria is None, message="why the rule exists")
 

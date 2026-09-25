@@ -14,6 +14,7 @@ from jobcheck import registry as reg
 from jobcheck import tables
 from jobcheck import engine
 from jobcheck.results import Status
+from jobcheck.rules import _MatchCriterion
 
 pytestmark = pytest.mark.fast
 
@@ -132,7 +133,7 @@ def test_a_very_long_string_value_is_matched_not_truncated(fresh_registry: None)
     make_check("A_CODE")
     rule = reg.Rule(
         name="r", action="disable", codes=["A_CODE"],
-        criteria=[reg.MatchCriterion("email", "end$", re.compile("end$"))], match_all=False, message="why the rule exists")
+        criteria=[_MatchCriterion("email", "end$", re.compile("end$"))], match_all=False, message="why the rule exists")
     row = pd.Series({"email": "x" * 100_000 + "end"})
     assert enabled_only(engine.resolve_enabled_state(row, [rule]))["A_CODE"] is False
 

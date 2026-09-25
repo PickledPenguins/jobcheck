@@ -22,6 +22,7 @@ from jobcheck import RowContext, registry as reg
 from jobcheck import report as rep
 from jobcheck import validate
 from jobcheck import engine
+from jobcheck.rules import _MatchCriterion
 
 pytestmark = pytest.mark.long
 
@@ -117,7 +118,7 @@ def test_many_rules_resolve_within_the_ceiling(fresh_registry: None) -> None:
     rules = [
         reg.Rule(
             name=f"rule_{i}", action="disable", codes=["A_CODE"],
-            criteria=[reg.MatchCriterion("email", "@internal", re.compile("@internal"))],
+            criteria=[_MatchCriterion("email", "@internal", re.compile("@internal"))],
             match_all=False, message="why the rule exists",
         )
         for i in range(500)
