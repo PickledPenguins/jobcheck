@@ -24,6 +24,12 @@ print the same bytes; `tests/test_e2e_catalogs.py::test_no_two_cases_record_the_
 catches those whatever route they came in by, including a hand-made directory
 and a regeneration after a behavior change.
 
+A case that carries its own input files -- a rule file, a run file, a bundle and
+its members -- is made by putting those files in the case directory first and
+then running this: a directory that exists is accepted as long as it holds none
+of the files a case is made of (`cmd`, `README.md`, the expected output and the
+exit code). One that already holds any of them is a case, and is refused.
+
 Exit codes: 0 written; 1 the case already exists or duplicates another's command;
 2 usage error.
 """
@@ -82,8 +88,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     case = ROOT / "tests" / args.kind / args.path
-    if case.exists():
-        print(f"new_catalog_case: {case} already exists", file=sys.stderr)
+    made_of = [name for name in ("cmd", "README.md", *CASE_FILES) if (case / name).exists()]
+    if made_of:
+        print(f"new_catalog_case: {case} is already a case (it holds {', '.join(made_of)})",
+              file=sys.stderr)
+        return 1
+    if case.exists() and not case.is_dir():
+        print(f"new_catalog_case: {case} exists and is not a directory", file=sys.stderr)
         return 1
 
     command = " ".join(["python3", args.entry, *(shlex.quote(a) for a in arguments)])
@@ -94,7 +105,8 @@ def main(argv: list[str] | None = None) -> int:
               "this one, or extend the existing case's README instead.", file=sys.stderr)
         return 1
 
-    case.mkdir(parents=True)
+    # exist_ok: the directory may already hold the case's own input files.
+    case.mkdir(parents=True, exist_ok=True)
     (case / "cmd").write_text(command + "\n", encoding="utf-8")
     readme = [f"# {args.title}", "", args.why, ""]
     if args.level:

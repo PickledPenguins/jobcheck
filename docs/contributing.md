@@ -33,11 +33,11 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 |---|---|
 | The fast suite passes before every commit | `.git/hooks/pre-commit`, installed by `scripts/install-hooks.sh` |
 | 95% statements and branches | `./tests/run-tests.sh cov`, through `coverage report --fail-under` |
-| Every public name is exported, sorted, and documented | `tests/test_api_contract.py`, `tests/test_docs_unit.py` |
+| Every public name is exported, sorted, and documented | `tests/test_api_contract.py`, `tests/test_docs_api_unit.py` |
 | Every entry-point flag has a section in `docs/cli.md`, and every documented flag exists | `tests/test_readme.py` |
-| Every code block in `docs/` runs, and every call shown matches the real signature | `tests/test_docs_unit.py` |
+| Every code block in `docs/` runs, and every call shown matches the real signature | `tests/test_docs_blocks_unit.py`, `tests/test_docs_api_unit.py` |
 | The README runs and prints exactly what it shows | `tests/test_readme.py` |
-| The README stays an index (300 lines), every document is reachable from it, no dead link or anchor | `tests/test_docs_unit.py` |
+| The README stays an index (300 lines), every document is reachable from it, no dead link or anchor | `tests/test_docs_structure_unit.py` |
 | Every catalog case documents itself and states its level, and each level keeps its floor | `tests/test_e2e_catalogs.py` |
 | The shipped rule files load together and name real codes and columns | `tests/test_shipped_examples_unit.py` |
 | The example data is what its generator produces | `tests/test_shipped_examples_unit.py` |
@@ -56,7 +56,7 @@ reason several obvious-looking shortcuts are absent:
   into a nested structure, gets unpacked into a named value or a plain loop.
 - **Lines stay under 100 characters** in `src/`, `examples/` and `scripts/`, and a
   test enforces it there, naming the file, the line and its width. There is no
-  linter here; the check is twenty lines in `tests/test_docs_unit.py`, beside the
+  linter here; the check is twenty lines in `tests/test_docs_structure_unit.py`, beside the
   others that keep a document honest about the code. A long error message is
   wrapped as adjacent string literals rather than run out to 120. `tests/` is
   exempt: 74 of its lines are over, and they are table rows, pinned messages and
