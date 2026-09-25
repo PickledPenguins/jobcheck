@@ -12,8 +12,10 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-Four gaps are open: F.34 to F.36, which came out of the review of `src/jobcheck/` on
-2026-09-24, and F.37, found while working F.33. F.33 was closed on 2026-09-25 by
+Three gaps are open: F.35 and F.36, which came out of the review of `src/jobcheck/` on
+2026-09-24, and F.37, found while working F.33. F.34 was closed on 2026-09-25 by
+deciding against merging the two column validators; the reasons are in the section
+below. F.33 was closed on 2026-09-25 by
 making `normalize_verdict` and `MatchCriterion` private and writing the export list down
 in the contract test. F.32 was closed on 2026-09-25 by fixing the drift -- a context builder's
 required keyword-only parameter is now refused at setup, as a check's is -- and leaving
@@ -54,7 +56,7 @@ An entry there is closed, not pending.
 
 
 
-F.37 is from the 2026-09-25 audit of `__all__`; the three after it came out of the review
+F.37 is from the 2026-09-25 audit of `__all__`; the two after it came out of the review
 of `src/jobcheck/` on 2026-09-24. Each was
 sniff-tested against the code and reproduced where there was behavior to reproduce; each
 was held rather than fixed because it changes an API, adds a rejection, or needs a design
@@ -85,34 +87,6 @@ the written export list in `tests/test_api_contract.py` if any name is demoted.
 
 Recommendation: **write the five examples in `docs/reporting.md`**, one short block
 each, and demote any that cannot be written without inventing a need.
-
-**F.34 — `_reject_unknown_columns` and `_keep_columns` are one validation written
-twice.** Both (`tables.py:58` and `tables.py:77`) build `unusable` as "the sorted set of
-names that are not in the allowed list, or were asked for more than once", and both raise
-"... Each name must be asked for once and be one of: ...". The difference is the list they
-check against and the noun in the message.
-
-What it would gain: twelve lines where there are twenty, and one place to change when the
-rule changes. The two messages are pinned separately in
-`tests/test_error_messages_unit.py` and in `tests/test_tables_unit.py`, so they can drift
-without anything noticing.
-
-What it would cost: the shared function takes four arguments — requested, allowed,
-subject, and the argument name to print — where each of the two takes three, and the
-call sites get harder to read to make the definition shorter. The two also differ in what
-they return: one returns `None` and raises, the other returns the surviving list, so the
-merged version either does both (a function that validates *and* filters, which is the
-kind of double duty this package has been taking apart) or the callers keep a wrapper
-each, which is most of the lines back.
-
-Estimated ~15 source lines net, ~10 test lines, one file. Priority: low — no defect, and
-the duplication is twenty lines in the most-read module in the package. Blast radius:
-two error messages pinned in two test files.
-
-Recommendation: **leave it, and revisit if a third column argument appears.** Two copies
-of a six-line rule that each read straight through are cheaper than one four-argument
-helper plus two wrappers, and the divergence risk is covered by the pinned messages —
-a reworded one fails the suite. A third caller flips the trade.
 
 **F.35 — the setup-file format lives in the registry.** The setup-key tuple,
 `_setup_paths` and `load_setup` (`registry.py:453-514`) are about sixty lines of YAML
@@ -184,6 +158,16 @@ three commits undoing — and the split is the shape every other reader in the p
 already has.
 
 ## Considered and deliberately not done
+
+**Merging `_reject_unknown_columns` and `_keep_columns`** (F.34, decided 2026-09-25).
+Both refuse a column name that is not on offer or is asked for twice (`tables.py:57`,
+`tables.py:76`), and both say so in one sentence shape. A full merge needs five arguments
+-- requested, allowed, subject, argument name, empty-list text -- at seven call sites, and
+either validates *and* filters in one function or keeps a wrapper per caller. Extracting
+only the three-line `unusable` computation shares one edit of the three a rule change
+needs, since both messages restate the rule in words. Every shared behavior is pinned word
+for word in at least two test files, so a change to one copy alone fails the suite.
+Revisit when a third column argument appears.
 
 **Keeping `MatchCriterion` public for annotations** (F.33, decided 2026-09-25). The entry
 recommended keeping it, as a type a caller may annotate a function over `rule.criteria`
