@@ -467,6 +467,43 @@ def test_a_prerequisite_nothing_provides_still_fails_the_whole_load(
         reg.load_checks([bundle])
 
 
+def test_a_dangling_prerequisite_names_the_way_out_of_the_load_it_leaves_behind(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """F.30. The validation runs after the files are recorded, so the file holding
+    the bad depends_on is already loaded and the next call skips it -- correcting
+    the typo in it changes nothing. The message is the only thing that says so, and
+    clear_registry is the only way through."""
+
+    path = tmp_path / "check_dependent.py"
+    path.write_text(
+        "from jobcheck import OK, register_check\n"
+        "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
+        "def needs_base(row): return OK\n"
+    )
+    with pytest.raises(ValueError) as raised:
+        reg.load_checks([str(path)])
+    assert "call clear_registry() first" in str(raised.value)
+    assert reg.loaded_check_files() == [str(path.resolve())]
+
+    # The author fixes the file. It is skipped as already loaded, so the broken
+    # check is still there and the same error comes back.
+    path.write_text(
+        "from jobcheck import OK, register_check\n"
+        "@register_check('BASE', 'base')\n"
+        "def base(row): return OK\n"
+        "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
+        "def needs_base(row): return OK\n"
+    )
+    with pytest.raises(ValueError, match="depends on 'BASE', which is not registered"):
+        reg.load_checks([str(path)])
+
+    # What the message told them to do.
+    reg.clear_registry()
+    reg.load_checks([str(path)])
+    assert sorted(check.code for check in reg._CHECKS) == ["BASE", "NEEDS_BASE"]
+
+
 def test_a_member_that_raises_leaves_the_earlier_members_loaded(
     fresh_registry: None, tmp_path: Path
 ) -> None:

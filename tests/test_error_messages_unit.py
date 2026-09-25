@@ -123,7 +123,9 @@ def test_a_dangling_prerequisite_lists_the_loaded_files(fresh_registry: None) ->
     assert message_of(raised) == (
         "Check 'DEPENDENT' depends on 'ABSENT', which is not registered. "
         "Either the code is a typo, or it lives in a check file that was not loaded "
-        "(currently loaded: [])."
+        "(currently loaded: []). Loading the missing file works; correcting an "
+        "already-loaded one does not, because load_checks skips a path it has already "
+        "read -- call clear_registry() first."
     )
 
 
