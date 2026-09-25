@@ -1,0 +1,1 @@
+error: tests/failures/run-file-unknown-table/run.yaml: table 2: unknown table 'charts'. The tables are registry, rules, report, summary.

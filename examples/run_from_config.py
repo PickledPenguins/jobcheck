@@ -1,0 +1,229 @@
+"""Third demonstration entry point: one YAML file is the whole run.
+
+`examples/main.py` spreads a run across its flags and its own constants; this one
+reads every part of it -- the setup file, the data, which tables to print and
+which columns each carries -- from one file, so the run is something to commit,
+diff against last week's, or hand to somebody else. The file is the whole input:
+there are no flags, so there is no question of which one wins.
+
+The run-file format is this script's, not the library's. `src/jobcheck/` has no
+command line and one configuration format of its own (the rule file, and the
+setup file that names rule files); this shows an adopter the pattern rather than
+dictating it.
+
+    setup: setup.yaml              # a load_setup file: the checks and the rules
+    data: data/customers.csv       # read as text, as `main.py --data` reads it
+    tables:                        # printed in this order; a table may repeat
+      - table: registry
+        add_columns: [could_be_overridden_by]
+      - table: report
+        key_column: id
+
+Both paths are resolved against the run file's own directory, as `load_setup`
+resolves its own, so the run file and what it names travel together.
+"""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import io
+import os
+import sys
+from typing import Any, Callable, NoReturn
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
+
+import yaml  # noqa: E402
+
+from jobcheck import (  # noqa: E402
+    CheckOutcome,
+    Rule,
+    build_report,
+    load_setup,
+    print_registry,
+    print_report,
+    print_rules,
+    print_summary,
+    validate,
+    warn_missing_rule_columns,
+    warn_shadowed_rules,
+)
+from main import load_frame  # noqa: E402
+
+#: The run file loaded when the command line names none.
+DEFAULT_RUN = os.path.join(PROJECT_ROOT, "examples/run.yaml")
+
+#: The top-level keys of a run file. All three are required.
+RUN_KEYS = ("setup", "data", "tables")
+
+#: Every table a run can print, and the options each takes beside `table`.
+#: The options are the printing functions' own argument names, so the library's
+#: documentation of each one is the documentation of the key.
+TABLE_OPTIONS: dict[str, tuple[str, ...]] = {
+    "registry": ("add_columns", "drop_columns"),
+    "rules": ("add_columns", "drop_columns"),
+    "report": ("key_column", "add_columns", "drop_columns", "include", "format"),
+    "summary": (),
+}
+
+#: The options that hold a list of column names; every other one is a string.
+LIST_OPTIONS = ("add_columns", "drop_columns")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """One positional argument and nothing else, as `bundle_main.py` has."""
+
+    parser = argparse.ArgumentParser(
+        description="Run the whole of one validation from a run file: the setup, "
+                    "the data, and the tables to print.")
+    parser.add_argument("run_file", nargs="?", default=DEFAULT_RUN, metavar="PATH",
+                        help="the run file (default: the shipped examples/run.yaml).")
+    return parser
+
+
+def fail(run_file: str, message: str) -> NoReturn:
+    """Every problem with the run file, one line on stderr and exit 2."""
+
+    print(f"error: {run_file}: {message}", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def read_run_file(run_file: str) -> dict[str, Any]:
+    """The run file, parsed and checked for shape before anything is loaded.
+
+    Only the shape is checked here. Whether a column, an `include` level or a
+    format exists is the library's to say, and it says it when the tables are
+    built -- see `print_tables`.
+    """
+
+    try:
+        with open(run_file, encoding="utf-8") as handle:
+            document = yaml.safe_load(handle)
+    except OSError as exc:
+        fail(run_file, f"cannot read it: {exc.strerror}")
+    except yaml.YAMLError as exc:
+        # PyYAML's message runs over several lines; one keeps it one error.
+        fail(run_file, f"not valid YAML: {' '.join(str(exc).split())}")
+
+    if not isinstance(document, dict):
+        fail(run_file, f"a run file is a mapping of {', '.join(RUN_KEYS)}, "
+                       f"got {type(document).__name__}.")
+    unknown = sorted(set(document) - set(RUN_KEYS))
+    if unknown:
+        fail(run_file, f"unknown key(s) {unknown}. A run file holds {', '.join(RUN_KEYS)}.")
+    for key in RUN_KEYS:
+        if key not in document:
+            fail(run_file, f"{key!r} is required.")
+    for key in ("setup", "data"):
+        if not isinstance(document[key], str):
+            fail(run_file, f"{key!r} must be a path, got {type(document[key]).__name__}.")
+
+    tables = document["tables"]
+    if not isinstance(tables, list) or not tables:
+        fail(run_file, "'tables' must be a non-empty list: a run prints at least one.")
+    for position, spec in enumerate(tables, 1):
+        check_table(run_file, position, spec)
+    return document
+
+
+def check_table(run_file: str, position: int, spec: Any) -> None:
+    """One entry of `tables`: a known table, and only the options it takes."""
+
+    where = f"table {position}"
+    if not isinstance(spec, dict) or "table" not in spec:
+        fail(run_file, f"{where} must be a mapping with a 'table' key naming one of "
+                       f"{', '.join(TABLE_OPTIONS)}.")
+    name = spec["table"]
+    if name not in TABLE_OPTIONS:
+        fail(run_file, f"{where}: unknown table {name!r}. "
+                       f"The tables are {', '.join(TABLE_OPTIONS)}.")
+    allowed = TABLE_OPTIONS[name]
+    unknown = sorted(set(spec) - {"table", *allowed})
+    if unknown:
+        takes = ", ".join(allowed) if allowed else "no options"
+        fail(run_file, f"{where} ({name}): unknown option(s) {unknown}. It takes {takes}.")
+    for option, value in spec.items():
+        if option == "table":
+            continue
+        # A bare string where a list belongs is the shape somebody writes first,
+        # and a string is iterable: it would ask for one column per character.
+        if option in LIST_OPTIONS:
+            if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+                fail(run_file, f"{where} ({name}): {option!r} must be a list of column "
+                               f"names. Write it as a list even for one column.")
+        elif not isinstance(value, str):
+            fail(run_file, f"{where} ({name}): {option!r} must be a string, "
+                           f"got {type(value).__name__}.")
+
+
+def print_tables(tables: list[dict[str, Any]], rules: list[Rule], df: Any,
+                 outcomes: list[list[CheckOutcome]]) -> None:
+    """Print each table the run file names, in its order, a blank line between."""
+
+    printers: dict[str, Callable[[dict[str, Any]], object]] = {
+        # Given the rules so `could_be_overridden_by` and `effective_state` can be
+        # asked for; without either the argument prints the same table.
+        "registry": lambda options: print_registry(rules=rules, **options),
+        "rules": lambda options: print_rules_and_warnings(rules, options),
+        "report": lambda options: print_one_report(df, outcomes, options),
+        "summary": lambda options: print_summary(outcomes),
+    }
+    for position, spec in enumerate(tables, 1):
+        if position > 1:
+            print()
+        options = {key: value for key, value in spec.items() if key != "table"}
+        try:
+            printers[spec["table"]](options)
+        except ValueError as exc:
+            raise ValueError(f"table {position} ({spec['table']}): {exc}") from None
+
+
+def print_rules_and_warnings(rules: list[Rule], options: dict[str, Any]) -> None:
+    """The rules table, then any rule a later one overrules on every row -- the
+    same pairing `main.py --rules-table` prints."""
+
+    print_rules(rules, **options)
+    for warning in warn_shadowed_rules(rules):
+        print(f"warning: {warning}")
+
+
+def print_one_report(df: Any, outcomes: list[list[CheckOutcome]],
+                     options: dict[str, Any]) -> None:
+    """Build and print one report. `format` is the run file's name for `fmt`, and
+    `key_column` goes to both calls: the second only uses it for the heading."""
+
+    fmt = options.pop("format", "table")
+    report = build_report(outcomes, df=df, **options)
+    print_report(report, fmt=fmt, key_column=options.get("key_column"))
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Read the run file, load what it names, validate, and print its tables."""
+
+    run_file = build_parser().parse_args(argv).run_file
+    document = read_run_file(run_file)
+    here = os.path.dirname(os.path.abspath(run_file))
+
+    rules = load_setup(os.path.join(here, document["setup"]))
+    df = load_frame(os.path.join(here, document["data"]))
+    for warning in warn_missing_rule_columns(df, rules):
+        print(f"warning: {warning}", file=sys.stderr)
+    outcomes = validate(df, rules=rules)
+
+    # Printed into a buffer first, so a table whose options the library refuses
+    # -- a column that does not exist, an unknown format -- fails the run before
+    # any of it reaches stdout, rather than after the tables above it.
+    buffer = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buffer):
+            print_tables(document["tables"], rules, df, outcomes)
+    except ValueError as exc:
+        fail(run_file, str(exc))
+    sys.stdout.write(buffer.getvalue())
+
+
+if __name__ == "__main__":
+    main()

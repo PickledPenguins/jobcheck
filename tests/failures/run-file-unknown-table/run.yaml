@@ -1,0 +1,6 @@
+# A run file naming a table there is no printer for.
+setup: ../../../examples/setup.yaml
+data: ../../../examples/data/customers.csv
+tables:
+  - table: summary
+  - table: charts

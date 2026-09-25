@@ -1,0 +1,28 @@
+# A run file: the whole of one run, in one file.
+#
+#   python3 examples/run_from_config.py examples/run.yaml
+#
+# Every path is resolved against this file's own directory, so the file and what
+# it names travel together. The format is examples/run_from_config.py's, not the
+# library's: see docs/cli.md.
+
+# A load_setup file: the check files and the rule files, shared between runs.
+setup: setup.yaml
+
+# Read as text, as `main.py --data` reads it.
+data: data/customers.csv
+
+# Printed in this order. A table may appear twice with different columns.
+tables:
+  - table: rules
+
+  - table: registry
+    add_columns: [could_be_overridden_by]
+
+  # The report a person reads: the name beside the row, and no evidence column.
+  - table: report
+    key_column: id
+    add_columns: [name]
+    drop_columns: [comments, detail]
+
+  - table: summary

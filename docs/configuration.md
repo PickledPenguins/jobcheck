@@ -233,6 +233,10 @@ that wanted them and drift apart. `examples/setup.yaml` is the shipped example.
 bundle calls `load_checks` from inside a check file, and a caller that computed its paths
 itself -- jobchain reads them from its own run configuration -- has no file to write.
 
+A setup file configures the library; it does not say what data to read or what to print.
+`examples/run_from_config.py` shows one way to put those beside it: a run file naming a
+setup file, the data and the tables; [cli.md](cli.md) describes it.
+
 Every refusal names the file: a document that is not a mapping (a flat list is the *rule*
 file's shape, and the mistake somebody makes having written one first), an unknown key, a
 string where a list belongs (`checks: one.py` is a string, and a string is a list of

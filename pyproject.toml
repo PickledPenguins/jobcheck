@@ -43,7 +43,7 @@ testpaths = ["tests"]
 # is the file every other test module imports names from: a bootstrap that runs
 # before its own imports forces them below it, and every one of them then needs
 # a `noqa: E402`. The order is the order they are prepended in; the scripts under
-# scripts/ and the two entry points under examples/ keep their own inserts,
+# scripts/ and the three entry points under examples/ keep their own inserts,
 # because they run without pytest.
 pythonpath = [".", "examples", "src"]
 # -p no:benchmark: pytest-benchmark is not used here, and merely loading it
@@ -64,7 +64,8 @@ markers = [
 [tool.coverage.run]
 # The library, and the example checks the tests drive: both are code this
 # repository is responsible for, and a broken example should show as a gap.
-source = ["jobcheck", "main", "bundle_main", "perf_baseline", "examples/checks"]
+source = ["jobcheck", "main", "bundle_main", "run_from_config", "perf_baseline",
+          "examples/checks"]
 branch = true
 data_file = ".build/coverage"
 

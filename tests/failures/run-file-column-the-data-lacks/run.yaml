@@ -1,0 +1,8 @@
+# A report asking for a column the data does not have.
+setup: ../../../examples/setup.yaml
+data: ../../../examples/data/customers.csv
+tables:
+  - table: registry
+  - table: report
+    key_column: id
+    add_columns: [phone]
