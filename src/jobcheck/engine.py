@@ -38,44 +38,7 @@ ContextBuilder = Callable[..., RowContext | None]
 # one allocation a row.
 _EMPTY_CONTEXT = RowContext()
 
-# Why the two guards below exist, in one place so they cannot drift apart. The
-# row loop walks the cached evaluation order and looks every check up in the
-# enabled-by-code map built from the registry this call, so the two must hold the
-# same checks in a dependency-respecting order. Every route that changes the
-# registry drops the cache, so they agree -- unless a caller edits _CHECKS or the
-# cache itself, which is reachable because _CHECKS is exported and mutable.
-_STALE_ORDER_CAUSE = (
-    "The cached evaluation order and the registry disagree. That happens when _CHECKS "
-    "or the cached order is edited directly instead of through load_checks(), "
-    "register_check() or clear_registry()."
-)
 
-
-def _order_names_an_unregistered_check(code: str, registered: int) -> ValueError:
-    """The order holds a check the registry does not.
-
-    Without this the check runs under its declared default and the report says
-    `disabled by default` -- a line a reader believes, about a check that is no
-    longer registered.
-    """
-
-    return ValueError(
-        f"The evaluation order names check {code!r}, which is not among the "
-        f"{registered} registered check(s). {_STALE_ORDER_CAUSE}"
-    )
-
-
-def _prerequisite_has_not_run(code: str, prerequisite: str) -> ValueError:
-    """A check reached before one it depends on.
-
-    Without this the prerequisite counts as not passed and the report says
-    `skipped -- prerequisite did not pass`, about a check that was never run.
-    """
-
-    return ValueError(
-        f"Check {code!r} was reached before its prerequisite {prerequisite!r}, "
-        f"which has not run. {_STALE_ORDER_CAUSE}"
-    )
 
 
 def _resolve_enabled_state(
@@ -148,13 +111,7 @@ def explain_row(
     outcomes: list[CheckOutcome] = []
 
     for check in _get_topo_order():
-        # try/except rather than `in`: a membership test would run once per check
-        # per row, and this loop is most of the cost of a frame.
-        try:
-            enabled, reason = enabled_by_code[check.code]
-        except KeyError:
-            raise _order_names_an_unregistered_check(
-                check.code, len(enabled_by_code)) from None
+        enabled, reason = enabled_by_code[check.code]
         if not enabled:
             passed[check.code] = False
             disabled.add(check.code)
@@ -164,10 +121,7 @@ def explain_row(
             )
             continue
 
-        try:
-            blocking = [code for code in check.depends_on if not passed[code]]
-        except KeyError as exc:
-            raise _prerequisite_has_not_run(check.code, str(exc.args[0])) from None
+        blocking = [code for code in check.depends_on if not passed[code]]
         if blocking:
             passed[check.code] = False
             # Naming *why* the prerequisite did not pass saves the reader a

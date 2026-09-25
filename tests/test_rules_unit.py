@@ -89,6 +89,20 @@ def test_an_unknown_key_is_rejected_rather_than_silently_ignored(
     assert "unknown key(s) bogus_key, zzz." in str(excinfo.value)
 
 
+def test_a_key_yaml_reads_as_a_bool_is_named_rather_than_crashing(
+    one_code: None, tmp_path: Path
+) -> None:
+    """YAML 1.1 reads `on:` as True and `2:` as an int; neither can be joined
+    into the message as it stood, which raised a bare TypeError instead."""
+
+    path = write(tmp_path, "r.yaml", GLOBAL_DISABLE + "  on: 1\n  2: x\n")
+    with pytest.raises(ValueError) as excinfo:
+        reg.load_rules([path])
+    assert str(excinfo.value) == (
+        f"rule 'kill_it' in {path}: unknown key(s) 2, True. "
+        "Allowed: action, codes, match, message, name.")
+
+
 def test_every_documented_key_is_accepted(one_code: None, tmp_path: Path) -> None:
     path = write(
         tmp_path, "r.yaml",

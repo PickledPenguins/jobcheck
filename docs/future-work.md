@@ -122,7 +122,7 @@ Three reasons. **It would make one dangling prerequisite discard every file of t
 where a file that raises during import discards only its own (`registry.py:331`) -- two
 rollback granularities for two failure kinds, in a package whose loading rule is stated as
 "per file, not per call, at every depth". **Or it would leave the recorded list and the
-registry disagreeing**, which is exactly the state F.24's guards exist to catch. **And
+registry disagreeing**, which is exactly the state F.24's guards existed to catch. **And
 `loaded_check_files()` would stop being a record of what was read**: today it lists the
 files that imported successfully after a failed load, which is the honest answer to "what
 did you read", and a caller logging it would start seeing an empty list for a load that
@@ -151,8 +151,10 @@ The two fixes on record were both worse. A **tuple** would make `clear_registry`
 and `registry_tables.py` would never see -- and any external `from jobcheck import CHECKS`
 would silently keep the old list. A **copy-returning `checks` function** would be a new
 export needing its own use case when `get_registry_table` is already it. Private costs
-neither, and the F.24 guards mean a caller who reaches in anyway gets a `ValueError` from the
-row loop rather than a plausible wrong report.
+neither. A caller who reaches in anyway gets a bare `KeyError` from the row loop rather than
+a plausible wrong report; the F.24 guards that turned it into a worded `ValueError` were
+removed on 2026-09-25 (review of `src/`): about 40 lines, two of them in the hot loop, spent
+on misuse of a private name, and they missed `_CHECKS.sort()` regardless.
 
 What went with it: a caller wanting the `Check` objects themselves rather than the table --
 the runner function, and `source_file` except as an optional column. Nothing here or in

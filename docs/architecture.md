@@ -156,7 +156,10 @@ after its first import, so clearing the list alone would make the next `load_che
 silent no-op. Two routes record a module for eviction, and both are needed: registration,
 so a module pulled in by any route — a check file importing a shared one directly, for
 instance — is tracked, and a completed `load_checks` import, so a file that registered
-nothing of its own, such as a bundle, is tracked too. The price is that *whatever* module a check registers from is evicted, a test
+nothing of its own, such as a bundle, is tracked too. The one exception is `__main__`:
+a check defined in the running script is not evicted, since that would break pickling,
+spawned workers and `import __main__` for the rest of the process. The price is that
+*whatever* other module a check registers from is evicted, a test
 module included, and `sys.modules[name]` is then `None`: a dataclass whose annotations
 have to be resolved (`ClassVar`, `InitVar`, `get_type_hints`) raises `AttributeError:
 'NoneType' object has no attribute '__dict__'` from `dataclasses` afterwards. Define such

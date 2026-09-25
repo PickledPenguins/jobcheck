@@ -209,7 +209,9 @@ def register_check(
             where=f"{module}.{_name_of(fn)}" if module else _name_of(fn),
         )
 
-        if module:
+        # Never the running script: evicting __main__ breaks pickling, spawned
+        # workers and `import __main__` for the rest of the process.
+        if module and module != "__main__":
             _LOADED_MODULES.add(module)
         check = Check(
             code=code,
@@ -529,7 +531,8 @@ def load_setup(path: str) -> list[Rule]:
             f"{setup_file}: a setup file is a mapping of "
             f"{' and '.join(repr(key) for key in SETUP_KEYS)}, "
             f"got {type(document).__name__}.")
-    unknown = sorted(set(document) - set(SETUP_KEYS))
+    # str(): YAML reads `on:` or `1:` as a bool or an int, which cannot sort beside text.
+    unknown = sorted(str(key) for key in set(document) - set(SETUP_KEYS))
     if unknown:
         raise ValueError(
             f"{setup_file}: unknown key(s) {unknown}. A setup file holds "

@@ -137,6 +137,23 @@ def test_clear_registry_empties_the_checks_and_the_loaded_files(example_checks: 
     assert reg.loaded_check_files() == []
 
 
+def test_clear_registry_leaves_the_running_script_in_sys_modules(fresh_registry: None) -> None:
+    """A check defined in the script itself belongs to `__main__`; evicting that
+    breaks pickling and spawned workers for the rest of the process."""
+
+    def check(row: Any) -> Verdict:
+        return OK
+
+    check.__module__ = "__main__"
+    main = sys.modules["__main__"]
+    try:
+        reg.register_check("IN_MAIN", "defined in the script")(check)
+        reg.clear_registry()
+        assert sys.modules.get("__main__") is main
+    finally:
+        sys.modules["__main__"] = main
+
+
 def test_clear_registry_then_load_checks_re_registers(fresh_registry: None) -> None:
     """Regression: clearing left the modules in sys.modules, so the re-import was a
     no-op and the registry stayed silently empty."""

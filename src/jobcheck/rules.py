@@ -116,7 +116,8 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
     if not isinstance(name, str) or not name:
         raise ValueError(f"{source_file}: every rule needs a non-empty string 'name'.")
 
-    unknown = sorted(set(raw) - RULE_KEYS)
+    # str(): YAML reads `on:` or `1:` as a bool or an int, which cannot be joined.
+    unknown = sorted(str(key) for key in set(raw) - RULE_KEYS)
     if unknown:
         raise ValueError(
             f"rule {name!r} in {source_file}: unknown key(s) {', '.join(unknown)}. "
