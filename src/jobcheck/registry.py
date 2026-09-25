@@ -2,7 +2,8 @@
 
 Everything about the *set* of checks -- registration, file loading, dependency
 validation, ordering and layers -- and nothing about running them, which is
-`engine.py`.
+`engine.py`. `load_setup` and its two-key schema live here too, because the setup
+file composes `load_checks` and `load_rules` and this is the module that has both.
 """
 
 from __future__ import annotations

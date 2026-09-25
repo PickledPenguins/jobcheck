@@ -12,8 +12,9 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-Three gaps are open: F.35 and F.36, which came out of the review of `src/jobcheck/` on
-2026-09-24, and F.37, found while working F.33. F.34 was closed on 2026-09-25 by
+Two gaps are open: F.36, which came out of the review of `src/jobcheck/` on 2026-09-24,
+and F.37, found while working F.33. F.35 was closed on 2026-09-25 by leaving the setup
+schema in the registry, since F.29 did not grow it. F.34 was closed on 2026-09-25 by
 deciding against merging the two column validators; the reasons are in the section
 below. F.33 was closed on 2026-09-25 by
 making `normalize_verdict` and `MatchCriterion` private and writing the export list down
@@ -56,7 +57,7 @@ An entry there is closed, not pending.
 
 
 
-F.37 is from the 2026-09-25 audit of `__all__`; the two after it came out of the review
+F.37 is from the 2026-09-25 audit of `__all__`; the one after it came out of the review
 of `src/jobcheck/` on 2026-09-24. Each was
 sniff-tested against the code and reproduced where there was behavior to reproduce; each
 was held rather than fixed because it changes an API, adds a rejection, or needs a design
@@ -87,43 +88,6 @@ the written export list in `tests/test_api_contract.py` if any name is demoted.
 
 Recommendation: **write the five examples in `docs/reporting.md`**, one short block
 each, and demote any that cannot be written without inventing a need.
-
-**F.35 — the setup-file format lives in the registry.** The setup-key tuple,
-`_setup_paths` and `load_setup` (`registry.py:453-514`) are about sixty lines of YAML
-schema validation — the
-same job `rules.py` does for its own file — inside a module whose docstring says it holds
-"everything about the *set* of checks: registration, file loading, dependency validation,
-ordering and layers". The stated reason for putting it here (`registry.py:505`) is that it
-composes both loaders, which explains why it cannot live in `rules.py`, not why the
-*parsing* has to live here.
-
-What it would gain: `registry.py` back to one subject, and the setup schema beside the
-rule schema where a reader looking for "what file formats does this library read" finds
-both. `registry.py` is the 262-executable-line module a newcomer meets first, and this is
-the largest single thing in it that is not about checks.
-
-What it would cost: a fourth small module in a ten-module package, and a split seam
-between `load_setup` (which must stay in `registry.py`, since it calls both loaders) and
-the schema it reads, so the function and its rejections live in different files — which is
-the arrangement `paths.py` already has and which is defensible, but it is one more hop for
-the reader the split is meant to help. The pinned messages move test files with it. And
-the split is worth least right now: F.29's other half would add the data and output keys
-to this same schema, so doing it before that lands means touching the new module
-immediately.
-
-Estimated ~80 lines moved, no net change, three files plus a test file. Priority: low — no
-defect, and the module is coherent enough that nobody has been lost in it. Blast radius:
-`docs/architecture.md`'s module table, the import in `__init__.py`, and four pinned
-messages.
-
-Recommendation, as first written: **wait for F.29.** If the setup file grows the data and
-output keys, the schema is large enough to be its own module and the move pays for itself;
-if F.29 lands somewhere else, sixty lines is not worth a file.
-
-F.29 landed somewhere else (2026-09-25): the data and table keys live in
-`examples/run_from_config.py`'s own run-file format, and the setup schema did not grow. By
-the rule above, the recommendation is now **leave it where it is** -- which would close
-this entry, and is the owner's call.
 
 **F.36 — `list_rule_codes` is the one reader that prints.** Every other function in
 `registry_tables.py` is either `get_*` (builds and returns) or `print_*` (prints and
@@ -158,6 +122,16 @@ three commits undoing — and the split is the shape every other reader in the p
 already has.
 
 ## Considered and deliberately not done
+
+**Moving the setup-file schema out of `registry.py`** (F.35, decided 2026-09-25).
+The setup-key tuple, `_setup_paths` and `load_setup` are about sixty lines of YAML schema
+validation in the module about the set of checks. `load_setup` has to stay, since it calls
+both loaders, so a move splits the function from its rejections; into `rules.py` it blurs
+a module guarded as "a file about a file format", and as its own module it is forty lines
+in a package already accumulating small ones. The move was deferred until F.29 settled
+whether the schema would grow; F.29 landed in `examples/run_from_config.py` with a format
+of its own, and the setup file is still two keys. The registry docstring now says why
+`load_setup` lives there. Revisit if the setup file gains a key.
 
 **Merging `_reject_unknown_columns` and `_keep_columns`** (F.34, decided 2026-09-25).
 Both refuse a column name that is not on offer or is asked for twice (`tables.py:57`,
