@@ -382,7 +382,9 @@ rather than ignored when the name is not on offer.
   The frame without the output, as every other table here offers.
 - `print_rules(rules, add_columns=None, title=True, drop_columns=None)` — prints it.
 
-`format_table(table, wrap_columns=None)` renders any frame as bordered text. A cell
+`format_table(table, wrap_columns=None)` renders any frame as bordered text, reading
+cells by position: a duplicated column label renders each column's own values, and an
+all-numeric frame keeps its integers as integers rather than `1.0`. A cell
 holding line breaks (`\n`, `\r\n` or `\r`) renders as a tall cell rather than breaking
 the row, wrapped column or not, and tabs are expanded — a quoted multi-line CSV field
 reaching the row key or an `add_columns` value is the usual way one arrives. A

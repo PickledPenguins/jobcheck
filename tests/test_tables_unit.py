@@ -611,3 +611,30 @@ def test_the_rules_table_drops_and_adds_columns(fresh_registry: None, tmp_path: 
         reg.load_rules([str(path)]), add_columns=["source_file"],
         drop_columns=["match", "message"])
     assert list(table.columns) == ["name", "action", "codes_hit_count", "source_file"]
+
+
+def test_a_duplicated_column_label_renders_each_column_s_own_value() -> None:
+    """Regression: cells were read by label, so a duplicated label handed back a
+    Series and every cell printed its repr -- `a 1 / a 2 / Name: 0, dtype: int64`."""
+
+    frame = pd.DataFrame([[1, 2], [3, 4]], columns=["a", "a"])
+    assert tables.format_table(frame).splitlines() == [
+        "a | a",
+        "--+--",
+        "1 | 2",
+        "3 | 4",
+    ]
+
+
+def test_a_duplicated_label_in_wrap_columns_wraps_both_columns() -> None:
+    frame = pd.DataFrame([["one two", "three four"]], columns=["a", "a"])
+    lines = tables.format_table(frame, wrap_columns={"a": 5}).splitlines()
+    assert lines[2:] == ["one | three", "two | four "]
+
+
+def test_integers_stay_integers_in_an_all_numeric_frame() -> None:
+    """Regression: rows came from iterrows, which upcasts a whole row to float
+    when every column is numeric, so the integer column printed `1.0`."""
+
+    frame = pd.DataFrame({"n": [1, 2], "x": [2.5, 3.0]})
+    assert tables.format_table(frame).splitlines()[2:] == ["1 | 2.5", "2 | 3.0"]

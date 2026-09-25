@@ -12,8 +12,9 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-Six gaps are open: F.31 to F.36, which came out of the review of `src/jobcheck/` on
-2026-09-24. F.29 was closed on 2026-09-25 by building the run file as a third
+Five gaps are open: F.32 to F.36, which came out of the review of `src/jobcheck/` on
+2026-09-24. F.31 was closed on 2026-09-25 by rendering `format_table` by position, which
+also stopped an all-numeric frame printing its integers as floats. F.29 was closed on 2026-09-25 by building the run file as a third
 demonstration entry point, `examples/run_from_config.py`, rather than in `main.py` or the
 library; the placements it declined are in the section below. F.30 was closed on
 2026-09-24 by naming the way out in the message rather than reordering the load; the half
@@ -48,49 +49,11 @@ An entry there is closed, not pending.
 
 
 
-The six items below came out of the review of `src/jobcheck/` on 2026-09-24. Each was
+The five items below came out of the review of `src/jobcheck/` on 2026-09-24. Each was
 sniff-tested against the code and reproduced where there was behavior to reproduce; each
 was held rather than fixed because it changes an API, adds a rejection, or needs a design
 call the owner has not made. That review's seven silent fixes are in the git log, and so
 is F.30's.
-
-**F.31 — `format_table` renders a duplicate-labeled frame as garbage.** `row[column]` in
-the wrapping pass (`tables.py:169`) returns a *Series* when the label is duplicated, and
-`_cell_lines` calls `str()` on it: a one-row two-column frame whose columns are both
-called `a` renders as three lines of `a 1 / a 2 / Name: 0, dtype: int64` in every cell.
-Reproduced 2026-09-24. `explain_row` (`engine.py:134`), `_row_labels` (`report.py:80`) and
-`build_report` (`report.py:146`) each detect duplicate labels and raise something a reader
-can act on; this one, which is exported and is the function an adopter reaches for to
-render a frame of their own, does not.
-
-What it would gain: the same answer from the one public renderer that every other entry
-point already gives, instead of output that looks like a rendering bug in this library.
-
-What it would cost: it is a **new rejection of input the function accepts today**. A
-caller rendering a frame they built themselves — a pivot, a concat, a `groupby` result
-with a repeated label — gets an exception where they used to get a table, and the table
-they used to get was readable in the one case that matters: when the duplicated columns
-hold the same value, `str(Series)` is ugly but not wrong, and somebody may well be
-printing one to a log and never looking closely. The library has no deprecation path and
-no shim policy, so the change lands at once. There is also a second shape to pick from:
-rendering positionally with `table.iloc[:, index]` instead of by label would make every
-duplicate-labeled frame render correctly rather than refusing it, which is a *larger*
-behavior change but one nobody has to react to. Choosing between "refuse it" and "render
-it properly" is the design call.
-
-Estimated 6 source lines and ~30 test lines for the guard, or ~10 source and ~40 test
-lines for positional rendering, plus a pinned message for the first. Priority: medium —
-wrong output rather than a crash, on an input the library's own paths never produce.
-Blast radius: `format_table` is called by `print_report`, `print_registry`, `print_rules`,
-`print_summary` and `print_row_explanation`, none of which can hand it a duplicate label,
-so the blast radius is external callers only.
-
-Recommendation: **render positionally**, and raise nothing. The guard buys consistency
-with three functions that have a reason to refuse — they are about to hand a cell to a
-check, or to use it as a row key — whereas this one only has to draw what it was given,
-and drawing it correctly is both fewer lines than the guard plus its pinned message and
-nobody's migration. Take the guard instead only if the owner wants one rule about
-duplicate labels across the whole package.
 
 **F.32 — the arity rule is implemented twice.** `_make_runner` (`registry.py:118`) and
 `_context_caller` (`engine.py:250`) both take a callable, list its parameters, count the
@@ -274,6 +237,14 @@ three commits undoing — and the split is the shape every other reader in the p
 already has.
 
 ## Considered and deliberately not done
+
+**Refusing a duplicate-labeled frame in `format_table`** (F.31, decided 2026-09-25).
+`explain_row`, `_row_labels` and `build_report` refuse duplicate column labels, because
+they hand a cell to a check or use it as a row key and a Series there is wrong. The
+renderer only has to draw what it is given, so it now reads cells by position and draws a
+duplicated label correctly instead of raising. What that gives up: one package-wide rule
+about duplicate labels, and a signal to a caller whose `concat` duplicated a column by
+mistake. A guard would have rejected input that renders, with no migration path.
 
 **The run file in `main.py`, in the library, or as jobchain's format** (F.29, decided
 2026-09-25). One YAML file naming the setup, the data and the tables to print was built as

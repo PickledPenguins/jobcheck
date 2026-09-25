@@ -164,9 +164,13 @@ def format_table(table: pd.DataFrame, wrap_columns: dict[str, int] | None = None
 
     # First pass: wrap every cell. rows[r][c] is the list of lines that column c
     # occupies in row r -- one line for most cells, several for a wrapped one.
+    # Read by position, not label: a duplicated label would hand back a Series
+    # and print its repr in every cell. And not through iterrows, which upcasts a
+    # whole row to float when every column is numeric, printing `1` as `1.0`.
     rows: list[list[list[str]]] = []
-    for _, row in table.iterrows():
-        rows.append([_cell_lines(row[column], wrap.get(str(column))) for column in table.columns])
+    for values in table.itertuples(index=False, name=None):
+        rows.append([_cell_lines(value, wrap.get(header))
+                     for value, header in zip(values, headers)])
 
     # A column is as wide as its heading, or as its widest wrapped line.
     widths = []
