@@ -34,7 +34,6 @@ from .engine import (
 from .registry_tables import (
     get_rules_table,
     get_registry_table,
-    list_rule_codes,
     print_rules,
     print_registry,
 )
@@ -89,7 +88,6 @@ __all__ = [
     "get_registry_table",
     "get_rules_table",
     "is_null",
-    "list_rule_codes",
     "load_checks",
     "load_rules",
     "load_setup",

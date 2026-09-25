@@ -109,7 +109,7 @@ Optional, off by default. Before the registry table, print one row per loaded ru
 registry table is one row per *code*, so a rule touching eight codes is eight lines there
 and one line here — this is the view that answers "what did this rule file actually say".
 `codes_hit_count` is a count rather than the codes themselves, so a broad rule does not
-widen the table; `jobcheck.list_rule_codes` gives the detail.
+widen the table; `print_rules(rules, add_columns=["codes"])` gives the detail.
 
 Under the table, one `warning:` line per rule a later `match: all` rule overrules for
 every row -- a rule that can never apply, which nothing else reports. The shipped rule
