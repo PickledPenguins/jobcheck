@@ -162,10 +162,9 @@ Two things are worth knowing before you build one:
 - **Prerequisites may point anywhere in the whole load.** The dependency graph is
   validated as the outermost call returns, so a check in a bundle may depend on a
   code from another bundle, or from a file the caller names *after* it.
-- **A failure is per file, at every depth.** If one member raises, the members
-  before it stay loaded with their checks, the failing member leaves nothing, and
-  the bundle itself is not recorded as loaded — fix the member and load the bundle
-  again.
+- **A failure ends the load.** If one member raises, the error reaches your script
+  unchanged and nothing is rolled back. Fix the member and run the script again; a
+  process that loads again without restarting calls `clear_registry()` first.
 
 Importing the members instead of loading them works too, and costs you the
 guarantees above:

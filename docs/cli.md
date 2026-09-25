@@ -166,7 +166,7 @@ Prints usage and exits 0.
 
 The loaded list is the point: the members appear before the bundle that pulled them in,
 because each is a loaded file in its own right. See
-[writing-checks.md](writing-checks.md) for what a bundle is and when a failure drops what.
+[writing-checks.md](writing-checks.md) for what a bundle is and what a failure leaves.
 
 ## `examples/run_from_config.py`
 

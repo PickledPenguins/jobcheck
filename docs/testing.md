@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 799 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 797 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 260 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1059 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1057 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -59,7 +59,7 @@ Fast:
 | File | Covers |
 |---|---|
 | `tests/test_registry_unit.py` | Registration and its duplicate guard, `clear_registry`, dependency validation, cycle detection, topological order and its cache. |
-| `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads skipped, unique module names, prerequisites across files in one call, what a broken file leaves behind, and that no `__pycache__` appears beside the caller's file. Bundles -- a check file that loads check files -- have a section of their own: deferred validation, whose checks a failure drops, and the guard that stops a bundle naming itself from recursing. |
+| `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads skipped, unique module names, prerequisites across files in one call, that a broken file's error propagates and `clear_registry` recovers, and that no `__pycache__` appears beside the caller's file. Bundles -- a check file that loads check files -- have a section of their own: deferred validation, a failing member's error reaching the caller, and the guard that stops a bundle naming itself from recursing. |
 | `tests/test_validate_unit.py` | The whole-frame entry point: one list of outcomes per row **in its own position**, the checks that did not run kept, rules and the context builder passed through, and both `on_error` modes. |
 | `tests/test_rules_unit.py` | Every rule-file rejection (19 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
 | `tests/test_results_unit.py` | The fixed status vocabulary, `Verdict` truthiness and validation, and normalizing whatever a check returned. |

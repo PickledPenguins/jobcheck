@@ -26,6 +26,26 @@ registry).
 
 ## Considered and deliberately not done
 
+**Building rules in Python** (raised by the `src/` review of 2026-09-25, declined by the
+owner the same day). `Rule` is exported, but a hand-built one needs the private
+`_MatchCriterion` and a precompiled regex, and is not validated -- six test modules import
+the private class to build rules. The proposal was a `Rule` that takes the YAML's own
+`match` shape and validates itself, so `validate(df, rules=[Rule(...)])` works without a
+file. Declined: rules are configured in YAML files and nowhere else. `Rule` stays a type the
+loader returns rather than one callers construct.
+
+**Rolling a failed load back, per file or per call** (raised by the `src/` review of
+2026-09-25; the per-file rollback removed the same day). `load_checks` used to drop the
+checks a failing file had registered, tracking each in-progress file's checks on a stack
+so a failing bundle kept its completed members'. The review proposed making the whole call
+atomic instead, which would also have closed the F.30 trap. Both were answered by the use:
+a load failure ends the script, and the author reruns it. The one caller that loads twice
+in a process, jobchain, calls `clear_registry()` before every load, so it never saw the
+rollback either -- only the test suite did. The rollback, its `except BaseException`
+block and the per-file check lists went; the error still propagates unchanged. What was
+lost: a caller that catches the error and loads the corrected file in the same process now
+gets "Duplicate check code" unless it calls `clear_registry()` first.
+
 **Documenting an exported name in prose instead of showing it in use** (F.37, decided
 2026-09-25). F.37 was raised against five names no document mentioned. The owner's rule
 asks for an *example*, so the bar was raised to a runnable use -- `examples/`, an executed
@@ -119,7 +139,7 @@ built is the sentence saying so, in the error itself; what was declined is movin
 `_LOADED_FILES.append` below `validate_registry()`.
 
 Three reasons. **It would make one dangling prerequisite discard every file of the call**,
-where a file that raises during import discards only its own (`registry.py:331`) -- two
+where a file that raised during import then discarded only its own -- two
 rollback granularities for two failure kinds, in a package whose loading rule is stated as
 "per file, not per call, at every depth". **Or it would leave the recorded list and the
 registry disagreeing**, which is exactly the state F.24's guards existed to catch. **And
