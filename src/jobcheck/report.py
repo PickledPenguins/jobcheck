@@ -87,8 +87,10 @@ def _row_labels(df: pd.DataFrame, key_column: str | None) -> list[str]:
     return [_format_cell(value, missing="<no key>") for value in df[key_column]]
 
 
-def _added_values(df: pd.DataFrame, add_columns: list[str], rows: int) -> list[dict[str, str]]:
-    """One dict per row, holding the added columns' values rendered as text.
+def _added_values(df: pd.DataFrame, labels: list[Any], add_columns: list[str],
+                  rows: int) -> list[dict[str, str]]:
+    """One dict per row, holding the added columns' values rendered as text,
+    keyed by the names in *add_columns* and read from the frame's *labels*.
 
     Empty dicts when nothing was asked for, so the caller can merge the dict into
     every report line either way rather than branching per line.
@@ -98,7 +100,7 @@ def _added_values(df: pd.DataFrame, add_columns: list[str], rows: int) -> list[d
         return [{} for _ in range(rows)]
 
     values = []
-    for row in df[add_columns].itertuples(index=False, name=None):
+    for row in df[labels].itertuples(index=False, name=None):
         values.append({column: _format_cell(value)
                        for column, value in zip(add_columns, row)})
     return values
@@ -138,16 +140,18 @@ def build_report(
     add_columns = list(add_columns or [])
     kept = _keep_columns(list(REPORT_COLUMNS), drop_columns, "the report")
 
-    # A column is on offer when the frame holds it exactly once -- a duplicated
-    # label would hand back a table rather than a column -- and when its name
-    # would not collide with one the report writes itself.
-    labels = list(df.columns)
-    available = [str(column) for column in labels
-                 if labels.count(column) == 1 and column not in REPORT_COLUMNS]
-    _reject_unknown_columns(add_columns, available, "the report")
+    # A column is on offer when its name appears exactly once -- a duplicated
+    # label would hand back a table rather than a column -- and would not collide
+    # with one the report writes itself. It is asked for by name as text and read
+    # by the frame's own label, which may be a number.
+    names = [str(column) for column in df.columns]
+    available = {name: column for name, column in zip(names, df.columns)
+                 if names.count(name) == 1 and name not in REPORT_COLUMNS}
+    _reject_unknown_columns(add_columns, list(available), "the report")
 
     row_labels = _row_labels(df, key_column)
-    added = _added_values(df, add_columns, len(frame_outcomes))
+    added = _added_values(df, [available[name] for name in add_columns], add_columns,
+                          len(frame_outcomes))
 
     rows: list[dict[str, Any]] = []
     for label, row_outcomes, context in zip(row_labels, frame_outcomes, added):

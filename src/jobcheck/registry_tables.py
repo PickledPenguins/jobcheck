@@ -19,7 +19,7 @@ from typing import Any
 
 import pandas as pd
 
-from .registry import _CHECKS
+from .registry import _CHECKS, _get_topo_order
 from .rules import Rule
 from .tables import _keep_columns, _print_title, _reject_unknown_columns, format_table
 
@@ -65,6 +65,9 @@ def get_registry_table(add_columns: list[str] | None = None,
     output, not a judgement about which columns matter.
     """
 
+    # Layers are computed with the evaluation order; a check registered outside
+    # load_checks has none until something asks for it.
+    _get_topo_order()
     add_columns = list(add_columns or [])
     _reject_unknown_columns(add_columns, CHECK_OPTIONAL_COLUMNS, "the registry table")
     columns = [*_keep_columns(REGISTRY_BASE_COLUMNS, drop_columns, "the registry table"),

@@ -161,6 +161,18 @@ def test_registry_table_is_sorted_by_layer_then_code(example_checks: None) -> No
     assert list(table["layer"]) == [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2]
 
 
+def test_registry_table_computes_layers_for_checks_registered_directly(
+    fresh_registry: None,
+) -> None:
+    """Layers are set when the order is computed, which load_checks does and a
+    plain @register_check does not; the table showed every such check at 0."""
+
+    make_check("BASE")
+    make_check("DEPENDENT", depends_on=["BASE"])
+    table = registry_tables.get_registry_table()
+    assert table[["code", "layer"]].values.tolist() == [["BASE", 0], ["DEPENDENT", 1]]
+
+
 def test_registry_table_renders_the_default_as_on_or_off(example_checks: None) -> None:
     table = registry_tables.get_registry_table().set_index("code")
     assert table.loc["AGE_NEGATIVE", "default"] == "ON"

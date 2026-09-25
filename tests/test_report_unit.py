@@ -785,6 +785,16 @@ def test_drop_columns_and_add_columns_work_together(two_layers: None) -> None:
                                      "message", "detail", "is_root_cause")
 
 
+def test_add_columns_reads_a_column_whose_label_is_a_number(fresh_registry: None) -> None:
+    """Asked for by name as text, read by the frame's own label: `"5"` passed the
+    check against the offered names and then raised KeyError on `df[["5"]]`."""
+
+    make_check("ALWAYS", passes=False)
+    frame = pd.DataFrame({5: ["five"], "id": [1]})
+    report = rep.build_report(validate(frame), df=frame, add_columns=["5"])
+    assert report[["row", "5", "code"]].values.tolist() == [["0", "five", "ALWAYS"]]
+
+
 def test_the_row_column_can_be_dropped_like_any_other(two_layers: None) -> None:
     """`drop_columns` is the caller's choice about their own output, not a
     judgement about which columns matter."""

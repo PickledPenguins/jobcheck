@@ -184,7 +184,7 @@ raises `ValueError` naming the registry size and that limit, rather than a bare
 `RecursionError` naming nothing.
 
 `clear_registry` empties the registry and evicts the modules that registered
-checks from `sys.modules`, so a later `load_checks` re-registers rather than
+checks from `sys.modules` -- never `__main__` -- so a later `load_checks` re-registers rather than
 silently doing nothing. It is the whole of the registry-state API: there is no
 way to save a registry and put it back, because outside a test there is no use
 for one. A caller loads its check files at start-up, or clears and loads a
@@ -258,12 +258,7 @@ not a result always raises — that is an authoring bug, not a data problem.
 Raises `TypeError` when `row` is not a `pandas.Series`, and `ValueError` when it
 has duplicate column labels — both before running anything.
 
-Also raises `ValueError` when the cached evaluation order and the registry hold
-different checks, naming the check and the likely cause. Every route the package
-offers drops the cache, so this needs a caller who reached into `registry._CHECKS` or the
-cache itself. It used to run the check under its
-declared default instead, and the report then said `disabled by default` about a
-check that was no longer registered.
+
 
 A `context` of `None` — the default — becomes an empty `RowContext`, so a check
 taking `(row, context)` is handed the same type here, in `validate_row` and in
