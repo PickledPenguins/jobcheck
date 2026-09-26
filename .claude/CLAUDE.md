@@ -254,6 +254,7 @@ tests/run-tests.sh types    # mypy alone
 scripts/install-hooks.sh
 scripts/new_catalog_case.py <kind> <path> ...       # add one catalog case, output and all
 scripts/regen_catalog.py, scripts/regen_golden.py   # regenerate committed fixtures
+scripts/regen_docs.py [name]                        # the output shown in docs/, from what it prints
 scripts/make_example_data.py                        # regenerate examples/data/*.csv
 scripts/profile_examples.py                         # the profile, alone
 scripts/read_bytecode_api.py [dir]                  # the lost interface, from history or a dir
