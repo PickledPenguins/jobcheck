@@ -204,7 +204,9 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
     causes: dict[str, int] = {}
     for row_outcomes in frame_outcomes:
         for outcome in row_outcomes:
-            entry = counts.setdefault(outcome.code, {kind: 0 for kind in Outcome})
+            entry = counts.get(outcome.code)
+            if entry is None:   # built once per code, not per outcome
+                entry = counts[outcome.code] = dict.fromkeys(Outcome, 0)
             entry[outcome.outcome] += 1
             layers[outcome.code] = outcome.layer
         for cause in root_causes(row_outcomes):
