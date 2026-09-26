@@ -438,7 +438,7 @@ def load_rules(paths: list[str],
 
     *base_dir* anchors relative paths exactly as it does in `load_checks`."""
 
-    return rules.load_rules(paths, {check.code for check in _CHECKS}, base_dir)
+    return rules._load_rule_files(paths, {check.code for check in _CHECKS}, base_dir)
 
 
 #: The only two keys a setup file holds. Named so the rejection can list them,

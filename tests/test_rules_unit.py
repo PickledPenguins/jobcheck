@@ -478,10 +478,10 @@ def test_a_null_cell_never_matches_a_rule(fresh_registry: None) -> None:
     from jobcheck import rules
 
     row = pd.Series({"email": None, "age": float("nan"), "name": "real"})
-    assert rules.cell_text(row, "email") is None
-    assert rules.cell_text(row, "age") is None
-    assert rules.cell_text(row, "absent") is None
-    assert rules.cell_text(row, "name") == "real"
+    assert rules._cell_text(row, "email") is None
+    assert rules._cell_text(row, "age") is None
+    assert rules._cell_text(row, "absent") is None
+    assert rules._cell_text(row, "name") == "real"
 
 
 # --- rules a later rule overrules for every row ------------------------------

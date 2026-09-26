@@ -20,7 +20,7 @@ from .results import (
     Status,
     _normalize_verdict,
 )
-from .rules import Rule, rule_matches
+from .rules import Rule, _rule_matches
 
 #: A builder takes `(row)` or `(row, context_args)`, the same way a check takes
 #: `(row)` or `(row, context)`. The two-argument form is the common one -- a
@@ -52,7 +52,7 @@ def _resolve_enabled_state(
         for check in _CHECKS
     }
     for rule in rules:
-        if not rule_matches(rule, row):
+        if not _rule_matches(rule, row):
             continue
         enabled = rule.action == "enable"
         for code in rule.codes:
