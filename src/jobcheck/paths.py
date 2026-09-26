@@ -1,10 +1,7 @@
 """Turning a path a caller named into a file on disk.
 
-The two loaders are the only places in the package that open a file the caller
-chose, and both need the same thing: the file, or an error saying where it was
-looked for. That step lives here rather than in either of them because
-`rules.py` may not import the registry, and a relative path that is not there
-says nothing at all unless the message prints the absolute path tried.
+Both loaders need the same step: the file, or an error naming the absolute path
+tried. It lives here because `rules.py` may not import the registry.
 """
 
 from __future__ import annotations

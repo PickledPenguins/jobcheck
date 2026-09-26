@@ -62,50 +62,33 @@ _CHECKS: list[_Check] = []
 # Check files imported by path through load_checks(), resolved and in load
 # order.
 _LOADED_FILES: list[str] = []
-# Modules clear_registry must evict from sys.modules; without that a later
-# import is a no-op -- Python caches modules -- and the registry would silently
-# stay empty. Two routes fill it, and both are needed: registration, which
-# catches a shared module a check file imported by any route, and load_checks
-# itself, which catches a file that registered nothing of its own -- a bundle,
-# or a file holding only constants.
+# Modules clear_registry evicts from sys.modules; Python caches a module, so
+# without eviction a later load imports nothing and the registry stays empty.
+# Filled by registration (a shared module a check file imported) and by
+# load_checks (a file registering nothing of its own, such as a bundle).
 _LOADED_MODULES: set[str] = set()
-# The check files whose import is in progress, innermost last. A check file may
-# itself call load_checks -- a bundle naming the files it collects -- so this
-# is how a nested call knows it is nested, and how a bundle naming itself is
-# skipped rather than recursed into.
+# Check files mid-import, innermost last: how a nested load_checks call (a
+# bundle) knows it is nested, and how a bundle naming itself is skipped.
 _LOADING: list[str] = []
-# Cached topological order over depends_on edges.  The graph only changes when
-# the registry changes, so it is computed once per registry state and never
-# inside the per-row loop.
+# Cached topological order over depends_on edges, recomputed only when the
+# registry changes, never inside the per-row loop.
 _TOPO_ORDER: list[_Check] | None = None
-# Import attempts so far, which is what makes each load's module name unique.
-# Not len(_LOADED_FILES): a bundle's name is computed before its members run and
-# a member appends to that list only after its own import finishes, so the two
-# would be handed the same number and a bundle and a member both called
-# checks.py would collide. Reset by clear_registry, which has just evicted every
-# module the previous numbers named.
+# Import attempts so far, which makes each load's module name unique. Not
+# len(_LOADED_FILES): a bundle is named before its members finish, so the two
+# would share a number.
 _LOAD_SEQUENCE = 0
 
 
 def _name_of(fn: CheckFn) -> str:
-    """What to call the thing being registered, in a message.
-
-    A plain function carries `__name__`; a `functools.partial` or a callable
-    object does not, and reaching for it raised an AttributeError naming neither
-    the check nor the file -- before any of the messages below got their chance.
-    """
+    """What to call the thing being registered, in a message. A plain function
+    carries `__name__`; a `functools.partial` or a callable object does not."""
 
     return getattr(fn, "__name__", type(fn).__name__)
 
 
 def _source_file_of(fn: CheckFn) -> str:
-    """The file a check was written in, or `<unknown>`.
-
-    `inspect.getsourcefile` takes a function and refuses anything else, so the
-    same two shapes `_name_of` covers raise here instead. Where a partial was
-    built is not a question this can answer, and it is one column of one table --
-    not a reason to refuse the registration.
-    """
+    """The file a check was written in, or `<unknown>` for the shapes
+    `inspect.getsourcefile` refuses (a partial, a callable object)."""
 
     try:
         return inspect.getsourcefile(fn) or "<unknown>"
@@ -247,9 +230,6 @@ def clear_registry() -> None:
     _TOPO_ORDER = None
 
 
-
-
-
 def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     """Import the named check files so their checks register themselves.
 
@@ -268,10 +248,7 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     with `clear_registry()`.
 
     A relative path is resolved against *base_dir* when one is given and
-    against the working directory otherwise. An entry point whose check files
-    sit beside it passes its own directory, so the run does not depend on where
-    it was started from; a wrapper reading paths out of a configuration file
-    passes that file's directory, so they mean what their author meant.
+    against the working directory otherwise.
     """
 
     global _LOAD_SEQUENCE
@@ -283,9 +260,8 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     resolved: list[str] = []
     for path in list(paths):
         name = str(resolve_input_file(path, "check file", "load_checks()", base_dir))
-        # in_progress is what stops a bundle that names itself, or two bundles
-        # that name each other, from recursing until the interpreter gives up:
-        # the file is mid-import, so its checks are on their way.
+        # A file mid-import is skipped, so a bundle naming itself, or two naming
+        # each other, finish instead of recursing.
         if name not in _LOADED_FILES and name not in resolved and name not in _LOADING:
             resolved.append(name)
 
@@ -304,17 +280,11 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
         # and recorded then too, so clear_registry evicts it even if it fails.
         sys.modules[module_name] = module
         _LOADED_MODULES.add(module_name)
-        # No __pycache__ beside the caller's file. A check file loaded by path
-        # comes from a data directory -- a prepared run's inputs, say -- which is
-        # a record of what was read, not somewhere to write to; and the module
-        # name is unique per load, so a cached .pyc would never be reused anyway.
-        # The flag is the interpreter's, not this import's: for the length of
-        # the exec, no thread writes bytecode for anything it imports.
+        # No __pycache__ beside a check file: it may sit in a run's input
+        # directory, and the unique module name means a .pyc is never reused.
+        # The flag is process-wide for the length of the exec.
         writing_bytecode = sys.dont_write_bytecode
         sys.dont_write_bytecode = True
-        # A file that raises is not rolled back: whatever it registered before
-        # the failing line stays, and the error ends the run. A caller loading
-        # again in the same process calls clear_registry() first.
         _LOADING.append(name)
         try:
             spec.loader.exec_module(module)
@@ -366,17 +336,10 @@ def _validate_registry() -> None:
     """Check every `depends_on` edge, compute each check's layer, and cache the
     evaluation order so neither is recomputed inside the per-row loop.
 
-    An unregistered prerequisite raises, including one that merely lives in a
-    file this entry point did not load: skipping the dependent silently would
-    change which checks run based on an unrelated argument.
-
-    The message names `clear_registry` because this failure does not undo the load
-    that reached it. `load_checks` records a file the moment its import finishes
-    and validates the graph once, after the last one, so the file holding the bad
-    `depends_on` is already recorded and already skipped by the next call -- and
-    correcting the typo in it changes nothing until the registry is emptied.
-    Naming the way out is deliberately all this does. See `docs/future-work.md`
-    F.30.
+    An unregistered prerequisite raises, including one that lives in a file
+    this entry point did not load. The message names `clear_registry` because
+    the file holding the bad `depends_on` is already recorded, so loading it
+    again after the fix is skipped until the registry is emptied.
     """
 
     global _TOPO_ORDER
@@ -394,14 +357,8 @@ def _validate_registry() -> None:
     try:
         order = _topological_order()
     except RecursionError:
-        # The walk is recursive, so its depth is the depth of the chain when a
-        # prerequisite is registered after its dependents. A bare RecursionError
-        # names neither the registry nor the chain, which is no help at all.
-        # The chain's own length is what ran out of stack, and it is not known
-        # here -- the walk that would measure it is the one that just failed --
-        # so the message names the limit it ran into instead. The widest
-        # declared depends_on is a different number, and said so wrongly until
-        # 2026-09-22.
+        # The walk is recursive, so a long enough chain exhausts the stack. The
+        # chain's length is unknown here, so the message names the limit instead.
         widest = max((len(check.depends_on) for check in _CHECKS), default=0)
         raise ValueError(
             f"Dependency chain too deep to resolve among {len(_CHECKS)} checks: the "
@@ -420,10 +377,7 @@ def _validate_registry() -> None:
 
 
 def _get_topo_order() -> list[_Check]:
-    """The cached evaluation order, computed if the registry has changed since.
-
-    The local spelling is what lets mypy see the cache is set by then.
-    """
+    """The cached evaluation order, computed if the registry has changed since."""
 
     if _TOPO_ORDER is None:
         _validate_registry()
@@ -489,15 +443,7 @@ def load_setup(path: str) -> list[Rule]:
     the paths in it travel together; the setup file's own path is relative to where
     the caller stands, like any path a user types. `checks` is required, because a
     setup naming only rules configures nothing -- rules switch checks on and off.
-
-    Rules are named by path rather than written inline. A rule file is a flat
-    top-level list *without* a `rules:` key, which a setup file would have to
-    contradict, and rule files are meant to be shared between runs -- inline rules
-    would be copied into each one and drift.
-
-    This composes `load_checks` and `load_rules` and does nothing they do not:
-    both stay public, because a bundle calls `load_checks` from inside a check
-    file and a caller with paths of its own has no file to write.
+    It composes `load_checks` and `load_rules` and does nothing they do not.
     """
 
     setup_file = resolve_input_file(path, "setup file", "load_setup()")

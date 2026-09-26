@@ -12,10 +12,8 @@ column is only informative beside a failure. `layer` says how deep the check sit
 in the dependency graph, and only orders things: `root_causes` reports the
 shallowest failing layer.
 
-Two names are one letter apart on purpose no longer: the value a check returns
-when it is happy is `OK`, the recorded outcome for that is `Outcome.PASSED`, and the
-status vocabulary's zero is `Status.PASS`, always written with its class. Before
-2026-09-24 the first of those was also called `PASS`, and the pair was a trap.
+Three names for "fine", one per question: a check returns `OK`, the engine
+records `Outcome.PASSED`, and the status is `Status.PASS`.
 """
 
 from __future__ import annotations
