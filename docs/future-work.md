@@ -155,14 +155,14 @@ validates the graph once, after the last one, so a dangling `depends_on` leaves 
 recorded, the broken check registered, and the next call skipping the path -- correcting
 the typo in that same file changes nothing until `clear_registry()`. Reproduced. What was
 built is the sentence saying so, in the error itself; what was declined is moving
-`_LOADED_FILES.append` below `validate_registry()`.
+`_LOADED_FILES.append` below the graph validation.
 
 Three reasons. **It would make one dangling prerequisite discard every file of the call**,
 where a file that raised during import then discarded only its own -- two
 rollback granularities for two failure kinds, in a package whose loading rule is stated as
 "per file, not per call, at every depth". **Or it would leave the recorded list and the
 registry disagreeing**, which is exactly the state F.24's guards existed to catch. **And
-`loaded_check_files()` would stop being a record of what was read**: today it lists the
+the loaded-file list would stop being a record of what was read**: today it lists the
 files that imported successfully after a failed load, which is the honest answer to "what
 did you read", and a caller logging it would start seeing an empty list for a load that
 genuinely read five files.
@@ -213,6 +213,18 @@ so, and an environment variable makes a run irreproducible from its command line
 would also cost the sentence every failure prints, "load_checks() names files explicitly;
 nothing is discovered", which is pinned in eleven places and is the invariant the whole
 loader is built on.
+
+**Five exported names made private** (raised by the `src/` review of 2026-09-25, done
+the same day, per the example rule of F.37). `Check` (no public function hands one
+out since F.28), `render_status` (duplicated by `CheckOutcome.status_label`),
+the report-column tuple (what a report shows is `_DEFAULT_COLUMNS` now), `loaded_check_files`
+and `validate_registry` (both run or recorded by `load_checks` itself). 36 exports
+become 31. Lost: formatting a bare status number outside an outcome; a public list of
+the report's hidden columns; logging which files a run loaded, including a bundle that
+registers nothing (`registry_table(add_columns=["source_file"])` shows the files that
+registered checks); and an explicit graph check before data for checks registered
+outside `load_checks` (`registry_table()` runs it). `bundle_main.py` prints the
+registry with `source_file` instead of its "Loaded" list.
 
 **`drop_columns` replaced by one dict of default columns** (raised by the `src/`
 review of 2026-09-25, built the same day). `build_report`, `registry_table` and

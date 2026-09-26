@@ -457,7 +457,7 @@ def test_every_default_column_is_one_its_table_builds(example_checks: None) -> N
     from jobcheck import report
 
     built = {
-        "Report": list(report.REPORT_COLUMNS),
+        "Report": list(report._REPORT_COLUMNS),
         "Registry": registry_tables._REGISTRY_COLUMNS,
         "Rules": registry_tables._RULES_COLUMNS,
         "Row explanation": ["layer", "code", "outcome", "status", "detail"],

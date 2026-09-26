@@ -165,7 +165,7 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
     """Loading is not transactional, and the loaded files say so rather than lying.
 
     A file that imported has run its decorators; nothing can un-run them. What
-    matters is that the registry and loaded_check_files() agree about what happened.
+    matters is that the registry and _LOADED_FILES agree about what happened.
     """
 
     good = tmp_path / "good.py"
@@ -175,7 +175,7 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
     with pytest.raises(RuntimeError):
         load_checks([str(good), str(broken)])
     assert [t.code for t in reg._CHECKS] == ["FROM_FILE"]
-    assert reg.loaded_check_files() == [str(good.resolve())]
+    assert reg._LOADED_FILES == [str(good.resolve())]
     # And the survivor runs: the failure path must leave the evaluation order
     # recomputed, not a stale cache that would validate a row against nothing.
     assert [o.code for o in explain_row(pd.Series({"id": 1}))] == ["FROM_FILE"]

@@ -55,7 +55,7 @@ def test_base_dir_anchors_the_relative_paths_of_one_call(fresh_registry: None,
     monkeypatch.chdir(started_in)
     reg.load_checks(["checks.py"], base_dir=tmp_path)
     assert [t.code for t in reg._CHECKS] == ["ANCHORED"]
-    assert reg.loaded_check_files() == [str((tmp_path / "checks.py").resolve())]
+    assert reg._LOADED_FILES == [str((tmp_path / "checks.py").resolve())]
 
 
 def test_an_absolute_path_is_loaded_whatever_base_dir_says(fresh_registry: None,
@@ -75,13 +75,7 @@ def test_loaded_files_records_resolved_paths_in_order(fresh_registry: None, tmp_
     first = write_check_file(tmp_path, "first.py", "FIRST")
     second = write_check_file(tmp_path, "second.py", "SECOND")
     reg.load_checks([first, second])
-    assert reg.loaded_check_files() == [str(Path(first).resolve()), str(Path(second).resolve())]
-
-
-def test_loaded_files_is_a_copy(fresh_registry: None, tmp_path: Path) -> None:
-    reg.load_checks([write_check_file(tmp_path, "checks.py", "COPY")])
-    reg.loaded_check_files().append("invented")
-    assert len(reg.loaded_check_files()) == 1
+    assert reg._LOADED_FILES == [str(Path(first).resolve()), str(Path(second).resolve())]
 
 
 def test_the_same_file_twice_in_one_call_is_loaded_once(fresh_registry: None, tmp_path: Path) -> None:
@@ -128,7 +122,7 @@ def test_a_file_that_raises_on_import_propagates(fresh_registry: None, tmp_path:
     path.write_text("raise RuntimeError('boom')\n")
     with pytest.raises(RuntimeError, match="boom"):
         reg.load_checks([str(path)])
-    assert reg.loaded_check_files() == []
+    assert reg._LOADED_FILES == []
 
 
 def test_a_prerequisite_may_live_in_another_file_of_the_same_call(
@@ -165,7 +159,7 @@ def test_clear_registry_forgets_loaded_files(fresh_registry: None, tmp_path: Pat
     path = write_check_file(tmp_path, "checks.py", "FORGOTTEN")
     reg.load_checks([path])
     reg.clear_registry()
-    assert reg.loaded_check_files() == []
+    assert reg._LOADED_FILES == []
 
 
 def test_a_file_can_be_loaded_again_after_clear_registry(fresh_registry: None, tmp_path: Path) -> None:
@@ -324,7 +318,7 @@ def test_a_file_that_registers_nothing_can_still_be_loaded_again(fresh_registry:
 
     reg.clear_registry()
     assert name not in sys.modules
-    assert reg.loaded_check_files() == []
+    assert reg._LOADED_FILES == []
 
 
 def test_a_bare_string_path_is_refused_by_load_checks(fresh_registry: None) -> None:
@@ -360,7 +354,7 @@ def test_a_file_that_raises_is_not_rolled_back_and_clear_registry_recovers(
     with pytest.raises(RuntimeError, match="boom"):
         reg.load_checks([good, str(broken)])
     assert [t.code for t in reg._CHECKS] == ["KEPT", "A"]
-    assert reg.loaded_check_files() == [str(Path(good).resolve())]
+    assert reg._LOADED_FILES == [str(Path(good).resolve())]
     assert reg._LOADING == []
 
     broken.write_text(
@@ -420,7 +414,7 @@ def test_a_bundle_loads_the_files_it_names(fresh_registry: None, tmp_path: Path)
 
     assert [t.code for t in reg._CHECKS] == ["FIRST", "SECOND"]
     # The members are loaded files in their own right, and they finish first.
-    assert reg.loaded_check_files() == [
+    assert reg._LOADED_FILES == [
         str((tmp_path / "check_first.py").resolve()),
         str((tmp_path / "check_second.py").resolve()),
         str(Path(bundle).resolve()),
@@ -489,7 +483,7 @@ def test_a_dangling_prerequisite_names_the_way_out_of_the_load_it_leaves_behind(
     with pytest.raises(ValueError) as raised:
         reg.load_checks([str(path)])
     assert "call clear_registry() first" in str(raised.value)
-    assert reg.loaded_check_files() == [str(path.resolve())]
+    assert reg._LOADED_FILES == [str(path.resolve())]
 
     # The author fixes the file. It is skipped as already loaded, so the broken
     # check is still there and the same error comes back.
@@ -519,7 +513,7 @@ def test_a_bundle_that_names_itself_is_skipped_rather_than_recursing(
     bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py", "all_checks.py"])
     reg.load_checks([bundle])
     assert [t.code for t in reg._CHECKS] == ["FIRST"]
-    assert len(reg.loaded_check_files()) == 2
+    assert len(reg._LOADED_FILES) == 2
 
 
 def test_two_bundles_that_name_each_other_both_load(fresh_registry: None,
@@ -582,7 +576,7 @@ def test_a_member_that_raises_propagates_through_its_bundle(
     with pytest.raises(RuntimeError, match="boom in a member"):
         reg.load_checks([bundle])
     assert reg._LOADING == []
-    assert reg.loaded_check_files() == [str((tmp_path / "check_first.py").resolve())]
+    assert reg._LOADED_FILES == [str((tmp_path / "check_first.py").resolve())]
 
 
 # --- load_setup: one file, one call -----------------------------------------
@@ -751,7 +745,7 @@ def test_the_shipped_setup_file_loads_the_demo(fresh_registry: None) -> None:
     """`examples/setup.yaml` is the worked example, so the suite runs it."""
 
     rules = reg.load_setup(os.path.join(PROJECT_ROOT, "examples/setup.yaml"))
-    assert len(reg.loaded_check_files()) == 5
+    assert len(reg._LOADED_FILES) == 5
     assert [rule.name for rule in rules] == [
         "enable_legacy_integer_check",
         "suppress_email_checks_for_test_accounts",

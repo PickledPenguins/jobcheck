@@ -275,13 +275,14 @@ def test_rule_files_can_only_switch_existing_codes(fresh_registry: None, tmp_pat
 
 
 def test_the_check_files_the_readme_names_exist(fresh_registry: None) -> None:
-    from jobcheck import load_checks, loaded_check_files
+    from jobcheck import load_checks
+    from jobcheck.registry import _LOADED_FILES
 
     named = ["examples/checks/check_age.py", "examples/checks/check_email.py"]
     assert f"load_checks({named!r})".replace("'", '"') in readme_text()
     # The README's paths are relative to the project root, as a reader's are.
     load_checks([str(README.parent / path) for path in named])
-    assert len(loaded_check_files()) == 2
+    assert len(_LOADED_FILES) == 2
 
 
 # --- the documented CLI is the real CLI -------------------------------------

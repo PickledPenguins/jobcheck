@@ -118,7 +118,7 @@ def test_a_required_keyword_argument_says_how_to_fix_it(fresh_registry: None) ->
 def test_a_dangling_prerequisite_lists_the_loaded_files(fresh_registry: None) -> None:
     make_check("DEPENDENT", depends_on=["ABSENT"])
     with pytest.raises(ValueError) as raised:
-        reg.validate_registry()
+        reg._validate_registry()
     assert message_of(raised) == (
         "Check 'DEPENDENT' depends on 'ABSENT', which is not registered. "
         "Either the code is a typo, or it lives in a check file that was not loaded "

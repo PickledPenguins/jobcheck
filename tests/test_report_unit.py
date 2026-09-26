@@ -80,7 +80,7 @@ def test_validate_can_be_made_fatal_on_a_raising_check(fresh_registry: None) -> 
 
 def test_the_report_has_one_row_per_failure(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id")
-    assert tuple(report.columns) == rep.REPORT_COLUMNS
+    assert tuple(report.columns) == rep._REPORT_COLUMNS
     assert list(report["code"]) == ["AGE_IN_RANGE", "AGE_PRESENT"]
     assert list(report["row"]) == ["102", "103"]
 
@@ -88,7 +88,7 @@ def test_the_report_has_one_row_per_failure(two_layers: None) -> None:
 def test_a_clean_frame_produces_an_empty_report_with_columns(two_layers: None) -> None:
     report = report_for(pd.DataFrame([{"id": 1, "age": 30}]))
     assert report.empty
-    assert tuple(report.columns) == rep.REPORT_COLUMNS
+    assert tuple(report.columns) == rep._REPORT_COLUMNS
 
 
 def test_the_report_carries_status_layer_and_comments(two_layers: None) -> None:
@@ -156,7 +156,7 @@ def test_a_frame_of_the_wrong_length_is_rejected(two_layers: None) -> None:
 
 def test_extra_columns_sit_between_the_row_key_and_the_code(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
-    assert tuple(report.columns) == ("row", "age", *rep.REPORT_COLUMNS[1:])
+    assert tuple(report.columns) == ("row", "age", *rep._REPORT_COLUMNS[1:])
 
 
 def test_extra_columns_keep_the_order_they_were_given(two_layers: None) -> None:
@@ -195,7 +195,7 @@ def test_extra_columns_work_without_a_key_column(two_layers: None) -> None:
 
 def test_an_empty_data_columns_list_changes_nothing(two_layers: None) -> None:
     assert tuple(rep.build_report(outcomes(), df=FRAME, add_columns=[]).columns) == \
-        rep.REPORT_COLUMNS
+        rep._REPORT_COLUMNS
 
 
 def test_an_unknown_data_column_is_rejected(two_layers: None) -> None:
@@ -302,7 +302,7 @@ def test_the_csv_format_round_trips_with_no_title(two_layers: None) -> None:
     csv = render(report, fmt="csv")
     assert "==" not in csv
     parsed = pd.read_csv(pd.io.common.StringIO(csv))
-    assert tuple(parsed.columns) == rep.REPORT_COLUMNS
+    assert tuple(parsed.columns) == rep._REPORT_COLUMNS
     assert list(parsed["code"]) == ["AGE_IN_RANGE", "AGE_PRESENT"]
 
 

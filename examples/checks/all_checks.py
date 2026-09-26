@@ -2,8 +2,8 @@
 
 An entry point that wants all of them names this file instead of listing them,
 and a file added here reaches every entry point that already loads it. The
-members are loaded files in their own right -- each appears in
-`loaded_check_files()`, before this one -- so nothing about the registry changes.
+members are loaded files in their own right -- each check's `source_file` is its
+member, not this bundle -- so nothing about the registry changes.
 
 `examples/main.py` deliberately does not use it: naming the four is the shape a
 first reader should meet. `examples/bundle_main.py` loads this and nothing else.

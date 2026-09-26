@@ -29,23 +29,25 @@ SHIPPED_CHECKS = ["ROW_ALL_NULL", "AGE_PRESENT", "AGE_NOT_A_NUMBER", "AGE_NEGATI
 def test_the_shipped_bundle_loads_the_four_example_check_files(fresh_registry: None) -> None:
     reg.load_checks([bundle_main.DEFAULT_BUNDLE])
 
-    loaded = [os.path.basename(path) for path in reg.loaded_check_files()]
+    loaded = [os.path.basename(path) for path in reg._LOADED_FILES]
     assert loaded == ["check_row_shape.py", "check_age.py", "check_dates.py",
                       "check_email.py", "all_checks.py"]
     assert sorted(check.code for check in reg._CHECKS) == sorted(SHIPPED_CHECKS)
 
 
-def test_the_entry_point_prints_the_loaded_files_then_the_registry(
+def test_the_entry_point_prints_the_registry_with_each_check_s_file(
     fresh_registry: None, capsys: Any
 ) -> None:
+    """The member files show through the checks they registered; the bundle
+    itself registers nothing, so it is not among them."""
+
     bundle_main.main([])
     out = capsys.readouterr().out
-    assert out.startswith("== Loaded ==")
-    assert "== Registry ==" in out
-    # The bundle is last: its members are loaded files, and they finish first.
-    loaded = out.split("== Registry ==")[0].strip().splitlines()[1:]
-    assert loaded[-1].endswith("examples/checks/all_checks.py")
-    assert len(loaded) == 5
+    assert out.startswith("== Registry ==")
+    assert "source_file" in out.splitlines()[1]
+    for member in ("check_row_shape.py", "check_age.py", "check_dates.py", "check_email.py"):
+        assert member in out
+    assert "all_checks.py" not in out
 
 
 def test_an_argument_names_a_different_bundle(fresh_registry: None, capsys: Any,

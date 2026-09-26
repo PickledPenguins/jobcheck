@@ -183,13 +183,13 @@ broad_rules = rules_table(rules, add_columns=["codes"]).query("codes_hit_count >
 And for output of your own that should read like the tables:
 
 ```python
-from jobcheck import FAILED, render, render_status
+from jobcheck import FAILED, render
 
 # One line per failure in your own log, the status spelled as the report spells it.
 for position, row_outcomes in enumerate(outcomes):
     for o in row_outcomes:
         if o.outcome == FAILED:
-            print(f"row {position}: {o.code} {render_status(o.status)}")
+            print(f"row {position}: {o.code} {o.status_label}")
 
 # Any frame of your own, bordered like every table here, under a title you set.
 per_source = df.groupby("source_system").size().reset_index(name="rows")
@@ -265,7 +265,7 @@ row | code         | status      | outcome | message         | is_root_cause
 ```
 
 A dropped column is gone from the CSV too, since both formats render the frame they
-are given. `REPORT_COLUMNS` is the report's own column names, in order, as a tuple.
+are given.
 
 ## Every table names itself
 

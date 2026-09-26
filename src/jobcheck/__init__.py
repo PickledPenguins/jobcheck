@@ -14,15 +14,12 @@ code."""
 
 from .context import RowContext
 from .registry import (
-    Check,
     Rule,
     clear_registry,
     load_checks,
     load_setup,
     load_rules,
-    loaded_check_files,
     register_check,
-    validate_registry,
 )
 from .engine import (
     explain_row,
@@ -33,7 +30,6 @@ from .engine import (
 from .registry_tables import registry_table, rules_table
 from .rules import warn_missing_rule_columns, warn_shadowed_rules
 from .report import (
-    REPORT_COLUMNS,
     build_report,
     render_comments,
     row_explanation,
@@ -49,19 +45,16 @@ from .results import (
     Status,
     CheckOutcome,
     Verdict,
-    render_status,
 )
 from .tables import is_null, render
 
 __all__ = [
-    "Check",
     "CheckOutcome",
     "DISABLED",
     "ERRORED",
     "FAILED",
     "OK",
     "PASSED",
-    "REPORT_COLUMNS",
     "RowContext",
     "Rule",
     "SKIPPED",
@@ -69,24 +62,20 @@ __all__ = [
     "Verdict",
     "build_report",
     "clear_registry",
-
     "explain_row",
     "is_null",
     "load_checks",
     "load_rules",
     "load_setup",
-    "loaded_check_files",
     "register_check",
     "registry_table",
     "render",
     "render_comments",
-    "render_status",
     "root_causes",
     "row_explanation",
     "rules_table",
     "summarize_outcomes",
     "validate",
-    "validate_registry",
     "validate_row",
     "__version__",
     "warn_missing_rule_columns",

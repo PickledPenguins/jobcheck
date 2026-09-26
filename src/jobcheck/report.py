@@ -14,10 +14,10 @@ from typing import Any, Iterable, Mapping
 import pandas as pd
 
 from .engine import root_causes
-from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, render_status
+from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, _render_status
 from .tables import _DEFAULT_COLUMNS, _format_cell, _reject_unknown_columns, _shown
 
-REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "detail", "comments",
+_REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "detail", "comments",
                   "is_root_cause")
 
 # Which outcomes reach a report or an explanation, worst-first. Every level
@@ -107,7 +107,7 @@ def build_report(
     `add_columns` refuses are in `reporting.md`.
 
     The report's own columns shown are `tables._DEFAULT_COLUMNS["Report"]`, from
-    `REPORT_COLUMNS`. `add_columns` copies columns of *df* in, straight after `row`.
+    `_REPORT_COLUMNS`. `add_columns` copies columns of *df* in, straight after `row`.
     """
 
     if len(df) != len(frame_outcomes):
@@ -124,7 +124,7 @@ def build_report(
     # by the frame's own label, which may be a number.
     names = [str(column) for column in df.columns]
     available = {name: column for name, column in zip(names, df.columns)
-                 if names.count(name) == 1 and name not in REPORT_COLUMNS}
+                 if names.count(name) == 1 and name not in _REPORT_COLUMNS}
     _reject_unknown_columns(add_columns, list(available), "the report")
 
     row_labels = _row_labels(df, key_column)
@@ -142,7 +142,7 @@ def build_report(
                     "row": label,
                     **context,
                     "code": outcome.code,
-                    "status": render_status(outcome.status),
+                    "status": _render_status(outcome.status),
                     "layer": outcome.layer,
                     "outcome": outcome.outcome,
                     "message": outcome.message,
@@ -156,7 +156,7 @@ def build_report(
     shown = _DEFAULT_COLUMNS["Report"]
     rest = [name for name in shown if name != "row"]
     columns = ["row", *add_columns, *rest] if "row" in shown else [*add_columns, *rest]
-    report = pd.DataFrame(rows, columns=[*REPORT_COLUMNS, *add_columns])[columns]
+    report = pd.DataFrame(rows, columns=[*_REPORT_COLUMNS, *add_columns])[columns]
     report.attrs["title"] = "Report"
     return report
 
@@ -176,7 +176,7 @@ def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> p
                 "layer": outcome.layer,
                 "code": outcome.code,
                 "outcome": outcome.outcome,
-                "status": render_status(outcome.status),
+                "status": _render_status(outcome.status),
                 "detail": outcome.detail
                 or render_comments(outcome.comments)
                 or outcome.message

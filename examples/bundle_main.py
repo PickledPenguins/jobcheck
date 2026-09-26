@@ -1,10 +1,8 @@
 """Second demonstration entry point: one bundle file loads the check files.
 
 `examples/main.py` names its four check files itself. This one names a single
-path -- a bundle -- and the four arrive behind it. What it prints is the loaded
-file list and the registry, because the list is the part a bundle changes: the
-members are loaded files in their own right, and they finish before the bundle
-that pulled them in.
+path -- a bundle -- and the four arrive behind it. What it prints is the registry
+with each check's source file, which shows the member files the bundle pulled in.
 
 An argument names a different bundle, which is how the catalog drives it; with
 none it loads the shipped `examples/checks/all_checks.py`.
@@ -20,7 +18,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
 
-from jobcheck import load_checks, loaded_check_files, registry_table, render  # noqa: E402
+from jobcheck import load_checks, registry_table, render  # noqa: E402
 
 #: The bundle loaded when the command line names none.
 DEFAULT_BUNDLE = os.path.join(PROJECT_ROOT, "examples/checks/all_checks.py")
@@ -50,13 +48,7 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
 
     load_checks([args.bundle])
-
-    print("== Loaded ==")
-    for path in loaded_check_files():
-        print(path)
-
-    print()
-    print(render(registry_table()))
+    print(render(registry_table(add_columns=["source_file"])))
 
 
 if __name__ == "__main__":

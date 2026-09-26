@@ -17,7 +17,7 @@ entry point
   |
   +-- load_checks([...]) -> imports the named .py files by path
   |                             -> @register_check appends to _CHECKS
-  |                             -> validate_registry(): depends_on, cycles, layers, topo order
+  |                             -> _validate_registry(): depends_on, cycles, layers, topo order
   |
   +-- load_rules(...)   -> parse YAML -> validate each rule against _CHECKS -> [Rule]
   |

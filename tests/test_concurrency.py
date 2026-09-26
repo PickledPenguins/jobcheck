@@ -100,11 +100,12 @@ CHILD = textwrap.dedent(
     """
     import sys
     sys.path.insert(0, {src!r})
-    from jobcheck import load_checks, loaded_check_files, registry_table
+    from jobcheck import load_checks, registry_table
+    from jobcheck.registry import _LOADED_FILES
 
     load_checks([{path!r}])
     print(",".join(sorted(registry_table()["code"])))
-    print(len(loaded_check_files()))
+    print(len(_LOADED_FILES))
     """
 )
 

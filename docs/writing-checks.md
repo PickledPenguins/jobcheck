@@ -101,10 +101,10 @@ what it wants, and two scripts in one codebase run different sets without
 interfering.
 
 ```python
-from jobcheck import load_checks, loaded_check_files
+from jobcheck import load_checks, registry_table
 
 load_checks(["my_checks/check_age.py", "my_checks/check_email.py"])
-loaded_check_files()           # the two resolved paths, in load order
+registry_table(add_columns=["source_file"])   # each check and the file it came from
 ```
 
 Files are named explicitly and **nothing is discovered** — no directory scan, no
@@ -143,17 +143,15 @@ whose job is to load the others, so a caller names one path:
 ```python
 # my_checks/all_checks.py -- inside the file, HERE is os.path.dirname(os.path.abspath(__file__))
 import os
-from jobcheck import load_checks, loaded_check_files
+from jobcheck import load_checks
 
 HERE = os.path.join(os.getcwd(), "my_checks")
 load_checks(["check_age.py", "check_email.py"], base_dir=HERE)
-loaded_check_files()
 ```
 
 The caller then names one path, `my_checks/all_checks.py`, and gets all of them.
-The members are loaded files like any other: each is in `loaded_check_files()`,
-before the bundle that pulled it in, and naming one directly as well loads it
-once. A bundle may register checks of its own, and may load other bundles.
+The members are loaded files like any other: each check's `source_file` is its
+member rather than the bundle, and naming one directly as well loads it once. A bundle may register checks of its own, and may load other bundles.
 `examples/checks/all_checks.py` is a shipped one; `examples/bundle_main.py` is an
 entry point that loads nothing else.
 
@@ -178,8 +176,7 @@ import check_age, check_email     # noqa: F401
 
 Those are ordinary modules, so a second bundle holding its own `check_age.py`
 imports nothing — the name is already in `sys.modules` — and its checks are
-silently missing. The members also never appear in `loaded_check_files()`, which
-is the record of what the run read. Prefer the nested `load_checks`.
+silently missing. Prefer the nested `load_checks`.
 
 `examples/checks/` is the worked example — four files outside the library, loaded
 by `examples/main.py` from the list it names in `CHECK_FILES`.
@@ -220,12 +217,12 @@ in a check file that was not loaded, a cycle (direct or transitive), a duplicate
 code, a signature the engine cannot call.
 
 A check defined in the running process — a notebook, a test, a script registering
-its own — never passes through `load_checks`, so nothing runs the graph checks until
-the first `validate`. `validate_registry()` runs them on demand, before any data is
-read:
+its own — never passes through `load_checks`, so the graph checks run when something
+first needs the evaluation order: the first `validate` on a frame with rows, or
+`registry_table()`, which is the way to run them before any data is read:
 
 ```python
-from jobcheck import OK, Status, Verdict, register_check, validate_registry
+from jobcheck import OK, Status, Verdict, register_check, registry_table
 
 @register_check("ORDER_ID_PRESENT", "Order id is missing")
 def order_id_present(row):
@@ -236,7 +233,7 @@ def order_id_present(row):
 def order_id_numeric(row):
     return Verdict(str(row["order_id"]).isdigit())
 
-validate_registry()   # a misspelled depends_on raises here, naming both codes
+registry_table()   # a misspelled depends_on raises here, naming both codes
 ```
 
 ## When a check raises
