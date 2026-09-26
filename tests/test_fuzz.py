@@ -29,7 +29,7 @@ from jobcheck import (
     registry as reg,
     render,
 )
-from jobcheck.results import ERRORED, FAILED, PASSED
+from jobcheck.results import Outcome
 
 pytestmark = pytest.mark.long
 
@@ -147,10 +147,10 @@ def test_the_engine_holds_its_invariants_on_generated_frames(example_checks: Non
             assert len(by_code) == len(outcomes), f"seed {SEED} case {case}: duplicate outcome"
 
             for outcome in outcomes:
-                if outcome.outcome in (PASSED, FAILED, ERRORED):
+                if outcome.outcome in (Outcome.PASSED, Outcome.FAILED, Outcome.ERRORED):
                     check = next(t for t in reg._CHECKS if t.code == outcome.code)
                     for prerequisite in check.depends_on:
-                        assert by_code[prerequisite].outcome == PASSED, (
+                        assert by_code[prerequisite].outcome == Outcome.PASSED, (
                             f"seed {SEED} case {case}: {outcome.code} ran with "
                             f"{prerequisite} not passing"
                         )

@@ -152,19 +152,20 @@ causes = summary.loc[summary["root_cause_rows"] > 0, ["code", "root_cause_rows"]
 story = row_explanation(outcomes[4], include="blocked")
 ```
 
-The outcome constants are what `outcome.outcome` is compared against, so a question the
+`Outcome` is what `outcome.outcome` is compared against, so a question the
 tables do not ask is a comprehension over `outcomes`:
 
 ```python
-from jobcheck import DISABLED, PASSED, SKIPPED
+from jobcheck import Outcome
 
 # Rows where a failing prerequisite hid other checks: fixing the one value may
 # surface more, so these are the rows worth a second run.
 hidden_rows = [position for position, row_outcomes in enumerate(outcomes)
-               if any(o.outcome == SKIPPED for o in row_outcomes)]
+               if any(o.outcome == Outcome.SKIPPED for o in row_outcomes)]
 # Rows every enabled check was happy with -- a switched-off check is not a failure.
 clean_rows = [position for position, row_outcomes in enumerate(outcomes)
-              if all(o.outcome in (PASSED, DISABLED) for o in row_outcomes)]
+              if all(o.outcome in (Outcome.PASSED, Outcome.DISABLED)
+                     for o in row_outcomes)]
 ```
 
 The registry and the rules the same way, for a run that keeps what it checked beside
@@ -183,12 +184,12 @@ broad_rules = rules_table(rules, add_columns=["codes"]).query("codes_hit_count >
 And for output of your own that should read like the tables:
 
 ```python
-from jobcheck import FAILED, render
+from jobcheck import Outcome, render
 
 # One line per failure in your own log, the status spelled as the report spells it.
 for position, row_outcomes in enumerate(outcomes):
     for o in row_outcomes:
-        if o.outcome == FAILED:
+        if o.outcome == Outcome.FAILED:
             print(f"row {position}: {o.code} {o.status_label}")
 
 # Any frame of your own, bordered like every table here, under a title you set.
@@ -217,9 +218,9 @@ with a column flagging the rows that failed:
 ```python
 from pathlib import Path
 
-from jobcheck import FAILED, render
+from jobcheck import Outcome, render
 
-failed = [any(o.outcome == FAILED for o in row_outcomes) for row_outcomes in outcomes]
+failed = [any(o.outcome == Outcome.FAILED for o in row_outcomes) for row_outcomes in outcomes]
 Path("flagged.csv").write_text(render(df.assign(failed=failed), fmt="csv"))
 ```
 

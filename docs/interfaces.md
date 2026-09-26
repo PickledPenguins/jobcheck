@@ -59,15 +59,21 @@ What a check returns. Frozen dataclass: `status: int = Status.PASS`,
 ### `CheckOutcome`
 
 What the engine recorded for one check on one row: `code` (the check code),
-`outcome` (`passed`, `failed`, `disabled`, `skipped`, `errored`), `status` (a
+`outcome` (an `Outcome`), `status` (a
 `Status` value), `layer`, `message`, `detail`, `comments`.
 
 `.failed` is True for `failed` and `errored`; `.status_label` renders as
 `INVALID (3)`. `detail` explains the three non-evaluating outcomes: which rule
 disabled it, which prerequisites blocked it, or what it raised.
 
-The outcome strings are also exported as `PASSED`, `FAILED`, `DISABLED`,
-`SKIPPED`, `ERRORED`.
+### `Outcome`
+
+What happened to a check on a row: `Outcome.PASSED`, `FAILED`, `DISABLED`, `SKIPPED`,
+`ERRORED`, whose values are `passed`, `failed`, `disabled`, `skipped`, `errored`. A
+`str` as well, so `outcome.outcome == "failed"` holds, and a misspelled member is an
+`AttributeError`. `CheckOutcome` accepts the plain string and refuses one that is
+not an outcome. Write `.value` where the text is wanted: formatting a member prints
+`Outcome.FAILED`.
 
 ### The registry
 

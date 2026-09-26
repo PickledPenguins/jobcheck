@@ -113,8 +113,7 @@ PUBLIC_NAMES = {
     # Rules.
     "Rule", "load_rules", "warn_missing_rule_columns", "warn_shadowed_rules",
     # What a check returns and what the engine records.
-    "Verdict", "OK", "Status", "CheckOutcome", "RowContext",
-    "PASSED", "FAILED", "DISABLED", "SKIPPED", "ERRORED",
+    "Verdict", "OK", "Status", "CheckOutcome", "Outcome", "RowContext",
     # Running.
     "validate", "validate_row", "explain_row", "root_causes",
     # Reports and tables.
@@ -142,9 +141,21 @@ def test_status_values_are_permanent() -> None:
 
 
 def test_outcome_names_are_permanent() -> None:
-    assert (res.PASSED, res.FAILED, res.DISABLED, res.SKIPPED, res.ERRORED) == (
-        "passed", "failed", "disabled", "skipped", "errored"
-    )
+    """The values are what reports and CSV files carry, so they outlive the code."""
+
+    assert {member.name: member.value for member in res.Outcome} == {
+        "PASSED": "passed", "FAILED": "failed", "DISABLED": "disabled",
+        "SKIPPED": "skipped", "ERRORED": "errored",
+    }
+
+
+def test_an_outcome_compares_equal_to_its_text() -> None:
+    assert res.Outcome.FAILED == "failed"
+
+
+def test_a_misspelled_outcome_is_refused() -> None:
+    with pytest.raises(ValueError, match="'falied' is not a valid Outcome"):
+        res.CheckOutcome("CODE", "falied")  # type: ignore[arg-type]
 
 
 def test_report_columns_are_stable() -> None:

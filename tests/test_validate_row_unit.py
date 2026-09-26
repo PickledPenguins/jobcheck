@@ -11,7 +11,7 @@ import pytest
 from conftest import first_cause, make_check
 from jobcheck import RowContext, registry as reg
 from jobcheck import results as res
-from jobcheck.results import ERRORED, FAILED, OK, PASSED, SKIPPED, Status, Verdict
+from jobcheck.results import OK, Status, Verdict, Outcome
 from jobcheck import engine
 from jobcheck import rules
 from jobcheck.rules import _MatchCriterion
@@ -227,7 +227,7 @@ def test_a_rule_applies_only_to_matching_rows(fresh_registry: None) -> None:
 def test_explain_row_reports_every_registered_check(fresh_registry: None) -> None:
     make_check("ONE")
     make_check("TWO", passes=False)
-    assert statuses(engine.explain_row(ROW)) == {"ONE": PASSED, "TWO": FAILED}
+    assert statuses(engine.explain_row(ROW)) == {"ONE": Outcome.PASSED, "TWO": Outcome.FAILED}
 
 
 def test_a_check_off_by_default_says_so(fresh_registry: None) -> None:
@@ -275,7 +275,7 @@ def test_a_dependent_is_not_run_when_its_prerequisite_fails(fresh_registry: None
     make_check("PREREQ", passes=False, calls=calls)
     make_check("DEPENDENT", passes=False, depends_on=["PREREQ"], calls=calls)
     outcomes = engine.explain_row(ROW)
-    assert statuses(outcomes)["DEPENDENT"] == SKIPPED
+    assert statuses(outcomes)["DEPENDENT"] == Outcome.SKIPPED
     assert detail(outcomes, "DEPENDENT") == "prerequisite did not pass: PREREQ"
     assert calls == ["PREREQ"]
 
@@ -295,7 +295,7 @@ def test_a_dependent_is_not_run_when_its_prerequisite_errored(fresh_registry: No
     make_check("PREREQ", raises=RuntimeError("boom"), calls=calls)
     make_check("DEPENDENT", passes=False, depends_on=["PREREQ"], calls=calls)
     outcomes = engine.explain_row(ROW)
-    assert statuses(outcomes) == {"PREREQ": ERRORED, "DEPENDENT": SKIPPED}
+    assert statuses(outcomes) == {"PREREQ": Outcome.ERRORED, "DEPENDENT": Outcome.SKIPPED}
     assert calls == ["PREREQ"]
 
 
@@ -305,7 +305,7 @@ def test_every_prerequisite_must_pass_and_all_blockers_are_named(fresh_registry:
     make_check("ALSO_BAD", passes=False)
     make_check("DEPENDENT", passes=False, depends_on=["GOOD", "BAD", "ALSO_BAD"])
     outcomes = engine.explain_row(ROW)
-    assert statuses(outcomes)["DEPENDENT"] == SKIPPED
+    assert statuses(outcomes)["DEPENDENT"] == Outcome.SKIPPED
     assert detail(outcomes, "DEPENDENT") == "prerequisite did not pass: BAD, ALSO_BAD"
 
 
@@ -374,7 +374,7 @@ def test_an_errored_outcome_carries_the_layer_and_the_message(fresh_registry: No
     make_check("BASE")
     make_check("RAISES", depends_on=["BASE"], raises=RuntimeError("boom"))
     outcome = next(o for o in engine.explain_row(ROW) if o.code == "RAISES")
-    assert outcome.outcome == ERRORED
+    assert outcome.outcome == Outcome.ERRORED
     assert outcome.layer == 1
     assert outcome.message == "RAISES failed"
     assert outcome.status == Status.ERROR
@@ -463,8 +463,8 @@ def test_a_missing_field_reports_once_not_from_every_check_that_reads_it(
                      "end_date": "2024-02-01"})
     outcomes = engine.explain_row(row)
     assert codes(engine.validate_row(row)) == ["AGE_PRESENT"]
-    assert statuses(outcomes)["AGE_NOT_A_NUMBER"] == SKIPPED
-    assert statuses(outcomes)["AGE_NEGATIVE"] == SKIPPED
+    assert statuses(outcomes)["AGE_NOT_A_NUMBER"] == Outcome.SKIPPED
+    assert statuses(outcomes)["AGE_NEGATIVE"] == Outcome.SKIPPED
 
 
 def test_failure_comments_carry_the_numbers_a_reader_needs(example_checks: None) -> None:

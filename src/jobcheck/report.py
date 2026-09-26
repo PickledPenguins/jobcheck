@@ -14,7 +14,7 @@ from typing import Any, Iterable, Mapping
 import pandas as pd
 
 from .engine import root_causes
-from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, _render_status
+from .results import CheckOutcome, Outcome, _render_status
 from .tables import _DEFAULT_COLUMNS, _format_cell, _reject_unknown_columns, _shown
 
 _REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "detail", "comments",
@@ -24,9 +24,9 @@ _REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "deta
 # contains the one before it, so the choice is how far down to go rather than a
 # set of independent switches.
 INCLUDE_LEVELS: dict[str, set[str]] = {
-    "failures": {FAILED, ERRORED},
-    "blocked": {FAILED, ERRORED, SKIPPED, DISABLED},
-    "all": {FAILED, ERRORED, SKIPPED, DISABLED, PASSED},
+    "failures": {Outcome.FAILED, Outcome.ERRORED},
+    "blocked": {Outcome.FAILED, Outcome.ERRORED, Outcome.SKIPPED, Outcome.DISABLED},
+    "all": set(Outcome),
 }
 
 def _included(include: str) -> set[str]:
@@ -144,7 +144,7 @@ def build_report(
                     "code": outcome.code,
                     "status": _render_status(outcome.status),
                     "layer": outcome.layer,
-                    "outcome": outcome.outcome,
+                    "outcome": outcome.outcome.value,
                     "message": outcome.message,
                     "detail": outcome.detail,
                     "comments": render_comments(outcome.comments),
@@ -175,7 +175,7 @@ def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> p
             {
                 "layer": outcome.layer,
                 "code": outcome.code,
-                "outcome": outcome.outcome,
+                "outcome": outcome.outcome.value,
                 "status": _render_status(outcome.status),
                 "detail": outcome.detail
                 or render_comments(outcome.comments)
@@ -199,14 +199,12 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
     is; a row failing two chains at the same depth counts against both.
     """
 
-    counts: dict[str, dict[str, int]] = {}
+    counts: dict[str, dict[Outcome, int]] = {}
     layers: dict[str, int] = {}
     causes: dict[str, int] = {}
     for row_outcomes in frame_outcomes:
         for outcome in row_outcomes:
-            entry = counts.setdefault(
-                outcome.code, {PASSED: 0, FAILED: 0, ERRORED: 0, SKIPPED: 0, DISABLED: 0}
-            )
+            entry = counts.setdefault(outcome.code, {kind: 0 for kind in Outcome})
             entry[outcome.outcome] += 1
             layers[outcome.code] = outcome.layer
         for cause in root_causes(row_outcomes):
@@ -218,12 +216,12 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
         {
             "code": code,
             "layer": layers[code],
-            "failed": entry[FAILED],
+            "failed": entry[Outcome.FAILED],
             "root_cause_rows": causes.get(code, 0),
-            "errored": entry[ERRORED],
-            "skipped": entry[SKIPPED],
-            "disabled": entry[DISABLED],
-            "passed": entry[PASSED],
+            "errored": entry[Outcome.ERRORED],
+            "skipped": entry[Outcome.SKIPPED],
+            "disabled": entry[Outcome.DISABLED],
+            "passed": entry[Outcome.PASSED],
         }
         for code, entry in counts.items()
     ]

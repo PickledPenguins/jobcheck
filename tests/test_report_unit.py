@@ -373,7 +373,7 @@ def test_the_summary_puts_the_worst_check_first(fresh_registry: None) -> None:
     # Turn RARE's failure on rows 2 and 3 into passes, so it fails once.
     for row_outcomes in collected[1:]:
         rare = next(o for o in row_outcomes if o.code == "RARE")
-        rare.outcome = res.PASSED
+        rare.outcome = res.Outcome.PASSED
     assert list(rep.summarize_outcomes(collected)["code"]) == ["COMMON", "RARE", "NEVER"]
 
 
@@ -396,7 +396,7 @@ def test_root_cause_rows_counts_the_rows_each_code_explains(fresh_registry: None
     frame = pd.DataFrame([{"age": 1}, {"age": 2}])
     collected = validate(frame)
     rare = next(o for o in collected[1] if o.code == "RARE")
-    rare.outcome = res.PASSED
+    rare.outcome = res.Outcome.PASSED
     table = rep.summarize_outcomes(collected).set_index("code")
     assert table["root_cause_rows"].to_dict() == {"COMMON": 2, "RARE": 1}
 
@@ -415,7 +415,7 @@ def test_validate_hands_each_row_the_context_its_builder_returned(
     ``context_builder(row)`` broke nothing any check asserted.
     """
 
-    from jobcheck import FAILED, OK, PASSED, RowContext
+    from jobcheck import OK, RowContext, Outcome
 
     # A plain subclass rather than a nested dataclass: fresh_registry evicts the
     # test module from sys.modules, and @dataclass resolves annotations through
@@ -435,7 +435,7 @@ def test_validate_hands_each_row_the_context_its_builder_returned(
     outcomes = validate(
         frame, context_builder=lambda row: Allowed(allowed=bool(row["allow"]))
     )
-    assert [o[0].outcome for o in outcomes] == [PASSED, FAILED]
+    assert [o[0].outcome for o in outcomes] == [Outcome.PASSED, Outcome.FAILED]
     assert outcomes[1][0].comments == {"allowed": False}
 
 
@@ -640,7 +640,7 @@ def a_long(word: str, count: int = 12) -> str:
     return " ".join([word] * count)
 
 
-def outcome(code: str, outcome: str, **fields: Any) -> res.CheckOutcome:
+def outcome(code: str, outcome: res.Outcome, **fields: Any) -> res.CheckOutcome:
     return res.CheckOutcome(code=code, outcome=outcome, **fields)
 
 
@@ -654,23 +654,23 @@ def test_the_table_report_wraps_message_detail_and_comments() -> None:
 
 def test_a_row_explanation_wraps_a_long_detail() -> None:
     detail = a_long("prerequisite", 8)   # 103 characters
-    assert detail not in render(rep.row_explanation([outcome("A_CODE", res.SKIPPED,
+    assert detail not in render(rep.row_explanation([outcome("A_CODE", res.Outcome.SKIPPED,
                                                              detail=detail)]))
 
 
 def test_summary_ties_on_failed_are_broken_by_errored_worst_first() -> None:
     frame_outcomes = [
-        [outcome("A_CODE", res.FAILED), outcome("Z_CODE", res.FAILED)],
-        [outcome("A_CODE", res.PASSED), outcome("Z_CODE", res.ERRORED)],
+        [outcome("A_CODE", res.Outcome.FAILED), outcome("Z_CODE", res.Outcome.FAILED)],
+        [outcome("A_CODE", res.Outcome.PASSED), outcome("Z_CODE", res.Outcome.ERRORED)],
     ]
     assert list(rep.summarize_outcomes(frame_outcomes)["code"]) == ["Z_CODE", "A_CODE"]
 
 
 def test_root_cause_rows_count_rows_not_names() -> None:
     frame_outcomes = [
-        [outcome("A_CODE", res.FAILED)],
-        [outcome("Z_CODE", res.FAILED)],
-        [outcome("Z_CODE", res.FAILED)],
+        [outcome("A_CODE", res.Outcome.FAILED)],
+        [outcome("Z_CODE", res.Outcome.FAILED)],
+        [outcome("Z_CODE", res.Outcome.FAILED)],
     ]
     table = rep.summarize_outcomes(frame_outcomes)
     assert table[["code", "root_cause_rows"]].values.tolist() == [["Z_CODE", 2],
