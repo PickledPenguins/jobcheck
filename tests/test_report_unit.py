@@ -11,7 +11,7 @@ from conftest import make_check, one_row_report
 from jobcheck import registry as reg
 from jobcheck import results as res
 from jobcheck import report as rep
-from jobcheck import render, validate
+from jobcheck import render, tables, validate
 from jobcheck.results import OK, Status, Verdict
 
 pytestmark = pytest.mark.fast
@@ -579,26 +579,46 @@ def test_a_frame_offering_no_extra_columns_says_so(fresh_registry: None) -> None
         rep.build_report(validate(frame), df=frame, add_columns=["code"])
 
 
-# --- dropping the report's own columns ---------------------------------------
+# --- which columns the report shows -------------------------------------------
 
 
-def test_drop_columns_removes_report_columns_and_keeps_the_order(two_layers: None) -> None:
-    """The inverse of add_columns: one keeps a column a run does not want in what
-    ships, the other copies frame data in. Order is the report's, not the caller's."""
-
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id",
-                              drop_columns=["comments", "detail", "layer"])
-    assert tuple(report.columns) == ("row", "code", "status", "outcome", "message",
-                                     "is_root_cause")
+def test_the_report_shows_its_default_columns_in_their_order(two_layers: None) -> None:
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id")
+    assert list(report.columns) == tables._DEFAULT_COLUMNS["Report"]
 
 
-def test_drop_columns_and_add_columns_work_together(two_layers: None) -> None:
-    """Added columns still land straight after `row`, whatever was dropped."""
+def test_editing_the_defaults_changes_every_report(two_layers: None, monkeypatch: Any) -> None:
+    """The one place a run's shipped columns are chosen, with no argument per call."""
 
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id",
-                              add_columns=["age"], drop_columns=["comments"])
-    assert tuple(report.columns) == ("row", "age", "code", "status", "layer", "outcome",
-                                     "message", "detail", "is_root_cause")
+    monkeypatch.setitem(tables._DEFAULT_COLUMNS, "Report", ["row", "code", "message"])
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
+    assert list(report.columns) == ["row", "age", "code", "message"]
+
+
+def test_added_columns_lead_when_the_defaults_leave_out_row(
+    two_layers: None, monkeypatch: Any
+) -> None:
+    monkeypatch.setitem(tables._DEFAULT_COLUMNS, "Report", ["code", "status"])
+    report = rep.build_report(outcomes(), df=FRAME, add_columns=["age"])
+    assert list(report.columns) == ["age", "code", "status"]
+
+
+def test_a_report_column_hidden_by_the_defaults_is_not_a_data_column(
+    two_layers: None, monkeypatch: Any
+) -> None:
+    """add_columns copies data in; a hidden report column comes back only by
+    editing the defaults, so one argument never means two things."""
+
+    monkeypatch.setitem(tables._DEFAULT_COLUMNS, "Report", ["row", "code"])
+    with pytest.raises(ValueError, match=r"add_columns \['comments'\] cannot be used"):
+        rep.build_report(outcomes(), df=FRAME, add_columns=["comments"])
+
+
+def test_dropping_a_column_with_pandas_keeps_the_title(two_layers: None) -> None:
+    report = rep.build_report(outcomes(), df=FRAME, key_column="id")
+    trimmed = report.drop(columns=["comments", "detail"])
+    assert render(trimmed).splitlines()[0] == "== Report =="
+    assert "comments" not in render(trimmed, fmt="csv").splitlines()[0]
 
 
 def test_add_columns_reads_a_column_whose_label_is_a_number(fresh_registry: None) -> None:
@@ -609,57 +629,6 @@ def test_add_columns_reads_a_column_whose_label_is_a_number(fresh_registry: None
     frame = pd.DataFrame({5: ["five"], "id": [1]})
     report = rep.build_report(validate(frame), df=frame, add_columns=["5"])
     assert report[["row", "5", "code"]].values.tolist() == [["0", "five", "ALWAYS"]]
-
-
-def test_the_row_column_can_be_dropped_like_any_other(two_layers: None) -> None:
-    """`drop_columns` is the caller's choice about their own output, not a
-    judgement about which columns matter."""
-
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id", drop_columns=["row"])
-    assert "row" not in report.columns
-    assert list(report.columns)[0] == "code"
-
-
-def test_an_unknown_drop_name_is_refused_and_lists_what_can_go(two_layers: None) -> None:
-    """Silently ignoring it would read as proof the column is empty."""
-
-    with pytest.raises(ValueError) as raised:
-        rep.build_report(outcomes(), df=FRAME, drop_columns=["comment"])
-    assert str(raised.value) == (
-        "drop_columns ['comment'] cannot be used for the report. Each name must be "
-        "asked for once and be one of: row, code, status, layer, outcome, message, "
-        "detail, comments, is_root_cause."
-    )
-
-
-def test_a_name_dropped_twice_is_refused(two_layers: None) -> None:
-    with pytest.raises(ValueError, match=r"drop_columns \['comments'\]"):
-        rep.build_report(outcomes(), df=FRAME, drop_columns=["comments", "comments"])
-
-
-def test_an_empty_drop_list_changes_nothing(two_layers: None) -> None:
-    assert tuple(rep.build_report(outcomes(), df=FRAME, drop_columns=[]).columns) == \
-        rep.REPORT_COLUMNS
-
-
-def test_report_columns_is_a_tuple_so_a_caller_cannot_edit_the_default(
-    two_layers: None,
-) -> None:
-    """It is exported for building a drop list from the other direction -- the
-    columns a run keeps -- so it must not be a list a caller can mutate."""
-
-    assert isinstance(rep.REPORT_COLUMNS, tuple)
-    keep = ("row", "code", "message")
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id",
-                              drop_columns=[name for name in rep.REPORT_COLUMNS
-                                            if name not in keep])
-    assert tuple(report.columns) == keep
-
-
-def test_a_dropped_column_is_absent_from_the_csv_too(two_layers: None) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id",
-                              drop_columns=["comments"])
-    assert "comments" not in render(report, fmt="csv").splitlines()[0]
 
 
 # --- found by reading the mutation survivors, 2026-09-25 ---------------------

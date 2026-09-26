@@ -223,17 +223,38 @@ failed = [any(o.outcome == FAILED for o in row_outcomes) for row_outcomes in out
 Path("flagged.csv").write_text(render(df.assign(failed=failed), fmt="csv"))
 ```
 
-## Leaving columns out
+## Which columns a table shows
 
-`add_columns` copies frame columns in; `drop_columns` takes the report's own
-columns out. That is the pair a run needs when some columns are for whoever is
-debugging and not for what ships:
+Every table's default columns are set in one place, `_DEFAULT_COLUMNS` in
+`src/jobcheck/tables.py`, keyed by the table's title:
+
+```
+_DEFAULT_COLUMNS = {
+    "Report": ["row", "code", "status", "layer", "outcome", "message", "detail",
+               "comments", "is_root_cause"],
+    "Registry": ["code", "layer", "default", "message", "depends_on"],
+    "Rules": ["name", "action", "codes_hit_count", "match", "message"],
+    "Row explanation": ["layer", "code", "outcome", "status", "detail"],
+    "Summary": ["code", "layer", "failed", "root_cause_rows", "errored", "skipped",
+                "disabled", "passed"],
+}
+```
+
+Edit it to change what every entry point shows; no entry point sets columns in its
+own code. A column left out is still built: the registry and rules tables take it
+back per call through `add_columns` (`source_file`, `could_be_overridden_by`,
+`effective_state`, `codes`), and `build_report`'s `add_columns` copies columns of
+the data in, straight after `row`. A report column hidden there comes back only by
+editing the dict. A test checks every name in it is a column its table builds, so a
+typo fails the suite rather than a run.
+
+For one run that wants fewer columns, drop them with pandas; the title survives:
 
 ```python
 debug = False                       # your run's own flag
-debug_only = ["comments", "detail", "layer"]
-report = build_report(outcomes, df=df, key_column="id",
-                      drop_columns=[] if debug else debug_only)
+report = build_report(outcomes, df=df, key_column="id")
+if not debug:
+    report = report.drop(columns=["comments", "detail", "layer"])
 print(render(report))
 ```
 ```
@@ -243,26 +264,8 @@ row | code         | status      | outcome | message         | is_root_cause
 1   | AGE_NEGATIVE | INVALID (3) | failed  | Age is negative | True
 ```
 
-The remaining columns keep the report's order, not the caller's, and added columns
-still land straight after `row`. A dropped column is gone from the CSV too, since
-both formats render the frame they are given.
-
-`REPORT_COLUMNS` is the report's own column names, in order, as a tuple. Read it to
-say which columns a run *keeps* rather than which it drops:
-
-```python
-keep = ("row", "code", "message")
-report = build_report(outcomes, df=df, key_column="id",
-                      drop_columns=[c for c in REPORT_COLUMNS if c not in keep])
-```
-
-A name that is not a report column, or asked for twice, is refused and the message
-lists what can go — the same shape `add_columns` uses, because a column silently
-still there reads as proof it is empty. `row` can be dropped like any other:
-`drop_columns` is a choice about your own output, not a judgement about which
-columns matter.
-
-The same pair is on `registry_table` and `rules_table`.
+A dropped column is gone from the CSV too, since both formats render the frame they
+are given. `REPORT_COLUMNS` is the report's own column names, in order, as a tuple.
 
 ## Every table names itself
 

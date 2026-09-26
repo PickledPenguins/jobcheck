@@ -61,7 +61,8 @@ RUN_KEYS = ("setup", "data", "tables")
 
 #: Every table a run can print, and the options each takes beside `table`.
 #: The options are the table functions' own argument names, so the library's
-#: documentation of each one is the documentation of the key.
+#: documentation of each one is the documentation of the key -- except
+#: `drop_columns`, which this script applies to the built table with pandas.
 TABLE_OPTIONS: dict[str, tuple[str, ...]] = {
     "registry": ("add_columns", "drop_columns"),
     "rules": ("add_columns", "drop_columns"),
@@ -163,39 +164,45 @@ def print_tables(tables: list[dict[str, Any]], rules: list[Rule], df: Any,
                  outcomes: list[list[CheckOutcome]]) -> None:
     """Print each table the run file names, in its order, a blank line between."""
 
-    printers: dict[str, Callable[[dict[str, Any]], object]] = {
+    printers: dict[str, Callable[[dict[str, Any], list[str]], object]] = {
         # Given the rules so `could_be_overridden_by` and `effective_state` can be
         # asked for; without either the argument prints the same table.
-        "registry": lambda options: print(render(registry_table(rules=rules, **options))),
-        "rules": lambda options: print_rules_and_warnings(rules, options),
-        "report": lambda options: print_one_report(df, outcomes, options),
-        "summary": lambda options: print(render(summarize_outcomes(outcomes))),
+        "registry": lambda options, drop: print(render(
+            registry_table(rules=rules, **options).drop(columns=drop))),
+        "rules": lambda options, drop: print_rules_and_warnings(rules, options, drop),
+        "report": lambda options, drop: print_one_report(df, outcomes, options, drop),
+        "summary": lambda options, drop: print(render(summarize_outcomes(outcomes))),
     }
     for position, spec in enumerate(tables, 1):
         if position > 1:
             print()
         options = {key: value for key, value in spec.items() if key != "table"}
+        # The library takes no drop_columns; this script drops from the built table.
+        drop = options.pop("drop_columns", [])
         try:
-            printers[spec["table"]](options)
-        except ValueError as exc:
-            raise ValueError(f"table {position} ({spec['table']}): {exc}") from None
+            printers[spec["table"]](options, drop)
+        except (ValueError, KeyError) as exc:
+            # KeyError is pandas refusing a drop_columns name the table lacks.
+            reason = exc.args[0] if isinstance(exc, KeyError) else exc
+            raise ValueError(f"table {position} ({spec['table']}): {reason}") from None
 
 
-def print_rules_and_warnings(rules: list[Rule], options: dict[str, Any]) -> None:
+def print_rules_and_warnings(rules: list[Rule], options: dict[str, Any],
+                             drop: list[str]) -> None:
     """The rules table, then any rule a later one overrules on every row -- the
     same pairing `main.py --rules-table` prints."""
 
-    print(render(rules_table(rules, **options)))
+    print(render(rules_table(rules, **options).drop(columns=drop)))
     for warning in warn_shadowed_rules(rules):
         print(f"warning: {warning}")
 
 
 def print_one_report(df: Any, outcomes: list[list[CheckOutcome]],
-                     options: dict[str, Any]) -> None:
+                     options: dict[str, Any], drop: list[str]) -> None:
     """Build and print one report. `format` is the run file's name for `fmt`."""
 
     fmt = options.pop("format", "table")
-    print(render(build_report(outcomes, df=df, **options), fmt=fmt))
+    print(render(build_report(outcomes, df=df, **options).drop(columns=drop), fmt=fmt))
 
 
 def main(argv: list[str] | None = None) -> None:

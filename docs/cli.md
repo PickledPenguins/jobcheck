@@ -208,7 +208,8 @@ directory**, as the paths inside a setup file resolve against its, so the run fi
 it names travel together; the run file's own path is relative to where you stand.
 
 Each entry of `tables` names one `table` and the options it takes, which are the table
-functions' own argument names:
+functions' own argument names -- except `drop_columns`, which the script applies to the
+built table with pandas (`table.drop(columns=...)`):
 
 | `table` | Options | Built with, then printed with `render` |
 |---|---|---|

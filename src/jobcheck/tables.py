@@ -63,31 +63,6 @@ def _reject_unknown_columns(requested: list[str], available: list[str], subject:
         )
 
 
-def _keep_columns(base: list[str], drop_columns: list[str] | None, subject: str) -> list[str]:
-    """`base` without the names `drop_columns` asks to remove.
-
-    The inverse of `add_columns`, and validated the same way: a name that is not
-    there, or asked for twice, is refused rather than ignored, because a caller
-    dropping `comment` and getting `comments` anyway would read the table as
-    proof the column is empty.
-
-    Only the table's own columns can be dropped. Dropping one that `add_columns`
-    put there is spelled by not adding it, and a caller who does both has said two
-    things about one column.
-    """
-
-    requested = list(drop_columns or [])
-    unusable = sorted(
-        {name for name in requested if name not in base or requested.count(name) > 1}
-    )
-    if unusable:
-        raise ValueError(
-            f"drop_columns {unusable} cannot be used for {subject}. Each name must be "
-            f"asked for once and be one of: {', '.join(base) or '(none to drop)'}."
-        )
-    return [name for name in base if name not in requested]
-
-
 # The breaks a terminal acts on. Not `str.splitlines`, which also splits on
 # \x0b, \x1c and   -- characters that draw as nothing, so a cell would go
 # tall for no visible reason.
@@ -178,6 +153,19 @@ def _format_table(table: pd.DataFrame, wrap_columns: dict[str, int] | None = Non
 # Escaping happens on the way out, so the tables keep the value the check saw.
 _FORMULA_PREFIXES = ("=", "+", "@", "\t", "\r")
 
+#: The columns each table shows, in order. Edit here to change what every entry
+#: point sees: a column left out is still built, and a table taking add_columns
+#: can still ask for it by name. Keyed by the table's title.
+_DEFAULT_COLUMNS = {
+    "Report": ["row", "code", "status", "layer", "outcome", "message", "detail",
+               "comments", "is_root_cause"],
+    "Registry": ["code", "layer", "default", "message", "depends_on"],
+    "Rules": ["name", "action", "codes_hit_count", "match", "message"],
+    "Row explanation": ["layer", "code", "outcome", "status", "detail"],
+    "Summary": ["code", "layer", "failed", "root_cause_rows", "errored", "skipped",
+                "disabled", "passed"],
+}
+
 #: How wide each long free-text column wraps, by name, whichever table holds it.
 _WRAP_WIDTHS = {"message": 40, "detail": 48, "comments": 48, "match": 44, "codes": 40,
                 "could_be_overridden_by": 34, "effective_state": 34}
@@ -203,6 +191,24 @@ def _escape_for_spreadsheet(value: Any) -> Any:
     if value[0] in _FORMULA_PREFIXES or (value[0] == "-" and not _looks_numeric(value)):
         return "'" + value
     return value
+
+
+def _shown(table: pd.DataFrame, title: str,
+           add_columns: list[str] | None = None) -> pd.DataFrame:
+    """*table* narrowed to its default columns plus *add_columns*, and titled.
+
+    `add_columns` may name any column the table built but does not show by
+    default; anything else is refused, since a name quietly dropped is a column
+    the caller believes is there.
+    """
+
+    shown = _DEFAULT_COLUMNS[title]
+    add_columns = list(add_columns or [])
+    hidden = [str(name) for name in table.columns if name not in shown]
+    _reject_unknown_columns(add_columns, hidden, f"the {title.lower()} table")
+    narrowed = table[[*shown, *add_columns]]
+    narrowed.attrs["title"] = title
+    return narrowed
 
 
 def render(table: pd.DataFrame, fmt: str = "table") -> str:

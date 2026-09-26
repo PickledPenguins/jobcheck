@@ -15,21 +15,13 @@ import pandas as pd
 
 from .registry import _CHECKS, _get_topo_order
 from .rules import Rule
-from .tables import _keep_columns, _reject_unknown_columns
+from .tables import _shown
 
-#: The columns each table always has, before `add_columns` adds to them and after
-#: `drop_columns` takes from them. Named rather than inline so both arguments are
-#: validated against the same list a reader can find.
-REGISTRY_BASE_COLUMNS = ["code", "layer", "default", "message", "depends_on"]
-RULES_BASE_COLUMNS = ["name", "action", "codes_hit_count", "match", "message"]
-
-#: Optional columns the tables offer. ``source_file`` is where the check or rule
-#: came from; ``could_be_overridden_by`` and ``effective_state`` read the rules
-#: :func:`registry_table` is given.
-#: ``codes`` is the list behind a rule's ``codes_hit_count``, opt-in because a
-#: broad rule's list makes a tall row.
-REGISTRY_OPTIONAL_COLUMNS = ["source_file", "could_be_overridden_by", "effective_state"]
-RULE_OPTIONAL_COLUMNS = ["codes", "source_file"]
+# Every column each table builds; tables._DEFAULT_COLUMNS picks which are shown.
+_REGISTRY_COLUMNS = ["code", "layer", "default", "message", "depends_on", "source_file",
+                     "could_be_overridden_by", "effective_state"]
+_RULES_COLUMNS = ["name", "action", "codes_hit_count", "codes", "match", "message",
+                  "source_file"]
 
 
 def _rules_for_code(code: str, rules: list[Rule]) -> list[Rule]:
@@ -47,13 +39,14 @@ def _render_match(rule: Rule) -> str:
                      for criterion in rule.criteria)
 
 
-def registry_table(rules: list[Rule] | None = None, add_columns: list[str] | None = None,
-                   drop_columns: list[str] | None = None) -> pd.DataFrame:
+def registry_table(rules: list[Rule] | None = None,
+                   add_columns: list[str] | None = None) -> pd.DataFrame:
     """One row per registered check, ordered layer then code, so the fundamental
-    checks read first.
+    checks read first. The columns shown are `tables._DEFAULT_COLUMNS["Registry"]`
+    plus `add_columns`: `source_file`, `could_be_overridden_by`, `effective_state`.
 
-    `could_be_overridden_by` and `effective_state` are the two added columns that
-    read `rules`, and `rules` feeds nothing else. Neither is "was overridden by":
+    `could_be_overridden_by` and `effective_state` are the two columns that read
+    `rules`, and `rules` feeds nothing else. Neither is "was overridden by":
     whether a rule fires depends on the row it is matched against, and this table
     has no row.
     """
@@ -61,9 +54,6 @@ def registry_table(rules: list[Rule] | None = None, add_columns: list[str] | Non
     # Layers are computed with the evaluation order; a check registered outside
     # load_checks has none until something asks for it.
     _get_topo_order()
-    add_columns = list(add_columns or [])
-    _reject_unknown_columns(add_columns, REGISTRY_OPTIONAL_COLUMNS, "the registry table")
-    kept = _keep_columns(REGISTRY_BASE_COLUMNS, drop_columns, "the registry table")
     rules = rules or []
 
     rows: list[dict[str, Any]] = []
@@ -84,31 +74,21 @@ def registry_table(rules: list[Rule] | None = None, add_columns: list[str] | Non
                 if matching else f"DEFAULT ({state})",
         })
 
-    # Built with every column, sorted, and only then narrowed: `layer` and `code`
-    # are what the sort reads, and `drop_columns` may take either out. Columns are
-    # passed explicitly so an empty registry still has columns to sort by.
-    table = (
-        pd.DataFrame(rows, columns=[*REGISTRY_BASE_COLUMNS, *REGISTRY_OPTIONAL_COLUMNS])
-        .sort_values(["layer", "code"])
-        .reset_index(drop=True)[[*kept, *add_columns]]
-    )
-    table.attrs["title"] = "Registry"
-    return table
+    # Sorted before it is narrowed, since the defaults may leave out `layer` or
+    # `code`. Columns are named so an empty registry still has them to sort by.
+    table = (pd.DataFrame(rows, columns=_REGISTRY_COLUMNS)
+             .sort_values(["layer", "code"]).reset_index(drop=True))
+    return _shown(table, "Registry", add_columns)
 
 
-def rules_table(rules: list[Rule], add_columns: list[str] | None = None,
-                drop_columns: list[str] | None = None) -> pd.DataFrame:
-    """One row per rule, rather than per code.
+def rules_table(rules: list[Rule], add_columns: list[str] | None = None) -> pd.DataFrame:
+    """One row per rule, rather than per code. The columns shown are
+    `tables._DEFAULT_COLUMNS["Rules"]` plus `add_columns`: `codes`, `source_file`.
 
     `codes_hit_count` is a count rather than the code list, so a rule touching
     many codes does not blow the table apart; `add_columns=["codes"]` gives the
     detail.
     """
-
-    add_columns = list(add_columns or [])
-    _reject_unknown_columns(add_columns, RULE_OPTIONAL_COLUMNS, "the rules table")
-    columns = [*_keep_columns(RULES_BASE_COLUMNS, drop_columns, "the rules table"),
-               *add_columns]
 
     rows: list[dict[str, Any]] = []
     for rule in rules:
@@ -122,6 +102,4 @@ def rules_table(rules: list[Rule], add_columns: list[str] | None = None,
             "source_file": rule.source_file,
         })
 
-    table = pd.DataFrame(rows, columns=columns)
-    table.attrs["title"] = "Rules"
-    return table
+    return _shown(pd.DataFrame(rows, columns=_RULES_COLUMNS), "Rules", add_columns)
