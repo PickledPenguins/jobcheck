@@ -2,8 +2,9 @@
 
 Every call a document shows is bound against the real signature, which catches an
 argument that became required, a keyword that was renamed, and a function that no
-longer exists; every exported name is documented in `interfaces.md` and nothing
-there is gone; every check code a document shows is one that exists. `tests/test_readme.py`
+longer exists; every exported name is documented in `interfaces.md` -- each function
+with its real signature, each type with its fields or members -- and nothing there is
+gone; every check code a document shows is one that exists. `tests/test_readme.py`
 executes the README's own session, and `test_docs_blocks_unit.py` runs the blocks.
 
 The drift this was written for: a call that appeared in three
@@ -15,6 +16,8 @@ from __future__ import annotations
 
 import ast
 import builtins
+import dataclasses
+import enum
 import inspect
 import re
 from pathlib import Path
@@ -126,6 +129,72 @@ def test_every_exported_name_is_documented_in_interfaces() -> None:
     assert missing == [], f"undocumented public names: {missing}"
 
 
+INTERFACES = ROOT / "docs" / "interfaces.md"
+
+#: Stands for "no default" on either side of the comparison below.
+NO_DEFAULT = object()
+
+
+def documented_parameters(form: str) -> list[tuple[str, object]] | None:
+    """(name, default) for each parameter of one documented call form, or None when
+    the form is a call with arguments rather than a signature."""
+
+    try:
+        arguments = ast.parse(f"def _({form}): pass").body[0].args  # type: ignore[attr-defined]
+        positional = [*arguments.posonlyargs, *arguments.args]
+        padding = [None] * (len(positional) - len(arguments.defaults))
+        pairs = [*zip(positional, [*padding, *arguments.defaults]),
+                 *zip(arguments.kwonlyargs, arguments.kw_defaults)]
+        return [(argument.arg, NO_DEFAULT if default is None else ast.literal_eval(default))
+                for argument, default in pairs]
+    except (SyntaxError, ValueError):
+        return None
+
+
+def real_parameters(function: Any) -> list[tuple[str, object]]:
+    return [(parameter.name, NO_DEFAULT if parameter.default is parameter.empty
+             else parameter.default)
+            for parameter in inspect.signature(function).parameters.values()]
+
+
+@pytest.mark.parametrize(
+    "name", sorted(name for name, value in PUBLIC.items() if inspect.isfunction(value)))
+def test_interfaces_shows_every_exported_function_s_real_signature(name: str) -> None:
+    """Regression: `render_comments`, `row_explanation` and `summarize_outcomes` had
+    no signature anywhere, and the name check passed on one mention in a list.
+    Parameter names, order and defaults must all match."""
+
+    text = INTERFACES.read_text(encoding="utf-8")
+    forms = re.findall(rf"`{name}\(([^`]*)\)(?: -> [^`]*)?`", text)
+    real = real_parameters(PUBLIC[name])
+    assert any(documented_parameters(form) == real for form in forms), (
+        f"interfaces.md shows no `{name}(...)` with the parameters "
+        f"{inspect.signature(PUBLIC[name])}; it shows {forms}")
+
+
+def section_of(text: str, name: str) -> str:
+    """One `### \\`name\\`` section of interfaces.md, up to the next heading."""
+
+    match = re.search(rf"^### `{name}`\n(.*?)(?=^##)", text, re.M | re.S)
+    assert match, f"interfaces.md has no section headed `{name}`"
+    return match.group(1)
+
+
+@pytest.mark.parametrize("name", sorted(
+    name for name, value in PUBLIC.items()
+    if isinstance(value, type) and (dataclasses.is_dataclass(value)
+                                    or issubclass(value, enum.Enum))))
+def test_interfaces_names_every_field_and_member_of_an_exported_type(name: str) -> None:
+    section = section_of(INTERFACES.read_text(encoding="utf-8"), name)
+    value = PUBLIC[name]
+    if dataclasses.is_dataclass(value):
+        missing = [field.name for field in dataclasses.fields(value)
+                   if f"`{field.name}`" not in section and f"`{field.name}:" not in section]
+    else:
+        missing = [member.name for member in value if member.name not in section]
+    assert missing == [], f"interfaces.md, `{name}`: not named: {missing}"
+
+
 def test_interfaces_does_not_document_names_that_are_gone() -> None:
     interfaces = (ROOT / "docs" / "interfaces.md").read_text(encoding="utf-8")
     documented = set(re.findall(r"^### `([A-Za-z_][A-Za-z0-9_]*)", interfaces, re.M))
@@ -140,6 +209,21 @@ def _main() -> Any:
     import main
 
     return main
+
+
+def variables_read() -> set[str]:
+    """Every environment variable the code or the suite reads or sets, and every
+    variable the suite runner expands. Upper-case and underscored like a code, and
+    documented by name, so they are derived here rather than listed."""
+
+    names: set[str] = set()
+    for path in [*ROOT.glob("src/jobcheck/*.py"), *ROOT.glob("examples/*.py"),
+                 *ROOT.glob("scripts/*.py"), *ROOT.glob("tests/*.py")]:
+        names.update(re.findall(r"environ(?:\.get|\.setdefault)?\s*[(\[]\s*[\"']([A-Z][A-Z0-9_]*)[\"']",
+                                path.read_text(encoding="utf-8")))
+    runner = (ROOT / "tests" / "run-tests.sh").read_text(encoding="utf-8")
+    names.update(re.findall(r"\$\{?([A-Z][A-Z0-9_]*)", runner))
+    return names
 
 
 def documented_codes() -> dict[str, set[str]]:
@@ -164,6 +248,7 @@ def documented_codes() -> dict[str, set[str]]:
            "README", "PYTHON", "LEGACY_A", "MODERN", "STREAM", "BATCH", "NO_KEY"}
         # The demo entry point's own constants, documented in cli.md.
         | {name for name in vars(_main()) if name.isupper()}
+        | variables_read()
     )
     found: dict[str, set[str]] = {}
     for path in DOCS + [README]:
@@ -217,9 +302,3 @@ def test_no_document_says_a_bare_bool_or_status_is_converted() -> None:
             f"{path.name} says a bare bool is accepted; _normalize_verdict refuses it")
         assert "status value is converted" not in text, (
             f"{path.name} says a bare status is accepted; _normalize_verdict refuses it")
-
-
-#: The width `contributing.md` claims, and the directories it is claimed for.
-#: `tests/` is deliberately absent: 74 of its lines are over, and they are table
-#: rows, pinned error messages and parametrize entries where wrapping costs more
-#: than it buys. The claim and this list are stated together in that document.

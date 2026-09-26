@@ -249,6 +249,7 @@ tests/run-tests.sh cov      # the fast suite with coverage, gated at 95%
 tests/run-tests.sh perf     # timing against this machine's baseline (its own gate)
 tests/run-tests.sh memory   # peak-memory ceilings (its own gate)
 tests/run-tests.sh profile  # where the example runs spend their time
+tests/run-tests.sh mutation # a clean mutmut run, gated at 94% (~4 min)
 tests/run-tests.sh types    # mypy alone
 scripts/install-hooks.sh
 scripts/new_catalog_case.py <kind> <path> ...       # add one catalog case, output and all

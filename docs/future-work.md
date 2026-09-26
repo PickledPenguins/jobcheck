@@ -12,9 +12,11 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-None are open. Every item raised by the reviews of 2026-09-15, 2026-09-21, 2026-09-23 and
-2026-09-24 has been worked through: what was built is in the git log, and what was decided
-against is in the section below, with the reason. An entry there is closed, not pending.
+No review finding is open. Every item raised by the reviews of 2026-09-15, 2026-09-21,
+2026-09-23, 2026-09-24 and 2026-09-25 has been worked through: what was built is in the
+git log, and what was decided against is in the section below, with the reason. An
+entry there is closed, not pending. Work in progress and known defects not yet worked
+on are the handoff record's, not this file's.
 
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
@@ -26,7 +28,7 @@ registry).
 
 ## Considered and deliberately not done
 
-**Building rules in Python** (raised by the `src/` review of 2026-09-25, declined by the
+**Building rules in Python** (F.38, raised by the `src/` review of 2026-09-25, declined by the
 owner the same day). `Rule` is exported, but a hand-built one needs the private
 `_MatchCriterion` and a precompiled regex, and is not validated -- six test modules import
 the private class to build rules. The proposal was a `Rule` that takes the YAML's own
@@ -34,7 +36,7 @@ the private class to build rules. The proposal was a `Rule` that takes the YAML'
 file. Declined: rules are configured in YAML files and nowhere else. `Rule` stays a type the
 loader returns rather than one callers construct.
 
-**Replacing the context builder with one shared `context=` object** (raised by the `src/`
+**Replacing the context builder with one shared `context=` object** (F.39, raised by the `src/`
 review of 2026-09-25, rejected by the owner the same day). The proposal replaced
 `context_builder`, `context_args` and `RowContext` with `validate(df, context=obj)`, the
 same object for every row, on the evidence that jobchain passes a constant. Rejected: the
@@ -44,7 +46,7 @@ once per row, and shared by every check on that row. That needs an object built 
 row, which the builder does and a single shared object cannot. `RowContext` stays as the
 interface such an object subclasses.
 
-**Handing checks one Python type per column whatever the frame holds** (raised by the
+**Handing checks one Python type per column whatever the frame holds** (F.40, raised by the
 `src/` review of 2026-09-25, rejected by the owner the same day). `validate` iterates with
 `iterrows`, so an all-numeric frame upcasts an int column to float (`7` arrives as `7.0`)
 while a frame with any text column does not. The proposal was `df.astype(object)` in
@@ -53,7 +55,7 @@ favor of consistency the caller controls: a check should expect the same thing w
 column types, and the owner's preference is text -- a frame read with `dtype=str` hands
 every check strings, the same on every row and every frame. The library does not convert.
 
-**Rolling a failed load back, per file or per call** (raised by the `src/` review of
+**Rolling a failed load back, per file or per call** (F.41, raised by the `src/` review of
 2026-09-25; the per-file rollback removed the same day). `load_checks` used to drop the
 checks a failing file had registered, tracking each in-progress file's checks on a stack
 so a failing bundle kept its completed members'. The review proposed making the whole call
@@ -214,7 +216,7 @@ would also cost the sentence every failure prints, "load_checks() names files ex
 nothing is discovered", which is pinned in eleven places and is the invariant the whole
 loader is built on.
 
-**An `Outcome` enum in place of five outcome strings** (raised by the `src/` review of
+**An `Outcome` enum in place of five outcome strings** (F.42, raised by the `src/` review of
 2026-09-25, built the same day). `PASSED`, `FAILED`, `DISABLED`, `SKIPPED` and `ERRORED`
 were plain strings, so a misspelled comparison was silently false. `Outcome` is a
 `(str, Enum)`: one export instead of five, `== "failed"` still holds, a misspelled member
@@ -224,7 +226,7 @@ Lost: formatting a member prints `Outcome.FAILED`, so hand-written text needs `.
 (the tables write `.value` themselves; `StrEnum` would avoid it but needs Python 3.11).
 Jobchain's two `engine.ERRORED` uses changed with it.
 
-**Five exported names made private** (raised by the `src/` review of 2026-09-25, done
+**Five exported names made private** (F.43, raised by the `src/` review of 2026-09-25, done
 the same day, per the example rule of F.37). `Check` (no public function hands one
 out since F.28), `render_status` (duplicated by `CheckOutcome.status_label`),
 the report-column tuple (what a report shows is `_DEFAULT_COLUMNS` now), `loaded_check_files`
@@ -236,7 +238,7 @@ registered checks); and an explicit graph check before data for checks registere
 outside `load_checks` (`registry_table()` runs it). `bundle_main.py` prints the
 registry with `source_file` instead of its "Loaded" list.
 
-**`drop_columns` replaced by one dict of default columns** (raised by the `src/`
+**`drop_columns` replaced by one dict of default columns** (F.44, raised by the `src/`
 review of 2026-09-25, built the same day). `build_report`, `registry_table` and
 `rules_table` each took `drop_columns`, validated against per-table base and optional
 column lists in two modules. Now `_DEFAULT_COLUMNS` in `tables.py`, keyed by title, sets
@@ -248,7 +250,7 @@ one of:" message for a bad drop name (pandas raises `KeyError`); restoring a hid
 explanation, which never had it. The run file keeps its `drop_columns` option, applied by
 `examples/run_from_config.py` itself.
 
-**One `render` in place of the printing functions** (raised by the `src/` review of
+**One `render` in place of the printing functions** (F.45, raised by the `src/` review of
 2026-09-25, built the same day). Twelve names showed or saved results --
 `print_report`, `render_report`, `write_report`, `print_registry`, `print_rules`,
 `print_row_explanation`, `print_summary`, `format_table`, `escape_for_spreadsheet`,

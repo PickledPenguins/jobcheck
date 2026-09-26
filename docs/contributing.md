@@ -12,18 +12,19 @@ Changing this project itself: where a change goes, and what enforces what.
 | What checks exist: registration, file loading, the dependency graph | `src/jobcheck/registry.py` |
 | What happens to a row, and to a whole frame: on/off state, evaluation order, outcomes, root causes | `src/jobcheck/engine.py` |
 | How the registry and the rules are displayed | `src/jobcheck/registry_tables.py` |
-| Anything about the report: columns, formats, files | `src/jobcheck/report.py` |
+| The report, a row's explanation, the summary: what each view holds | `src/jobcheck/report.py` |
 | The rule-file format and its parser | `src/jobcheck/rules.py` — it never reaches into the registry; the codes that exist are handed to it |
 | What a check may return, and the status vocabulary | `src/jobcheck/results.py` |
-| Table rendering and null handling | `src/jobcheck/tables.py` |
+| The columns every table shows by default, rendering as text or CSV, formula escaping, null handling | `src/jobcheck/tables.py` |
 | How a named path becomes a file, and what a missing one says | `src/jobcheck/paths.py` |
 | A demo of any of the above | `examples/`, never the package |
 | A dependency | `pyproject.toml` only — there is no requirements.txt to keep in step |
 
-Layout rules the tests enforce: unit files mirror the module they cover
-(`tests/test_<module>_unit.py`), generated artifacts stay out of the project root, and the
-package ships no tests of its own (`tests/test_packaging.py` checks that from a
-subprocess with only `src/` importable).
+One layout rule a test enforces: the package ships no tests of its own
+(`tests/test_packaging.py` checks that from a subprocess with only `src/` importable).
+Two more are conventions nothing checks: a unit file is named for what it covers,
+`tests/test_<module>_unit.py` where one module is the subject, and generated artifacts
+go under `.build/`, never the project root.
 
 ## What enforces what
 
@@ -33,11 +34,12 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 |---|---|
 | The fast suite passes before every commit | `.git/hooks/pre-commit`, installed by `scripts/install-hooks.sh` |
 | 95% statements and branches | `./tests/run-tests.sh cov`, through `coverage report --fail-under` |
-| Every public name is exported, sorted, and documented | `tests/test_api_contract.py`, `tests/test_docs_api_unit.py` |
-| Every entry-point flag has a section in `docs/cli.md`, and every documented flag exists | `tests/test_readme.py` |
-| Every code block in `docs/` runs, and every call shown matches the real signature | `tests/test_docs_blocks_unit.py`, `tests/test_docs_api_unit.py` |
+| Every public function and class is exported, sorted, and documented in `interfaces.md` — each function with its real signature, each type with its fields or members | `tests/test_api_contract.py`, `tests/test_docs_api_unit.py` |
+| Every flag and argument of the three entry points has a section in `docs/cli.md` and every documented one exists; the usage lines, the run-file table and the exit codes are the real ones | `tests/test_docs_cli_unit.py` |
+| Every Python block in `docs/` runs and prints the output shown after it, and every call shown matches the real signature | `tests/test_docs_blocks_unit.py`, `tests/test_docs_api_unit.py` |
 | The README runs and prints exactly what it shows | `tests/test_readme.py` |
 | The README stays an index (300 lines), every document is reachable from it, no dead link or anchor | `tests/test_docs_structure_unit.py` |
+| What a document copies from the code matches it: the shipped rule file, `_DEFAULT_COLUMNS`, the rule and setup keys, the module and script tables | `tests/test_docs_structure_unit.py` |
 | Every catalog case documents itself and states its level, and each level keeps its floor | `tests/test_e2e_catalogs.py` |
 | The shipped rule files load together and name real codes and columns | `tests/test_shipped_examples_unit.py` |
 | The example data is what its generator produces | `tests/test_shipped_examples_unit.py` |
@@ -51,8 +53,8 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 The bar is a junior developer reading this for the first time, and it is the
 reason several obvious-looking shortcuts are absent:
 
-- **No lambdas.** A named function says what it is for; there are none in the
-  package, and a new one is a review comment.
+- **No lambdas.** A named function says what it is for. The package holds two, in
+  `engine._context_caller`; a new one is a review comment.
 - **No dense one-liners.** A comprehension with two conditions, or one indexing
   into a nested structure, gets unpacked into a named value or a plain loop.
 - **Lines stay under 100 characters** in `src/`, `examples/` and `scripts/`, and a
@@ -60,17 +62,18 @@ reason several obvious-looking shortcuts are absent:
   linter here; the check is twenty lines in `tests/test_docs_structure_unit.py`, beside the
   others that keep a document honest about the code. A long error message is
   wrapped as adjacent string literals rather than run out to 120. `tests/` is
-  exempt: 74 of its lines are over, and they are table rows, pinned messages and
-  parametrize entries where wrapping costs more than it buys.
+  exempt: its long lines are table rows, pinned messages and parametrize entries,
+  where wrapping costs more than it buys.
 - **A line is either obvious or carries a brief comment saying what it does.**
   Docstrings say what a function is for and why it exists, in less space than the
   function takes; the detail of arguments, return shapes and errors lives in
   [interfaces.md](interfaces.md), which a test keeps in step with the code.
 - **A leading underscore means "outside the public surface", not "inside this
-  file".** `tables.py`'s `_format_cell` and `_reject_unknown_columns` are imported by
-  three other modules on purpose. What the underscore rules out is a *user*
-  calling them: a name without one has to be in `__all__`, which
-  `tests/test_api_contract.py` enforces, and anything exported needs a use case a
+  file".** `tables.py`'s `_format_cell`, `_reject_unknown_columns`, `_shown` and
+  `_DEFAULT_COLUMNS` are imported by `rules.py`, `report.py` and `registry_tables.py`
+  on purpose. What the underscore rules out is a *user* calling them: a function or
+  class without one has to be in `__all__`, which `tests/test_api_contract.py`
+  enforces for every module but `paths`, and anything exported needs a use case a
   user outside this package actually has.
 
 ## Adding to the suite

@@ -1,9 +1,11 @@
 """The documents as a set: an index, reachable, linked, and saying true numbers.
 
 The README stays an index and reaches every document; no internal link or anchor is
-dead; the rule keys, statuses, outcome names and exit codes are documented where they
-belong; the suite sizes, catalog counts and line-width limit the documents state are
-the real ones.
+dead; the rule and setup keys, statuses and outcome names are documented where they
+belong; what a document copies from the code -- the shipped rule file, the default
+columns, the module and script tables -- matches it; the suite sizes, catalog counts
+and line-width limit the documents state are the real ones. `docs/cli.md` against
+the entry points is `test_docs_cli_unit.py`.
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ from pathlib import Path
 import pytest
 
 from doc_files import DOCS, README, ROOT
+from jobcheck import Outcome
 
 pytestmark = pytest.mark.fast
 
@@ -89,36 +92,61 @@ def test_the_status_vocabulary_is_documented() -> None:
         assert status.name in writing, status.name
 
 
-@pytest.mark.parametrize("outcome", ["passed", "failed", "errored", "skipped", "disabled"])
+@pytest.mark.parametrize("outcome", [member.value for member in Outcome])
 def test_every_outcome_name_is_documented(outcome: str) -> None:
     reporting = (ROOT / "docs" / "reporting.md").read_text(encoding="utf-8")
     writing = (ROOT / "docs" / "writing-checks.md").read_text(encoding="utf-8")
     assert outcome in reporting or outcome in writing
 
 
+def test_the_setup_keys_are_documented() -> None:
+    """Configuration owns the setup-file format as it owns the rule-file format."""
 
-def test_every_exit_code_the_entry_point_can_return_is_documented() -> None:
-    """The exit codes are the contract a scheduled job is written against, and
-    they live in one table; a new one added without a row there is invisible."""
+    from jobcheck import registry
 
-    source = ast.parse((ROOT / "examples" / "main.py").read_text(encoding="utf-8"))
-    raised = {
-        int(node.exc.args[0].value)
-        for node in ast.walk(source)
-        if isinstance(node, ast.Raise)
-        and isinstance(node.exc, ast.Call)
-        and getattr(node.exc.func, "id", None) == "SystemExit"
-        and node.exc.args
-        and isinstance(node.exc.args[0], ast.Constant)
-        and isinstance(node.exc.args[0].value, int)
+    configuration = (ROOT / "docs" / "configuration.md").read_text(encoding="utf-8")
+    for key in registry.SETUP_KEYS:
+        assert f"`{key}`" in configuration, key
+
+
+def test_the_rule_file_shown_is_the_shipped_one() -> None:
+    """Regression: configuration.md called its rule file the shipped one "verbatim"
+    while a scripted rename had changed its pattern to one no demo row matches."""
+
+    configuration = (ROOT / "docs" / "configuration.md").read_text(encoding="utf-8")
+    shown = re.search(r"```yaml\n(.*?)```", configuration, re.S)
+    assert shown, "configuration.md no longer shows a rule file"
+    shipped = (ROOT / "examples" / "rules" / "error_rules.yaml").read_text(encoding="utf-8")
+    rules_only = "\n".join(line for line in shipped.splitlines()
+                           if not line.lstrip().startswith("#"))
+    assert shown.group(1).strip() == rules_only.strip()
+
+
+def test_the_default_columns_shown_are_the_ones_tables_sets() -> None:
+    """reporting.md copies `_DEFAULT_COLUMNS` so a reader need not open the source."""
+
+    from jobcheck import tables
+
+    reporting = (ROOT / "docs" / "reporting.md").read_text(encoding="utf-8")
+    shown = re.search(r"```\n_DEFAULT_COLUMNS = (\{.*?\})\n```", reporting, re.S)
+    assert shown, "reporting.md no longer shows _DEFAULT_COLUMNS"
+    assert ast.literal_eval(shown.group(1)) == tables._DEFAULT_COLUMNS
+
+
+def test_architecture_has_a_row_for_every_module_entry_point_and_script() -> None:
+    """Regression: the table said report.py renders and the scripts row named four
+    of eight scripts. A row per file is what keeps the list honest; a row naming a
+    file that is gone fails too."""
+
+    architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+    rows = set(re.findall(r"^\| `([^`]+)` \|", architecture, re.M))
+    files = {
+        path.relative_to(ROOT).as_posix()
+        for pattern in ("src/jobcheck/*.py", "examples/*.py", "scripts/*")
+        for path in ROOT.glob(pattern) if path.is_file()
     }
-    # 0 for a clean run and 1 for an uncaught exception are the interpreter's, not
-    # the entry point's, so they are never raised in the source and are added here.
-    expected = raised | {0, 1}
-    table = (ROOT / "docs" / "cli.md").read_text(encoding="utf-8")
-    documented = {int(value) for value in re.findall(r"^\| (\d+) \| ", table, re.M)}
-    assert expected <= documented, f"undocumented exit code(s): {sorted(expected - documented)}"
-    assert documented <= expected, f"documented exit code(s) that cannot happen: {sorted(documented - expected)}"
+    assert sorted(files - rows) == [], "no row in docs/architecture.md"
+    assert sorted(row for row in rows if not (ROOT / row).exists()) == [], "row for a missing file"
 
 
 

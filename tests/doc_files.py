@@ -1,8 +1,9 @@
-"""The documents every docs check reads, named once for the three test files.
+"""The documents every docs check reads, named once for the four test files.
 
-`test_docs_api_unit.py`, `test_docs_blocks_unit.py` and `test_docs_structure_unit.py`
-split what was one module by concern; the paths and the public-name table they share
-live here so the three cannot disagree about which documents exist.
+`test_docs_api_unit.py`, `test_docs_blocks_unit.py`, `test_docs_cli_unit.py` and
+`test_docs_structure_unit.py` split the documentation checks by concern; the paths and
+the public-name table they share live here so the four cannot disagree about which
+documents exist.
 """
 
 from __future__ import annotations

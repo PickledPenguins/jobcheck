@@ -139,6 +139,15 @@ def test_a_rule_column_the_data_lacks_is_warned_on_stderr(fresh_registry: None,
      "Write it as a list even for one column."),
     (BASE + "tables: [{table: report, key_column: [id]}]\n",
      "table 1 (report): 'key_column' must be a string, got list."),
+    # Regression: a key YAML reads as a bool or an int beside a text key, and a
+    # table name that is a list, raised TypeError -- a traceback and exit 1.
+    (BASE + "tables: [{table: summary}]\non: 1\nextra: 2\n",
+     "unknown key(s) ['True', 'extra']. A run file holds setup, data, tables."),
+    (BASE + "tables: [{table: [report]}]\n",
+     "table 1: unknown table ['report']. The tables are registry, rules, report, summary."),
+    (BASE + "tables: [{table: report, 1: x, bogus: y}]\n",
+     "table 1 (report): unknown option(s) ['1', 'bogus']. "
+     "It takes key_column, add_columns, drop_columns, include, format."),
 ])
 def test_a_malformed_run_file_is_refused_before_anything_loads(
     fresh_registry: None, capsys: Any, tmp_path: Path, body: str, message: str

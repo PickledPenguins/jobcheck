@@ -36,7 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         description="Load one bundle -- a check file that loads check files -- "
-                    "and print the loaded files and the registry.")
+                    "and print the registry, with the file each check came from.")
     parser.add_argument("bundle", nargs="?", default=DEFAULT_BUNDLE, metavar="PATH",
                         help="the bundle to load (default: the shipped all_checks.py).")
     return parser

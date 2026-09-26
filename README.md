@@ -41,7 +41,7 @@ from jobcheck import OK, Status, Verdict, register_check
 
 @register_check("AGE_ABOVE_LIMIT", "Age is above the limit for this product",
                 depends_on=["AGE_PRESENT"])       # waits for that check to pass
-def age_above_limit(row):                         # or (row, ctx)
+def age_above_limit(row):                         # or (row, context)
     if row["age"] > 130:
         return Verdict(Status.INVALID, {"maximum": 130, "actual": row["age"]})
     return OK
@@ -148,8 +148,10 @@ instead: it returns that row's failures and retains nothing for the rest.
 
 ## Documentation
 
+- [docs/concepts.md](docs/concepts.md) — the words the other documents use — check,
+  code, verdict, status, outcome, layer, root cause, rule — each defined once. Read first.
 - [docs/writing-checks.md](docs/writing-checks.md) — the check function, statuses,
-  comments, and how checks depend on each other. Start here.
+  comments, and how checks depend on each other.
 - [docs/reporting.md](docs/reporting.md) — the report, explanations, summaries,
   formats and files.
 - [docs/configuration.md](docs/configuration.md) — rules: switching
@@ -157,12 +159,12 @@ instead: it returns that row's failures and retains nothing for the rest.
 - [docs/interfaces.md](docs/interfaces.md) — the Python API: every exported name,
   signature, return shape, and error raised.
 - [docs/cli.md](docs/cli.md) — the demo entry points and their flags, including
-  `--data` for validating a CSV file of your own, and the run file that holds a
-  whole run.
+  `--data` for validating a CSV file of your own (it needs an `id` column), and the
+  run file that holds a whole run.
 - [docs/architecture.md](docs/architecture.md) — module responsibilities, design
   decisions, and how to extend.
 - [docs/testing.md](docs/testing.md) — the suites, the gates, coverage, mutation,
-  the performance baseline, and the 70-case example and failure catalogs.
+  the performance baseline, and the 72-case example and failure catalogs.
 - [docs/contributing.md](docs/contributing.md) — where a change goes, and which
   check enforces which rule.
 - [docs/future-work.md](docs/future-work.md) — known gaps, and what was

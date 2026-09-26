@@ -116,6 +116,49 @@ def test_a_file_that_is_not_csv_exits_two(fresh_registry: None, capsys: Any,
     assert "cannot read" in capsys.readouterr().err
 
 
+def test_a_file_that_is_not_utf8_exits_two(fresh_registry: None, capsys: Any,
+                                           tmp_path: Path) -> None:
+    """Regression: a Latin-1 file raised UnicodeDecodeError -- a traceback and exit 1
+    where cli.md promises exit 2 for a file that cannot be read."""
+
+    latin1 = tmp_path / "latin1.csv"
+    latin1.write_bytes("id,email\n1,café@example.com\n".encode("latin-1"))
+    with pytest.raises(SystemExit) as raised:
+        main.main(["--data", str(latin1)])
+    assert raised.value.code == 2
+    assert capsys.readouterr().err == (
+        f"error: cannot read {latin1}: 'utf-8' codec can't decode byte 0xe9 in position "
+        "14: invalid continuation byte\n")
+
+
+def test_a_file_without_the_key_column_exits_two_before_validating(
+    fresh_registry: None, capsys: Any, tmp_path: Path, monkeypatch: Any,
+) -> None:
+    """Regression: the report found the missing `id` column only after the whole
+    frame was validated and the registry printed, and exited 1 with a traceback."""
+
+    no_key = tmp_path / "no_key.csv"
+    no_key.write_text("name,age\nann,41\n")
+    monkeypatch.setattr(main, "validate", lambda *args, **kwargs: pytest.fail("validated"))
+    with pytest.raises(SystemExit) as raised:
+        main.main(["--data", str(no_key)])
+    assert raised.value.code == 2
+    assert capsys.readouterr().err == (
+        f"error: {no_key} has no 'id' column, which labels each row of the report "
+        "(columns: name, age)\n")
+
+
+def test_explain_needs_no_key_column(fresh_registry: None, capsys: Any,
+                                    tmp_path: Path) -> None:
+    """--explain names a row by position, so a file without `id` is fine for it."""
+
+    no_key = tmp_path / "no_key.csv"
+    no_key.write_text("name,age\nann,41\n")
+    out = run(capsys, "--data", str(no_key), "--explain", "0")
+    assert "== Row explanation ==" in out
+    assert "root cause: " in out
+
+
 def test_a_rule_naming_a_column_the_data_lacks_warns_on_stderr(fresh_registry: None,
                                                                capsys: Any,
                                                                tmp_path: Path) -> None:

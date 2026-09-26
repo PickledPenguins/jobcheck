@@ -1,0 +1,1 @@
+error: cannot read tests/failures/a-data-file-that-is-not-utf-8/latin1.csv: 'utf-8' codec can't decode byte 0xe9 in position 23: invalid continuation byte

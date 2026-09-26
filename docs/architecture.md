@@ -25,7 +25,7 @@ entry point
   |       resolve state (defaults, then matching rules, last wins)
   |       walk the cached topological order
   |       disabled / blocked  -> CheckOutcome, fn never called
-  |       fn(row, ctx)        -> Verdict -> CheckOutcome(passed|failed)
+  |       fn(row, context)    -> Verdict -> CheckOutcome(passed|failed)
   |       fn raises           -> CheckOutcome(errored, Status.ERROR)
   |
   +-- build_report(...) -> long-format frame, titled -> render(frame, fmt)
@@ -34,14 +34,15 @@ entry point
 ## Repository layout
 
 ```
-src/jobcheck/   the package: the only thing that ships
-examples/                    the demo entry point main.py, the rule files and
-                             data it loads, and checks/ -- the checks it runs
+src/jobcheck/                the package: the only thing that ships
+examples/                    the three demo entry points, checks/ -- the checks
+                             they run -- and the rule files, data, run file and
+                             setup file they load
 docs/                        this and its siblings
 tests/                       the suites, the golden files, the catalogs, and
                              run-tests.sh, the entry point for every gate
-scripts/                     hook installer, the data, catalog and golden
-                             regenerators, the profiler, the bytecode reader
+scripts/                     the hook installer, and tools that regenerate
+                             committed fixtures or measure: one row each below
 pyproject.toml               packaging, plus pytest, coverage and mypy config
 .build/                      every generated artifact, all gitignored
 .agent/, .claude/            the handoff record, saved reviews, agent guidance
@@ -66,19 +67,45 @@ the package by accident from the working directory. The demos and the scripts ad
 | `src/jobcheck/registry.py` | The registry: registration, file import, dependency validation, ordering and layers. What checks *exist*. `load_setup` lives here too, being the one place that composes both loaders. |
 | `src/jobcheck/engine.py` | What happens to one row: per-row on/off state from the rules, evaluation in dependency order, the outcomes, and the root causes. |
 | `src/jobcheck/registry_tables.py` | The registry and the rules as tables: what is registered, which rules could touch each code, what each rule covers. |
-| `src/jobcheck/report.py` | Collecting outcomes for a frame, the long-format failure table, summaries, explanations, and rendering them as text or CSV. |
+| `src/jobcheck/report.py` | The views of outcomes: the long-format failure report, one row's explanation, and the per-check summary, each a titled DataFrame. |
 | `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `Verdict`, `CheckOutcome`. |
 | `src/jobcheck/rules.py` | The rule file format and its parser. Knows nothing about the registry. |
-| `src/jobcheck/tables.py` | Table rendering and null handling, shared by every view. |
+| `src/jobcheck/tables.py` | What every table shows by default (`_DEFAULT_COLUMNS`), `render` -- bordered text or formula-escaped CSV -- and null handling, shared by every view. |
 | `src/jobcheck/paths.py` | The path a caller named, turned into a file on disk, and the error when it is not one. Used by both loaders. |
 | `src/jobcheck/context.py` | The per-row metadata type — the one adopter-supplied hook. |
 | `src/jobcheck/__init__.py` | Re-exports the public surface. Registers no checks, and ships none. |
 | `examples/checks/` | The example checks. Outside the package on purpose: nothing of ours should register in an adopter's registry. |
 | `examples/main.py` | Demo entry point and end-to-end driver: registry tables, the report, explanations, summaries. |
-| `examples/bundle_main.py` | Second demo entry point: loads one bundle, prints what it loaded. `examples/checks/all_checks.py` is the bundle it loads by default. |
+| `examples/bundle_main.py` | Second demo entry point: loads one bundle and prints the registry with each check's source file. `examples/checks/all_checks.py` is the bundle it loads by default. |
 | `examples/run_from_config.py` | Third demo entry point: one run file names the setup, the data and the tables to print; `examples/run.yaml` is the shipped one. The run-file format is this script's, not the library's. |
 | `tests/` | pytest suites, split `fast`/`long` by marker, plus the example and failure catalogs and `run-tests.sh`, the entry point for every gate. |
-| `scripts/` | The pre-commit hook installer, the catalog regenerator, the example profiler and the bytecode interface reader. |
+| `scripts/install-hooks.sh` | Installs the pre-commit hook that runs the fast suite. |
+| `scripts/make_example_data.py` | Writes `examples/data/*.csv`, the same bytes every run. |
+| `scripts/new_catalog_case.py` | Adds one catalog case: directory, command, README and recorded output. |
+| `scripts/regen_catalog.py` | Re-records the catalogs' expected output after an intended change. |
+| `scripts/regen_golden.py` | Re-records `tests/golden/` after an intended change to the report. |
+| `scripts/mutation_score.py` | Scores the results a mutmut run left against a floor: the mutation gate. |
+| `scripts/profile_examples.py` | Profiles the catalog's runs in this process: the `profile` mode. |
+| `scripts/read_bytecode_api.py` | Reads the pre-rename interface out of the bytecode kept in git history. |
+
+## Dependency direction
+
+Imports point one way, and a module never imports one listed after it:
+
+```
+context, results, tables, paths    import nothing from the package
+rules                              <- paths, tables
+registry                           <- context, paths, rules
+engine                             <- context, registry, results, rules
+report                             <- engine, results, tables
+registry_tables                    <- registry, rules, tables
+__init__                           <- all of the above, to re-export them
+```
+
+The library parses no arguments, prints nothing and sets no exit code: `render`
+returns text, and every refusal is an exception. Argument parsing, stdout and stderr,
+and exit codes belong to the entry points in `examples/`, which depend on the package
+and never the other way.
 
 ## Decisions
 
@@ -185,7 +212,7 @@ return is refused at the boundary rather than converted: `True == 1 ==
 Status.MISSING`, so a guess would invert the meaning. `Verdict(condition)` is
 the one-liner form.
 
-**Failure kinds are one small fixed vocabulary.** Five statuses, `OK` and four
+**Failure kinds are one small fixed vocabulary.** Five statuses, `PASS` and four
 failure kinds, and a `Verdict` carrying anything else is refused at
 construction. A fixed set can be grouped and counted across every check in a
 summary, which per-check enums could not; what varies between projects is the
@@ -207,8 +234,6 @@ authoring bug, and recording it would hide it.
 **Layer is computed, not declared.** An author states what a check depends on,
 which they know; how deep that makes it is arithmetic, and a declared depth would
 go stale the moment a prerequisite moved.
-
-
 
 **The rule format is its own module, and knows nothing about the registry.** A
 rule file changes for reasons the engine does not share -- a new key, a new

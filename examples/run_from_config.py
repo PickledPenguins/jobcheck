@@ -112,7 +112,8 @@ def read_run_file(run_file: str) -> dict[str, Any]:
     if not isinstance(document, dict):
         fail(run_file, f"a run file is a mapping of {', '.join(RUN_KEYS)}, "
                        f"got {type(document).__name__}.")
-    unknown = sorted(set(document) - set(RUN_KEYS))
+    # str(): YAML reads `on:` or `1:` as a bool or an int, which cannot sort beside text.
+    unknown = sorted(str(key) for key in set(document) - set(RUN_KEYS))
     if unknown:
         fail(run_file, f"unknown key(s) {unknown}. A run file holds {', '.join(RUN_KEYS)}.")
     for key in RUN_KEYS:
@@ -138,11 +139,12 @@ def check_table(run_file: str, position: int, spec: Any) -> None:
         fail(run_file, f"{where} must be a mapping with a 'table' key naming one of "
                        f"{', '.join(TABLE_OPTIONS)}.")
     name = spec["table"]
-    if name not in TABLE_OPTIONS:
+    # A list or a mapping cannot even be looked up, and is as unknown as a typo.
+    if not isinstance(name, str) or name not in TABLE_OPTIONS:
         fail(run_file, f"{where}: unknown table {name!r}. "
                        f"The tables are {', '.join(TABLE_OPTIONS)}.")
     allowed = TABLE_OPTIONS[name]
-    unknown = sorted(set(spec) - {"table", *allowed})
+    unknown = sorted(str(key) for key in set(spec) - {"table", *allowed})
     if unknown:
         takes = ", ".join(allowed) if allowed else "no options"
         fail(run_file, f"{where} ({name}): unknown option(s) {unknown}. It takes {takes}.")
