@@ -190,7 +190,7 @@ def defaults(fn: Any) -> dict[str, Any]:
                       "on_error": "record", "context_args": None}, id="validate"),
         pytest.param(rep.build_report,
                      {"key_column": None, "add_columns": None,
-                      "include": "failures", "drop_columns": None},
+                      "include": "failures"},
                      id="build_report"),
         pytest.param(tables.render, {"fmt": "table"}, id="render"),
     ],

@@ -22,7 +22,6 @@ import pandas as pd
 import pytest
 
 from conftest import make_check
-from jobcheck import registry_tables
 from jobcheck import (
     build_report,
     validate,
@@ -338,22 +337,3 @@ def test_a_duplicated_key_column_names_the_count_and_the_fix(fresh_registry: Non
         "key_column 'id' appears 2 times in the data: df[key_column] is then a table "
         "rather than a column, and every row would be labeled with the column name. "
         "Rename or drop the duplicate columns.")
-
-
-def test_dropping_an_unknown_column_from_the_registry_table_names_that_table(
-    fresh_registry: None
-) -> None:
-    make_check("CODE")
-    with pytest.raises(ValueError) as raised:
-        registry_tables.registry_table(drop_columns=["messages"])
-    assert message_of(raised) == (
-        "drop_columns ['messages'] cannot be used for the registry table. Each name "
-        "must be asked for once and be one of: code, layer, default, message, depends_on.")
-
-
-def test_dropping_an_unknown_column_from_the_rules_table_names_that_table() -> None:
-    with pytest.raises(ValueError) as raised:
-        registry_tables.rules_table([], drop_columns=["messages"])
-    assert message_of(raised) == (
-        "drop_columns ['messages'] cannot be used for the rules table. Each name "
-        "must be asked for once and be one of: name, action, codes_hit_count, match, message.")

@@ -214,6 +214,18 @@ would also cost the sentence every failure prints, "load_checks() names files ex
 nothing is discovered", which is pinned in eleven places and is the invariant the whole
 loader is built on.
 
+**`drop_columns` replaced by one dict of default columns** (raised by the `src/`
+review of 2026-09-25, built the same day). `build_report`, `registry_table` and
+`rules_table` each took `drop_columns`, validated against per-table base and optional
+column lists in two modules. Now `_DEFAULT_COLUMNS` in `tables.py`, keyed by title, sets
+what every table shows -- the owner wanted the defaults editable in one place in the
+library rather than set by an entry point -- and a one-off removal is pandas'
+`table.drop(columns=...)`, which keeps the title. Lost: the friendly "cannot be used ...
+one of:" message for a bad drop name (pandas raises `KeyError`); restoring a hidden
+*report* column per call (edit the dict); and `add_columns` on the summary and row
+explanation, which never had it. The run file keeps its `drop_columns` option, applied by
+`examples/run_from_config.py` itself.
+
 **One `render` in place of the printing functions** (raised by the `src/` review of
 2026-09-25, built the same day). Twelve names showed or saved results --
 `print_report`, `render_report`, `write_report`, `print_registry`, `print_rules`,

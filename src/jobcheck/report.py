@@ -15,7 +15,7 @@ import pandas as pd
 
 from .engine import root_causes
 from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, render_status
-from .tables import _format_cell, _keep_columns, _reject_unknown_columns
+from .tables import _DEFAULT_COLUMNS, _format_cell, _reject_unknown_columns, _shown
 
 REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "detail", "comments",
                   "is_root_cause")
@@ -94,7 +94,6 @@ def build_report(
     key_column: str | None = None,
     add_columns: list[str] | None = None,
     include: str = "failures",
-    drop_columns: list[str] | None = None,
 ) -> pd.DataFrame:
     """Build the long-format report: one line per failure, in evaluation order.
 
@@ -107,10 +106,8 @@ def build_report(
     printed above a shallower failure. The columns, the `include` levels and what
     `add_columns` refuses are in `reporting.md`.
 
-    `add_columns` copies frame columns in; `drop_columns` takes the report's own
-    columns out, which is how a run keeps `comments` and `detail` for a developer
-    and leaves them out of what ships. `REPORT_COLUMNS` is the list it validates
-    against.
+    The report's own columns shown are `tables._DEFAULT_COLUMNS["Report"]`, from
+    `REPORT_COLUMNS`. `add_columns` copies columns of *df* in, straight after `row`.
     """
 
     if len(df) != len(frame_outcomes):
@@ -120,7 +117,6 @@ def build_report(
         )
     wanted = _included(include)
     add_columns = list(add_columns or [])
-    kept = _keep_columns(list(REPORT_COLUMNS), drop_columns, "the report")
 
     # A column is on offer when its name appears exactly once -- a duplicated
     # label would hand back a table rather than a column -- and would not collide
@@ -156,11 +152,11 @@ def build_report(
                 }
             )
     # `row` first and the added columns straight after it, so a reader meets the
-    # identity and its context before the outcome -- and only the columns that
-    # survived `drop_columns`.
-    ordered = [*add_columns, *(name for name in REPORT_COLUMNS[1:] if name in kept)]
-    columns = (["row", *ordered] if "row" in kept else ordered)
-    report = pd.DataFrame(rows, columns=columns)
+    # identity and its context before the outcome.
+    shown = _DEFAULT_COLUMNS["Report"]
+    rest = [name for name in shown if name != "row"]
+    columns = ["row", *add_columns, *rest] if "row" in shown else [*add_columns, *rest]
+    report = pd.DataFrame(rows, columns=[*REPORT_COLUMNS, *add_columns])[columns]
     report.attrs["title"] = "Report"
     return report
 
@@ -190,8 +186,7 @@ def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> p
         ],
         columns=["layer", "code", "outcome", "status", "detail"],
     )
-    table.attrs["title"] = "Row explanation"
-    return table
+    return _shown(table, "Row explanation")
 
 
 def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataFrame:
@@ -237,5 +232,4 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
         table = (table.sort_values(["failed", "errored", "skipped", "code"],
                                    ascending=[False, False, False, True])
                  .reset_index(drop=True))
-    table.attrs["title"] = "Summary"
-    return table
+    return _shown(table, "Summary")

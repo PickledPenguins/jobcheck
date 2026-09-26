@@ -447,67 +447,46 @@ def test_a_column_asked_for_twice_is_refused(example_checks: None) -> None:
         registry_tables.registry_table(add_columns=["source_file", "source_file"])
 
 
-# --- dropping columns from the check tables ---------------------------------
+# --- which columns the check tables show ------------------------------------
 
 
-def test_the_registry_table_drops_what_it_is_asked_to(example_checks: None) -> None:
-    table = registry_tables.registry_table(drop_columns=["message", "default"])
-    assert list(table.columns) == ["code", "layer", "depends_on"]
+def test_every_default_column_is_one_its_table_builds(example_checks: None) -> None:
+    """A typo made editing the defaults fails here rather than as a pandas
+    KeyError in somebody's run."""
+
+    from jobcheck import report
+
+    built = {
+        "Report": list(report.REPORT_COLUMNS),
+        "Registry": registry_tables._REGISTRY_COLUMNS,
+        "Rules": registry_tables._RULES_COLUMNS,
+        "Row explanation": ["layer", "code", "outcome", "status", "detail"],
+        "Summary": list(report.summarize_outcomes([]).columns),
+    }
+    assert set(tables._DEFAULT_COLUMNS) == set(built)
+    for title, shown in tables._DEFAULT_COLUMNS.items():
+        assert set(shown) <= set(built[title]), title
+        assert len(shown) == len(set(shown)), title
 
 
-def test_dropping_a_registry_column_leaves_the_added_ones_working(
-    example_checks: None, tmp_path: Any
+def test_editing_the_registry_defaults_keeps_the_sort(
+    example_checks: None, monkeypatch: Any
 ) -> None:
-    """`could_be_overridden_by` is computed from this table's own `code`, so the
-    drop happens after it is built rather than before."""
+    """The table is sorted by layer and code before it is narrowed, so defaults
+    that leave either out still list the fundamental checks first."""
 
-    path = tmp_path / "r.yaml"
-    path.write_text(
-        "- name: off_everywhere\n  message: \"m\"\n  action: disable\n"
-        "  codes: [AGE_NOT_INTEGER]\n  match: all\n",
-        encoding="utf-8",
-    )
-    table = registry_tables.registry_table(
-        rules=reg.load_rules([str(path)]),
-        add_columns=["could_be_overridden_by"],
-        drop_columns=["code", "message"],
-    )
-    assert list(table.columns) == ["layer", "default", "depends_on",
-                                   "could_be_overridden_by"]
-    assert "off_everywhere (disable)" in render(table)
+    monkeypatch.setitem(tables._DEFAULT_COLUMNS, "Registry", ["layer", "message"])
+    table = registry_tables.registry_table()
+    assert list(table.columns) == ["layer", "message"]
+    assert list(table["layer"]) == sorted(table["layer"])
 
 
-def test_dropping_a_column_the_table_is_sorted_by_still_works(
-    example_checks: None,
+def test_a_column_the_defaults_hide_can_be_added_back(
+    example_checks: None, monkeypatch: Any
 ) -> None:
-    """Regression: the frame was built with only the kept columns and then sorted
-    by `layer` and `code`, so dropping either raised a bare KeyError -- against a
-    docstring that says a base column can still be dropped."""
-
-    assert list(registry_tables.registry_table(drop_columns=["code"]).columns) == [
-        "layer", "default", "message", "depends_on"]
-    assert list(registry_tables.registry_table(drop_columns=["layer"]).columns) == [
-        "code", "default", "message", "depends_on"]
-
-
-def test_dropping_the_sort_column_leaves_the_rows_in_sorted_order(
-    example_checks: None,
-) -> None:
-    """The sort still happens; only the column it read is gone from the output."""
-
-    with_code = registry_tables.registry_table()
-    without = registry_tables.registry_table(drop_columns=["code"])
-    assert list(without["layer"]) == list(with_code["layer"])
-    assert list(without["message"]) == list(with_code["message"])
-
-
-def test_an_unknown_registry_drop_name_is_refused(example_checks: None) -> None:
-    with pytest.raises(ValueError) as raised:
-        registry_tables.registry_table(drop_columns=["messages"])
-    assert str(raised.value) == (
-        "drop_columns ['messages'] cannot be used for the registry table. Each name "
-        "must be asked for once and be one of: code, layer, default, message, depends_on."
-    )
+    monkeypatch.setitem(tables._DEFAULT_COLUMNS, "Registry", ["code"])
+    assert list(registry_tables.registry_table(add_columns=["message"]).columns) == [
+        "code", "message"]
 
 
 def test_the_rules_table_is_data_and_prints_nothing(
@@ -526,18 +505,11 @@ def test_the_rules_table_is_data_and_prints_nothing(
     assert list(table.columns) == ["name", "action", "codes_hit_count", "match", "message"]
 
 
-def test_the_rules_table_drops_and_adds_columns(fresh_registry: None, tmp_path: Any) -> None:
+def test_the_rules_table_adds_a_hidden_column(fresh_registry: None) -> None:
     make_check("A_CODE")
-    path = tmp_path / "r.yaml"
-    path.write_text(
-        "- name: off_everywhere\n  message: \"m\"\n  action: disable\n"
-        "  codes: [A_CODE]\n  match: all\n",
-        encoding="utf-8",
-    )
-    table = registry_tables.rules_table(
-        reg.load_rules([str(path)]), add_columns=["source_file"],
-        drop_columns=["match", "message"])
-    assert list(table.columns) == ["name", "action", "codes_hit_count", "source_file"]
+    table = registry_tables.rules_table([a_rule(source_file="here.yaml")],
+                                        add_columns=["source_file"])
+    assert list(table.columns) == [*tables._DEFAULT_COLUMNS["Rules"], "source_file"]
 
 
 def test_a_duplicated_column_label_renders_each_column_s_own_value() -> None:
@@ -602,10 +574,3 @@ def test_the_rules_table_wraps_match_and_message(fresh_registry: None) -> None:
     out = render(table)
     for column in ("match", "message"):
         assert table.loc[0, column] not in out, f"{column} was not wrapped"
-
-
-def test_the_rules_table_drops_what_it_is_asked_to(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    table = registry_tables.rules_table([a_rule()], drop_columns=["message"])
-    assert "message" not in table.columns
-    assert "message" not in render(table).splitlines()[1]

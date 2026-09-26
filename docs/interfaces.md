@@ -331,17 +331,16 @@ they appear.
 ## Reporting
 
 `build_report(frame_outcomes, df, key_column=None, add_columns=None,
-include="failures", drop_columns=None)` — `df` is required, since the outcomes
+include="failures")` — `df` is required, since the outcomes
 describe its rows; `key_column` names the single column that identifies a row — one
 that is not in the frame, or is in it more than once, raises `ValueError`;
-`add_columns` copies frame columns into the report just after `row`;
-`drop_columns` takes the report's own columns out, validated against
-`REPORT_COLUMNS`; `include` is `"failures"`, `"blocked"` or `"all"`. See
+`add_columns` copies frame columns into the report just after `row`; `include` is `"failures"`, `"blocked"` or `"all"`. See
 [reporting.md](reporting.md#showing-data-alongside-the-failures).
 
-`REPORT_COLUMNS` is that list, as a tuple: the report's own column names in
-order. Read it to build a `drop_columns` from the other direction — the columns a
-production run keeps — without hard-coding the set.
+`REPORT_COLUMNS` is the report's own column names in order, as a tuple. Which of
+them a report shows is `_DEFAULT_COLUMNS["Report"]` in `src/jobcheck/tables.py`,
+the one place every table's default columns are set; see
+[reporting.md](reporting.md#which-columns-a-table-shows).
 
 `build_report`, `render_comments`, `row_explanation` and `summarize_outcomes` —
 all exported from `jobcheck` and documented in [reporting.md](reporting.md). Each
@@ -353,9 +352,10 @@ Registry tables:
 
 Both take `add_columns`, the same argument `build_report` takes for columns of the
 data: the names you want beyond the base columns, refused rather than ignored when
-the name is not on offer. Both take `drop_columns` too.
+the name is not on offer. What each shows by default is its entry in
+`_DEFAULT_COLUMNS`.
 
-- `registry_table(rules=None, add_columns=None, drop_columns=None)` — one row per
+- `registry_table(rules=None, add_columns=None)` — one row per
   check, sorted layer, then code, titled `Registry`. Columns `code`, `layer`,
   `default`, `message`, `depends_on`. Offers `source_file`, plus the two columns
   that read `rules`: `could_be_overridden_by`, the rules that *reference* each code
@@ -363,7 +363,7 @@ the name is not on offer. Both take `drop_columns` too.
   when no rule references the code and "depends on row" when one does. Neither is
   "was overridden by" — whether a rule fires is a per-row question this table
   cannot answer.
-- `rules_table(rules, add_columns=None, drop_columns=None)` — one row per rule,
+- `rules_table(rules, add_columns=None)` — one row per rule,
   titled `Rules`: `name`, `action`, `codes_hit_count`, `match`, `message`. Offers
   `codes`, the list behind the count, and `source_file`.
 
