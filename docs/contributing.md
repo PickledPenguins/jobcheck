@@ -43,6 +43,7 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | The example data is what its generator produces | `tests/test_shipped_examples_unit.py` |
 | Timing has not regressed against this machine's baseline | `./tests/run-tests.sh perf` |
 | Peak memory stays under its ceilings | `./tests/run-tests.sh memory` |
+| The tests notice at least 94% of mutations to the code | `./tests/run-tests.sh mutation`, through `scripts/mutation_score.py` |
 | Types check | `mypy`, run by `./tests/run-tests.sh fast`, `all` and `types` |
 
 ## Style
