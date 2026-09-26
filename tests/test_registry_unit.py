@@ -128,13 +128,13 @@ def test_importing_the_package_alone_registers_nothing(fresh_registry: None) -> 
     import jobcheck
 
     assert jobcheck.registry_table().empty
-    assert jobcheck.loaded_check_files() == []
+    assert jobcheck.registry._LOADED_FILES == []
 
 
 def test_clear_registry_empties_the_checks_and_the_loaded_files(example_checks: None) -> None:
     reg.clear_registry()
     assert reg._CHECKS == []
-    assert reg.loaded_check_files() == []
+    assert reg._LOADED_FILES == []
 
 
 def test_clear_registry_leaves_the_running_script_in_sys_modules(fresh_registry: None) -> None:
@@ -179,14 +179,14 @@ def test_clear_registry_then_load_checks_re_registers(fresh_registry: None) -> N
 def test_validate_registry_accepts_a_satisfied_dependency(fresh_registry: None) -> None:
     make_check("BASE_CHECK")
     make_check("DEPENDENT", depends_on=["BASE_CHECK"])
-    reg.validate_registry()
+    reg._validate_registry()
     assert [t.code for t in reg._get_topo_order()] == ["BASE_CHECK", "DEPENDENT"]
 
 
 def test_unregistered_prerequisite_raises_naming_both_codes(fresh_registry: None) -> None:
     make_check("DANGLING", depends_on=["NOT_A_REAL_CODE"])
     with pytest.raises(ValueError) as excinfo:
-        reg.validate_registry()
+        reg._validate_registry()
     message = str(excinfo.value)
     assert "Check 'DANGLING' depends on 'NOT_A_REAL_CODE', which is not registered." in message
     assert "currently loaded" in message
@@ -198,14 +198,14 @@ def test_prerequisite_in_an_unloaded_file_raises_rather_than_skipping(fresh_regi
     reg.load_checks([path for path in EXAMPLE_CHECK_FILES if "email" not in path])
     make_check("NEEDS_EMAIL", depends_on=["EMAIL_MISSING_AT"])
     with pytest.raises(ValueError, match="EMAIL_MISSING_AT"):
-        reg.validate_registry()
+        reg._validate_registry()
 
 
 def test_direct_cycle_raises_naming_the_path(fresh_registry: None) -> None:
     make_check("CYCLE_A", depends_on=["CYCLE_B"])
     make_check("CYCLE_B", depends_on=["CYCLE_A"])
     with pytest.raises(ValueError) as excinfo:
-        reg.validate_registry()
+        reg._validate_registry()
     assert str(excinfo.value) == "Dependency cycle among checks: CYCLE_A -> CYCLE_B -> CYCLE_A"
 
 
@@ -214,14 +214,14 @@ def test_transitive_cycle_raises_naming_the_whole_chain(fresh_registry: None) ->
     make_check("C_B", depends_on=["C_C"])
     make_check("C_C", depends_on=["C_A"])
     with pytest.raises(ValueError) as excinfo:
-        reg.validate_registry()
+        reg._validate_registry()
     assert str(excinfo.value) == "Dependency cycle among checks: C_A -> C_B -> C_C -> C_A"
 
 
 def test_self_dependency_is_reported_as_a_cycle(fresh_registry: None) -> None:
     make_check("SELF", depends_on=["SELF"])
     with pytest.raises(ValueError) as excinfo:
-        reg.validate_registry()
+        reg._validate_registry()
     assert str(excinfo.value) == "Dependency cycle among checks: SELF -> SELF"
 
 
@@ -237,7 +237,7 @@ def test_a_chain_too_deep_to_walk_names_the_registry_rather_than_the_recursion(
         make_check(f"DEEP_{index}",
                    depends_on=[f"DEEP_{index + 1}"] if index + 1 < depth else [])
     with pytest.raises(ValueError) as excinfo:
-        reg.validate_registry()
+        reg._validate_registry()
     assert str(excinfo.value) == (
         f"Dependency chain too deep to resolve among {depth} checks: the ordering walk "
         f"is recursive and gives out near Python's recursion limit of "
@@ -298,7 +298,7 @@ def test_a_duplicate_code_names_the_module_the_second_check_lives_in(
 
 def test_an_empty_string_prerequisite_is_refused(fresh_registry: None) -> None:
     """`depends_on=[""]` is a typo, not a check with no name, and it would
-    otherwise reach validate_registry as a prerequisite nothing can satisfy."""
+    otherwise reach _validate_registry as a prerequisite nothing can satisfy."""
 
     with pytest.raises(ValueError, match="depends_on must be a list of check codes"):
         reg.register_check(code="CODE", message="m", depends_on=[""])(lambda row: True)

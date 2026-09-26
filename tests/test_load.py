@@ -82,7 +82,7 @@ def test_topological_order_is_not_recomputed_per_row(fresh_registry: None) -> No
     calls: list[int] = []
     original = reg._topological_order
 
-    def counting() -> list[reg.Check]:
+    def counting() -> list[reg._Check]:
         calls.append(1)
         return original()
 

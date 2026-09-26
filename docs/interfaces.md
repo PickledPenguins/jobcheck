@@ -34,7 +34,6 @@ these names -- but a first check file needs none of it.
 `ERROR` 9. Zero is a pass; every other value is a failure. The vocabulary is
 fixed: these five are the whole of it, and a value outside them is refused.
 
-- `render_status(code) -> str` (`"INVALID (3)"`).
 - A check must return a `Verdict`: anything else — a bare bool, a bare `Status`
   value, `None` — raises `TypeError` naming the check, as the engine reads it.
 
@@ -70,19 +69,17 @@ disabled it, which prerequisites blocked it, or what it raised.
 The outcome strings are also exported as `PASSED`, `FAILED`, `DISABLED`,
 `SKIPPED`, `ERRORED`.
 
-### `Check`
+### The registry
 
-One registered check: `code`, `message`, `fn`, `source_file`,
-`default_enabled`, `depends_on`, `layer`. Created by the decorator, never by
-hand. `layer` is computed by `validate_registry`. What a check is *for* is its
-`message`, printed wherever it fails and shown in the registry table; there is no
-second description field to keep in step with it.
+Each registered check has a `code`, `message`, `fn`, `source_file`,
+`default_enabled`, `depends_on` and `layer`, created by the decorator. What a check
+is *for* is its `message`, printed wherever it fails and shown in the registry
+table; there is no second description field to keep in step with it.
 
-The registry list itself is internal (`registry._CHECKS`). Read the registry through
+The registry itself is internal (`registry._CHECKS`). Read it through
 `registry_table`, which gives every check's code, layer, default, message and
-`depends_on` as a frame, and `loaded_check_files` for the files behind them. Nothing that
-mutates the list directly drops the cached evaluation order, so a caller editing it gets a
-`ValueError` from the row loop rather than the result they intended.
+`depends_on` as a frame, and `source_file` on request. Nothing that mutates the
+list directly drops the cached evaluation order.
 
 ### `RowContext`
 
@@ -112,8 +109,8 @@ Raises at import for a duplicate code, an empty code or message, a non-list
 `depends_on` (a bare string would otherwise register one prerequisite per
 character), a non-bool `default_enabled`,
 or a signature the engine cannot call -- including a required keyword-only
-argument. The `depends_on` *codes* are checked later by `validate_registry`,
-since a prerequisite may live in a module not yet imported.
+argument. The `depends_on` *codes* are checked later, when the dependency graph is
+validated, since a prerequisite may live in a module not yet imported.
 
 ### `load_checks(paths: list[str], base_dir: str | Path | None = None) -> None`
 
@@ -121,16 +118,13 @@ Imports the named `.py` files by path so their checks register themselves. A lis
 of paths, always — a bare string is refused, since it would otherwise be read as a
 list of its characters. **Nothing is discovered**, which is what lets two entry
 points in one codebase run different sets of checks. A file already loaded, or listed twice,
-is skipped. `validate_registry` runs once the whole call has been imported, so a
-prerequisite may live in any of the files. A relative path is resolved against
+is skipped. The dependency graph is validated once the whole call has been imported,
+so a prerequisite may live in any of the files. A relative path is resolved against
 `base_dir` when one is given and against the working directory otherwise; an
 absolute path ignores both. Raises `ValueError` for a path that is not a file,
 naming the absolute path it tried, and propagates whatever a file raises while
-importing. A file that
-raises part-way registers nothing — the checks its earlier lines had registered
-are dropped again, so the registry and `loaded_check_files()` agree and the
-corrected file loads on the next call; files loaded before it in the same call
-stay loaded.
+importing. A file that raises is not rolled back: the checks registered before
+the failing line stay, and the file is not recorded as loaded.
 
 Each file is given a unique module name, so two directories that each hold a
 `checks.py` both load, a bundle and a member of the same name included. No
@@ -153,10 +147,9 @@ load_checks(["check_age.py", "check_email.py"],
             base_dir=os.path.join(os.getcwd(), "my_checks"))
 ```
 
-The members are loaded files in their own right: each appears in
-`loaded_check_files()`, before the bundle that pulled it in, and each is skipped
-if the caller also names it. `validate_registry` runs as the *outermost* call
-returns, so a prerequisite may live in a bundle, in another bundle, or in a file
+The members are loaded files in their own right: each check's `source_file` is
+its member, and each is skipped if the caller also names it. The dependency graph
+is validated as the *outermost* call returns, so a prerequisite may live in a bundle, in another bundle, or in a file
 the caller names after the bundle. A file already being imported further up the
 call is skipped, so a bundle naming itself, or two naming each other, finish
 rather than recursing. A file that raises is not rolled back: the error propagates,
@@ -169,19 +162,16 @@ same-named member silently load only the first, since the second import finds th
 name in `sys.modules` and does nothing. Nesting `load_checks` has no such
 collision, and records every member.
 
-### `loaded_check_files() -> list[str]`
+### `clear_registry() -> None`
 
-The resolved paths loaded that way, in load order. A copy.
-
-### `validate_registry() -> None`, `clear_registry() -> None`
-
-`validate_registry` checks every `depends_on` edge, detects cycles, computes
-layers, and caches the evaluation order. An unregistered prerequisite raises —
-including one living in a check file that was not loaded, deliberately as loud as
-a typo. A chain too deep for the ordering walk — it is recursive, so it gives out
-near Python's own recursion limit, around 900 links deep at the default 1000 —
-raises `ValueError` naming the registry size and that limit, rather than a bare
-`RecursionError` naming nothing.
+The dependency graph is validated when `load_checks` returns, and otherwise when
+something first needs the evaluation order (`validate` on a frame with rows,
+`registry_table`). Every `depends_on` edge is checked, cycles detected, layers
+computed. An unregistered prerequisite raises — including one living in a check
+file that was not loaded, deliberately as loud as a typo. A chain too deep for the
+ordering walk — it is recursive, so it gives out near Python's own recursion limit,
+around 900 links deep at the default 1000 — raises `ValueError` naming the registry
+size and that limit, rather than a bare `RecursionError` naming nothing.
 
 `clear_registry` empties the registry and evicts the modules that registered
 checks from `sys.modules` -- never `__main__` -- so a later `load_checks` re-registers rather than
@@ -190,8 +180,7 @@ way to save a registry and put it back, because outside a test there is no use
 for one. A caller loads its check files at start-up, or clears and loads a
 different set between runs, or runs a second entry point in a second process --
 which is what the process-global registry means (see
-[architecture](architecture.md)). A load that fails needs no help either: it
-rolls back per file on its own.
+[architecture](architecture.md)).
 
 ## Loading rules
 
@@ -337,8 +326,7 @@ that is not in the frame, or is in it more than once, raises `ValueError`;
 `add_columns` copies frame columns into the report just after `row`; `include` is `"failures"`, `"blocked"` or `"all"`. See
 [reporting.md](reporting.md#showing-data-alongside-the-failures).
 
-`REPORT_COLUMNS` is the report's own column names in order, as a tuple. Which of
-them a report shows is `_DEFAULT_COLUMNS["Report"]` in `src/jobcheck/tables.py`,
+Which of the report's own columns it shows is `_DEFAULT_COLUMNS["Report"]` in `src/jobcheck/tables.py`,
 the one place every table's default columns are set; see
 [reporting.md](reporting.md#which-columns-a-table-shows).
 

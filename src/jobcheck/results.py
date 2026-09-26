@@ -51,7 +51,7 @@ SKIPPED = "skipped"
 ERRORED = "errored"
 
 
-def render_status(status: int) -> str:
+def _render_status(status: int) -> str:
     """A status as it appears in a report: ``INVALID (3)``."""
 
     return f"{Status(status).name} ({int(status)})"
@@ -155,4 +155,4 @@ class CheckOutcome:
     def status_label(self) -> str:
         """The status as a report renders it: `INVALID (3)`."""
 
-        return render_status(self.status)
+        return _render_status(self.status)

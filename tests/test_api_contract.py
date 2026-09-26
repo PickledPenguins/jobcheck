@@ -109,17 +109,16 @@ def test_every_public_function_is_exported() -> None:
 PUBLIC_NAMES = {
     "__version__",
     # Registering and loading checks.
-    "Check", "register_check", "load_checks", "loaded_check_files", "clear_registry",
-    "validate_registry", "load_setup",
+    "register_check", "load_checks", "clear_registry", "load_setup",
     # Rules.
     "Rule", "load_rules", "warn_missing_rule_columns", "warn_shadowed_rules",
     # What a check returns and what the engine records.
-    "Verdict", "OK", "Status", "render_status", "CheckOutcome", "RowContext",
+    "Verdict", "OK", "Status", "CheckOutcome", "RowContext",
     "PASSED", "FAILED", "DISABLED", "SKIPPED", "ERRORED",
     # Running.
     "validate", "validate_row", "explain_row", "root_causes",
     # Reports and tables.
-    "build_report", "REPORT_COLUMNS", "render_comments", "row_explanation",
+    "build_report", "render_comments", "row_explanation",
     "summarize_outcomes", "registry_table", "rules_table", "render", "is_null",
 }
 
@@ -151,7 +150,7 @@ def test_outcome_names_are_permanent() -> None:
 def test_report_columns_are_stable() -> None:
     """Anything reading the CSV depends on these names and this order."""
 
-    assert rep.REPORT_COLUMNS == (
+    assert rep._REPORT_COLUMNS == (
         "row", "code", "status", "layer", "outcome", "message", "detail", "comments",
         "is_root_cause",
     )

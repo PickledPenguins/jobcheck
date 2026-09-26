@@ -81,8 +81,8 @@ def test_non_string_comment_keys_are_rejected() -> None:
 
 
 def test_every_status_renders_as_name_and_number() -> None:
-    assert res.render_status(res.Status.INVALID) == "INVALID (3)"
-    assert res.render_status(0) == "PASS (0)"
+    assert res._render_status(res.Status.INVALID) == "INVALID (3)"
+    assert res._render_status(0) == "PASS (0)"
 
 
 @pytest.mark.parametrize("value", [4, 77, -1])

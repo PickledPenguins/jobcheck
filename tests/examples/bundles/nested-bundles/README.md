@@ -10,4 +10,4 @@ to be collected by a bundle, and putting them beside it is what makes the
 
 Level:    moderate
 Input:    `tests/examples/bundles/nested-bundles/outer_bundle.py`, which loads one check file and one more bundle
-Expected: four loaded files -- the two check files, the inner bundle, then the outer one -- and both checks registered, the dependent on layer 1; exit 0
+Expected: both checks registered, each with the check file it came from, the dependent on layer 1; exit 0

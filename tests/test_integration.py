@@ -170,7 +170,7 @@ def test_a_check_file_written_at_runtime_is_loaded_by_path(fresh_registry: None,
     results = validate_row(pd.Series({"age": 99}))
 
     assert [r.code for r in results] == ["ADDED_AT_RUNTIME"]
-    assert reg.loaded_check_files() == [str(added.resolve())]
+    assert reg._LOADED_FILES == [str(added.resolve())]
 
 
 def test_source_file_of_a_shipped_check_exists_on_disk(example_checks: None) -> None:

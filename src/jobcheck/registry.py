@@ -32,7 +32,7 @@ RunnerFn = Callable[["pd.Series[Any]", RowContext | None], Any]
 
 
 @dataclass
-class Check:
+class _Check:
     """One named validation rule.
 
     `code` is permanent: never renumbered, never reused even after the check it
@@ -53,11 +53,11 @@ class Check:
     layer: int = 0
     """How deep in the dependency graph this check sits: 0 with no prerequisites,
     otherwise one more than its deepest prerequisite. Computed by
-    :func:`validate_registry`, never set by hand. A low layer means a
+    :func:`_validate_registry`, never set by hand. A low layer means a
     fundamental check, which is what makes it a root cause."""
 
 
-_CHECKS: list[Check] = []
+_CHECKS: list[_Check] = []
 
 # Check files imported by path through load_checks(), resolved and in load
 # order.
@@ -77,7 +77,7 @@ _LOADING: list[str] = []
 # Cached topological order over depends_on edges.  The graph only changes when
 # the registry changes, so it is computed once per registry state and never
 # inside the per-row loop.
-_TOPO_ORDER: list[Check] | None = None
+_TOPO_ORDER: list[_Check] | None = None
 # Import attempts so far, which is what makes each load's module name unique.
 # Not len(_LOADED_FILES): a bundle's name is computed before its members run and
 # a member appends to that list only after its own import finishes, so the two
@@ -156,7 +156,7 @@ def _reject_bad_registration(
     """Everything a `register_check` call can get wrong, in one place.
 
     `depends_on` is checked for shape here and for existence in
-    `validate_registry`: a prerequisite may live in a module not yet imported, so
+    `_validate_registry`: a prerequisite may live in a module not yet imported, so
     only its shape can be judged this early.
     """
 
@@ -211,7 +211,7 @@ def register_check(
         # workers and `import __main__` for the rest of the process.
         if module and module != "__main__":
             _LOADED_MODULES.add(module)
-        check = Check(
+        check = _Check(
             code=code,
             message=message,
             fn=_make_runner(fn, code),
@@ -247,10 +247,7 @@ def clear_registry() -> None:
     _TOPO_ORDER = None
 
 
-def loaded_check_files() -> list[str]:
-    """Check files loaded so far, in load order (a copy)."""
 
-    return list(_LOADED_FILES)
 
 
 def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
@@ -329,10 +326,10 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     # Nested calls leave it to the outermost one: a bundle's members may depend
     # on each other in any order, and on files the caller names after the bundle.
     if not _LOADING:
-        validate_registry()
+        _validate_registry()
 
 
-def _topological_order() -> list[Check]:
+def _topological_order() -> list[_Check]:
     """Order checks so every prerequisite precedes its dependents.
 
     Depth-first, so a code met twice on one path is a cycle: ordering and cycle
@@ -340,7 +337,7 @@ def _topological_order() -> list[Check]:
     """
 
     by_code = {check.code: check for check in _CHECKS}
-    order: list[Check] = []
+    order: list[_Check] = []
     done: set[str] = set()
     visiting: list[str] = []
     visiting_set: set[str] = set()
@@ -365,7 +362,7 @@ def _topological_order() -> list[Check]:
     return order
 
 
-def validate_registry() -> None:
+def _validate_registry() -> None:
     """Check every `depends_on` edge, compute each check's layer, and cache the
     evaluation order so neither is recomputed inside the per-row loop.
 
@@ -378,10 +375,8 @@ def validate_registry() -> None:
     and validates the graph once, after the last one, so the file holding the bad
     `depends_on` is already recorded and already skipped by the next call -- and
     correcting the typo in it changes nothing until the registry is emptied.
-    Naming the way out is deliberately all this does: rolling the files back
-    instead would mean one dangling prerequisite discarded every file of the call,
-    where a file that *raises* discards only its own, and `loaded_check_files`
-    would stop being a record of what was read. See `docs/future-work.md` F.30.
+    Naming the way out is deliberately all this does. See `docs/future-work.md`
+    F.30.
     """
 
     global _TOPO_ORDER
@@ -392,7 +387,7 @@ def validate_registry() -> None:
                 raise ValueError(
                     f"Check {check.code!r} depends on {prerequisite!r}, which is not registered. "
                     "Either the code is a typo, or it lives in a check file that was not loaded "
-                    f"(currently loaded: {loaded_check_files()}). Loading the missing file "
+                    f"(currently loaded: {_LOADED_FILES}). Loading the missing file "
                     "works; correcting an already-loaded one does not, because load_checks "
                     "skips a path it has already read -- call clear_registry() first."
                 )
@@ -424,15 +419,15 @@ def validate_registry() -> None:
     _TOPO_ORDER = order
 
 
-def _get_topo_order() -> list[Check]:
+def _get_topo_order() -> list[_Check]:
     """The cached evaluation order, computed if the registry has changed since.
 
     The local spelling is what lets mypy see the cache is set by then.
     """
 
     if _TOPO_ORDER is None:
-        validate_registry()
-    order: list[Check] = _TOPO_ORDER or []
+        _validate_registry()
+    order: list[_Check] = _TOPO_ORDER or []
     return order
 
 
