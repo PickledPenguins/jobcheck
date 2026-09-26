@@ -19,8 +19,6 @@ from .paths import resolve_input_file
 from .tables import _format_cell, is_null
 
 
-
-
 # Every key a rule may carry. Anything else is a typo, and rejected as one.
 _RULE_KEYS = {"name", "action", "codes", "match", "message"}
 
@@ -265,23 +263,12 @@ def warn_missing_rule_columns(df: pd.DataFrame, rules: list[Rule]) -> list[str]:
 def warn_shadowed_rules(rules: list[Rule]) -> list[str]:
     """Warn about rules a later rule overrules for every row.
 
-    Precedence is positional and the last matching rule wins, so a rule that
-    touches a code is dead for that code as soon as a *later* rule touches it
-    with `match: all`: the later one matches every row, so the earlier one can
-    never be the last match. Nothing else reports this. The registry table's
-    `could_be_overridden_by` column lists both rules, and `effective_state` says
-    "depends on row" -- correct in general, because whether a rule fires is a
-    property of the row, but this is the one case where the answer is the same for
-    every row and can be given.
-
-    Only that case. Two conditional rules may overlap for some rows and not
-    others, which needs the patterns compared rather than read, and a wrong answer
-    there would be worse than no answer.
-
-    Per code rather than per rule, because a rule carrying several codes can be
-    overruled for one and decisive for another. Warns rather than raises: shipping
-    a shadowed rule can be deliberate, and `examples/rules/error_rules.yaml`
-    does it on purpose to demonstrate precedence.
+    The last matching rule wins, so a rule touching a code can never apply to it
+    once a *later* rule touches the same code with `match: all`. Only that case:
+    whether two conditional rules overlap depends on their patterns, and is not
+    guessed. Reported per code, since a rule with several codes can be overruled
+    for one and decisive for another. Warns rather than raises, because a
+    shadowed rule can be deliberate (`examples/rules/error_rules.yaml` has one).
     """
 
     warnings: list[str] = []

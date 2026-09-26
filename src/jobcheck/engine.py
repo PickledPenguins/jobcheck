@@ -22,19 +22,13 @@ from .results import (
 )
 from .rules import Rule, _rule_matches
 
-#: A builder takes `(row)` or `(row, context_args)`, the same way a check takes
-#: `(row)` or `(row, context)`. The two-argument form is the common one -- a
-#: pipeline's context is usually built from the run's own arguments -- so it is
-#: called that way by default rather than through a lambda that closes over them.
+#: A builder takes `(row)` or `(row, context_args)`, the way a check takes
+#: `(row)` or `(row, context)`, and returns the row's context.
 ContextBuilder = Callable[..., RowContext | None]
 
-# What a check is handed when the caller names no context, or a builder returns
-# None. Shared rather than built per row: the base class carries no fields, so
-# every empty context is the same object anyway, and a frame does not pay for
-# one allocation a row.
+# What a check is handed when there is no context. One shared object: the base
+# class has no fields, so every empty context is the same anyway.
 _EMPTY_CONTEXT = RowContext()
-
-
 
 
 def _resolve_enabled_state(
@@ -83,9 +77,7 @@ def explain_row(
 
     if on_error not in ("record", "raise"):
         raise ValueError(f"on_error must be 'record' or 'raise', got {on_error!r}.")
-    # Named before it is used: a dict reaches `.index` and dies on `.has_duplicates`,
-    # and a list has an `.index` method, so the failure names a bound method rather
-    # than the argument. `validate` guards its own frame the same way.
+    # Checked first: a dict or list would fail further down naming `.index`, not the row.
     if not isinstance(row, pd.Series):
         raise TypeError(
             f"A row must be a pandas Series -- one row of a DataFrame -- got "
@@ -120,9 +112,7 @@ def explain_row(
         blocking = [code for code in check.depends_on if not passed[code]]
         if blocking:
             passed[check.code] = False
-            # Naming *why* the prerequisite did not pass saves the reader a
-            # second lookup: "did not pass" reads as a failure, and a chain
-            # switched off at its root looks like a chain that failed.
+            # Say whether the chain was switched off or failed; they read alike.
             reason = ("prerequisite disabled: "
                       if all(code in disabled for code in blocking)
                       else "prerequisite did not pass: ")
@@ -195,27 +185,13 @@ def root_causes(row_outcomes: list[CheckOutcome]) -> list[str]:
     return [outcome.code for outcome in failures if outcome.layer == shallowest]
 
 
-
-
 def _context_caller(
     builder: ContextBuilder,
 ) -> Callable[["pd.Series[Any]", Any], RowContext | None]:
     """Settle how a context builder is called, once per `validate` rather than
-    per row.
-
-    A builder takes `(row)` or `(row, context_args)`. The second is the shape a
-    pipeline wants -- its context is built from the run's own arguments, which are
-    the same for every row -- and making it the declared form means a caller
-    writes `context_builder=build_context` instead of a lambda that closes over
-    them. The one-argument form stays, for a builder that needs nothing but the
-    row.
-
-    The same rule as a check function's `(row)` or `(row, context)`, deliberately:
-    one convention for both, and `*args` counts as taking the second argument
-    because the builder will accept it. The rule is written twice -- here and in
-    `registry._make_runner` -- and the two must change together; a keyword-only
-    parameter without a default is refused by both, because neither caller can
-    supply one.
+    per row: `(row)` or `(row, context_args)`, with `*args` counting as the
+    second. The same rule as `registry._make_runner` applies to a check; change
+    the two together.
     """
 
     parameters = list(inspect.signature(builder).parameters.values())
@@ -253,15 +229,11 @@ def validate(
     enough that those objects matter, call `validate_row` per row instead.
 
     `context_builder` takes `(row)` or `(row, context_args)` and is called once
-    per row. `context_args` is whatever the entry point wants every row's context
-    built from -- its parsed command line, a connection, a configuration -- passed
-    through untouched, so the common case is a named function rather than a lambda
-    closing over them.
+    per row. `context_args` is whatever every row's context is built from -- the
+    parsed command line, a configuration -- passed through untouched.
     """
 
-    # Checked here, not only in explain_row: an empty frame never reaches it,
-    # and a mistyped mode would otherwise pass unnoticed until the first run
-    # with rows in it.
+    # Checked here too: an empty frame never reaches explain_row.
     if on_error not in ("record", "raise"):
         raise ValueError(f"on_error must be 'record' or 'raise', got {on_error!r}.")
     if not isinstance(df, pd.DataFrame):
