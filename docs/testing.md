@@ -15,13 +15,14 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 757 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 761 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 256 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1013 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1017 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
 | `./tests/run-tests.sh profile` | the example profile alone | 3s |
+| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 95.7%) | 250s |
 | `./tests/run-tests.sh types` | mypy alone | 8s |
 
 Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
@@ -42,10 +43,12 @@ There is no CI. The pre-commit hook and the release gates below are what run the
 - **Pre-commit** — `./tests/run-tests.sh fast`, installed by `./scripts/install-hooks.sh` into
   `.git/hooks/pre-commit`. Bypass with git's own `--no-verify`; there is no custom flag.
   Verified to block: breaking the table renderer and committing stops at the hook.
-- **Pre-release** — `./tests/run-tests.sh all`, `./tests/run-tests.sh cov`, `./tests/run-tests.sh memory`
-  and `./tests/run-tests.sh perf`. Coverage below 95% fails through
-  `coverage report --fail-under`; a memory ceiling or a timing baseline exceeded fails
-  its own run.
+- **Pre-release** — `./tests/run-tests.sh all`, `./tests/run-tests.sh cov`, `./tests/run-tests.sh memory`,
+  `./tests/run-tests.sh perf` and `./tests/run-tests.sh mutation`. Coverage below 95% fails
+  through `coverage report --fail-under`; a memory ceiling or a timing baseline exceeded
+  fails its own run; a mutation score below 94% (set in `tests/run-tests.sh`)
+  fails the mutation run, and so does a run that left any mutant unchecked. Run mutation
+  last and alone: it contends with the timing tests.
 
 Each gate has been checked by breaking the thing it guards and watching it fail — the
 coverage floor by deleting a test, the perf gate by lowering a stored baseline (a 4x
@@ -76,6 +79,7 @@ Fast:
 | `tests/test_docs_api_unit.py` | The documents against the public API, both directions: every call shown binds against the real signature and names something this package, pandas or the builtins provides; every exported name appears in `interfaces.md` and nothing documented there is gone; every check code a document shows is one that exists; no document says a bare bool or status return is converted. |
 | `tests/test_docs_blocks_unit.py` | Every Python block under `docs/` runs, in a working directory holding the demo frame, its outcomes, the rules and the check files the blocks name. One collected test per block. |
 | `tests/test_docs_structure_unit.py` | The documents as a set: the README stays an index and links every document, no internal link or anchor is dead, the rule keys, statuses and outcome names are documented where they belong, every exit code the entry point can return has a row in `docs/cli.md` and no row describes one it cannot, and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. It also gates line width: no Python line in `src/`, `examples/` or `scripts/` exceeds the 100 characters `contributing.md` claims, and that document names the three directories the gate covers. |
+| `tests/test_mutation_score_unit.py` | `scripts/mutation_score.py`: detected over total across every `.meta` file, the floor boundary, an unfinished run refused, no results refused. |
 | `tests/test_read_bytecode_api_unit.py` | `scripts/read_bytecode_api.py` reads the check-era bytecode straight out of the recovery commit, and a directory argument reads the same files. Skipped in a clone without that commit. |
 | `tests/doc_files.py` | Not a test: the documents and public names the three `test_docs_*` files share. |
 | `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
@@ -160,10 +164,18 @@ notice the line being wrong. `mutmut` answers that by changing the code and chec
 test fails.
 
 ```sh
+./tests/run-tests.sh mutation   # clean run + score against the 94% floor (the gate)
 python -c "import pandas; import sys; sys.argv=['mutmut','run']; from mutmut.__main__ import cli; cli()"
+python scripts/mutation_score.py --floor 94   # score the results a run left
 mutmut results      # survived / killed, per mutant
 mutmut show <name>  # the diff for one survivor
 ```
+
+**The floor is 94%, set 2026-09-26 against a measured 95.7%.** The score is detected over
+total: killed, caught by the type check, or timed out. 1.7 points is about 23 of the 1,369
+mutants -- room for a change that adds a few untested lines, not for a module losing its
+tests. Raise it when the score rises and stays there; lower it only with the survivors read
+and recorded below, never to make a run pass.
 
 **That incantation is not decoration.** Plain `mutmut run` fails during stats collection
 here: mutmut runs pytest in its own process, and importing pandas inside that run trips

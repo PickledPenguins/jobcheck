@@ -10,6 +10,7 @@
 #   tests/run-tests.sh perf    timing against this machine's baseline (own gate)
 #   tests/run-tests.sh memory  peak-memory ceilings under tracemalloc (own gate)
 #   tests/run-tests.sh profile the example profile alone, without the tests
+#   tests/run-tests.sh mutation a clean mutmut run, gated at MUTATION_MIN (~4 min)
 #   tests/run-tests.sh types   mypy alone, for a CI step that ran the tests
 #
 # Extra arguments are passed through to pytest.
@@ -27,6 +28,9 @@ shift || true
 
 PYTHON="${PYTHON:-python3}"
 COVERAGE_MIN=95
+# Set 2026-09-26 against a measured 95.7% (1,310 of 1,369): room for a change that
+# adds a handful of untested mutants, not for a regression the size of a module.
+MUTATION_MIN=94
 # Targets come from [tool.mypy] in pyproject.toml.
 
 run_mypy() {
@@ -88,8 +92,19 @@ case "$MODE" in
     profile)
         run_profile || exit 1
         ;;
+    mutation)
+        # Clean first: a stale mutants/ scores the previous code. mutmut needs
+        # pandas imported before it starts. Its progress goes to a log; the score
+        # comes from the results it leaves, so a crashed run has none and fails.
+        rm -rf mutants .mutmut-cache
+        mkdir -p .build
+        echo "== mutmut run (log: .build/mutation.log) =="
+        "$PYTHON" -c "import pandas, sys; sys.argv = ['mutmut', 'run']; \
+from mutmut.__main__ import cli; cli()" > .build/mutation.log 2>&1
+        "$PYTHON" scripts/mutation_score.py --floor "$MUTATION_MIN" || exit 1
+        ;;
     *)
-        echo "usage: $0 {fast|long|all|cov|perf|memory|profile|types} [pytest args]" >&2
+        echo "usage: $0 {fast|long|all|cov|perf|memory|profile|mutation|types} [pytest args]" >&2
         exit 2
         ;;
 esac
