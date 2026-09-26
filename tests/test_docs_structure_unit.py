@@ -67,7 +67,7 @@ def test_the_shipped_rule_keys_are_all_documented() -> None:
     from jobcheck import rules
 
     configuration = (ROOT / "docs" / "configuration.md").read_text(encoding="utf-8")
-    for key in rules.RULE_KEYS:
+    for key in rules._RULE_KEYS:
         assert f"`{key}`" in configuration or f"{key}:" in configuration, key
     # The two actions are literals in the parser rather than a constant, so they
     # are named here as well: a third one added without a document is the drift

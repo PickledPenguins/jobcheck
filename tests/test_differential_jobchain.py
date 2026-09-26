@@ -16,7 +16,7 @@ Two differences are already known and are not defects here:
   top-level ``column``/``pattern`` pair matched with ``fnmatchcase``; this tree
   takes a list of criteria matched as regular expressions (see
   ``recovery/bytecode/jobcheck/rules.cpython-312.pyc`` on ``main``, whose
-  ``RULE_KEYS`` is
+  ``_RULE_KEYS`` is
   ``{name, action, codes, column, pattern}``).
 - ``ctx.count(column, value)`` is jobchain's own :class:`RowContext` subclass,
   not part of this library. The population is built here the same way.

@@ -22,7 +22,7 @@ from .tables import _format_cell, is_null
 
 
 # Every key a rule may carry. Anything else is a typo, and rejected as one.
-RULE_KEYS = {"name", "action", "codes", "match", "message"}
+_RULE_KEYS = {"name", "action", "codes", "match", "message"}
 
 
 @dataclass
@@ -53,7 +53,7 @@ class Rule:
     source_file: str = ""
 
 
-def parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[_MatchCriterion], bool]:
+def _parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[_MatchCriterion], bool]:
     """Parse a rule's `match` value into criteria plus a match-everything flag.
 
     `match: all` is the only wildcard: an empty or missing `match` is rejected
@@ -102,7 +102,7 @@ def parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[_Match
     return criteria, False
 
 
-def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
+def _parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
     """Validate and build one rule, failing at load time rather than part-way
     through a long run.
 
@@ -117,11 +117,11 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
         raise ValueError(f"{source_file}: every rule needs a non-empty string 'name'.")
 
     # str(): YAML reads `on:` or `1:` as a bool or an int, which cannot be joined.
-    unknown = sorted(str(key) for key in set(raw) - RULE_KEYS)
+    unknown = sorted(str(key) for key in set(raw) - _RULE_KEYS)
     if unknown:
         raise ValueError(
             f"rule {name!r} in {source_file}: unknown key(s) {', '.join(unknown)}. "
-            f"Allowed: {', '.join(sorted(RULE_KEYS))}."
+            f"Allowed: {', '.join(sorted(_RULE_KEYS))}."
         )
 
     action = raw.get("action")
@@ -143,7 +143,7 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
                 "Load the check file that defines it before loading rules, or fix the code."
             )
 
-    criteria, match_all = parse_match(raw.get("match"), name, source_file)
+    criteria, match_all = _parse_match(raw.get("match"), name, source_file)
     message = raw.get("message")
     if not isinstance(message, str) or not message:
         raise ValueError(
@@ -162,7 +162,7 @@ def parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
     )
 
 
-def parse_file(path: str, known_codes: set[str],
+def _parse_file(path: str, known_codes: set[str],
                base_dir: str | Path | None = None) -> list[Rule]:
     """Parse one YAML file into rules. The file is a flat top-level list.
 
@@ -181,10 +181,10 @@ def parse_file(path: str, known_codes: set[str],
             f"{path}: rule files must contain a flat top-level list of rules "
             f"(no 'rules:' key), got {type(raw).__name__}."
         )
-    return [parse_rule(entry, path, known_codes) for entry in raw]
+    return [_parse_rule(entry, path, known_codes) for entry in raw]
 
 
-def load_rules(paths: list[str], known_codes: set[str],
+def _load_rule_files(paths: list[str], known_codes: set[str],
                    base_dir: str | Path | None = None) -> list[Rule]:
     """Parse the named YAML files into rules, in the order given, which is also
     their precedence: for a given row, the last matching rule wins.
@@ -202,7 +202,7 @@ def load_rules(paths: list[str], known_codes: set[str],
     seen: dict[str, str] = {}
     loaded: list[Rule] = []
     for path in list(paths):
-        for rule in parse_file(path, known_codes, base_dir):
+        for rule in _parse_file(path, known_codes, base_dir):
             if rule.name in seen:
                 raise ValueError(
                     f"Duplicate rule name {rule.name!r}: defined in "
@@ -213,7 +213,7 @@ def load_rules(paths: list[str], known_codes: set[str],
     return loaded
 
 
-def cell_text(row: "pd.Series[Any]", column: str) -> str | None:
+def _cell_text(row: "pd.Series[Any]", column: str) -> str | None:
     """Row value as text for regex matching, rendered as the report prints it;
     ``None`` when absent or null."""
 
@@ -225,7 +225,7 @@ def cell_text(row: "pd.Series[Any]", column: str) -> str | None:
     return _format_cell(value)
 
 
-def rule_matches(rule: Rule, row: "pd.Series[Any]") -> bool:
+def _rule_matches(rule: Rule, row: "pd.Series[Any]") -> bool:
     """Whether every criterion of *rule* matches *row* (AND semantics).
 
     An absent or null value cannot satisfy a pattern, so it does not match.
@@ -234,7 +234,7 @@ def rule_matches(rule: Rule, row: "pd.Series[Any]") -> bool:
     if rule.match_all:
         return True
     for criterion in rule.criteria:
-        text = cell_text(row, criterion.column)
+        text = _cell_text(row, criterion.column)
         if text is None or not criterion.regex.search(text):
             return False
     return True

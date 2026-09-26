@@ -158,7 +158,7 @@ def documented_codes() -> dict[str, set[str]]:
         {name.upper() for name in prv.__all__}
         | {member.name for member in Status}
         | {member.name for member in prv.Outcome}
-        | {key.upper() for key in rules.RULE_KEYS}
+        | {key.upper() for key in rules._RULE_KEYS}
         # Words that happen to be shouted in prose or shell, not codes.
         | {"CSV", "YAML", "PATH", "ROW", "COLUMN", "NAME", "OFF", "ON", "TODO",
            "README", "PYTHON", "LEGACY_A", "MODERN", "STREAM", "BATCH", "NO_KEY"}
