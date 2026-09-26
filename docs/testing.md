@@ -200,16 +200,21 @@ read `mutmut results` in between as the suite's score.
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
 
-Measured on 2026-09-25 on a tree cleaned first (`rm -rf mutants .mutmut-cache`), at
-commit `7865edc` plus the tests below: **1,656 mutants, 1,566 killed, 90 survived, 0
-timeouts — 94.6%.** The run takes about four and a half minutes at ~6 mutations/second.
-The same tree before those tests: 1,516 killed, 140 survived, 91.5%.
+Measured on 2026-09-26 on a tree cleaned first (`rm -rf mutants .mutmut-cache`), at
+commit `c4d6b0b` plus the `summarize_outcomes` fix: **1,369 mutants, 1,310 killed, 59
+survived, 0 timeouts — 95.7%.** The run takes about four minutes at ~6 mutations/second.
+Fewer mutants than before because the output layer shrank (one `render` in place of the
+printing functions). Earlier record, commit `7865edc` plus its tests: 1,656 mutants, 1,566
+killed, 90 survived, 94.6%.
 
 That is a record of one commit, not the current score. Re-run before quoting a number,
 and update this section with what comes back.
 
-Survivors by module: `report` 30, `engine` 22, `registry` 15, `registry_tables` 10,
-`tables` 7, `rules` 6.
+Survivors by module at 2026-09-26: `engine` 22, `registry` 13, `tables` 8, `report` 8,
+`rules` 6, `registry_tables` 2. The ones in the new output code (`render`, `_shown`,
+`summarize_outcomes`, `registry_table`) are default arguments and equivalents:
+`fmt="XXtableXX"`, `to_csv(index=None)`, and `reset_index(drop=False)` whose added
+`index` column the column narrowing then drops.
 
 The 89 survivors in `report` and `registry_tables` at `7865edc` were read one by one on
 2026-09-25. 49 were assertions the suite did not make, and each now has a test (they
