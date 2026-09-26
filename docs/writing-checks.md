@@ -15,7 +15,7 @@ def age_negative(row):
     return OK
 ```
 
-A check takes `(row)` or `(row, ctx)` — nothing else; any other signature is
+A check takes `(row)` or `(row, context)` — nothing else; any other signature is
 rejected when the module imports. It reads whatever columns it needs from the
 row itself, which is why there is no `column` argument: these rules are
 row-scoped, and many of them weigh several fields together.
@@ -67,7 +67,7 @@ def email_present(row):
 
 ### Statuses
 
-Five built-ins, values 0–9 reserved:
+Five, and no others:
 
 | Status | Use it for |
 |---|---|
@@ -209,8 +209,9 @@ Rules of thumb:
   switches off its whole layer — check the `skipped` column afterwards.
 
 `layer` is computed, never declared: 0 with no prerequisites, otherwise one more
-than the deepest one. It sorts the registry and the summary so fundamental checks
-read first.
+than the deepest one. The registry table sorts on it, so fundamental checks read
+first, and `root_causes` reads it: a row's root causes are its failures at the
+shallowest layer.
 
 Everything structural fails at load: an unknown prerequisite code, a prerequisite
 in a check file that was not loaded, a cycle (direct or transitive), a duplicate
@@ -222,11 +223,11 @@ first needs the evaluation order: the first `validate` on a frame with rows, or
 `registry_table()`, which is the way to run them before any data is read:
 
 ```python
-from jobcheck import OK, Status, Verdict, register_check, registry_table
+from jobcheck import OK, Status, Verdict, is_null, register_check, registry_table
 
 @register_check("ORDER_ID_PRESENT", "Order id is missing")
 def order_id_present(row):
-    return OK if row.get("order_id") else Verdict(Status.MISSING)
+    return Verdict(Status.MISSING) if is_null(row.get("order_id")) else OK
 
 @register_check("ORDER_ID_NUMERIC", "Order id is not a number",
                 depends_on=["ORDER_ID_PRESENT"])

@@ -10,6 +10,11 @@ Back to the [README](../README.md). The value types are in
 
 ## The short version
 
+Here, and in every example below, `df` is the demo frame `examples/main.py` validates
+when `--data` names no file, `rules` is the shipped `examples/rules/error_rules.yaml`,
+and `outcomes` is that frame validated against the age and email checks under those
+rules. Each shown output is what the block prints; a test runs every one.
+
 ```python
 from jobcheck import build_report, load_checks, render, validate
 
@@ -21,10 +26,16 @@ print(render(report))                      # render(report, fmt="csv") for a fil
 
 ```
 == Report ==
-row | code             | status        | layer | outcome | message          | detail | comments               | is_root_cause
-----+------------------+---------------+-------+---------+------------------+--------+------------------------+--------------
-102 | AGE_NEGATIVE     | INVALID (3)   | 2     | failed  | Age is negative  |        | minimum=0; value=-5.0  | True
-103 | EMAIL_MISSING_AT | MALFORMED (2) | 1     | failed  | Email has no '@' |        | at_signs=0; value=nope | True
+row      | code                 | status        | layer | outcome | message                            | detail | comments                       | is_root_cause
+---------+----------------------+---------------+-------+---------+------------------------------------+--------+--------------------------------+--------------
+2        | AGE_NEGATIVE         | INVALID (3)   | 2     | failed  | Age is negative                    |        | minimum=0; value=-5.0          | False        
+2        | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | failed  | Email has no '@'                   |        | at_signs=0; value=broken-email | True         
+3        | AGE_TOO_HIGH         | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) |        | maximum=130; value=200.0       | True         
+3        | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | failed  | Email domain looks malformed       |        | domain=nodotdomain             | True         
+5        | AGE_PRESENT          | MISSING (1)   | 0     | failed  | Age is missing                     |        |                                | True         
+5        | EMAIL_PRESENT        | MISSING (1)   | 0     | failed  | Email is missing                   |        |                                | True         
+<no key> | AGE_PRESENT          | MISSING (1)   | 0     | failed  | Age is missing                     |        |                                | True         
+<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | failed  | Email is missing                   |        |                                | True         
 ```
 
 ## Shape: one row per failure
@@ -40,8 +51,8 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 | `status` | The failure kind, rendered as `INVALID (3)`. |
 | `layer` | How deep the check sits in the dependency graph; 0 is fundamental. |
 | `outcome` | `failed`, `errored`, and `skipped`/`disabled`/`passed` when asked for. |
-| `message` | The check's message — what a person reads first. Empty for a check that did not evaluate the row. |
-| `detail` | Why a check did not evaluate the row: the rule that disabled it, the prerequisites that blocked it, or the exception it raised. Empty for a check that ran. |
+| `message` | The check's message — what a person reads first — for a check that failed or errored. Empty for one that passed, was skipped or was disabled. |
+| `detail` | Why a check gave no verdict: the rule that disabled it, the prerequisites that blocked it, or the exception it raised. Empty for a check that passed or failed. |
 | `comments` | What the check attached, rendered `key=value; key=value`, sorted. |
 | `is_root_cause` | True for **every** failure at that row's shallowest failing layer. Two failures at the same depth are two root causes: neither is upstream of the other. |
 
@@ -67,14 +78,23 @@ report would be labeled with the column's *name* instead of the row's key.
 immediately after `row`:
 
 ```python
-build_report(outcomes, df=df, key_column="id",
-             add_columns=["source_system", "record_type", "age"])
+report = build_report(outcomes, df=df, key_column="id",
+                      add_columns=["source_system", "record_type", "age"])
+print(render(report[["row", "source_system", "record_type", "age", "code", "status"]]))
 ```
 
 ```
-row | source_system | record_type | age | code         | status      | ...
-----+---------------+-------------+-----+--------------+-------------+----
-102 | MODERN        | BATCH       | -5  | AGE_NEGATIVE | INVALID (3) | ...
+== Report ==
+row      | source_system | record_type | age | code                 | status       
+---------+---------------+-------------+-----+----------------------+--------------
+2        | MODERN        | STREAM      | -5  | AGE_NEGATIVE         | INVALID (3)  
+2        | MODERN        | STREAM      | -5  | EMAIL_MISSING_AT     | MALFORMED (2)
+3        | MODERN        | STREAM      | 200 | AGE_TOO_HIGH         | INVALID (3)  
+3        | MODERN        | STREAM      | 200 | EMAIL_DOMAIN_INVALID | MALFORMED (2)
+5        |               |             |     | AGE_PRESENT          | MISSING (1)  
+5        |               |             |     | EMAIL_PRESENT        | MISSING (1)  
+<no key> |               |             |     | AGE_PRESENT          | MISSING (1)  
+<no key> |               |             |     | EMAIL_PRESENT        | MISSING (1)  
 ```
 
 They carry the context a reader needs to judge a failure without going back to
@@ -89,29 +109,32 @@ overwriting the report's own data.
 
 ## Diagnosing one row
 
-```python
-from jobcheck import explain_row, render, root_causes, row_explanation
+The demo frame's fifth row holds nothing but its `id`. In a fresh process, against the
+shipped age checks and no rules:
 
-row_outcomes = explain_row(row, rules=rules)
+```python
+from jobcheck import explain_row, load_checks, render, root_causes, row_explanation
+
+load_checks(["examples/checks/check_age.py"])
+row_outcomes = explain_row(df.iloc[4])
 print(render(row_explanation(row_outcomes, include="blocked")))
 print("root cause:", ", ".join(root_causes(row_outcomes)))
 ```
 
-For a row with no age, against the shipped age checks and no rules:
-
 ```
 == Row explanation ==
-layer | code             | outcome  | status      | detail
+layer | code             | outcome  | status      | detail                                     
 ------+------------------+----------+-------------+--------------------------------------------
-0     | AGE_PRESENT      | failed   | MISSING (1) | Age is missing
-1     | AGE_NOT_A_NUMBER | skipped  | PASS (0)    | prerequisite did not pass: AGE_PRESENT
+0     | AGE_PRESENT      | failed   | MISSING (1) | Age is missing                             
+1     | AGE_NOT_A_NUMBER | skipped  | PASS (0)    | prerequisite did not pass: AGE_PRESENT     
 2     | AGE_NEGATIVE     | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER
 2     | AGE_TOO_HIGH     | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER
-2     | AGE_NOT_INTEGER  | disabled | PASS (0)    | disabled by off by default
+2     | AGE_NOT_INTEGER  | disabled | PASS (0)    | disabled by off by default                 
 root cause: AGE_PRESENT
 ```
 
-A check a rule switched off reads `disabled by rule '<name>'` instead.
+Passed `rules=rules`, a check a rule switched off reads `disabled by rule '<name>'`
+instead.
 
 Reading order is evaluation order, so every `skipped` line names what blocked it.
 `root_causes` gives the row's **shallowest** failures, and there may be more than
@@ -260,9 +283,16 @@ print(render(report))
 ```
 ```
 == Report ==
-row | code         | status      | outcome | message         | is_root_cause
-----+--------------+-------------+---------+-----------------+--------------
-1   | AGE_NEGATIVE | INVALID (3) | failed  | Age is negative | True
+row      | code                 | status        | outcome | message                            | is_root_cause
+---------+----------------------+---------------+---------+------------------------------------+--------------
+2        | AGE_NEGATIVE         | INVALID (3)   | failed  | Age is negative                    | False        
+2        | EMAIL_MISSING_AT     | MALFORMED (2) | failed  | Email has no '@'                   | True         
+3        | AGE_TOO_HIGH         | INVALID (3)   | failed  | Age is implausibly high (over 130) | True         
+3        | EMAIL_DOMAIN_INVALID | MALFORMED (2) | failed  | Email domain looks malformed       | True         
+5        | AGE_PRESENT          | MISSING (1)   | failed  | Age is missing                     | True         
+5        | EMAIL_PRESENT        | MISSING (1)   | failed  | Email is missing                   | True         
+<no key> | AGE_PRESENT          | MISSING (1)   | failed  | Age is missing                     | True         
+<no key> | EMAIL_PRESENT        | MISSING (1)   | failed  | Email is missing                   | True         
 ```
 
 A dropped column is gone from the CSV too, since both formats render the frame they

@@ -48,7 +48,8 @@ CHECK_FILES = [
 #: the command line still means what it means from where the user is standing.
 DEFAULT_RULES = [os.path.join(PROJECT_ROOT, "examples/rules/error_rules.yaml")]
 
-#: The column that identifies a row in the report. Every demo data file has it.
+#: The column that identifies a row in the report. Every demo data file has it;
+#: a --data file without it is refused before anything is validated.
 KEY_COLUMN = "id"
 
 
@@ -75,7 +76,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--explain", type=int, metavar="ROW",
                         help="Print what every check did on one row, by position, and exit.")
     parser.add_argument("--summary", action="store_true",
-                        help="Print per-check counts and the root cause of each failing row.")
+                        help="Print per-check counts, including the rows each check "
+                             "was the root cause of.")
     parser.add_argument("--rules-table", action="store_true",
                         help="Print one row per loaded rule before the registry.")
     parser.add_argument("--write", metavar="PATH",
@@ -96,7 +98,9 @@ def load_frame(path: str | None) -> pd.DataFrame:
         return demo_frame()
     try:
         return pd.read_csv(path, dtype=str, keep_default_na=True, na_values=[""])
-    except (OSError, pd.errors.EmptyDataError, pd.errors.ParserError) as exc:
+    # UnicodeDecodeError: a file that is not UTF-8 is as unreadable as one that is not CSV.
+    except (OSError, UnicodeDecodeError, pd.errors.EmptyDataError,
+            pd.errors.ParserError) as exc:
         print(f"error: cannot read {path}: {exc}", file=sys.stderr)
         raise SystemExit(2) from None
 
@@ -143,6 +147,13 @@ def main(argv: list[str] | None = None) -> None:
     print(f"Loaded {len(rules)} rule(s) from {len(args.rules)} file(s)\n")
 
     df = load_frame(args.data)
+    # Before validating, for the reason --write is checked early: the report labels
+    # every row by this column. --explain names a row by position and needs none.
+    if args.explain is None and KEY_COLUMN not in df.columns:
+        print(f"error: {args.data} has no {KEY_COLUMN!r} column, which labels each row "
+              f"of the report (columns: {', '.join(str(name) for name in df.columns)})",
+              file=sys.stderr)
+        raise SystemExit(2)
     for warning in warn_missing_rule_columns(df, rules):
         print(f"warning: {warning}", file=sys.stderr)
 

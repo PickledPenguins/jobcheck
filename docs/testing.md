@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 761 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 256 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1017 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 810 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 260 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 1070 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -27,7 +27,9 @@ pip install -e ".[dev]"
 
 Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
 `./tests/run-tests.sh long tests/test_load.py`. Each mode exits non-zero on any failure and
-prints one summary line. `PYTHON=/path/to/python` selects the interpreter.
+prints one summary line. With no mode, `fast` runs; an unknown mode prints the usage line
+and exits 2. `PYTHON=/path/to/python` selects the interpreter. The suite points
+`HYPOTHESIS_STORAGE_DIRECTORY` at `.build/hypothesis` unless it is already set.
 
 Markers are `fast`, `long`, `perf` and `memory`; `--strict-markers` is on, so a typo
 fails rather than silently selecting nothing.
@@ -67,21 +69,22 @@ Fast:
 | `tests/test_rules_unit.py` | Every rule-file rejection (19 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
 | `tests/test_results_unit.py` | The fixed status vocabulary, `Verdict` truthiness and validation, and normalizing whatever a check returned. |
 | `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `warn_missing_rule_columns`, root cause, layers, and the shipped checks at their boundaries. |
-| `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys, `include` levels, table and CSV rendering, writing files, explanations and summaries. |
+| `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys and added data columns, `include` levels, table and CSV rendering and the formula guard, explanations and summaries, and the default columns. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_run_from_config_unit.py` | The run-file entry point in this process: the shipped run's tables in order, paths resolved against the run file, repeated tables, every rejection of a malformed run file word for word, and that a table the library refuses prints none of the run. |
-| `tests/test_bundle_main_unit.py` | The bundle entry point in this process, and the shipped bundle it loads: the four members and their order, the printed sections, and the argument that names another bundle. |
-| `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artefact: every rule file loads alone and together, every rule names a real code and a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
+| `tests/test_bundle_main_unit.py` | The bundle entry point in this process, and the shipped bundle it loads: the four members and their order, the registry it prints with each check's file, and the argument that names another bundle. |
+| `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artifact: every rule file loads alone and together, every rule names a real code and a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
 | `tests/test_differential_jobchain.py` | What jobchain's own suite asserted of the pre-rename engine, restated against this one — layering, root cause, cross-row context, crashes, rule-driven disabling. |
 | `tests/test_error_messages_unit.py` | Every message the library raises, compared word for word rather than by keyword: registration, loading, per-row evaluation, reporting and the whole-frame entry point. |
 | `tests/test_perf_baseline_unit.py` | The baseline arithmetic itself: recording, comparing, the tolerance floor and cap, and discarding a baseline from another machine. |
-| `tests/test_readme.py` | The README executed, plus the prose claims and the two-way CLI documentation contract: every flag has a section in `docs/cli.md`, and every documented flag exists. |
-| `tests/test_docs_api_unit.py` | The documents against the public API, both directions: every call shown binds against the real signature and names something this package, pandas or the builtins provides; every exported name appears in `interfaces.md` and nothing documented there is gone; every check code a document shows is one that exists; no document says a bare bool or status return is converted. |
-| `tests/test_docs_blocks_unit.py` | Every Python block under `docs/` runs, in a working directory holding the demo frame, its outcomes, the rules and the check files the blocks name. One collected test per block. |
-| `tests/test_docs_structure_unit.py` | The documents as a set: the README stays an index and links every document, no internal link or anchor is dead, the rule keys, statuses and outcome names are documented where they belong, every exit code the entry point can return has a row in `docs/cli.md` and no row describes one it cannot, and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. It also gates line width: no Python line in `src/`, `examples/` or `scripts/` exceeds the 100 characters `contributing.md` claims, and that document names the three directories the gate covers. |
+| `tests/test_readme.py` | The README executed, byte for byte, plus the prose claims: dependencies, install, the scope limits, the check files it names. |
+| `tests/test_docs_api_unit.py` | The documents against the public API, both directions: every call shown binds against the real signature and names something this package, pandas or the builtins provides; every exported function has its real signature in `interfaces.md` -- names, order and defaults -- and every exported type its fields or members; nothing documented there is gone; every check code a document shows is one that exists; no document says a bare bool or status return is converted. |
+| `tests/test_docs_blocks_unit.py` | Every Python block under `docs/` runs, in a working directory holding the demo frame, its outcomes, the rules and the check files the blocks name, and prints byte for byte the output shown after it. One collected test per block. |
+| `tests/test_docs_cli_unit.py` | `docs/cli.md` against the three entry points, both directions: a heading for every flag and argument each parser takes and none for anything else, the usage line argparse prints, every exit code the scripts can return and no other, the run-file table and keys, and the null markers `--data` lists against the ones pandas applies. |
+| `tests/test_docs_structure_unit.py` | The documents as a set: the README stays an index and links every document, no internal link or anchor is dead, the rule and setup keys, statuses and outcome names are documented where they belong, what a document copies from the code matches it -- the shipped rule file, `_DEFAULT_COLUMNS`, a row in `architecture.md` for every module, entry point and script -- and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. It also gates line width: no Python line in `src/`, `examples/` or `scripts/` exceeds the 100 characters `contributing.md` claims, and that document names the three directories the gate covers. |
 | `tests/test_mutation_score_unit.py` | `scripts/mutation_score.py`: detected over total across every `.meta` file, the floor boundary, an unfinished run refused, no results refused. |
 | `tests/test_read_bytecode_api_unit.py` | `scripts/read_bytecode_api.py` reads the check-era bytecode straight out of the recovery commit, and a directory argument reads the same files. Skipped in a clone without that commit. |
-| `tests/doc_files.py` | Not a test: the documents and public names the three `test_docs_*` files share. |
+| `tests/doc_files.py` | Not a test: the documents and public names the four `test_docs_*` files share. |
 | `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
 | `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, `__all__` equal to the list written in the test so a new export is a decision, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
 | `tests/test_tables_unit.py` | The bordered renderer: wrapping, empty frames, tall cells; `render`'s title bar; every column of the registry and rules tables. |
@@ -116,7 +119,7 @@ Own gates:
 ## The example catalog
 
 `tests/examples/` holds 46 cases at three levels — 19 simple, 17 moderate, 10 complex —
-and `tests/failures/` holds 24, each asserting the exact message and exit code a user
+and `tests/failures/` holds 26, each asserting the exact message and exit code a user
 sees. Both run through a real entry point in a subprocess — `examples/main.py`,
 `examples/bundle_main.py` for the bundle cases, or `examples/run_from_config.py` for the
 run-file cases — so the documentation cannot drift from
@@ -147,7 +150,7 @@ invisible in a directory listing because the names differ — three got in that 
 catalog was rebuilt by hand.
 
 **Paths are rendered through a fixed-length root.** A case like
-`verbosity/source-files-and-by-rule-table` prints absolute paths in a table whose column
+`bundles/one-path-loads-four` prints absolute paths in a table whose column
 widths are computed *before* `<project>` replaces them, so a clone at a longer path would
 produce the same words with different padding and fail for no reason anybody could act
 on. `tests/catalog.py` therefore runs every case through a symlink at
@@ -186,14 +189,16 @@ in `[tool.mutmut]`:
 - `also_copy = ["examples/", "scripts/"]` — mutmut runs the suite against a copy of the
   tree under `mutants/`; the entry point and example check files the tests load live in
   `examples/`, and one test regenerates the example data from `scripts/` and compares.
-- `pytest_add_cli_args_test_selection` excludes seventeen test files **from mutmut's runs
+- `pytest_add_cli_args_test_selection` excludes eighteen test files **from mutmut's runs
   only** — they still run in every normal suite. Four of them shell out to a subprocess,
   which never loads mutmut's instrumentation, so a mutant would always look like it
-  survived; three assert on the module's own structure and on the doc tree, neither of
-  which survives being copied into `mutants/`; the remaining seven (load, scaling, perf,
-  memory, concurrency, property, fuzz) are excluded for cost, since mutmut runs the
-  whole selection once per mutant and each of those is covered by a faster test of the
-  same behavior. The list, with a reason beside each entry, is in `pyproject.toml`.
+  survived; six assert on the module's own structure or read the documents
+  (`test_api_contract.py`, `test_readme.py` and the four `test_docs_*` files), neither of
+  which survives being copied into `mutants/`; one reads git history; the remaining
+  seven (load, scaling, perf, memory, concurrency, property, fuzz) are excluded for cost,
+  since mutmut runs the whole selection once per mutant and each of those is covered by
+  a faster test of the same behavior. The list, with a reason beside each entry, is in
+  `pyproject.toml`.
 
 **`mutants/` is the one artifact in the project root.** Every other generated file lives
 under `.build/` — the coverage data, the pytest and mypy caches, the hypothesis database,
@@ -287,7 +292,9 @@ The other four groups, which no assertion can reach:
 - **Unreachable branches.** `state.get(check.code, <default>)` in `explain_row`
   cannot miss: `_resolve_enabled_state` builds an entry for every registered check.
   `passed.get(code, False)` cannot miss either, because the topological order
-  evaluates prerequisites first and `validate_registry` rejects dangling ones.
+  evaluates prerequisites first and `validate_registry` rejects dangling ones. (Both
+  lookups have indexed directly since `32a704f` removed the F.24 guards, so this group
+  no longer exists.)
 - **Equivalent mutants.** `False` swapped for `None` where the value is only ever
   read through `not`. (`write_report`'s encoding and newline mutants went with
   `write_report` on 2026-09-25: the library no longer writes files.)
@@ -312,7 +319,8 @@ which is
 records it and says so; later runs fail when a median moves past the machine's own
 measured noise (twice the observed spread, floored at 35% and capped at 150%).
 
-Measured on 2026-09-21, Python 3.12.14, pandas 3.0.5, Linux 6.12 x86_64, 4,000-row
+Measured on 2026-09-21 (`render/4000` on 2026-09-26), Python 3.12.14, pandas 3.0.5,
+Linux 6.12 x86_64, 4,000-row
 frame, after the example date checks stopped calling the scalar `pandas.to_datetime`
 (on 2026-09-10 `validate/4000` was 6.250s and `validate_row/4000` 6.174s — 87% of it
 date parsing in example code, which left the gate nearly blind to the engine):
@@ -322,7 +330,7 @@ date parsing in example code, which left the gate nearly blind to the engine):
 | `validate/4000` | 1.340s | 16% |
 | `validate_row/4000` | 1.245s | 20% |
 | `build_report/4000` | 0.070s | 98% |
-| `render_report/4000` (now `render/4000`, re-recorded on first run) | 0.061s | 37% |
+| `render/4000` (recorded 2026-09-26, replacing `render_report/4000`) | 0.052s | 12% |
 | `summarize_outcomes/4000` | 0.024s | 19% |
 | `validate/1000-rows-50-rules` | 0.501s | 35% |
 
@@ -332,11 +340,12 @@ functions by cumulative time. It is a description, not a gate — the assertions
 `test_perf.py`. **It cannot see the catalog's own subprocesses:** interpreter start-up,
 imports and argument parsing per case are outside the measurement.
 
-Where the time goes today (2026-09-21): `explain_row` at 63% of the total, and inside it
-the example check files' own functions — `row_not_all_null` alone is 23%, the four date
-parses per row 8%. Until 2026-09-21 the date checks called the scalar
-`pandas.to_datetime` per cell, which costs about 300 times `pandas.Timestamp` on the same
-string and was 87% of a run; the example now uses `pandas.Timestamp`.
+Where the time goes (2026-09-26, 2.0s in all): `validate` 88% of the total and
+`explain_row` 68%, and inside it the example check files' own functions —
+`row_not_all_null` alone is 24%, `dates_present` 5%. Until 2026-09-21 the date checks
+called the scalar `pandas.to_datetime` per cell, which costs about 300 times
+`pandas.Timestamp` on the same string and was 87% of a run; the example now uses
+`pandas.Timestamp`.
 
 ## Golden files
 

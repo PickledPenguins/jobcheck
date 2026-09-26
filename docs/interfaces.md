@@ -23,8 +23,8 @@ not carry, and `validate_row` for a frame too large to keep every outcome.
 
 Everything below that is the tooling surface: printing, explaining, counting,
 inspecting the registry, and the pieces a wrapper around this library reaches
-for. It is exported and supported -- `~/work/ai/jobchain` builds on several of
-these names -- but a first check file needs none of it.
+for. It is exported and supported -- jobchain, the pipeline runner built on this
+library, uses several of these names -- but a first check file needs none of it.
 
 ## Data types
 
@@ -73,7 +73,7 @@ What happened to a check on a row: `Outcome.PASSED`, `FAILED`, `DISABLED`, `SKIP
 `str` as well, so `outcome.outcome == "failed"` holds, and a misspelled member is an
 `AttributeError`. `CheckOutcome` accepts the plain string and refuses one that is
 not an outcome. Write `.value` where the text is wanted: formatting a member prints
-`Outcome.FAILED`.
+`Outcome.FAILED` on Python 3.11 and later, and `failed` on 3.10.
 
 ### The registry
 
@@ -128,8 +128,9 @@ is skipped. The dependency graph is validated once the whole call has been impor
 so a prerequisite may live in any of the files. A relative path is resolved against
 `base_dir` when one is given and against the working directory otherwise; an
 absolute path ignores both. Raises `ValueError` for a path that is not a file,
-naming the absolute path it tried, and propagates whatever a file raises while
-importing. A file that raises is not rolled back: the checks registered before
+naming the absolute path it tried, and for a file without a `.py` suffix
+(`Cannot import '<path>' as a Python file.`), and propagates whatever a file raises
+while importing. A file that raises is not rolled back: the checks registered before
 the failing line stay, and the file is not recorded as loaded.
 
 Each file is given a unique module name, so two directories that each hold a
@@ -168,7 +169,7 @@ same-named member silently load only the first, since the second import finds th
 name in `sys.modules` and does nothing. Nesting `load_checks` has no such
 collision, and records every member.
 
-### `clear_registry() -> None`
+### When the dependency graph is validated
 
 The dependency graph is validated when `load_checks` returns, and otherwise when
 something first needs the evaluation order (`validate` on a frame with rows,
@@ -179,7 +180,9 @@ ordering walk — it is recursive, so it gives out near Python's own recursion l
 around 900 links deep at the default 1000 — raises `ValueError` naming the registry
 size and that limit, rather than a bare `RecursionError` naming nothing.
 
-`clear_registry` empties the registry and evicts the modules that registered
+### `clear_registry() -> None`
+
+Empties the registry and evicts the modules that registered
 checks from `sys.modules` -- never `__main__` -- so a later `load_checks` re-registers rather than
 silently doing nothing. It is the whole of the registry-state API: there is no
 way to save a registry and put it back, because outside a test there is no use
@@ -253,8 +256,6 @@ not a result always raises — that is an authoring bug, not a data problem.
 Raises `TypeError` when `row` is not a `pandas.Series`, and `ValueError` when it
 has duplicate column labels — both before running anything.
 
-
-
 A `context` of `None` — the default — becomes an empty `RowContext`, so a check
 taking `(row, context)` is handed the same type here, in `validate_row` and in
 `validate`.
@@ -275,8 +276,6 @@ only runs once its prerequisites passed. Empty for a row that passed.
 A caller wanting a single label per row (a tally, a column in a frame) takes the
 first. Accepts either `validate_row` or `explain_row` output.
 
-
-
 ### `warn_missing_rule_columns(df, rules) -> list[str]`
 
 One line per rule criterion naming a column the frame lacks — a rule that can
@@ -285,7 +284,7 @@ field raises and is recorded as an `ERROR` outcome naming the column.
 
 ### `warn_shadowed_rules(rules) -> list[str]`
 
-One line per rule a later rule overrules for every row: precedence is positional,
+One line per rule and code that a later rule overrules for every row: precedence is positional,
 so a rule touching a code is dead for that code once a later rule touches it with
 `match: all`. Needs no data — the answer is the same for every row, which is why
 this is the one shadowing case reported. Two conditional rules that may or may not
@@ -325,41 +324,79 @@ they appear.
 
 ## Reporting
 
-`build_report(frame_outcomes, df, key_column=None, add_columns=None,
-include="failures")` — `df` is required, since the outcomes
-describe its rows; `key_column` names the single column that identifies a row — one
-that is not in the frame, or is in it more than once, raises `ValueError`;
-`add_columns` copies frame columns into the report just after `row`; `include` is `"failures"`, `"blocked"` or `"all"`. See
-[reporting.md](reporting.md#showing-data-alongside-the-failures).
-
-Which of the report's own columns it shows is `_DEFAULT_COLUMNS["Report"]` in `src/jobcheck/tables.py`,
-the one place every table's default columns are set; see
+Every view is a DataFrame whose `attrs["title"]` names it — `Report`,
+`Row explanation`, `Summary`, `Registry`, `Rules` — and `render` turns any of them
+into text. The columns each shows by default are its entry in `_DEFAULT_COLUMNS` in
+`src/jobcheck/tables.py`, the one place they are set; see
 [reporting.md](reporting.md#which-columns-a-table-shows).
 
-`build_report`, `render_comments`, `row_explanation` and `summarize_outcomes` —
-all exported from `jobcheck` and documented in [reporting.md](reporting.md). Each
-returns a DataFrame whose `attrs["title"]` names it (`Report`, `Row explanation`,
-`Summary`); `summarize_outcomes` carries `root_cause_rows`, the rows each check was
-a root cause of.
+### `build_report(frame_outcomes, df, key_column=None, add_columns=None, include="failures") -> DataFrame`
 
-Registry tables:
+The long-format report: one line per outcome `include` admits, per data row, in
+evaluation order. `df` is required, since the outcomes describe its rows, and must
+have one row per list in `frame_outcomes` — otherwise `ValueError`
+(`outcomes cover 1 row(s) but the frame has 2: ...`). `key_column` names the single
+column that identifies a row — one that is not in the frame, or is in it more than
+once, raises `ValueError`; without it the frame's index labels the rows.
+`add_columns` copies frame columns into the report just after `row`; a name not in
+the frame, named twice, or colliding with one of the report's own columns raises
+`ValueError`. `include` is `"failures"`, `"blocked"` or `"all"`, and anything else
+raises `ValueError`. Titled `Report`. The columns are in
+[reporting.md](reporting.md#shape-one-row-per-failure).
 
-Both take `add_columns`, the same argument `build_report` takes for columns of the
-data: the names you want beyond the base columns, refused rather than ignored when
-the name is not on offer. What each shows by default is its entry in
-`_DEFAULT_COLUMNS`.
+### `row_explanation(row_outcomes, include="all") -> DataFrame`
 
-- `registry_table(rules=None, add_columns=None)` — one row per
-  check, sorted layer, then code, titled `Registry`. Columns `code`, `layer`,
-  `default`, `message`, `depends_on`. Offers `source_file`, plus the two columns
-  that read `rules`: `could_be_overridden_by`, the rules that *reference* each code
-  with the action each would take, and `effective_state`, which says `DEFAULT (ON)`
-  when no rule references the code and "depends on row" when one does. Neither is
-  "was overridden by" — whether a rule fires is a per-row question this table
-  cannot answer.
-- `rules_table(rules, add_columns=None)` — one row per rule,
-  titled `Rules`: `name`, `action`, `codes_hit_count`, `match`, `message`. Offers
-  `codes`, the list behind the count, and `source_file`.
+One row per check on one data row, in evaluation order — `explain_row`'s result, or
+one row's list from `validate`: `layer`, `code`, `outcome`, `status`, `detail`.
+`detail` says why a check gave no verdict, and otherwise holds its rendered comments,
+else its message, else `-`. `include` takes the report's three levels, with `"all"`
+the default here; `"blocked"` drops the checks that simply passed. Titled
+`Row explanation`.
+
+### `summarize_outcomes(frame_outcomes) -> DataFrame`
+
+Per check, across every row: `code`, `layer`, `failed`, `root_cause_rows`, `errored`,
+`skipped`, `disabled`, `passed`, sorted by `failed`, `errored` and `skipped`, most
+first, then by code. `root_cause_rows` counts the rows whose root causes include the
+check. Takes `validate`'s result or any iterable of per-row lists, a generator
+included, and keeps only the counts. Titled `Summary`.
+
+### `render_comments(comments) -> str`
+
+A check's comments as the report prints them: `key=value; key=value`, sorted by key
+so the same failure renders the same way every run and reports diff cleanly, each
+value through `str()`. An empty mapping gives an empty string. The report's `comments`
+column is this; a caller printing one failure — jobchain's detail line — calls it
+directly:
+
+```python
+from jobcheck import render_comments
+
+print(render_comments({"value": -5, "minimum": 0}))
+```
+
+```
+minimum=0; value=-5
+```
+
+### `registry_table(rules=None, add_columns=None) -> DataFrame`
+
+One row per check, sorted layer, then code, titled `Registry`. Columns `code`,
+`layer`, `default`, `message`, `depends_on`. Offers `source_file`, plus the two
+columns that read `rules`: `could_be_overridden_by`, the rules that *reference* each
+code with the action each would take, and `effective_state`, which says
+`DEFAULT (ON)` when no rule references the code and "depends on row" when one does.
+Neither is "was overridden by" — whether a rule fires is a per-row question this
+table cannot answer.
+
+### `rules_table(rules, add_columns=None) -> DataFrame`
+
+One row per rule, titled `Rules`: `name`, `action`, `codes_hit_count`, `match`,
+`message`. Offers `codes`, the list behind the count, and `source_file`.
+
+Both registry tables take `add_columns`, the same argument `build_report` takes for
+columns of the data: the names you want beyond the default columns, refused rather
+than ignored when the name is not on offer.
 
 ### `render(table, fmt="table") -> str`
 
@@ -371,16 +408,18 @@ table renders as its title over `(empty)`, or the CSV header alone.
 
 Cells are read by position: a duplicated column label renders each column's own
 values, and an all-numeric frame keeps its integers as integers rather than `1.0`. A
-cell holding line breaks (`\n`, `\r\n` or `\r`) renders as a tall cell rather than
-breaking the row, and tabs are expanded — a quoted multi-line CSV field reaching the
-row key or an `add_columns` value is the usual way one arrives.
+cell holding line breaks (`\n`, `\r\n`, `\r` or a form feed) renders as a tall cell
+rather than breaking the row, and tabs are expanded — a quoted multi-line CSV field
+reaching the row key or an `add_columns` value is the usual way one arrives.
 
-`is_null(value)` is the null check both the engine and the renderer use — reach for
-it in your own checks too, since `NaN` is truthy and `pd.isna` returns an array for
-list-like values.
+### `is_null(value) -> bool`
+
+The null check both the engine and the renderer use — reach for it in your own
+checks too, since `NaN` is truthy and `pd.isna` returns an array for list-like
+values. `None`, `NaN`, `NaT` and `pd.NA` are null; a list or an array never is.
 
 ## Stability
 
-Pre-1.0 and unversioned. The parts most likely to stay fixed are check codes,
-status values, the `(row, ctx)` signature, and the rule YAML schema, since
-data written against them outlives the code.
+Pre-1.0: the API may change between versions. The parts most likely to stay fixed
+are check codes, status values, the `(row, context)` signature, and the rule YAML
+schema, since data written against them outlives the code.

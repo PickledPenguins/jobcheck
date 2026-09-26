@@ -38,14 +38,14 @@ write code.
       pattern: "^BATCH$"
 
 - name: "suppress_email_checks_for_test_accounts"
-  message: "Internal check accounts shouldn't trigger email format errors"
+  message: "Internal test accounts shouldn't trigger email format errors"
   action: disable
   codes:
     - EMAIL_MISSING_AT
     - EMAIL_DOMAIN_INVALID
   match:
     - column: email
-      pattern: "@internal\\.check$"
+      pattern: "@internal\\.test$"
 
 - name: "disable_age_integer_check_globally"
   message: "Example: disable AGE_NOT_INTEGER for every row, no filtering"
@@ -55,8 +55,11 @@ write code.
   match: all
 ```
 
-That is `examples/rules/error_rules.yaml` in the project root, verbatim. The same rules split across
-files live in `examples/rules/split_by_topic/` and `examples/rules/from_another_directory/`.
+That is `examples/rules/error_rules.yaml` in the project root, verbatim but for its
+comments; a test compares the two. The same rules split across files live in
+`examples/rules/split_by_topic/` and `examples/rules/from_another_directory/`.
+
+An empty file holds no rules and loads as none.
 
 ## Keys
 
@@ -139,8 +142,9 @@ configuration:
 | one file | position in the file |
 | `load_rules(paths)` / `--rules` | the order the paths are given |
 
-With directory loading, filenames carry precedence: name files `01_x.yaml`, `02_y.yaml`
-when the ordering between them matters.
+Nothing reads a directory or sorts file names: a directory in the list is an error, and
+the order is the list's. `examples/rules/split_by_topic/` numbers its files `01_`, `02_`
+only so a listing shows them in the order a caller should name them.
 
 In `examples/rules/error_rules.yaml` the third rule (`match: all`, disable) is listed after the first
 (enable for legacy batch rows) and therefore wins on every row, including legacy batch

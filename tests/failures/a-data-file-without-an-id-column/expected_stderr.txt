@@ -1,0 +1,1 @@
+error: tests/failures/a-data-file-without-an-id-column/no_id.csv has no 'id' column, which labels each row of the report (columns: customer, age, email)

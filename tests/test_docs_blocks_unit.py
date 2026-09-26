@@ -4,6 +4,8 @@ Binding a call catches a renamed keyword (`test_docs_api_unit.py`); running the
 block catches what binding cannot -- a decorator that is gone, a return form the
 engine refuses. Each block is a fragment leaning on a `df`, its `outcomes`, a rule
 file and check files at illustrative paths, and the world below supplies them.
+A bare block straight after a Python block, with nothing but blank lines between,
+is that block's output, and what the block prints must equal it byte for byte.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ import re
 import sys
 import types
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import pytest
 
@@ -40,15 +42,30 @@ ILLUSTRATIVE_CHECK_FILES = {
 }
 
 
-def docs_blocks() -> list[tuple[str, int, str]]:
-    """Every ```python block under docs/, as (document, line, source)."""
+class DocsBlock(NamedTuple):
+    document: str
+    line: int
+    source: str
+    shown_output: str | None  # the bare block that follows, if one does
+
+
+def docs_blocks() -> list[DocsBlock]:
+    """Every ```python block under docs/, with the output shown after it."""
 
     found = []
     for path in DOCS:
         text = path.read_text(encoding="utf-8")
-        for match in re.finditer(r"```python\n(.*?)```", text, re.S):
-            line = text[: match.start()].count("\n") + 2
-            found.append((path.name, line, match.group(1)))
+        blocks = list(re.finditer(r"```(\w*)\n(.*?)```", text, re.S))
+        for index, block in enumerate(blocks):
+            if block.group(1) != "python":
+                continue
+            following = blocks[index + 1] if index + 1 < len(blocks) else None
+            shown = None
+            if (following is not None and following.group(1) == ""
+                    and not text[block.end():following.start()].strip()):
+                shown = following.group(2)
+            line = text[: block.start()].count("\n") + 2
+            found.append(DocsBlock(path.name, line, block.group(2), shown))
     return found
 
 
@@ -89,16 +106,30 @@ def documented_world(cwd: Path) -> dict[str, Any]:
 
 
 @pytest.mark.parametrize(
-    "document, line, source", docs_blocks(), ids=lambda value: str(value)[:40])
+    "block", docs_blocks(), ids=lambda block: f"{block.document}:{block.line}")
 def test_every_docs_block_runs_in_the_world_it_assumes(
-    document: str, line: int, source: str, fresh_registry: None, tmp_path: Path,
+    block: DocsBlock, fresh_registry: None, tmp_path: Path,
     monkeypatch: Any, capsys: Any,
 ) -> None:
+    """Regression for the output half: reporting.md showed three outputs no frame
+    produces, one of them against rules its code did not pass."""
+
     monkeypatch.chdir(tmp_path)
     namespace = documented_world(tmp_path)
+    label = f"{block.document}:{block.line}"
     try:
-        exec(compile(source, f"{document}:{line}", "exec"), namespace)
+        exec(compile(block.source, label, "exec"), namespace)
     except Exception as exc:  # noqa: BLE001 -- the point is to name the block
-        pytest.fail(f"{document}:{line} does not run: {type(exc).__name__}: {exc}")
+        pytest.fail(f"{label} does not run: {type(exc).__name__}: {exc}")
     finally:
         sys.modules.pop(namespace["__name__"], None)
+    if block.shown_output is not None:
+        assert capsys.readouterr().out == block.shown_output, (
+            f"{label} prints something other than the output shown after it")
+
+
+def test_the_documents_show_output_for_their_blocks() -> None:
+    """A guard on the guard: output blocks that stopped being recognized would
+    turn the comparison above into a no-op."""
+
+    assert sum(block.shown_output is not None for block in docs_blocks()) >= 6
