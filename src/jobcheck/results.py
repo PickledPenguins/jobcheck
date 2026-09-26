@@ -2,9 +2,9 @@
 check on one row (`CheckOutcome`), plus the fixed status vocabulary both use.
 
 A recorded outcome answers three separate questions, and they are easy to read as
-one. `outcome` says what happened to the *check*: it ran and was happy
-(`PASSED`), ran and was not (`FAILED`), raised (`ERRORED`), was switched off by a
-rule (`DISABLED`), or never ran because a prerequisite did not pass (`SKIPPED`).
+one. `outcome` says what happened to the *check*, as an `Outcome`: it ran and was
+happy (`PASSED`), ran and was not (`FAILED`), raised (`ERRORED`), was switched off
+by a rule (`DISABLED`), or never ran because a prerequisite did not pass (`SKIPPED`).
 `status` says what is wrong with the *value*, from the `Status` vocabulary --
 missing, malformed, invalid -- and is `Status.PASS` for everything that did not
 fail, which is why a report shows `passed | PASS (0)` in one row and why the
@@ -13,7 +13,7 @@ in the dependency graph, and only orders things: `root_causes` reports the
 shallowest failing layer.
 
 Two names are one letter apart on purpose no longer: the value a check returns
-when it is happy is `OK`, the recorded outcome for that is `PASSED`, and the
+when it is happy is `OK`, the recorded outcome for that is `Outcome.PASSED`, and the
 status vocabulary's zero is `Status.PASS`, always written with its class. Before
 2026-09-24 the first of those was also called `PASS`, and the pair was a trap.
 """
@@ -21,7 +21,7 @@ status vocabulary's zero is `Status.PASS`, always written with its class. Before
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import IntEnum
+from enum import Enum, IntEnum
 from types import MappingProxyType
 from typing import Any, Mapping
 
@@ -43,12 +43,19 @@ class Status(IntEnum):
     since it would report as a failure while claiming to be a broken check."""
 
 
-# Outcome of one check on one row, as recorded by the engine.
-PASSED = "passed"
-FAILED = "failed"
-DISABLED = "disabled"
-SKIPPED = "skipped"
-ERRORED = "errored"
+class Outcome(str, Enum):
+    """What happened to one check on one row, as recorded by the engine.
+
+    A `str` as well, so `outcome == "failed"` holds; write `.value` where the text
+    is wanted, since formatting a member prints `Outcome.FAILED` before Python 3.11's
+    StrEnum, which this package does not require.
+    """
+
+    PASSED = "passed"
+    FAILED = "failed"
+    DISABLED = "disabled"
+    SKIPPED = "skipped"
+    ERRORED = "errored"
 
 
 def _render_status(status: int) -> str:
@@ -138,18 +145,22 @@ class CheckOutcome:
     __test__ = False  # not a pytest check class, despite the name
 
     code: str
-    outcome: str
+    outcome: Outcome
     status: int = Status.PASS
     layer: int = 0
     message: str = ""
     detail: str = ""
     comments: Mapping[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        # A plain string is accepted and checked, so a misspelled outcome fails here.
+        self.outcome = Outcome(self.outcome)
+
     @property
     def failed(self) -> bool:
         """Whether this outcome is a reportable failure, error included."""
 
-        return self.outcome in (FAILED, ERRORED)
+        return self.outcome in (Outcome.FAILED, Outcome.ERRORED)
 
     @property
     def status_label(self) -> str:

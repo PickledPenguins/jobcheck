@@ -15,14 +15,10 @@ import pytest
 
 from conftest import make_check
 from jobcheck import (
-    DISABLED,
-    ERRORED,
-    FAILED,
-    PASSED,
-    SKIPPED,
     RowContext,
     register_check,
     validate,
+    Outcome,
 )
 from jobcheck.rules import Rule
 from jobcheck import registry as reg
@@ -58,7 +54,7 @@ def test_outcomes_follow_frame_order_not_index_labels(fresh_registry: None) -> N
     df = frame(3)
     df.index = [100, 200, 300]
     outcomes = validate(df)
-    assert [row[0].outcome for row in outcomes] == [FAILED, FAILED, FAILED]
+    assert [row[0].outcome for row in outcomes] == [Outcome.FAILED, Outcome.FAILED, Outcome.FAILED]
 
 
 def test_each_row_gets_its_own_outcomes_in_its_own_position(fresh_registry: None) -> None:
@@ -74,14 +70,14 @@ def test_each_row_gets_its_own_outcomes_in_its_own_position(fresh_registry: None
         return Verdict(int(row["value"]) % 2 == 0)
 
     outcomes = validate(frame(4))
-    assert [row[0].outcome for row in outcomes] == [PASSED, FAILED, PASSED, FAILED]
+    assert [row[0].outcome for row in outcomes] == [Outcome.PASSED, Outcome.FAILED, Outcome.PASSED, Outcome.FAILED]
 
 
 def test_checks_that_did_not_run_are_kept(fresh_registry: None) -> None:
     make_check("A", passes=False)
     make_check("B", depends_on=["A"])
     outcomes = validate(frame(1))
-    assert [(o.code, o.outcome) for o in outcomes[0]] == [("A", FAILED), ("B", SKIPPED)]
+    assert [(o.code, o.outcome) for o in outcomes[0]] == [("A", Outcome.FAILED), ("B", Outcome.SKIPPED)]
     assert outcomes[0][1].detail == "prerequisite did not pass: A"
 
 
@@ -94,7 +90,7 @@ def test_rules_reach_the_per_row_engine(fresh_registry: None) -> None:
     make_check("A", passes=False)
     rule = Rule(name="off", action="disable", codes=["A"], criteria=[], match_all=True, message="why the rule exists")
     outcomes = validate(frame(1), rules=[rule])
-    assert outcomes[0][0].outcome == DISABLED
+    assert outcomes[0][0].outcome == Outcome.DISABLED
     assert outcomes[0][0].detail == "disabled by rule 'off'"
 
 
@@ -112,13 +108,13 @@ def test_the_context_builder_is_called_once_per_row(fresh_registry: None) -> Non
     shared = RowContext()
     outcomes = validate(frame(2), context_builder=lambda row: shared)
     assert seen == [shared, shared]
-    assert [row[0].outcome for row in outcomes] == [PASSED, PASSED]
+    assert [row[0].outcome for row in outcomes] == [Outcome.PASSED, Outcome.PASSED]
 
 
 def test_on_error_records_the_exception_and_keeps_going(fresh_registry: None) -> None:
     make_check("BOOM", raises=RuntimeError("nope"))
     outcomes = validate(frame(2))
-    assert [row[0].outcome for row in outcomes] == [ERRORED, ERRORED]
+    assert [row[0].outcome for row in outcomes] == [Outcome.ERRORED, Outcome.ERRORED]
     assert outcomes[0][0].detail == "RuntimeError: nope"
 
 

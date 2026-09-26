@@ -23,7 +23,7 @@ from hypothesis import strategies as st  # noqa: E402
 
 from conftest import first_cause, make_check  # noqa: E402
 from jobcheck import registry as reg  # noqa: E402
-from jobcheck.results import PASSED  # noqa: E402
+from jobcheck.results import Outcome  # noqa: E402
 from jobcheck import engine
 
 pytestmark = pytest.mark.long
@@ -73,7 +73,7 @@ def test_a_check_never_runs_unless_every_prerequisite_passed(
         if code not in calls:
             continue
         for prerequisite in depends_on:
-            assert by_code[prerequisite].outcome == PASSED, (
+            assert by_code[prerequisite].outcome == Outcome.PASSED, (
                 f"{code} ran while its prerequisite {prerequisite} had not passed"
             )
 

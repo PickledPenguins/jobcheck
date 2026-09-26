@@ -14,7 +14,7 @@ from jobcheck import rules
 from jobcheck import engine
 from jobcheck import registry_tables
 from jobcheck import render
-from jobcheck.results import DISABLED, PASSED
+from jobcheck.results import Outcome
 from jobcheck.rules import _MatchCriterion
 
 pytestmark = pytest.mark.fast
@@ -408,12 +408,12 @@ def test_a_whole_number_is_matched_as_the_report_prints_it(fresh_registry: None)
     blank_in_column = pd.read_csv(StringIO("id,name,age\n1,a,41\n2,b,\n"))
     assert str(blank_in_column.dtypes["age"]) == "float64"
     outcomes = engine.validate(blank_in_column, rules=[on_age])
-    assert [row[0].outcome for row in outcomes] == [DISABLED, PASSED]
+    assert [row[0].outcome for row in outcomes] == [Outcome.DISABLED, Outcome.PASSED]
 
     on_id = rule("r", "disable", ["A_CODE"], [("id", "^102$")])
     all_numeric = pd.DataFrame({"id": [101, 102], "age": [1.5, 2.0]})
     outcomes = engine.validate(all_numeric, rules=[on_id])
-    assert [row[0].outcome for row in outcomes] == [PASSED, DISABLED]
+    assert [row[0].outcome for row in outcomes] == [Outcome.PASSED, Outcome.DISABLED]
 
 
 def test_a_fraction_keeps_its_decimals(fresh_registry: None) -> None:

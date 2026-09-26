@@ -214,6 +214,16 @@ would also cost the sentence every failure prints, "load_checks() names files ex
 nothing is discovered", which is pinned in eleven places and is the invariant the whole
 loader is built on.
 
+**An `Outcome` enum in place of five outcome strings** (raised by the `src/` review of
+2026-09-25, built the same day). `PASSED`, `FAILED`, `DISABLED`, `SKIPPED` and `ERRORED`
+were plain strings, so a misspelled comparison was silently false. `Outcome` is a
+`(str, Enum)`: one export instead of five, `== "failed"` still holds, a misspelled member
+is an `AttributeError`, and `CheckOutcome` refuses a string that is not an outcome. Chosen
+over plain strings with no constants, which saves one more name and loses the typo check.
+Lost: formatting a member prints `Outcome.FAILED`, so hand-written text needs `.value`
+(the tables write `.value` themselves; `StrEnum` would avoid it but needs Python 3.11).
+Jobchain's two `engine.ERRORED` uses changed with it.
+
 **Five exported names made private** (raised by the `src/` review of 2026-09-25, done
 the same day, per the example rule of F.37). `Check` (no public function hands one
 out since F.28), `render_status` (duplicated by `CheckOutcome.status_label`),

@@ -57,7 +57,7 @@ def test_a_check_cannot_return_status_error() -> None:
 def test_the_engine_can_still_record_an_error_outcome() -> None:
     """The status stays usable where it belongs -- on an outcome, not a result."""
 
-    outcome = res.CheckOutcome("CODE", res.ERRORED, status=Status.ERROR)
+    outcome = res.CheckOutcome("CODE", res.Outcome.ERRORED, status=Status.ERROR)
     assert outcome.status_label == "ERROR (9)"
     assert outcome.failed is True
 

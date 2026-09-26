@@ -35,29 +35,16 @@ from .report import (
     row_explanation,
     summarize_outcomes,
 )
-from .results import (
-    DISABLED,
-    ERRORED,
-    FAILED,
-    OK,
-    PASSED,
-    SKIPPED,
-    Status,
-    CheckOutcome,
-    Verdict,
-)
+from .results import OK, CheckOutcome, Outcome, Status, Verdict
 from .tables import is_null, render
 
 __all__ = [
     "CheckOutcome",
-    "DISABLED",
-    "ERRORED",
-    "FAILED",
     "OK",
-    "PASSED",
+    "Outcome",
     "RowContext",
     "Rule",
-    "SKIPPED",
+
     "Status",
     "Verdict",
     "build_report",

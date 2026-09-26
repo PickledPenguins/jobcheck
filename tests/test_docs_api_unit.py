@@ -157,7 +157,7 @@ def documented_codes() -> dict[str, set[str]]:
     not_a_code = (
         {name.upper() for name in prv.__all__}
         | {member.name for member in Status}
-        | {prv.PASSED, prv.FAILED, prv.DISABLED, prv.SKIPPED, prv.ERRORED}
+        | {member.name for member in prv.Outcome}
         | {key.upper() for key in rules.RULE_KEYS}
         # Words that happen to be shouted in prose or shell, not codes.
         | {"CSV", "YAML", "PATH", "ROW", "COLUMN", "NAME", "OFF", "ON", "TODO",

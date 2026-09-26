@@ -15,12 +15,8 @@ import pandas as pd
 from .context import RowContext
 from .registry import _CHECKS, _get_topo_order
 from .results import (
-    DISABLED,
-    ERRORED,
-    FAILED,
-    PASSED,
-    SKIPPED,
     CheckOutcome,
+    Outcome,
     Status,
     _normalize_verdict,
 )
@@ -116,7 +112,7 @@ def explain_row(
             passed[check.code] = False
             disabled.add(check.code)
             outcomes.append(
-                CheckOutcome(check.code, DISABLED, layer=check.layer,
+                CheckOutcome(check.code, Outcome.DISABLED, layer=check.layer,
                             detail=f"disabled by {reason}")
             )
             continue
@@ -131,7 +127,7 @@ def explain_row(
                       if all(code in disabled for code in blocking)
                       else "prerequisite did not pass: ")
             outcomes.append(
-                CheckOutcome(check.code, SKIPPED, layer=check.layer,
+                CheckOutcome(check.code, Outcome.SKIPPED, layer=check.layer,
                             detail=reason + ", ".join(blocking))
             )
             continue
@@ -144,7 +140,7 @@ def explain_row(
             passed[check.code] = False
             outcomes.append(
                 CheckOutcome(
-                    check.code, ERRORED, status=Status.ERROR, layer=check.layer,
+                    check.code, Outcome.ERRORED, status=Status.ERROR, layer=check.layer,
                     message=check.message,
                     detail=f"{type(exc).__name__}: {exc}",
                 )
@@ -156,7 +152,7 @@ def explain_row(
         outcomes.append(
             CheckOutcome(
                 check.code,
-                PASSED if result else FAILED,
+                Outcome.PASSED if result else Outcome.FAILED,
                 status=result.status,
                 layer=check.layer,
                 message="" if result else check.message,

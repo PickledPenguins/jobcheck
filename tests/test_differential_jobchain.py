@@ -34,11 +34,11 @@ import pytest
 from conftest import first_cause
 
 from jobcheck import (
-    ERRORED,
     CheckOutcome,
     load_rules,
     load_checks,
     validate,
+    Outcome,
 )
 
 pytestmark = pytest.mark.fast
@@ -144,7 +144,7 @@ def test_a_failing_row_reports_the_code_message_and_comments(
     assert failure.code == "B_INT"
     assert failure.message == "b must be a whole number"
     assert failure.comments == {"value": "zz"}
-    assert failure.outcome != ERRORED
+    assert failure.outcome != Outcome.ERRORED
 
 
 def test_failures_line_up_with_the_rows_they_came_from(
@@ -198,14 +198,14 @@ def test_a_check_that_raises_is_recorded_as_errored_and_keeps_the_exception(
 ) -> None:
     load_checks([write_file(tmp_path, CRASHES)])
     (failure,) = failures(validate(frame({"a": "x", "b": "1"}))[0])
-    assert failure.outcome == ERRORED
+    assert failure.outcome == Outcome.ERRORED
     assert "ZeroDivisionError" in failure.detail
 
 
 def test_the_checks_that_raised_can_be_counted(fresh_registry: None, tmp_path: Path) -> None:
     load_checks([write_file(tmp_path, CRASHES)])
     rows = validate(frame({"a": "x", "b": "1"}, {"a": "y", "b": "2"}))
-    assert sum(o.outcome == ERRORED for row in rows for o in row) == 2
+    assert sum(o.outcome == Outcome.ERRORED for row in rows for o in row) == 2
 
 
 def test_a_rule_file_switches_a_check_off_for_chosen_rows(
