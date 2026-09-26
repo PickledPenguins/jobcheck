@@ -55,12 +55,12 @@ def test_the_loaded_line_counts_the_rules_it_read(fresh_registry: None, capsys: 
 def test_summary_adds_the_per_check_counts(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys, "--summary")
     assert "== Summary" in out
-    assert "Root cause of each failing row:" in out
+    assert "root_cause_rows" in out
 
 
 def test_explain_prints_one_row_and_stops(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys, "--explain", "1")
-    assert "== Row explanation: row 1" in out
+    assert "== Row explanation ==" in out
     assert "== Registry" not in out
 
 
@@ -79,7 +79,7 @@ def test_a_csv_file_is_validated_instead_of_the_demo_frame(fresh_registry: None,
 
 
 def test_a_clean_file_reports_no_failures(fresh_registry: None, capsys: Any) -> None:
-    assert "No failures." in run(capsys, "--data", CLEAN)
+    assert "== Report ==\n(empty)" in run(capsys, "--data", CLEAN)
 
 
 def test_a_missing_data_file_exits_two(fresh_registry: None, capsys: Any) -> None:
@@ -187,7 +187,7 @@ def test_write_uses_the_report_format_rather_than_the_extension(fresh_registry: 
 
     target = tmp_path / "report.csv"
     run(capsys, "--data", SMALL, "--write", str(target))
-    assert target.read_text(encoding="utf-8").startswith("row ")
+    assert target.read_text(encoding="utf-8").startswith("== Report ==\nrow ")
 
 
 def test_write_replaces_a_file_that_is_already_there(fresh_registry: None, capsys: Any,
@@ -223,7 +223,7 @@ def test_a_write_that_fails_at_the_last_moment_still_exits_two(
     def refuse(*args: Any, **kwargs: Any) -> None:
         raise OSError(28, "No space left on device")
 
-    monkeypatch.setattr(main, "write_report", refuse)
+    monkeypatch.setattr(main.Path, "write_text", refuse)
     target = tmp_path / "report.csv"
     with pytest.raises(SystemExit) as excinfo:
         main.main(["--data", CLEAN, "--write", str(target)])

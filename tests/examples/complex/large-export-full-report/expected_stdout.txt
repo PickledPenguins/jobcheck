@@ -1,6 +1,6 @@
 Loaded 1 rule(s) from 1 file(s)
 
-== Registry: 11 check(s), 1 rule(s) considered ==
+== Registry ==
 code                 | layer | default | message                                 | depends_on       | could_be_overridden_by                          
 ---------------------+-------+---------+-----------------------------------------+------------------+-------------------------------------------------
 AGE_PRESENT          | 0     | ON      | Age is missing                          | -                | -                                               
@@ -352,26 +352,17 @@ row,code,status,layer,outcome,message,detail,comments,is_root_cause
 6989,EMAIL_MISSING_AT,MALFORMED (2),1,failed,Email has no '@',,at_signs=0; value=user6989-example.com,True
 
 
-== Summary: 2000 row(s), 11 check(s) ==
-code                 | layer | failed | errored | skipped | disabled | passed
----------------------+-------+--------+---------+---------+----------+-------
-EMAIL_MISSING_AT     | 1     | 86     | 0       | 0       | 0        | 1914  
-AGE_TOO_HIGH         | 2     | 71     | 0       | 58      | 0        | 1871  
-DATES_OUT_OF_ORDER   | 1     | 69     | 0       | 0       | 0        | 1931  
-AGE_PRESENT          | 0     | 58     | 0       | 0       | 0        | 1942  
-AGE_NEGATIVE         | 2     | 49     | 0       | 58      | 0        | 1893  
-EMAIL_DOMAIN_INVALID | 2     | 0      | 0       | 86      | 0        | 1914  
-AGE_NOT_A_NUMBER     | 1     | 0      | 0       | 58      | 0        | 1942  
-AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 2000     | 0     
-DATES_PRESENT        | 0     | 0      | 0       | 0       | 0        | 2000  
-EMAIL_PRESENT        | 0     | 0      | 0       | 0       | 0        | 2000  
-ROW_ALL_NULL         | 0     | 0      | 0       | 0       | 0        | 2000  
-
-Root cause of each failing row:
-root_cause         | rows
--------------------+-----
-EMAIL_MISSING_AT   | 86  
-AGE_TOO_HIGH       | 71  
-DATES_OUT_OF_ORDER | 69  
-AGE_PRESENT        | 58  
-AGE_NEGATIVE       | 49  
+== Summary ==
+code                 | layer | failed | root_cause_rows | errored | skipped | disabled | passed
+---------------------+-------+--------+-----------------+---------+---------+----------+-------
+EMAIL_MISSING_AT     | 1     | 86     | 86              | 0       | 0       | 0        | 1914  
+AGE_TOO_HIGH         | 2     | 71     | 71              | 0       | 58      | 0        | 1871  
+DATES_OUT_OF_ORDER   | 1     | 69     | 69              | 0       | 0       | 0        | 1931  
+AGE_PRESENT          | 0     | 58     | 58              | 0       | 0       | 0        | 1942  
+AGE_NEGATIVE         | 2     | 49     | 49              | 0       | 58      | 0        | 1893  
+EMAIL_DOMAIN_INVALID | 2     | 0      | 0               | 0       | 86      | 0        | 1914  
+AGE_NOT_A_NUMBER     | 1     | 0      | 0               | 0       | 58      | 0        | 1942  
+AGE_NOT_INTEGER      | 2     | 0      | 0               | 0       | 0       | 2000     | 0     
+DATES_PRESENT        | 0     | 0      | 0               | 0       | 0       | 0        | 2000  
+EMAIL_PRESENT        | 0     | 0      | 0               | 0       | 0       | 0        | 2000  
+ROW_ALL_NULL         | 0     | 0      | 0               | 0       | 0       | 0        | 2000  

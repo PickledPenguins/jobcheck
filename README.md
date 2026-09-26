@@ -56,7 +56,7 @@ def age_above_limit(row):                         # or (row, ctx)
 
 ```python
 import pandas as pd
-from jobcheck import build_report, load_checks, print_report, validate
+from jobcheck import build_report, load_checks, render, validate
 
 # Your checks live in your own files; this package ships none.
 load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
@@ -67,11 +67,11 @@ df = pd.DataFrame([
     {"id": 104, "age": None, "email": "c@d.com", "start_date": "2024-01-01", "end_date": "2024-02-01"},
 ])
 outcomes = validate(df)                      # add rules=... to apply rule files
-print_report(build_report(outcomes, df=df, key_column="id"), key_column="id")
+print(render(build_report(outcomes, df=df, key_column="id")))
 ```
 
 ```
-== Report: 3 line(s), keyed by id ==
+== Report ==
 row | code             | status        | layer | outcome | message          | detail | comments               | is_root_cause
 ----+------------------+---------------+-------+---------+------------------+--------+------------------------+--------------
 102 | AGE_NEGATIVE     | INVALID (3)   | 2     | failed  | Age is negative  |        | minimum=0; value=-5.0  | True         
@@ -80,21 +80,24 @@ row | code             | status        | layer | outcome | message          | de
 ```
 
 - One line per failure, not one per row.
-- `write_report(report, "report.csv")` saves it; `render_report(report, fmt="csv")`
-  returns the text.
+- Every table the library builds is a DataFrame that carries its own title;
+  `render(table)` draws it under that title, and `render(table, fmt="csv")` returns
+  CSV to write wherever you like.
 - `add_columns=[...]` adds columns from the frame next to the row key.
 
 Row 104 reports only `AGE_PRESENT` — the four age checks below it never ran. To see
 why a check did not fire, ask about the row:
 
 ```python
-from jobcheck import explain_row, print_row_explanation
+from jobcheck import explain_row, root_causes, row_explanation
 
-print_row_explanation(explain_row(df.loc[2]), include="blocked")
+row_outcomes = explain_row(df.loc[2])
+print(render(row_explanation(row_outcomes, include="blocked")))
+print("root cause:", ", ".join(root_causes(row_outcomes)))
 ```
 
 ```
-== Row explanation: 5 of 8 check(s), include=blocked ==
+== Row explanation ==
 layer | code             | outcome  | status      | detail                                     
 ------+------------------+----------+-------------+--------------------------------------------
 0     | AGE_PRESENT      | failed   | MISSING (1) | Age is missing                             
@@ -110,34 +113,27 @@ which is the full audit view.
 
 ## Counting what happened
 
-`summarize_outcomes` counts what each check did across every row, and
-`print_summary` prints that together with the root cause of each failing row.
+`summarize_outcomes` counts what each check did across every row, and in how many
+rows it was the root cause.
 
 ```python
-from jobcheck import print_summary
+from jobcheck import summarize_outcomes
 
-print_summary(outcomes)
+print(render(summarize_outcomes(outcomes)))
 ```
 
 ```
-== Summary: 3 row(s), 8 check(s) ==
-code                 | layer | failed | errored | skipped | disabled | passed
----------------------+-------+--------+---------+---------+----------+-------
-AGE_NEGATIVE         | 2     | 1      | 0       | 1       | 0        | 1     
-AGE_PRESENT          | 0     | 1      | 0       | 0       | 0        | 2     
-EMAIL_MISSING_AT     | 1     | 1      | 0       | 0       | 0        | 2     
-AGE_NOT_A_NUMBER     | 1     | 0      | 0       | 1       | 0        | 2     
-AGE_TOO_HIGH         | 2     | 0      | 0       | 1       | 0        | 2     
-EMAIL_DOMAIN_INVALID | 2     | 0      | 0       | 1       | 0        | 2     
-AGE_NOT_INTEGER      | 2     | 0      | 0       | 0       | 3        | 0     
-EMAIL_PRESENT        | 0     | 0      | 0       | 0       | 0        | 3     
-
-Root cause of each failing row:
-root_cause       | rows
------------------+-----
-AGE_NEGATIVE     | 1   
-AGE_PRESENT      | 1   
-EMAIL_MISSING_AT | 1   
+== Summary ==
+code                 | layer | failed | root_cause_rows | errored | skipped | disabled | passed
+---------------------+-------+--------+-----------------+---------+---------+----------+-------
+AGE_NEGATIVE         | 2     | 1      | 1               | 0       | 1       | 0        | 1     
+AGE_PRESENT          | 0     | 1      | 1               | 0       | 0       | 0        | 2     
+EMAIL_MISSING_AT     | 1     | 1      | 1               | 0       | 0       | 0        | 2     
+AGE_NOT_A_NUMBER     | 1     | 0      | 0               | 0       | 1       | 0        | 2     
+AGE_TOO_HIGH         | 2     | 0      | 0               | 0       | 1       | 0        | 2     
+EMAIL_DOMAIN_INVALID | 2     | 0      | 0               | 0       | 1       | 0        | 2     
+AGE_NOT_INTEGER      | 2     | 0      | 0               | 0       | 0       | 3        | 0     
+EMAIL_PRESENT        | 0     | 0      | 0               | 0       | 0       | 0        | 3     
 ```
 
 Checks are loaded by path: `load_checks(paths)` imports the named `.py` files —

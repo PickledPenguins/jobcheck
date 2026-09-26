@@ -5,7 +5,6 @@
 <project>/tests/examples/bundles/nested-bundles/outer_bundle.py
 
 == Registry ==
-== Registry: 2 check(s) ==
 code              | layer | default | message               | depends_on   
 ------------------+-------+---------+-----------------------+--------------
 TOTAL_PRESENT     | 0     | ON      | Total is missing      | -            

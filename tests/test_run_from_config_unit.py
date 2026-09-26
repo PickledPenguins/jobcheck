@@ -55,8 +55,8 @@ def test_the_shipped_run_prints_its_four_tables_in_order(fresh_registry: None,
                                                          capsys: Any) -> None:
     run_from_config.main([])
     out = capsys.readouterr().out
-    headings = [line.split(":")[0] for line in out.splitlines() if line.startswith("== ")]
-    assert headings == ["== Rules", "== Registry", "== Report", "== Summary"]
+    headings = [line for line in out.splitlines() if line.startswith("== ")]
+    assert headings == ["== Rules ==", "== Registry ==", "== Report ==", "== Summary =="]
     # The shipped file's column choices reached the report.
     report = out.split("== Report")[1].split("== Summary")[0]
     assert "| name " in report
@@ -76,7 +76,7 @@ def test_paths_resolve_against_the_run_file_not_the_working_directory(
     monkeypatch.chdir(PROJECT_ROOT)
     run_from_config.main([os.path.relpath(run_file)])
     out = capsys.readouterr().out
-    assert out.startswith("== Report: 1 line(s), keyed by id ==")
+    assert out.startswith("== Report ==")
     assert "AGE_NEGATIVE" in out
 
 
@@ -92,7 +92,7 @@ def test_a_table_may_repeat_with_different_options(fresh_registry: None, capsys:
     run_from_config.main([run_file])
     out = capsys.readouterr().out
     table, csv = out.split("\n\n", 1)
-    assert table.startswith("== Report: 1 line(s) ==")
+    assert table.startswith("== Report ==")
     # CSV gets no heading, and the second report's include reached build_report.
     assert csv.startswith("row,code,status,layer,outcome,message,detail,is_root_cause\n")
     assert csv.count("\n") > 3
@@ -102,7 +102,7 @@ def test_the_rules_table_carries_the_shadowed_rule_warning(fresh_registry: None,
                                                            capsys: Any, tmp_path: Path) -> None:
     run_from_config.main([write_run(tmp_path, BASE + "tables: [{table: rules}]\n")])
     out = capsys.readouterr().out
-    assert out.startswith("== Rules: 3 loaded ==")
+    assert out.startswith("== Rules ==")
     assert "warning: rule 'enable_legacy_integer_check' is overruled" in out
 
 

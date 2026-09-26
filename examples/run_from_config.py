@@ -43,10 +43,10 @@ from jobcheck import (  # noqa: E402
     Rule,
     build_report,
     load_setup,
-    print_registry,
-    print_report,
-    print_rules,
-    print_summary,
+    registry_table,
+    render,
+    rules_table,
+    summarize_outcomes,
     validate,
     warn_missing_rule_columns,
     warn_shadowed_rules,
@@ -60,7 +60,7 @@ DEFAULT_RUN = os.path.join(PROJECT_ROOT, "examples/run.yaml")
 RUN_KEYS = ("setup", "data", "tables")
 
 #: Every table a run can print, and the options each takes beside `table`.
-#: The options are the printing functions' own argument names, so the library's
+#: The options are the table functions' own argument names, so the library's
 #: documentation of each one is the documentation of the key.
 TABLE_OPTIONS: dict[str, tuple[str, ...]] = {
     "registry": ("add_columns", "drop_columns"),
@@ -166,10 +166,10 @@ def print_tables(tables: list[dict[str, Any]], rules: list[Rule], df: Any,
     printers: dict[str, Callable[[dict[str, Any]], object]] = {
         # Given the rules so `could_be_overridden_by` and `effective_state` can be
         # asked for; without either the argument prints the same table.
-        "registry": lambda options: print_registry(rules=rules, **options),
+        "registry": lambda options: print(render(registry_table(rules=rules, **options))),
         "rules": lambda options: print_rules_and_warnings(rules, options),
         "report": lambda options: print_one_report(df, outcomes, options),
-        "summary": lambda options: print_summary(outcomes),
+        "summary": lambda options: print(render(summarize_outcomes(outcomes))),
     }
     for position, spec in enumerate(tables, 1):
         if position > 1:
@@ -185,19 +185,17 @@ def print_rules_and_warnings(rules: list[Rule], options: dict[str, Any]) -> None
     """The rules table, then any rule a later one overrules on every row -- the
     same pairing `main.py --rules-table` prints."""
 
-    print_rules(rules, **options)
+    print(render(rules_table(rules, **options)))
     for warning in warn_shadowed_rules(rules):
         print(f"warning: {warning}")
 
 
 def print_one_report(df: Any, outcomes: list[list[CheckOutcome]],
                      options: dict[str, Any]) -> None:
-    """Build and print one report. `format` is the run file's name for `fmt`, and
-    `key_column` goes to both calls: the second only uses it for the heading."""
+    """Build and print one report. `format` is the run file's name for `fmt`."""
 
     fmt = options.pop("format", "table")
-    report = build_report(outcomes, df=df, **options)
-    print_report(report, fmt=fmt, key_column=options.get("key_column"))
+    print(render(build_report(outcomes, df=df, **options), fmt=fmt))
 
 
 def main(argv: list[str] | None = None) -> None:

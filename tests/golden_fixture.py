@@ -12,8 +12,6 @@ so the check and the regeneration can never disagree about the input.
 
 from __future__ import annotations
 
-import io
-from contextlib import redirect_stdout
 from pathlib import Path
 
 import pandas as pd
@@ -24,9 +22,9 @@ from jobcheck import (
     validate,
     load_checks,
     load_rules,
-    print_row_explanation,
-    print_summary,
-    render_report,
+    render,
+    row_explanation,
+    summarize_outcomes,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -76,21 +74,13 @@ def render_all() -> dict[str, str]:
     with_data = build_report(outcomes, df=df, key_column="id",
                              add_columns=["source_system", "record_type", "age"])
 
-    explanation = io.StringIO()
-    with redirect_stdout(explanation):
-        print_row_explanation(outcomes[3])
-
-    summary = io.StringIO()
-    with redirect_stdout(summary):
-        print_summary(outcomes)
-
     return {
-        "report_table.txt": render_report(report) + "\n",
-        "report.csv": render_report(report, fmt="csv"),
-        "report_with_skipped.txt": render_report(with_skipped) + "\n",
-        "report_with_extra_columns.txt": render_report(with_data) + "\n",
-        "row_explanation.txt": explanation.getvalue(),
-        "summary.txt": summary.getvalue(),
+        "report_table.txt": render(report) + "\n",
+        "report.csv": render(report, fmt="csv"),
+        "report_with_skipped.txt": render(with_skipped) + "\n",
+        "report_with_extra_columns.txt": render(with_data) + "\n",
+        "row_explanation.txt": render(row_explanation(outcomes[3])) + "\n",
+        "summary.txt": render(summarize_outcomes(outcomes)) + "\n",
     }
 
 

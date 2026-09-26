@@ -1,9 +1,9 @@
 # Reporting
 
-How to turn a validated frame into something a person can act on. Everything
-here is library code — collection, the table, the formatting, and writing the
-file. There is no command line to learn; a pipeline calls these functions and
-decides where the output goes.
+How to turn a validated frame into something a person can act on. Every view is
+a function that returns a DataFrame carrying its own title, and one function,
+`render`, turns any of them into text. There is no command line to learn; a
+pipeline calls these functions and decides where the output goes.
 
 Back to the [README](../README.md). The value types are in
 [interfaces.md](interfaces.md#data-types).
@@ -11,15 +11,16 @@ Back to the [README](../README.md). The value types are in
 ## The short version
 
 ```python
-from jobcheck import build_report, load_checks, print_report, validate
+from jobcheck import build_report, load_checks, render, validate
 
 load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
 outcomes = validate(df, rules=rules)
 report = build_report(outcomes, df=df, key_column="id")
-print_report(report)                       # or render_report / write_report
+print(render(report))                      # render(report, fmt="csv") for a file
 ```
 
 ```
+== Report ==
 row | code             | status        | layer | outcome | message          | detail | comments               | is_root_cause
 ----+------------------+---------------+-------+---------+------------------+--------+------------------------+--------------
 102 | AGE_NEGATIVE     | INVALID (3)   | 2     | failed  | Age is negative  |        | minimum=0; value=-5.0  | True
@@ -89,14 +90,17 @@ overwriting the report's own data.
 ## Diagnosing one row
 
 ```python
-from jobcheck import explain_row, print_row_explanation
+from jobcheck import explain_row, render, root_causes, row_explanation
 
-print_row_explanation(explain_row(row, rules=rules), include="blocked")
+row_outcomes = explain_row(row, rules=rules)
+print(render(row_explanation(row_outcomes, include="blocked")))
+print("root cause:", ", ".join(root_causes(row_outcomes)))
 ```
 
 For a row with no age, against the shipped age checks and no rules:
 
 ```
+== Row explanation ==
 layer | code             | outcome  | status      | detail
 ------+------------------+----------+-------------+--------------------------------------------
 0     | AGE_PRESENT      | failed   | MISSING (1) | Age is missing
@@ -110,42 +114,42 @@ root cause: AGE_PRESENT
 A check a rule switched off reads `disabled by rule '<name>'` instead.
 
 Reading order is evaluation order, so every `skipped` line names what blocked it.
-The root cause printed at the end is the row's **shallowest** failure, and there
-may be more than one — the line reads `root causes:` when a row failed two
-chains at the same depth. Every
-failure shown is already the root of its own chain — a check only runs once its
-prerequisites passed — so when a row breaks in two chains that never touch,
-neither is upstream of the other and the shallower one is the one to read
-first. `include="blocked"` drops
-the checks that simply passed.
+`root_causes` gives the row's **shallowest** failures, and there may be more than
+one when a row failed two chains at the same depth. Every failure shown is already
+the root of its own chain — a check only runs once its prerequisites passed — so
+when a row breaks in two chains that never touch, neither is upstream of the other
+and the shallower one is the one to read first. `include="blocked"` drops the
+checks that simply passed.
 
 ## Diagnosing a whole file
 
 ```python
-from jobcheck import print_summary
-print_summary(outcomes)
+from jobcheck import render, summarize_outcomes
+
+print(render(summarize_outcomes(outcomes)))
 ```
 
-Per check: `failed`, `errored`, `skipped`, `disabled`, `passed`, worst first, then
-a tally of what each failing row bottomed out at.
+Per check: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`,
+worst first. `root_cause_rows` counts the rows the check was a root cause of; a row
+failing two chains at the same depth counts against both.
 
 Read it this way: a high `failed` count is a data problem; a high `skipped` count
 is a *layering* signal — some fundamental check is failing often and hiding
 everything below it, so fix that code first; any `errored` count at all is a
 broken check, not bad data.
 
-## The data without the printing
+## Working with the tables
 
-Every `print_*` has a function that returns the frame it prints, for a run that files,
-filters or asserts on the result instead of reading it:
+Every table is an ordinary DataFrame, for a run that files, filters or asserts on
+the result instead of reading it:
 
 ```python
-from jobcheck import root_cause_counts, row_explanation, summarize_outcomes
+from jobcheck import row_explanation, summarize_outcomes
 
-summary = summarize_outcomes(outcomes)          # the table print_summary prints
+summary = summarize_outcomes(outcomes)
 hidden = summary.loc[summary["skipped"] > 0, "code"].tolist()   # checks a failure hid
-causes = root_cause_counts(outcomes)            # root_cause, rows -- most rows first
-story = row_explanation(outcomes[4], include="blocked")   # print_row_explanation's frame
+causes = summary.loc[summary["root_cause_rows"] > 0, ["code", "root_cause_rows"]]
+story = row_explanation(outcomes[4], include="blocked")
 ```
 
 The outcome constants are what `outcome.outcome` is compared against, so a question the
@@ -167,19 +171,19 @@ The registry and the rules the same way, for a run that keeps what it checked be
 what it found:
 
 ```python
-from jobcheck import get_registry_table, get_rules_table, load_checks
+from jobcheck import load_checks, registry_table, rules_table
 
 load_checks(["my_checks/check_age.py", "my_checks/check_email.py"])
-registry = get_registry_table(add_columns=["source_file"])
+registry = registry_table(add_columns=["source_file"])
 registry.to_csv("registry.csv", index=False)   # the checks this run had
 off_by_default = registry.loc[registry["default"] == "OFF", "code"].tolist()
-broad_rules = get_rules_table(rules, add_columns=["codes"]).query("codes_hit_count > 1")
+broad_rules = rules_table(rules, add_columns=["codes"]).query("codes_hit_count > 1")
 ```
 
-And the renderer's pieces, for output of your own that should read like the tables:
+And for output of your own that should read like the tables:
 
 ```python
-from jobcheck import FAILED, format_table, render_status
+from jobcheck import FAILED, render, render_status
 
 # One line per failure in your own log, the status spelled as the report spells it.
 for position, row_outcomes in enumerate(outcomes):
@@ -187,8 +191,10 @@ for position, row_outcomes in enumerate(outcomes):
         if o.outcome == FAILED:
             print(f"row {position}: {o.code} {render_status(o.status)}")
 
-# Any frame of your own, bordered like every table here.
-print(format_table(df.groupby("source_system").size().reset_index(name="rows")))
+# Any frame of your own, bordered like every table here, under a title you set.
+per_source = df.groupby("source_system").size().reset_index(name="rows")
+per_source.attrs["title"] = "Rows per source"
+print(render(per_source))
 ```
 
 ## Opening the CSV in a spreadsheet
@@ -205,14 +211,16 @@ outcomes themselves always hold the value the check actually saw. There is no
 switch for it: a report is written to be opened by a person, and a CSV that can
 execute on open is not one.
 
-The same guard is exported for a CSV of your own — the data, say, with a column
-flagging the rows that failed:
+`render(frame, fmt="csv")` applies the same guard to any frame -- the data, say,
+with a column flagging the rows that failed:
 
 ```python
-from jobcheck import FAILED, escape_for_spreadsheet
+from pathlib import Path
+
+from jobcheck import FAILED, render
 
 failed = [any(o.outcome == FAILED for o in row_outcomes) for row_outcomes in outcomes]
-df.assign(failed=failed).map(escape_for_spreadsheet).to_csv("flagged.csv", index=False)
+Path("flagged.csv").write_text(render(df.assign(failed=failed), fmt="csv"))
 ```
 
 ## Leaving columns out
@@ -226,9 +234,10 @@ debug = False                       # your run's own flag
 debug_only = ["comments", "detail", "layer"]
 report = build_report(outcomes, df=df, key_column="id",
                       drop_columns=[] if debug else debug_only)
-print_report(report, key_column="id")
+print(render(report))
 ```
 ```
+== Report ==
 row | code         | status      | outcome | message         | is_root_cause
 ----+--------------+-------------+---------+-----------------+--------------
 1   | AGE_NEGATIVE | INVALID (3) | failed  | Age is negative | True
@@ -253,49 +262,41 @@ still there reads as proof it is empty. `row` can be dropped like any other:
 `drop_columns` is a choice about your own output, not a judgement about which
 columns matter.
 
-The same pair is on `get_registry_table`, `print_registry`, `get_rules_table` and
-`print_rules`.
+The same pair is on `registry_table` and `rules_table`.
 
 ## Every table names itself
 
-Each `print_*` writes its own heading first, so an entry point printing three
-tables in a row does not label them by hand:
+Every table carries its title in `table.attrs["title"]`, and `render` prints it as
+a heading bar, so tables printed one after another stay apart without a label from
+the caller:
 
 ```
-== Rules: 3 loaded ==
-== Registry: 11 check(s), 3 rule(s) considered ==
-== Report: 12 line(s), keyed by id ==
-== Row explanation: row 5, 11 of 11 check(s), include=all ==
-== Summary: 6 row(s), 11 check(s) ==
+== Rules ==
+== Registry ==
+== Report ==
+== Row explanation ==
+== Summary ==
 ```
 
-The heading carries what the call was given, because "which table is this" and
-"what did I ask for" are the same question once two of them are on screen: a row
-explanation is `include=blocked` or it is not the table you meant. Two facts the
-functions cannot read off their arguments are passed in for the heading and nothing
-else — `print_report(report, key_column="id")`, since the key column's name is not
-a column, and `print_row_explanation(outcomes, row_key=5)`, since a list of
-outcomes does not say which row it came from.
-
-`title=False` turns it off. `print_report` writes no heading for `fmt="csv"` at
-all: a line above CSV makes it unparseable, and CSV is the format a caller
-redirects to a file. Print your own if you want one.
+The title survives selecting columns, filtering rows, sorting and `head`; merging
+or concatenating with an untitled frame drops it, and the table then renders with
+no bar. Set `frame.attrs["title"]` on a frame of your own to give it one. CSV gets
+no heading at all: a line above CSV makes it unparseable.
 
 ## Formats and files
 
 ```python
-render_report(report)                       # bordered text; message, detail and comments wrapped
-render_report(report, fmt="csv")            # same columns, unwrapped
-write_report(report, "report.csv")          # csv by default
-write_report(report, "report.txt", fmt="table")
+from pathlib import Path
+
+render(report)                              # bordered text; long text columns wrapped
+render(report, fmt="csv")                   # same columns, unwrapped, formula-escaped
+Path("report.csv").write_text(render(report, fmt="csv"))
 ```
 
-`render_report` returns a string, so anything else — a log line, an email body, a
-cell in a notebook — is the caller's choice. `fmt` is validated: anything but
-`table` or `csv` raises, and so does a `wrap_width` of zero or less — there is no
-spelling of "do not wrap", since a column no wider than its heading is unreadable.
-`write_report` renders before it opens the file, so a rejected `fmt` leaves the
-file that is already there untouched rather than truncating it to nothing.
+`render` returns a string, so where it goes — the terminal, a file, a log line, an
+email body — is the caller's choice. `fmt` is validated: anything but `table` or
+`csv` raises. An empty table renders as its title over `(empty)`, or as the CSV
+header row alone.
 
 ## What to include
 
@@ -308,8 +309,7 @@ choice is a depth rather than a set of switches:
 - `include="all"` adds the passes, turning the report into a full audit trail of
   every check against every row.
 
-`row_explanation` and `print_row_explanation` take the same three levels, with
-`"all"` as their default.
+`row_explanation` takes the same three levels, with `"all"` as its default.
 
 ## Cost
 

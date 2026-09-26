@@ -66,7 +66,7 @@ files live in `examples/rules/split_by_topic/` and `examples/rules/from_another_
 | `action` | yes | `enable` or `disable` | Exactly one of the two literals; anything else is an error. |
 | `codes` | yes | non-empty list of strings | The codes the rule switches. Every code must already be registered when the file loads. |
 | `match` | yes | list of criteria, or the literal `all` | Which rows the rule applies to. See below. |
-| `message` | yes | string | Why the rule exists, in your words. Printed beside the rule by `print_rules`, so somebody deciding whether it still applies can read it. |
+| `message` | yes | string | Why the rule exists, in your words. Shown beside the rule by `rules_table`, so somebody deciding whether it still applies can read it. |
 
 There are no other keys. An unrecognized key is rejected, naming the rule and listing what
 is allowed: in a file edited by hand, a key that is silently ignored is a setting that
@@ -185,8 +185,8 @@ entry point — see [writing-checks.md](writing-checks.md#troubleshooting).
 ## Secrets
 
 Rule files are matching patterns and code names only. Nothing in the format is a
-credential, and none should be put there: patterns are echoed verbatim into the
-`print_rules` table.
+credential, and none should be put there: patterns are echoed verbatim into
+`rules_table`.
 
 ## Setup files: naming the checks and the rules at once
 
@@ -203,7 +203,7 @@ rules:
 
 ```python
 import pandas as pd
-from jobcheck import build_report, load_setup, print_report, validate
+from jobcheck import build_report, load_setup, validate
 
 rules = load_setup("examples/setup.yaml")
 frame = pd.DataFrame([{"id": 1, "age": -5, "email": "nope"}])

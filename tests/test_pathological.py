@@ -213,7 +213,7 @@ def test_table_rendering_of_a_cell_containing_a_pipe(fresh_registry: None) -> No
     """The renderer does not escape, so a pipe in data is shown literally."""
 
     df = pd.DataFrame([{"code": "A|B"}])
-    assert tables.format_table(df).splitlines()[2] == "A|B "
+    assert tables._format_table(df).splitlines()[2] == "A|B "
 
 
 # --- hostile values reaching the report ------------------------------------
@@ -223,18 +223,18 @@ def test_a_newline_in_a_message_does_not_break_the_table(fresh_registry: None) -
     """It renders as a tall cell: every line stays the same width, and the break
     the author wrote is kept rather than collapsed into a space."""
 
-    from jobcheck import render_report
+    from jobcheck import render
 
-    lines = render_report(one_row_report({}, message="line one\nline two")).splitlines()
+    lines = render(one_row_report({}, message="line one\nline two")).splitlines()[1:]
     assert len({len(line) for line in lines}) == 1
     assert "line one" in lines[2] and "line two" not in lines[2]
     assert "line two" in lines[3]
 
 
 def test_a_newline_in_a_comment_value_does_not_break_the_table(fresh_registry: None) -> None:
-    from jobcheck import render_report
+    from jobcheck import render
 
-    lines = render_report(one_row_report({"note": "a\nb"})).splitlines()
+    lines = render(one_row_report({"note": "a\nb"})).splitlines()[1:]
     assert len({len(line) for line in lines}) == 1
 
 
@@ -244,19 +244,19 @@ def test_a_very_long_comment_value_overflows_rather_than_being_mangled(
     """Wrapping never breaks inside a word, so a long identifier stays greppable
     at the cost of a wide table."""
 
-    from jobcheck import render_report
+    from jobcheck import render
 
     value = "x" * 200
-    text = render_report(one_row_report({"big": value}))
+    text = render(one_row_report({"big": value}))
     assert value in text
 
 
 def test_unicode_survives_both_formats(fresh_registry: None) -> None:
-    from jobcheck import render_report
+    from jobcheck import render
 
     report = one_row_report({"ville": "München"}, message="échec de la règle")
     for fmt in ("table", "csv"):
-        text = render_report(report, fmt=fmt)
+        text = render(report, fmt=fmt)
         assert "München" in text and "échec" in text
 
 
@@ -271,9 +271,9 @@ def test_unicode_survives_both_formats(fresh_registry: None) -> None:
     ],
 )
 def test_a_non_string_comment_value_renders(fresh_registry: None, value: Any) -> None:
-    from jobcheck import render_report
+    from jobcheck import render
 
-    text = render_report(one_row_report({"v": value}), fmt="csv")
+    text = render(one_row_report({"v": value}), fmt="csv")
     assert "CELL" in text
 
 

@@ -1,3 +1,4 @@
+== Report ==
 row      | code                 | status        | layer | outcome | message                                 | detail | comments                                   | is_root_cause
 ---------+----------------------+---------------+-------+---------+-----------------------------------------+--------+--------------------------------------------+--------------
 102      | AGE_NEGATIVE         | INVALID (3)   | 2     | failed  | Age is negative                         |        | minimum=0; value=-5.0                      | False        

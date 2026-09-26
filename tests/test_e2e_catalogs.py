@@ -58,12 +58,11 @@ def test_every_case_documents_itself(case: Path) -> None:
 
 
 #: Cases whose recorded output is allowed to match another's, with the reason.
-#: An empty report is prose in both formats (`print_report` prints "No failures."
-#: whatever `fmt` is, which `future-work.md` records as decided), so the CSV case
-#: on a clean file cannot differ from the table one -- and both are worth keeping,
-#: since a reader asks what `--report csv` does on a clean file.
+#: A clean row explained from a 2,000-row export prints exactly what a clean row
+#: of the small file prints -- that sameness is what the large case demonstrates,
+#: and since 2026-09-25 no heading names the row number to tell them apart.
 DUPLICATE_OUTPUT_ALLOWED = {
-    frozenset({"data/a-file-with-nothing-wrong", "data/clean-file-as-csv"}),
+    frozenset({"data/explain-a-clean-row", "data/large-export-explained"}),
 }
 
 

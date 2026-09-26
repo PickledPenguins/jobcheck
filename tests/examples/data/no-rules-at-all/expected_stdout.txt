@@ -1,6 +1,6 @@
 Loaded 0 rule(s) from 0 file(s)
 
-== Registry: 11 check(s) ==
+== Registry ==
 code                 | layer | default | message                                 | depends_on       | could_be_overridden_by
 ---------------------+-------+---------+-----------------------------------------+------------------+-----------------------
 AGE_PRESENT          | 0     | ON      | Age is missing                          | -                | -                     
@@ -15,7 +15,7 @@ AGE_NOT_INTEGER      | 2     | OFF     | Age is not a whole number              
 AGE_TOO_HIGH         | 2     | ON      | Age is implausibly high (over 130)      | AGE_NOT_A_NUMBER | -                     
 EMAIL_DOMAIN_INVALID | 2     | ON      | Email domain looks malformed            | EMAIL_MISSING_AT | -                     
 
-== Report: 20 line(s), keyed by id ==
+== Report ==
 row      | code                 | status        | layer | outcome | message                                 | detail | comments                                   | is_root_cause
 ---------+----------------------+---------------+-------+---------+-----------------------------------------+--------+--------------------------------------------+--------------
 1003     | AGE_PRESENT          | MISSING (1)   | 0     | failed  | Age is missing                          |        |                                            | True         

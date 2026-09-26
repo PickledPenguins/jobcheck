@@ -78,7 +78,7 @@ def test_every_shipped_module_is_importable_on_its_own(tmp_path: Path) -> None:
 
 def test_importing_the_library_registers_nothing(tmp_path: Path) -> None:
     result = run_isolated(
-        "import jobcheck as v; print(len(v.get_registry_table()), v.__version__)",
+        "import jobcheck as v; print(len(v.registry_table()), v.__version__)",
         cwd=tmp_path
     )
     assert result.returncode == 0, result.stderr
@@ -106,9 +106,9 @@ def test_an_adopter_gets_only_their_own_checks(tmp_path: Path) -> None:
     home = adopter_package(tmp_path)
     result = run_isolated(
         "import pandas as pd\n"
-        "from jobcheck import get_registry_table, load_checks, validate_row\n"
+        "from jobcheck import load_checks, registry_table, validate_row\n"
         "load_checks(['their_checks/check_theirs.py'])\n"
-        "print(sorted(get_registry_table()['code']))\n"
+        "print(sorted(registry_table()['code']))\n"
         "print([o.code for o in validate_row(pd.Series({'field': None}))])\n",
         cwd=home,
         extra_path=[home],
@@ -123,13 +123,13 @@ def test_an_adopter_can_produce_a_report(tmp_path: Path) -> None:
     home = adopter_package(tmp_path)
     result = run_isolated(
         "import pandas as pd\n"
-        "from jobcheck import (build_report, validate, load_checks,\n"
-        "                      render_report, write_report)\n"
+        "from pathlib import Path\n"
+        "from jobcheck import build_report, validate, load_checks, render\n"
         "load_checks(['their_checks/check_theirs.py'])\n"
         "df = pd.DataFrame([{'id': 1, 'field': 'x'}, {'id': 2, 'field': None}])\n"
         "report = build_report(validate(df), df=df, key_column='id')\n"
-        "write_report(report, 'report.csv')\n"
-        "print(render_report(report, fmt='csv').splitlines()[1])\n",
+        "Path('report.csv').write_text(render(report, fmt='csv'))\n"
+        "print(render(report, fmt='csv').splitlines()[1])\n",
         cwd=home,
         extra_path=[home],
     )

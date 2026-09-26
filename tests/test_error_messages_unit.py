@@ -25,12 +25,11 @@ from conftest import make_check
 from jobcheck import registry_tables
 from jobcheck import (
     build_report,
-    format_table,
     validate,
     explain_row,
     load_rules,
     registry as reg,
-    render_report,
+    render,
     validate_row,
 )
 from jobcheck.results import Verdict, _normalize_verdict
@@ -301,19 +300,11 @@ def test_an_unknown_format_names_the_two_that_work(fresh_registry: None) -> None
     make_check("CODE", passes=False)
     report = build_report(validate(FRAME), df=FRAME)
     with pytest.raises(ValueError) as raised:
-        render_report(report, fmt="pdf")
+        render(report, fmt="pdf")
     assert message_of(raised) == "fmt must be 'table' or 'csv', got 'pdf'."
 
 
-def test_a_wrap_width_of_zero_names_the_column_that_asked_for_it(
-    fresh_registry: None,
-) -> None:
-    with pytest.raises(ValueError) as raised:
-        format_table(FRAME, wrap_columns={"age": 0})
-    assert message_of(raised) == (
-        "wrap_columns width for ['age'] must be greater than 0. Leave a column "
-        "out of wrap_columns rather than asking for a width of zero."
-    )
+
 
 
 
@@ -349,12 +340,12 @@ def test_a_duplicated_key_column_names_the_count_and_the_fix(fresh_registry: Non
         "Rename or drop the duplicate columns.")
 
 
-def test_dropping_an_unknown_column_from_the_printed_registry_names_that_table(
+def test_dropping_an_unknown_column_from_the_registry_table_names_that_table(
     fresh_registry: None
 ) -> None:
     make_check("CODE")
     with pytest.raises(ValueError) as raised:
-        registry_tables.print_registry(drop_columns=["messages"])
+        registry_tables.registry_table(drop_columns=["messages"])
     assert message_of(raised) == (
         "drop_columns ['messages'] cannot be used for the registry table. Each name "
         "must be asked for once and be one of: code, layer, default, message, depends_on.")
@@ -362,7 +353,7 @@ def test_dropping_an_unknown_column_from_the_printed_registry_names_that_table(
 
 def test_dropping_an_unknown_column_from_the_rules_table_names_that_table() -> None:
     with pytest.raises(ValueError) as raised:
-        registry_tables.get_rules_table([], drop_columns=["messages"])
+        registry_tables.rules_table([], drop_columns=["messages"])
     assert message_of(raised) == (
         "drop_columns ['messages'] cannot be used for the rules table. Each name "
         "must be asked for once and be one of: name, action, codes_hit_count, match, message.")

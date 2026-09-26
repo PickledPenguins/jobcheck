@@ -5,7 +5,7 @@ Back to the [README](../README.md).
 ## Shape
 
 One process-global list of checks, `registry._CHECKS`, is the center. It is internal: a
-caller reads the registry through `get_registry_table`, because nothing that mutates the
+caller reads the registry through `registry_table`, because nothing that mutates the
 list directly drops the cached evaluation order the row loop walks. Checks are ordinary functions
 that register themselves into it when their module is imported; which modules get
 imported is the loading mechanism. Everything else reads that list: rule files are
@@ -28,7 +28,7 @@ entry point
   |       fn(row, ctx)        -> Verdict -> CheckOutcome(passed|failed)
   |       fn raises           -> CheckOutcome(errored, Status.ERROR)
   |
-  +-- build_report(...) -> long-format frame -> render_report / write_report
+  +-- build_report(...) -> long-format frame, titled -> render(frame, fmt)
 ```
 
 ## Repository layout
@@ -142,9 +142,14 @@ configuration, which is why each loader documents its ordering.
 **All rule validation is at load time.** A malformed file stops the run before any data is
 processed, rather than throwing part-way through a long pipeline.
 
-**Tables are rendered by a local `format_table`.** `DataFrame.to_string()` is cramped and
-unbordered for auditing, and a table library would be a runtime dependency for output
-formatting alone. Wrapping never breaks inside a word, so identifiers stay greppable.
+**Every view is a titled DataFrame, and one `render` draws any of them.** A function
+that builds a table returns it with its title in `attrs["title"]`; `render` turns it
+into bordered text under a `== Title ==` bar, or into formula-escaped CSV. So there is
+one output function rather than a print, render and write variant per table, and a
+table is data a caller can filter before it is text. The renderer is local because
+`DataFrame.to_string()` is cramped and unbordered for auditing, and a table library
+would be a runtime dependency for formatting alone. Wrapping never breaks inside a
+word, so identifiers stay greppable.
 
 **Tables state what they cannot know.** `could_be_overridden_by` is named for *reference*,
 not effect, and `effective_state` says "depends on row" instead of picking an answer. Only
@@ -235,7 +240,7 @@ to load.
   hand `validate` something that builds it.
 - **An entry point**: a script calling `load_checks` with its own list of files. See
   `examples/main.py`.
-- **A new report**: build a DataFrame and hand it to `format_table`.
+- **A new report**: build a DataFrame, set `attrs["title"]`, and hand it to `render`.
 
 ## Dependencies
 

@@ -322,10 +322,12 @@ in exports. Take `(row, context)` in the checks that need it.
 ## In a pipeline
 
 ```python
+from pathlib import Path
+
 import pandas as pd
 from jobcheck import (
     build_report, warn_missing_rule_columns, load_checks,
-    load_rules, root_causes, validate, validate_row, write_report,
+    load_rules, render, root_causes, validate, validate_row,
 )
 
 load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
@@ -338,7 +340,7 @@ for warning in warn_missing_rule_columns(df, rules):
 
 # Full report, when you want to look at the failures:
 outcomes = validate(df, rules=rules)
-write_report(build_report(outcomes, df=df, key_column="id"), "report.csv")
+Path("report.csv").write_text(render(build_report(outcomes, df=df, key_column="id"), fmt="csv"))
 
 # Or just the failures per row, when you only need to gate:
 df["errors"] = df.apply(

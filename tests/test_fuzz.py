@@ -27,7 +27,7 @@ from jobcheck import (
     validate,
     load_rules,
     registry as reg,
-    render_report,
+    render,
 )
 from jobcheck.results import ERRORED, FAILED, PASSED
 
@@ -181,11 +181,11 @@ def test_rendering_survives_whatever_a_check_puts_in_its_comments(
         frame = random_frame(rng)
         report = build_report(validate(frame), df=frame)
 
-        text = render_report(report)
-        widths = {len(line) for line in text.splitlines()}
+        text = render(report)
+        widths = {len(line) for line in text.splitlines()[1:]}
         assert len(widths) == 1, f"seed {SEED} case {case}: table is ragged"
 
-        csv = render_report(report, fmt="csv")
+        csv = render(report, fmt="csv")
         reparsed = pd.read_csv(pd.io.common.StringIO(csv), dtype=str)
         assert list(reparsed.columns) == list(report.columns)
         assert len(reparsed) == len(report), f"seed {SEED} case {case}: csv lost a row"

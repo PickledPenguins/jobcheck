@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from pathlib import Path
 
 #: The clone this script lives in. Its own files are named relative to it, so a
 #: run does not depend on the directory it was started from.
@@ -24,13 +25,13 @@ from jobcheck import (
     warn_shadowed_rules,
     load_checks,
     load_rules,
-    print_rules,
-    print_registry,
-    print_report,
-    print_row_explanation,
-    print_summary,
+    registry_table,
+    render,
+    root_causes,
+    row_explanation,
+    rules_table,
+    summarize_outcomes,
     validate,
-    write_report,
 )
 
 #: The check files this entry point runs. Named one by one, rather than
@@ -152,14 +153,15 @@ def main(argv: list[str] | None = None) -> None:
             print(f"error: --explain {args.explain} is outside the frame's {len(df)} row(s)",
                   file=sys.stderr)
             raise SystemExit(2)
-        print_row_explanation(outcomes[args.explain], row_key=args.explain)
+        print(render(row_explanation(outcomes[args.explain])))
+        print("root cause:", ", ".join(root_causes(outcomes[args.explain])) or "none")
         return
 
     if args.rules_table:
         # One row per rule, where the registry table below is one row per code:
         # a rule touching eight codes is one line here and eight there, which is
         # the view that answers "what did this file actually say".
-        print_rules(rules)
+        print(render(rules_table(rules)))
         # Beside the rules themselves, because "this rule can never apply" is a
         # fact about the file rather than about a row. The shipped rule file has
         # one on purpose: it is the precedence demonstration.
@@ -167,20 +169,21 @@ def main(argv: list[str] | None = None) -> None:
             print(f"warning: {warning}")
         print()
 
-    # could_be_overridden_by is the only use print_registry makes of the rules:
+    # could_be_overridden_by is the only use registry_table makes of the rules:
     # without it the argument is inert and the demo never shows which rule
     # touches which code.
-    print_registry(rules=rules, add_columns=["could_be_overridden_by"])
+    print(render(registry_table(rules=rules, add_columns=["could_be_overridden_by"])))
 
     print()
     report = build_report(outcomes, df=df, key_column=KEY_COLUMN)
-    print_report(report, fmt=args.report, key_column=KEY_COLUMN)
+    print(render(report, fmt=args.report))
 
     if args.write is not None:
         # The same frame the report above was printed from, so the file and the
         # terminal cannot disagree.
         try:
-            write_report(report, args.write, fmt=args.report)
+            Path(args.write).write_text(render(report, fmt=args.report),
+                                        encoding="utf-8", newline="")
         except OSError as exc:
             print(f"error: cannot write {args.write}: {exc}", file=sys.stderr)
             raise SystemExit(2) from None
@@ -188,7 +191,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.summary:
         print()
-        print_summary(outcomes)
+        print(render(summarize_outcomes(outcomes)))
 
 
 if __name__ == "__main__":

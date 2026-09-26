@@ -13,6 +13,7 @@ from jobcheck import registry as reg
 from jobcheck import rules
 from jobcheck import engine
 from jobcheck import registry_tables
+from jobcheck import render
 from jobcheck.results import DISABLED, PASSED
 from jobcheck.rules import _MatchCriterion
 
@@ -305,7 +306,7 @@ def test_the_codes_column_lists_every_code_a_rule_touches(one_code: None, tmp_pa
     path = write(
         tmp_path, "r.yaml", '- name: "two"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE, B_CODE]\n  match: all\n'
     )
-    table = registry_tables.get_rules_table(reg.load_rules([path]), add_columns=["codes"])
+    table = registry_tables.rules_table(reg.load_rules([path]), add_columns=["codes"])
     assert list(table.columns)[-1] == "codes"
     assert table.loc[0, "codes"] == "A_CODE, B_CODE"
     assert table.loc[0, "codes_hit_count"] == 2
@@ -313,19 +314,18 @@ def test_the_codes_column_lists_every_code_a_rule_touches(one_code: None, tmp_pa
 
 def test_the_codes_column_appears_only_when_asked_for(one_code: None, tmp_path: Path) -> None:
     loaded = reg.load_rules([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
-    assert "codes" not in registry_tables.get_rules_table(loaded).columns
+    assert "codes" not in registry_tables.rules_table(loaded).columns
 
 
-def test_print_rules_wraps_a_long_codes_column(one_code: None, tmp_path: Path,
-                                               capsys: pytest.CaptureFixture[str]) -> None:
+def test_the_rules_table_wraps_a_long_codes_column(one_code: None, tmp_path: Path) -> None:
     codes = [f"CODE_NUMBER_{i:02d}" for i in range(6)]
     for code in codes:
         make_check(code)
     path = write(tmp_path, "r.yaml",
                  '- name: "broad"\n  message: "why"\n  action: disable\n'
                  f"  codes: [{', '.join(codes)}]\n  match: all\n")
-    registry_tables.print_rules(reg.load_rules([path]), add_columns=["codes"], title=False)
-    lines = capsys.readouterr().out.splitlines()
+    table = registry_tables.rules_table(reg.load_rules([path]), add_columns=["codes"])
+    lines = render(table).splitlines()[1:]
     assert all(any(code in line for line in lines) for code in codes)
     # Six codes of 14 characters wrapped at 40 is at most two per line: the one
     # rule is a tall row, not a wide one.

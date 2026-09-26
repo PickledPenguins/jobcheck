@@ -30,26 +30,14 @@ from .engine import (
     validate,
     validate_row,
 )
-from .registry_tables import (
-    get_rules_table,
-    get_registry_table,
-    print_rules,
-    print_registry,
-)
+from .registry_tables import registry_table, rules_table
 from .rules import warn_missing_rule_columns, warn_shadowed_rules
 from .report import (
     REPORT_COLUMNS,
     build_report,
-    escape_for_spreadsheet,
-    print_report,
-    print_row_explanation,
-    print_summary,
     render_comments,
-    render_report,
-    root_cause_counts,
     row_explanation,
     summarize_outcomes,
-    write_report,
 )
 from .results import (
     DISABLED,
@@ -63,7 +51,7 @@ from .results import (
     Verdict,
     render_status,
 )
-from .tables import format_table, is_null
+from .tables import is_null, render
 
 __all__ = [
     "Check",
@@ -81,28 +69,21 @@ __all__ = [
     "Verdict",
     "build_report",
     "clear_registry",
-    "escape_for_spreadsheet",
+
     "explain_row",
-    "format_table",
-    "get_registry_table",
-    "get_rules_table",
     "is_null",
     "load_checks",
     "load_rules",
     "load_setup",
     "loaded_check_files",
-    "print_registry",
-    "print_report",
-    "print_row_explanation",
-    "print_rules",
-    "print_summary",
     "register_check",
+    "registry_table",
+    "render",
     "render_comments",
-    "render_report",
     "render_status",
-    "root_cause_counts",
     "root_causes",
     "row_explanation",
+    "rules_table",
     "summarize_outcomes",
     "validate",
     "validate_registry",
@@ -110,5 +91,4 @@ __all__ = [
     "__version__",
     "warn_missing_rule_columns",
     "warn_shadowed_rules",
-    "write_report",
 ]

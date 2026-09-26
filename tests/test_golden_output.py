@@ -22,7 +22,7 @@ from jobcheck import (
     validate,
     load_checks,
     load_rules,
-    write_report,
+    render,
 )
 
 pytestmark = pytest.mark.fast
@@ -59,7 +59,7 @@ def test_the_golden_report_shows_every_outcome_the_report_can_carry(
 
 
 def test_the_data_columns_golden_shows_them_next_to_the_row_key() -> None:
-    header = read_golden("report_with_extra_columns.txt").splitlines()[0]
+    header = read_golden("report_with_extra_columns.txt").splitlines()[1]
     assert [part.strip() for part in header.split(" | ")[:5]] == [
         "row", "source_system", "record_type", "age", "code"
     ]
@@ -68,8 +68,8 @@ def test_the_data_columns_golden_shows_them_next_to_the_row_key() -> None:
 def test_a_written_file_is_byte_for_byte_the_golden_csv(
     fresh_registry: None, tmp_path: Path
 ) -> None:
-    """Pins the file on disk, not just the string: encoding, line endings, and the
-    trailing newline all come from write_report rather than the caller."""
+    """Pins the file on disk, not just the string: the rendered CSV written the
+    way `examples/main.py --write` writes it keeps `\\n` line endings."""
 
     load_checks([str(ROOT / path) for path in CHECK_FILES])
     rules = load_rules([str(ROOT / "examples/rules/error_rules.yaml")])
@@ -77,11 +77,11 @@ def test_a_written_file_is_byte_for_byte_the_golden_csv(
     report = build_report(validate(df, rules=rules), df=df, key_column="id")
 
     path = tmp_path / "report.csv"
-    write_report(report, str(path))
+    path.write_text(render(report, fmt="csv"), encoding="utf-8", newline="")
     written = path.read_bytes()
 
     assert written.decode("utf-8") == read_golden("report.csv")
-    assert b"\r\n" not in written, "csv.writer's \\r\\n must not survive write_report"
+    assert b"\r\n" not in written, "csv.writer's \\r\\n must not survive render"
 
 
 def test_the_golden_csv_parses_back_into_the_same_frame(fresh_registry: None) -> None:

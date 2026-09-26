@@ -121,19 +121,19 @@ def test_a_formula_cell_is_neutralized_in_csv(fresh_registry: None, message: str
     """A report is meant to be opened in a spreadsheet, and comments carry values
     that came from the data, so a formula in a cell would execute on open."""
 
-    from jobcheck import render_report
+    from jobcheck import render
 
-    csv = render_report(one_row_report({}, message=message), fmt="csv")
+    csv = render(one_row_report({}, message=message), fmt="csv")
     assert f",'{message}," in csv or f",'{message}\n" in csv or f"'{message}" in csv
     assert f",{message}," not in csv
 
 
 def test_a_negative_number_keeps_its_minus_sign(fresh_registry: None) -> None:
-    from jobcheck import escape_for_spreadsheet
+    from jobcheck.tables import _escape_for_spreadsheet
 
-    assert escape_for_spreadsheet("-5") == "-5"
-    assert escape_for_spreadsheet("-5.25") == "-5.25"
-    assert escape_for_spreadsheet("-cmd") == "'-cmd"
+    assert _escape_for_spreadsheet("-5") == "-5"
+    assert _escape_for_spreadsheet("-5.25") == "-5.25"
+    assert _escape_for_spreadsheet("-cmd") == "'-cmd"
 
 
 def test_a_formula_inside_a_comment_value_cannot_start_the_cell(
@@ -143,14 +143,14 @@ def test_a_formula_inside_a_comment_value_cannot_start_the_cell(
     lands mid-cell, where a spreadsheet reads it as text. The cell is left as it
     is rather than being escaped for a danger it does not have."""
 
-    from jobcheck import render_report
+    from jobcheck import render
 
-    csv = render_report(one_row_report({"value": "=1+1"}), fmt="csv")
+    csv = render(one_row_report({"value": "=1+1"}), fmt="csv")
     assert ",value==1+1," in csv
 
 
 def test_a_formula_in_the_row_key_is_neutralized(fresh_registry: None) -> None:
-    from jobcheck import build_report, validate, render_report
+    from jobcheck import build_report, render, validate
     from jobcheck.results import Status, Verdict
 
     @reg.register_check(code="CELL", message="m")
@@ -159,25 +159,17 @@ def test_a_formula_in_the_row_key_is_neutralized(fresh_registry: None) -> None:
 
     frame = pd.DataFrame([{"id": "=DANGER()"}])
     report = build_report(validate(frame), df=frame, key_column="id")
-    assert render_report(report, fmt="csv").splitlines()[1].startswith("'=DANGER()")
+    assert render(report, fmt="csv").splitlines()[1].startswith("'=DANGER()")
 
 
 def test_the_table_view_is_left_alone(fresh_registry: None) -> None:
     """Text output cannot execute, so the value is shown as the check saw it."""
 
-    from jobcheck import render_report
+    from jobcheck import render
 
-    text = render_report(one_row_report({}, message="=1+1"))
+    text = render(one_row_report({}, message="=1+1"))
     assert "=1+1" in text
     assert "'=1+1" not in text
-
-
-def test_a_written_report_is_escaped_too(fresh_registry: None, tmp_path: Path) -> None:
-    from jobcheck import write_report
-
-    path = tmp_path / "report.csv"
-    write_report(one_row_report({}, message="=1+1"), str(path))
-    assert "'=1+1" in path.read_text(encoding="utf-8")
 
 
 def test_comments_are_never_evaluated(fresh_registry: None) -> None:
