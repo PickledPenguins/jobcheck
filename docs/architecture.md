@@ -84,6 +84,7 @@ the package by accident from the working directory. The demos and the scripts ad
 | `scripts/new_catalog_case.py` | Adds one catalog case: directory, command, README and recorded output. |
 | `scripts/regen_catalog.py` | Re-records the catalogs' expected output after an intended change. |
 | `scripts/regen_golden.py` | Re-records `tests/golden/` after an intended change to the report. |
+| `scripts/regen_docs.py` | Rewrites the output shown after each Python block in `docs/` with what the block prints. |
 | `scripts/mutation_score.py` | Scores the results a mutmut run left against a floor: the mutation gate. |
 | `scripts/profile_examples.py` | Profiles the catalog's runs in this process: the `profile` mode. |
 | `scripts/read_bytecode_api.py` | Reads the pre-rename interface out of the bytecode kept in git history. |
