@@ -123,11 +123,11 @@ def test_a_duplicate_code_from_exec_still_names_the_function(fresh_registry: Non
 
 def test_importing_the_package_alone_registers_nothing(fresh_registry: None) -> None:
     """Asserted through the public read path rather than the registry list, which
-    is internal: `get_registry_table` is what a caller has."""
+    is internal: `registry_table` is what a caller has."""
 
     import jobcheck
 
-    assert jobcheck.get_registry_table().empty
+    assert jobcheck.registry_table().empty
     assert jobcheck.loaded_check_files() == []
 
 
@@ -384,11 +384,11 @@ def test_putting_the_registry_back_restores_checks_that_still_run(
 def test_the_registry_list_is_not_part_of_the_public_surface() -> None:
     """It was exported until 2026-09-24, with `interfaces.md` asking callers not to
     mutate it and nothing enforcing that. Nothing outside this package ever read it:
-    the read path is `get_registry_table`, which every legitimate use wanted."""
+    the read path is `registry_table`, which every legitimate use wanted."""
 
     import jobcheck
 
     assert "_CHECKS" not in jobcheck.__all__
     assert not hasattr(jobcheck, "CHECKS")
-    assert set(jobcheck.get_registry_table().columns) >= {
+    assert set(jobcheck.registry_table().columns) >= {
         "code", "layer", "default", "message", "depends_on"}

@@ -192,12 +192,12 @@ def test_the_stated_runtime_dependencies_are_the_real_ones() -> None:
 
 
 def test_the_stated_pandas_floor_is_the_one_the_code_needs() -> None:
-    """render_report calls DataFrame.map, which arrived in pandas 2.1; a lower floor
+    """render calls DataFrame.map, which arrived in pandas 2.1; a lower floor
     would promise a version where every CSV render raises."""
 
-    from jobcheck import report
+    from jobcheck import tables
 
-    assert "report.map(" in Path(report.__file__).read_text(encoding="utf-8")
+    assert "table.map(" in Path(tables.__file__).read_text(encoding="utf-8")
     assert "pandas>=2.1" in declared_dependencies()
 
 

@@ -34,6 +34,25 @@ the private class to build rules. The proposal was a `Rule` that takes the YAML'
 file. Declined: rules are configured in YAML files and nowhere else. `Rule` stays a type the
 loader returns rather than one callers construct.
 
+**Replacing the context builder with one shared `context=` object** (raised by the `src/`
+review of 2026-09-25, rejected by the owner the same day). The proposal replaced
+`context_builder`, `context_args` and `RowContext` with `validate(df, context=obj)`, the
+same object for every row, on the evidence that jobchain passes a constant. Rejected: the
+builder is the design, not a leftover. What a pipeline needs is a set of **row-scoped
+constants** -- paths, files, values derived from each other -- defined in one place, built
+once per row, and shared by every check on that row. That needs an object built from the
+row, which the builder does and a single shared object cannot. `RowContext` stays as the
+interface such an object subclasses.
+
+**Handing checks one Python type per column whatever the frame holds** (raised by the
+`src/` review of 2026-09-25, rejected by the owner the same day). `validate` iterates with
+`iterrows`, so an all-numeric frame upcasts an int column to float (`7` arrives as `7.0`)
+while a frame with any text column does not. The proposal was `df.astype(object)` in
+`validate`: +14% on an all-numeric 4,000-row frame, no change on `customers.csv`. Rejected in
+favor of consistency the caller controls: a check should expect the same thing whatever the
+column types, and the owner's preference is text -- a frame read with `dtype=str` hands
+every check strings, the same on every row and every frame. The library does not convert.
+
 **Rolling a failed load back, per file or per call** (raised by the `src/` review of
 2026-09-25; the per-file rollback removed the same day). `load_checks` used to drop the
 checks a failing file had registered, tracking each in-progress file's checks on a stack
@@ -195,7 +214,26 @@ would also cost the sentence every failure prints, "load_checks() names files ex
 nothing is discovered", which is pinned in eleven places and is the invariant the whole
 loader is built on.
 
-**Making `print_report` return its frame** (F.25, decided 2026-09-24). Four `print_*`
+**One `render` in place of the printing functions** (raised by the `src/` review of
+2026-09-25, built the same day). Twelve names showed or saved results --
+`print_report`, `render_report`, `write_report`, `print_registry`, `print_rules`,
+`print_row_explanation`, `print_summary`, `format_table`, `escape_for_spreadsheet`,
+`root_cause_counts`, `get_registry_table`, `get_rules_table` -- under three rules about
+what each returned. Now every view is a DataFrame carrying `attrs["title"]`
+(`build_report`, `registry_table`, `rules_table`, `row_explanation`,
+`summarize_outcomes`), and `render(table, fmt)` draws any of them under a `== Title ==`
+bar or as escaped CSV. The owner chose a title the table carries over a `title=`
+argument, since naming the table at every call is cumbersome. Lost: the facts in the
+old headings (line and row counts, key column, include level, rule count); "No
+failures." and the other empty-table sentences, now the title over `(empty)`; the
+"root cause:" line under an explanation (call `root_causes`); the root-cause tally
+under the summary, now its `root_cause_rows` column; `write_report`'s one-call file
+write; and the heading on a table merged or concatenated with an untitled frame, since
+pandas drops `attrs` there. `attrs` is experimental in pandas; the fallback is a
+missing bar, never an error.
+
+**Making `print_report` return its frame** (F.25, decided 2026-09-24; moot since
+2026-09-25, when the printing functions were replaced by `render`). Four `print_*`
 functions return the DataFrame they print and `print_report` returns `None`, which read as
 an inconsistency. It is not one: the other four *build* their frame -- `print_registry` from
 the registry, `print_rules` from a rule list, `print_row_explanation` and

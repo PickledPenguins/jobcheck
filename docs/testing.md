@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 797 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 260 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1057 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 765 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 256 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 1021 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -41,7 +41,7 @@ There is no CI. The pre-commit hook and the release gates below are what run the
 
 - **Pre-commit** — `./tests/run-tests.sh fast`, installed by `./scripts/install-hooks.sh` into
   `.git/hooks/pre-commit`. Bypass with git's own `--no-verify`; there is no custom flag.
-  Verified to block: breaking `format_table` and committing stops at the hook.
+  Verified to block: breaking the table renderer and committing stops at the hook.
 - **Pre-release** — `./tests/run-tests.sh all`, `./tests/run-tests.sh cov`, `./tests/run-tests.sh memory`
   and `./tests/run-tests.sh perf`. Coverage below 95% fails through
   `coverage report --fail-under`; a memory ceiling or a timing baseline exceeded fails
@@ -80,7 +80,7 @@ Fast:
 | `tests/doc_files.py` | Not a test: the documents and public names the three `test_docs_*` files share. |
 | `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
 | `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, `__all__` equal to the list written in the test so a new export is a decision, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
-| `tests/test_tables_unit.py` | `format_table` rendering, wrapping and empty frames; every column of the three registry tables. |
+| `tests/test_tables_unit.py` | The bordered renderer: wrapping, empty frames, tall cells; `render`'s title bar; every column of the registry and rules tables. |
 | `tests/test_context_unit.py` | `RowContext` as the base type an adopter subclasses. |
 | `tests/test_paths_unit.py` | The step both loaders take before they open anything: an existing file resolved, a symlink followed, and each way a path that is not a file is refused -- relative, absolute and a directory -- word for word. |
 | `tests/test_smoke.py` | The entry point starts, exits 0, and produces its main output. |
@@ -214,7 +214,8 @@ Survivors by module: `report` 30, `engine` 22, `registry` 15, `registry_tables` 
 The 89 survivors in `report` and `registry_tables` at `7865edc` were read one by one on
 2026-09-25. 49 were assertions the suite did not make, and each now has a test (they
 are the section of `test_report_unit.py` and `test_tables_unit.py` headed "found by
-reading the mutation survivors"): a column wrapped by name in every printer, where a
+reading the mutation survivors"; the printing functions they name were replaced
+by `render` later that day): a column wrapped by name in every printer, where a
 renamed key left it unwrapped and nothing looked; `print_report` not passing
 `wrap_width` on; `print_rules` ignoring `drop_columns`; the rules table's `action`
 column; the table name in two `drop_columns` errors and the whole duplicate-key message;
@@ -271,11 +272,8 @@ The other four groups, which no assertion can reach:
   `passed.get(code, False)` cannot miss either, because the topological order
   evaluates prerequisites first and `validate_registry` rejects dangling ones.
 - **Equivalent mutants.** `False` swapped for `None` where the value is only ever
-  read through `not`; `write_report`'s `encoding="utf-8"` and `newline=""`, which
-  are the platform defaults on a UTF-8 Linux box — they matter on Windows, and
-  the tests that pin them (`test_a_written_report_is_utf_8`,
-  `..._uses_unix_line_endings`) exist for that reason even though mutmut cannot
-  show it here.
+  read through `not`. (`write_report`'s encoding and newline mutants went with
+  `write_report` on 2026-09-25: the library no longer writes files.)
 - **Print-function wording — mostly not unkillable after all.** The 2026-09-21 run
   filed the 82 survivors in `report` and `registry_tables` here, as output pinned byte
   for byte only by the example catalog and golden files, which run in a subprocess
@@ -307,7 +305,7 @@ date parsing in example code, which left the gate nearly blind to the engine):
 | `validate/4000` | 1.340s | 16% |
 | `validate_row/4000` | 1.245s | 20% |
 | `build_report/4000` | 0.070s | 98% |
-| `render_report/4000` | 0.061s | 37% |
+| `render_report/4000` (now `render/4000`, re-recorded on first run) | 0.061s | 37% |
 | `summarize_outcomes/4000` | 0.024s | 19% |
 | `validate/1000-rows-50-rules` | 0.501s | 35% |
 

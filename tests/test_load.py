@@ -20,7 +20,7 @@ import pytest
 from conftest import enabled_only, make_check
 from jobcheck import RowContext, registry as reg
 from jobcheck import report as rep
-from jobcheck import validate
+from jobcheck import render, validate
 from jobcheck import engine
 from jobcheck.rules import _MatchCriterion
 
@@ -146,10 +146,10 @@ def test_rendering_a_large_report_stays_within_the_time_ceiling(example_checks: 
     df = frame(2000)
     report = rep.build_report(validate(df), df=df)
     start = time.monotonic()
-    text = rep.render_report(report)
-    csv = rep.render_report(report, fmt="csv")
+    text = render(report)
+    csv = render(report, fmt="csv")
     elapsed = time.monotonic() - start
-    assert len(text.splitlines()) == len(report) + 2
+    assert len(text.splitlines()) == len(report) + 3
     assert len(csv.splitlines()) == len(report) + 1
     assert elapsed < 30.0, f"rendering {len(report)} failures took {elapsed:.1f}s"
 
@@ -158,11 +158,10 @@ def test_summarizing_a_large_frame_stays_within_the_time_ceiling(example_checks:
     outcomes = validate(frame(2000))
     start = time.monotonic()
     summary = rep.summarize_outcomes(outcomes)
-    causes = rep.root_cause_counts(outcomes)
     elapsed = time.monotonic() - start
     assert summary["failed"].sum() + summary["skipped"].sum() > 0
     # The tally counts one (row, cause) pair at a time, and a row failing two
     # chains at the same depth has two root causes: 1,200 failing rows out of
     # 2,000, some of them counted against more than one code.
-    assert causes["rows"].sum() >= 1200
+    assert summary["root_cause_rows"].sum() >= 1200
     assert elapsed < 15.0, f"summarizing 2000 rows took {elapsed:.1f}s"

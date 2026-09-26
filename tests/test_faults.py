@@ -15,22 +15,17 @@ a whole one.
 from __future__ import annotations
 
 import os
-import stat
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 import pytest
 
 from conftest import make_check
 from jobcheck import (
-    build_report,
     explain_row,
-    validate,
     load_rules,
     load_checks,
     registry as reg,
-    write_report,
 )
 
 pytestmark = pytest.mark.long
@@ -184,78 +179,3 @@ def test_the_good_files_of_a_failed_call_still_registered(fresh_registry: None,
     # And the survivor runs: the failure path must leave the evaluation order
     # recomputed, not a stale cache that would validate a row against nothing.
     assert [o.code for o in explain_row(pd.Series({"id": 1}))] == ["FROM_FILE"]
-
-
-# --- writing reports --------------------------------------------------------
-
-
-def report_of(fresh: None) -> pd.DataFrame:
-    make_check("FAILS", passes=False)
-    frame = pd.DataFrame([{"id": 1}])
-    return build_report(validate(frame), df=frame, key_column="id")
-
-
-def test_writing_into_a_missing_directory_raises_naming_the_path(fresh_registry: None,
-                                                                 tmp_path: Path) -> None:
-    report = report_of(fresh_registry)
-    target = tmp_path / "no-such-dir" / "report.csv"
-    with pytest.raises(FileNotFoundError) as raised:
-        write_report(report, str(target))
-    assert "report.csv" in str(raised.value)
-
-
-@unwritable_as_root
-def test_writing_into_a_read_only_directory_raises(fresh_registry: None, tmp_path: Path) -> None:
-    report = report_of(fresh_registry)
-    locked = tmp_path / "locked"
-    locked.mkdir()
-    locked.chmod(stat.S_IRUSR | stat.S_IXUSR)
-    try:
-        with pytest.raises(PermissionError):
-            write_report(report, str(locked / "report.csv"))
-    finally:
-        locked.chmod(stat.S_IRWXU)
-
-
-def test_a_write_that_fails_reaches_the_caller_as_the_os_error(fresh_registry: None,
-                                                               tmp_path: Path,
-                                                               monkeypatch: Any) -> None:
-    """A full disk is an OSError from write(); the caller must see it, not a
-    silent short file. The fake refuses the first write, so the file it leaves
-    is empty; write_report writes in place, so a real mid-write failure leaves
-    whatever got written -- this pins the error, not the file's contents."""
-
-    report = report_of(fresh_registry)
-    target = tmp_path / "report.csv"
-    real_open = open
-
-    class FailingHandle:
-        def __init__(self, handle: Any) -> None:
-            self._handle = handle
-
-        def write(self, _text: str) -> int:
-            raise OSError(28, "No space left on device")
-
-        def __enter__(self) -> "FailingHandle":
-            return self
-
-        def __exit__(self, *exc: Any) -> None:
-            self._handle.close()
-
-    def failing_open(path: Any, *args: Any, **kwargs: Any) -> Any:
-        if str(path) == str(target):
-            return FailingHandle(real_open(path, *args, **kwargs))
-        return real_open(path, *args, **kwargs)
-
-    monkeypatch.setattr("builtins.open", failing_open)
-    with pytest.raises(OSError, match="No space left on device"):
-        write_report(report, str(target))
-    monkeypatch.undo()
-    assert target.read_text() == ""
-
-
-def test_writing_to_a_path_that_is_a_directory_raises(fresh_registry: None,
-                                                      tmp_path: Path) -> None:
-    report = report_of(fresh_registry)
-    with pytest.raises(IsADirectoryError):
-        write_report(report, str(tmp_path))

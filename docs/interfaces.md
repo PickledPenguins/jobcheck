@@ -79,7 +79,7 @@ hand. `layer` is computed by `validate_registry`. What a check is *for* is its
 second description field to keep in step with it.
 
 The registry list itself is internal (`registry._CHECKS`). Read the registry through
-`get_registry_table`, which gives every check's code, layer, default, message and
+`registry_table`, which gives every check's code, layer, default, message and
 `depends_on` as a frame, and `loaded_check_files` for the files behind them. Nothing that
 mutates the list directly drops the cached evaluation order, so a caller editing it gets a
 `ValueError` from the row loop rather than the result they intended.
@@ -210,7 +210,7 @@ Load the check files first: a rule naming an unregistered code is an error. See
 [configuration.md](configuration.md).
 
 Which codes a rule touches is `rule.codes`, and as a column,
-`print_rules(rules, add_columns=["codes"])`.
+`rules_table(rules, add_columns=["codes"])`.
 
 ## Loading both at once
 
@@ -343,44 +343,44 @@ that is not in the frame, or is in it more than once, raises `ValueError`;
 order. Read it to build a `drop_columns` from the other direction — the columns a
 production run keeps — without hard-coding the set.
 
-`build_report`, `render_report`, `render_comments`,
-`escape_for_spreadsheet`, `write_report`,
-`print_report`, `row_explanation`, `print_row_explanation`, `summarize_outcomes`,
-`root_cause_counts`, `print_summary` — all exported from `jobcheck` and
-documented in [reporting.md](reporting.md).
+`build_report`, `render_comments`, `row_explanation` and `summarize_outcomes` —
+all exported from `jobcheck` and documented in [reporting.md](reporting.md). Each
+returns a DataFrame whose `attrs["title"]` names it (`Report`, `Row explanation`,
+`Summary`); `summarize_outcomes` carries `root_cause_rows`, the rows each check was
+a root cause of.
 
 Registry tables:
 
-Every one of these takes `add_columns`, the same argument `build_report` takes
-for columns of the data: the names you want beyond the base columns, refused
-rather than ignored when the name is not on offer.
+Both take `add_columns`, the same argument `build_report` takes for columns of the
+data: the names you want beyond the base columns, refused rather than ignored when
+the name is not on offer. Both take `drop_columns` too.
 
-- `get_registry_table(add_columns=None, drop_columns=None)` — one row per check, sorted layer, then
-  code. Columns `code`, `layer`, `default`, `message`, `depends_on`; offers
-  `source_file`.
-- `print_registry(rules=None, add_columns=None, title=True, drop_columns=None)` — prints it. Offers
-  `source_file`, plus the two columns that read the loaded rules:
-  `could_be_overridden_by`, the rules that *reference* each code with the action
-  each would take, and `effective_state`, which says `DEFAULT (ON)` when no rule
-  references the code and "depends on row" when one does. Neither is "was
-  overridden by" — whether a rule fires is a per-row question this table cannot
-  answer. `rules` feeds those two columns and nothing else, so passing rules
-  without asking for either prints the same table as passing none.
-- `get_rules_table(rules, add_columns=None, drop_columns=None)` — one row per rule:
-  `name`, `action`, `codes_hit_count`, `match`, `message`. Offers `codes`, the list
-  behind the count (wrapped by `print_rules`, since a broad rule's list is long), and
-  `source_file`.
-  The frame without the output, as every other table here offers.
-- `print_rules(rules, add_columns=None, title=True, drop_columns=None)` — prints it.
+- `registry_table(rules=None, add_columns=None, drop_columns=None)` — one row per
+  check, sorted layer, then code, titled `Registry`. Columns `code`, `layer`,
+  `default`, `message`, `depends_on`. Offers `source_file`, plus the two columns
+  that read `rules`: `could_be_overridden_by`, the rules that *reference* each code
+  with the action each would take, and `effective_state`, which says `DEFAULT (ON)`
+  when no rule references the code and "depends on row" when one does. Neither is
+  "was overridden by" — whether a rule fires is a per-row question this table
+  cannot answer.
+- `rules_table(rules, add_columns=None, drop_columns=None)` — one row per rule,
+  titled `Rules`: `name`, `action`, `codes_hit_count`, `match`, `message`. Offers
+  `codes`, the list behind the count, and `source_file`.
 
-`format_table(table, wrap_columns=None)` renders any frame as bordered text, reading
-cells by position: a duplicated column label renders each column's own values, and an
-all-numeric frame keeps its integers as integers rather than `1.0`. A cell
-holding line breaks (`\n`, `\r\n` or `\r`) renders as a tall cell rather than breaking
-the row, wrapped column or not, and tabs are expanded — a quoted multi-line CSV field
-reaching the row key or an `add_columns` value is the usual way one arrives. A
-`wrap_columns` width of zero or less raises `ValueError` naming the column: there is
-no spelling of "do not wrap", so leave the column out instead.
+### `render(table, fmt="table") -> str`
+
+Any table as text. `"table"` draws it bordered under a `== Title ==` bar taken from
+`table.attrs["title"]` (no bar when the frame has none), with long free-text columns
+wrapped; `"csv"` returns CSV with no heading, escaping any cell or column name a
+spreadsheet would run as a formula. Anything else raises `ValueError`. An empty
+table renders as its title over `(empty)`, or the CSV header alone.
+
+Cells are read by position: a duplicated column label renders each column's own
+values, and an all-numeric frame keeps its integers as integers rather than `1.0`. A
+cell holding line breaks (`\n`, `\r\n` or `\r`) renders as a tall cell rather than
+breaking the row, and tabs are expanded — a quoted multi-line CSV field reaching the
+row key or an `add_columns` value is the usual way one arrives.
+
 `is_null(value)` is the null check both the engine and the renderer use — reach for
 it in your own checks too, since `NaN` is truthy and `pd.isna` returns an array for
 list-like values.

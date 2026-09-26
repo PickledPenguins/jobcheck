@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -12,7 +11,7 @@ from conftest import make_check, one_row_report
 from jobcheck import registry as reg
 from jobcheck import results as res
 from jobcheck import report as rep
-from jobcheck import validate
+from jobcheck import render, validate
 from jobcheck.results import OK, Status, Verdict
 
 pytestmark = pytest.mark.fast
@@ -186,7 +185,7 @@ def test_data_column_values_render_like_the_row_key(two_layers: None) -> None:
 
 def test_extra_columns_reach_the_csv_too(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
-    assert rep.render_report(report, fmt="csv").splitlines()[0].startswith("row,age,code")
+    assert render(report, fmt="csv").splitlines()[0].startswith("row,age,code")
 
 
 def test_extra_columns_work_without_a_key_column(two_layers: None) -> None:
@@ -289,55 +288,50 @@ def test_empty_comments_render_as_nothing() -> None:
     assert rep.render_comments({}) == ""
 
 
-def test_the_table_format_is_bordered_and_wrapped(two_layers: None) -> None:
-    text = rep.render_report(rep.build_report(outcomes(), df=FRAME, key_column="id"))
-    header, divider, first = text.splitlines()[:3]
+def test_the_table_format_is_titled_bordered_and_wrapped(two_layers: None) -> None:
+    text = render(rep.build_report(outcomes(), df=FRAME, key_column="id"))
+    title, header, divider, first = text.splitlines()[:4]
+    assert title == "== Report =="
     assert [part.strip() for part in header.split(" | ")[:3]] == ["row", "code", "status"]
     assert set(divider) <= {"-", "+"}
     assert first.startswith("102")
 
 
-def test_the_csv_format_round_trips(two_layers: None) -> None:
+def test_the_csv_format_round_trips_with_no_title(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id")
-    parsed = pd.read_csv(pd.io.common.StringIO(rep.render_report(report, fmt="csv")))
+    csv = render(report, fmt="csv")
+    assert "==" not in csv
+    parsed = pd.read_csv(pd.io.common.StringIO(csv))
     assert tuple(parsed.columns) == rep.REPORT_COLUMNS
     assert list(parsed["code"]) == ["AGE_IN_RANGE", "AGE_PRESENT"]
 
 
 def test_an_unknown_format_is_rejected(two_layers: None) -> None:
     with pytest.raises(ValueError, match="fmt must be 'table' or 'csv', got 'json'"):
-        rep.render_report(rep.build_report(outcomes(), df=FRAME), fmt="json")
+        render(rep.build_report(outcomes(), df=FRAME), fmt="json")
 
 
-def test_write_report_writes_what_render_report_returns(two_layers: None, tmp_path: Path) -> None:
+def test_an_empty_report_renders_its_title_over_empty(two_layers: None) -> None:
+    report = report_for(pd.DataFrame([{"id": 1, "age": 30}]))
+    assert render(report) == "== Report ==\n(empty)"
+
+
+def test_every_table_carries_its_own_title(two_layers: None) -> None:
+    """What lets `render` head each table without the caller naming it."""
+
+    assert rep.build_report(outcomes(), df=FRAME).attrs["title"] == "Report"
+    assert rep.row_explanation(outcomes()[0]).attrs["title"] == "Row explanation"
+    assert rep.summarize_outcomes(outcomes()).attrs["title"] == "Summary"
+
+
+def test_the_title_survives_selecting_and_filtering(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id")
-    path = tmp_path / "report.csv"
-    rep.write_report(report, str(path))
-    assert path.read_text(encoding="utf-8") == rep.render_report(report, fmt="csv")
+    narrowed = report[report["code"] == "AGE_PRESENT"][["row", "code"]]
+    assert render(narrowed).splitlines()[0] == "== Report =="
 
 
-def test_write_report_can_write_the_table_format(two_layers: None, tmp_path: Path) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id")
-    path = tmp_path / "report.txt"
-    rep.write_report(report, str(path), fmt="table")
-    assert path.read_text(encoding="utf-8").startswith("row ")
-
-
-def test_print_report_prints_the_rendered_table(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    rep.print_report(rep.build_report(outcomes(), df=FRAME, key_column="id"),
-                     title=False)
-    out = capsys.readouterr().out
-    assert "AGE_IN_RANGE" in out
-    assert out.splitlines()[0].startswith("row")
-
-
-def test_print_report_says_so_when_nothing_failed(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    rep.print_report(report_for(pd.DataFrame([{"id": 1, "age": 30}])), title=False)
-    assert capsys.readouterr().out == "No failures.\n"
+def test_a_frame_without_a_title_renders_without_one() -> None:
+    assert render(pd.DataFrame([{"a": 1}])).splitlines()[0].startswith("a")
 
 
 # --- explanations and summaries --------------------------------------------
@@ -354,28 +348,14 @@ def test_only_relevant_hides_the_checks_that_passed(two_layers: None) -> None:
     assert list(table["code"]) == ["AGE_IN_RANGE"]
 
 
-def test_print_row_explanation_ends_with_the_root_cause(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    rep.print_row_explanation(outcomes()[1])
-    assert capsys.readouterr().out.strip().endswith("root cause: AGE_IN_RANGE")
-
-
-def test_print_row_explanation_says_when_the_row_passed(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    rep.print_row_explanation(outcomes()[0])
-    # The whole last line, not a substring: a substring test passes for any
-    # message that merely contains this one.
-    assert capsys.readouterr().out.splitlines()[-1] == "root cause: none - the row passed"
-
-
 def test_the_summary_counts_every_status(two_layers: None) -> None:
     table = rep.summarize_outcomes(outcomes()).set_index("code")
     assert table.loc["AGE_PRESENT"].to_dict() == {
-        "layer": 0, "failed": 1, "errored": 0, "skipped": 0, "disabled": 0, "passed": 2}
+        "layer": 0, "failed": 1, "root_cause_rows": 1, "errored": 0, "skipped": 0,
+        "disabled": 0, "passed": 2}
     assert table.loc["AGE_IN_RANGE"].to_dict() == {
-        "layer": 1, "failed": 1, "errored": 0, "skipped": 1, "disabled": 0, "passed": 1}
+        "layer": 1, "failed": 1, "root_cause_rows": 1, "errored": 0, "skipped": 1,
+        "disabled": 0, "passed": 1}
 
 
 def test_the_summary_puts_the_worst_check_first(fresh_registry: None) -> None:
@@ -401,22 +381,15 @@ def test_the_summary_of_nothing_has_columns_and_no_rows(fresh_registry: None) ->
     table = rep.summarize_outcomes([])
     assert table.empty
     assert list(table.columns) == [
-        "code", "layer", "failed", "errored", "skipped", "disabled", "passed"
+        "code", "layer", "failed", "root_cause_rows", "errored", "skipped", "disabled",
+        "passed"
     ]
+    assert render(table) == "== Summary ==\n(empty)"
 
 
-def test_root_cause_counts_is_importable_from_the_package() -> None:
-    """Regression: it was documented as part of the reporting surface but never
-    re-exported, so importing it raised."""
-
-    from jobcheck import root_cause_counts
-
-    assert root_cause_counts is rep.root_cause_counts
-
-
-def test_root_cause_counts_rank_by_rows(fresh_registry: None) -> None:
-    """Most rows first; ties by code. Two codes with different counts, so the
-    order is something the test can be wrong about."""
+def test_root_cause_rows_counts_the_rows_each_code_explains(fresh_registry: None) -> None:
+    """Two codes failing at the same layer on the same row are both its root
+    cause, so the row counts against each."""
 
     make_check("RARE", passes=False)
     make_check("COMMON", passes=False)
@@ -424,43 +397,13 @@ def test_root_cause_counts_rank_by_rows(fresh_registry: None) -> None:
     collected = validate(frame)
     rare = next(o for o in collected[1] if o.code == "RARE")
     rare.outcome = res.PASSED
-    assert rep.root_cause_counts(collected).to_dict("records") == [
-        {"root_cause": "COMMON", "rows": 2},
-        {"root_cause": "RARE", "rows": 1},
-    ]
+    table = rep.summarize_outcomes(collected).set_index("code")
+    assert table["root_cause_rows"].to_dict() == {"COMMON": 2, "RARE": 1}
 
 
-def test_print_summary_shows_counts_and_the_root_cause_tally(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    rep.print_summary(outcomes())
-    out = capsys.readouterr().out
-    assert "skipped" in out
-    assert "Root cause of each failing row:" in out
-    assert "AGE_IN_RANGE | 1" in out
-    assert "AGE_PRESENT  | 1" in out
-
-
-def test_print_summary_says_when_every_row_passed(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    rep.print_summary(outcomes(pd.DataFrame([{"id": 1, "age": 30}])))
-    assert capsys.readouterr().out.splitlines()[-1] == "Root causes: none - every row passed."
-
-
-def test_print_summary_with_no_rows_says_nothing_ran(
-    fresh_registry: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    table = rep.print_summary([], title=False)
-    assert capsys.readouterr().out == "No checks ran.\n"
-    assert table.empty
-
-
-def test_the_summary_heading_of_no_rows_names_only_the_rows(
-    fresh_registry: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    rep.print_summary([])
-    assert capsys.readouterr().out == "== Summary: 0 row(s) ==\nNo checks ran.\n"
+def test_a_check_that_never_was_a_root_cause_counts_zero(two_layers: None) -> None:
+    table = rep.summarize_outcomes(outcomes(pd.DataFrame([{"id": 1, "age": 30}])))
+    assert list(table["root_cause_rows"]) == [0, 0]
 
 
 def test_validate_hands_each_row_the_context_its_builder_returned(
@@ -496,32 +439,7 @@ def test_validate_hands_each_row_the_context_its_builder_returned(
     assert outcomes[1][0].comments == {"allowed": False}
 
 
-# --- what lands on disk -----------------------------------------------------
-#
-# Written against surviving mutants: the encoding and the newline handling of
-# write_report were both dropped without a check noticing, and each decides
-# whether the file another tool reads is the file this one meant to write.
-
-
-def test_a_written_report_is_utf_8(fresh_registry: None, tmp_path: Path) -> None:
-    report = one_row_report(comments={"value": "Karen Spärck Jones"})
-    path = tmp_path / "report.csv"
-    rep.write_report(report, str(path))
-    raw = path.read_bytes()
-    assert "Spärck".encode("utf-8") in raw
-    assert raw.decode("utf-8")
-
-
-def test_a_written_report_uses_unix_line_endings(fresh_registry: None,
-                                                 tmp_path: Path) -> None:
-    """csv writes \\r\\n unless the handle is opened with newline=""."""
-
-    report = one_row_report()
-    path = tmp_path / "report.csv"
-    rep.write_report(report, str(path))
-    raw = path.read_bytes()
-    assert b"\r\n" not in raw
-    assert raw.endswith(b"\n")
+# --- CSV safety ---------------------------------------------------------------
 
 
 def formula_report(fresh: None) -> pd.DataFrame:
@@ -533,32 +451,8 @@ def formula_report(fresh: None) -> pd.DataFrame:
                             add_columns=["name"])
 
 
-def test_a_written_report_escapes_formulas_by_default(fresh_registry: None,
-                                                      tmp_path: Path) -> None:
-    path = tmp_path / "report.csv"
-    rep.write_report(formula_report(fresh_registry), str(path))
-    assert "'=SUM(A1:A9)" in path.read_text(encoding="utf-8")
-
-
-def test_a_rejected_format_leaves_the_existing_file_alone(fresh_registry: None,
-                                                          tmp_path: Path) -> None:
-    """Regression: the file was opened -- and so truncated -- before the render
-    that decides whether there is anything to write, so a rejected fmt replaced
-    last night's report with nothing."""
-
-    path = tmp_path / "report.csv"
-    path.write_text("the previous report\n", encoding="utf-8")
-    with pytest.raises(ValueError, match=r"fmt must be 'table' or 'csv'"):
-        rep.write_report(one_row_report(), str(path), fmt="nope")
-    assert path.read_text(encoding="utf-8") == "the previous report\n"
-
-
-def test_a_rejected_format_creates_no_file_at_all(fresh_registry: None,
-                                                  tmp_path: Path) -> None:
-    path = tmp_path / "report.csv"
-    with pytest.raises(ValueError):
-        rep.write_report(one_row_report(), str(path), fmt="nope")
-    assert not path.exists()
+def test_a_csv_report_escapes_formulas(fresh_registry: None) -> None:
+    assert "'=SUM(A1:A9)" in render(formula_report(fresh_registry), fmt="csv")
 
 
 def test_a_formula_column_name_is_escaped_in_the_csv_header(fresh_registry: None) -> None:
@@ -570,7 +464,7 @@ def test_a_formula_column_name_is_escaped_in_the_csv_header(fresh_registry: None
     frame = pd.DataFrame([{"id": 1, "=SUM(A1:A9)": "x"}])
     report = rep.build_report(validate(frame), df=frame, key_column="id",
                               add_columns=["=SUM(A1:A9)"])
-    header = rep.render_report(report, fmt="csv").splitlines()[0]
+    header = render(report, fmt="csv").splitlines()[0]
     assert "'=SUM(A1:A9)" in header
     assert ",=SUM(A1:A9)," not in header
 
@@ -585,21 +479,18 @@ def test_escaping_the_header_does_not_rename_the_caller_s_report(
     frame = pd.DataFrame([{"id": 1, "=SUM(A1:A9)": "x"}])
     report = rep.build_report(validate(frame), df=frame, key_column="id",
                               add_columns=["=SUM(A1:A9)"])
-    rep.render_report(report, fmt="csv")
+    render(report, fmt="csv")
     assert "=SUM(A1:A9)" in list(report.columns)
 
 
-def test_print_summary_reads_a_generator_once_and_still_finds_the_root_causes(
-    two_layers: None, capsys: Any,
+def test_the_summary_reads_a_generator_once_and_still_finds_the_root_causes(
+    two_layers: None,
 ) -> None:
-    """Regression: the outcomes were walked twice -- once for the table, once for
-    the causes -- so a generator was spent by the second walk and the tally read
-    "every row passed" under a table of failures."""
+    """The counts and the root causes come from one walk, so a generator of
+    outcomes is not spent before the second."""
 
-    rep.print_summary((row for row in outcomes()), title=False)
-    printed = capsys.readouterr().out
-    assert "Root cause of each failing row:" in printed
-    assert "every row passed" not in printed
+    table = rep.summarize_outcomes(row for row in outcomes())
+    assert table["root_cause_rows"].sum() == 2
 
 
 def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> None:
@@ -610,28 +501,12 @@ def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> Non
         "layer", "code", "outcome", "status", "detail"]
 
 
-def test_a_wrap_width_of_zero_is_refused_rather_than_read_as_no_wrapping(
-    two_layers: None,
-) -> None:
-    """0 silently disabled wrapping while -1 raised out of textwrap: two
-    spellings of nonsense, two behaviors."""
-
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id")
-    for width in (0, -5):
-        with pytest.raises(ValueError, match=r"wrap_width must be greater than 0"):
-            rep.render_report(report, wrap_width=width)
-
-
-def test_printing_a_report_wraps_the_message_column(fresh_registry: None,
-                                                    capsys: Any) -> None:
-    """print_report passes its wrap width down; without it a long message runs
-    the table off the screen."""
+def test_rendering_a_report_wraps_the_message_column(fresh_registry: None) -> None:
+    """Without wrapping, a long message runs the table off the screen."""
 
     report = one_row_report(message="a message far longer than the wrap width "
                                     "chosen for the report table by default")
-    rep.print_report(report)
-    out = capsys.readouterr().out
-    assert len(out.splitlines()) > 3
+    assert len(render(report).splitlines()) > 4
 
 
 # --- root causes, and keys that identify a row ------------------------------
@@ -702,65 +577,6 @@ def test_a_frame_offering_no_extra_columns_says_so(fresh_registry: None) -> None
     frame = pd.DataFrame([{"code": "x", "status": "y"}])
     with pytest.raises(ValueError, match=r"be one of: \(none available\)"):
         rep.build_report(validate(frame), df=frame, add_columns=["code"])
-
-
-def test_the_report_title_counts_lines_and_names_the_key_column(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """`key_column` is the one fact about a report `print_report` cannot read off
-    the frame -- the name is not a column -- and it is what says what the `row`
-    values are."""
-
-    rep.print_report(rep.build_report(outcomes(), df=FRAME, key_column="id"),
-                     key_column="id")
-    assert capsys.readouterr().out.splitlines()[0] == "== Report: 2 line(s), keyed by id =="
-
-
-def test_the_report_title_is_left_off_csv(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """A heading above CSV makes it unparseable, and CSV is the format a caller
-    redirects to a file. The table gets one, the CSV does not."""
-
-    rep.print_report(rep.build_report(outcomes(), df=FRAME, key_column="id"), fmt="csv")
-    out = capsys.readouterr().out
-    assert "== Report" not in out
-    assert out.splitlines()[0].startswith("row,code,status")
-
-
-def test_the_row_explanation_title_names_the_row_and_the_include_level(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """The outcomes say nothing about which row they came from, so the caller
-    supplies it; `include` the function knows itself."""
-
-    rep.print_row_explanation(outcomes()[1], include="blocked", row_key=103)
-    assert capsys.readouterr().out.splitlines()[0] == (
-        "== Row explanation: row 103, 1 of 2 check(s), include=blocked ==")
-
-
-def test_the_row_explanation_title_drops_the_row_when_it_is_not_given(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    rep.print_row_explanation(outcomes()[1])
-    assert capsys.readouterr().out.splitlines()[0] == (
-        "== Row explanation: 2 of 2 check(s), include=all ==")
-
-
-def test_the_summary_title_counts_rows_and_checks(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    rep.print_summary(outcomes())
-    assert capsys.readouterr().out.splitlines()[0] == "== Summary: 3 row(s), 2 check(s) =="
-
-
-def test_a_row_explanation_can_be_printed_without_its_heading(
-    two_layers: None, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """`title=False` is the escape hatch for a caller labelling its own output."""
-
-    rep.print_row_explanation(outcomes()[1], title=False)
-    assert capsys.readouterr().out.splitlines()[0].startswith("layer")
 
 
 # --- dropping the report's own columns ---------------------------------------
@@ -843,7 +659,7 @@ def test_report_columns_is_a_tuple_so_a_caller_cannot_edit_the_default(
 def test_a_dropped_column_is_absent_from_the_csv_too(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id",
                               drop_columns=["comments"])
-    assert "comments" not in rep.render_report(report, fmt="csv").splitlines()[0]
+    assert "comments" not in render(report, fmt="csv").splitlines()[0]
 
 
 # --- found by reading the mutation survivors, 2026-09-25 ---------------------
@@ -859,32 +675,18 @@ def outcome(code: str, outcome: str, **fields: Any) -> res.CheckOutcome:
     return res.CheckOutcome(code=code, outcome=outcome, **fields)
 
 
-def test_the_table_report_wraps_message_detail_and_comments_at_wrap_width() -> None:
+def test_the_table_report_wraps_message_detail_and_comments() -> None:
     report = pd.DataFrame([{"row": "1", "message": a_long("message"),
                             "detail": a_long("detail"), "comments": a_long("comment")}])
-    text = rep.render_report(report, wrap_width=20)
+    text = render(report)
     for column in ("message", "detail", "comments"):
         assert report.loc[0, column] not in text, f"{column} was not wrapped"
-    assert max(len(line) for line in text.splitlines()) < 80
 
 
-def test_print_report_passes_its_wrap_width_on(capsys: pytest.CaptureFixture[str]) -> None:
-    report = pd.DataFrame([{"row": "1", "message": a_long("word", 5)}])   # 24 characters
-    rep.print_report(report, wrap_width=10, title=False)
-    assert "word word word word word" not in capsys.readouterr().out
-
-
-def test_a_wrap_width_of_one_is_accepted() -> None:
-    """The refusal is for zero and below; one is narrow, not wrong."""
-
-    report = pd.DataFrame([{"row": "1", "message": "a b"}])
-    assert "a" in rep.render_report(report, wrap_width=1)
-
-
-def test_print_row_explanation_wraps_a_long_detail(capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_row_explanation_wraps_a_long_detail() -> None:
     detail = a_long("prerequisite", 8)   # 103 characters
-    rep.print_row_explanation([outcome("A_CODE", res.SKIPPED, detail=detail)], title=False)
-    assert detail not in capsys.readouterr().out
+    assert detail not in render(rep.row_explanation([outcome("A_CODE", res.SKIPPED,
+                                                             detail=detail)]))
 
 
 def test_summary_ties_on_failed_are_broken_by_errored_worst_first() -> None:
@@ -895,19 +697,15 @@ def test_summary_ties_on_failed_are_broken_by_errored_worst_first() -> None:
     assert list(rep.summarize_outcomes(frame_outcomes)["code"]) == ["Z_CODE", "A_CODE"]
 
 
-def test_root_causes_are_ranked_by_rows_not_by_name() -> None:
+def test_root_cause_rows_count_rows_not_names() -> None:
     frame_outcomes = [
         [outcome("A_CODE", res.FAILED)],
         [outcome("Z_CODE", res.FAILED)],
         [outcome("Z_CODE", res.FAILED)],
     ]
-    table = rep.root_cause_counts(frame_outcomes)
-    assert table.to_dict("records") == [{"root_cause": "Z_CODE", "rows": 2},
-                                        {"root_cause": "A_CODE", "rows": 1}]
-
-
-def test_no_root_causes_is_an_empty_frame_with_both_columns() -> None:
-    assert list(rep.root_cause_counts([]).columns) == ["root_cause", "rows"]
+    table = rep.summarize_outcomes(frame_outcomes)
+    assert table[["code", "root_cause_rows"]].values.tolist() == [["Z_CODE", 2],
+                                                                 ["A_CODE", 1]]
 
 
 def test_a_null_index_label_is_named_no_key(two_layers: None) -> None:

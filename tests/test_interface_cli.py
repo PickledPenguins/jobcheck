@@ -88,7 +88,7 @@ def test_cascading_checks_are_absent_from_the_report(default_run: CommandResult)
 
 def test_the_csv_report_format_is_selectable() -> None:
     """And carries no heading of its own: a title line above CSV would make the
-    output unparseable, so `print_report` writes one for the table only."""
+    output unparseable, so `render` writes one for the table only."""
 
     out = run_cli("examples/main.py", "--report", "csv").stdout
     assert "row,code,status,layer,outcome" in out
@@ -97,13 +97,12 @@ def test_the_csv_report_format_is_selectable() -> None:
 
 def test_explain_prints_one_row_and_its_root_cause() -> None:
     out = run_cli("examples/main.py", "--explain", "5").stdout
-    assert "== Row explanation: row 5" in out
+    assert "== Row explanation ==" in out
     assert "prerequisite did not pass: AGE_PRESENT" in out
     # Row 5 is entirely empty, so every layer-0 check fails and all of them are
     # root causes -- none is upstream of another.
-    last = out.strip().splitlines()[-1]
-    assert last.startswith("root causes: ")
-    assert "ROW_ALL_NULL" in last
+    assert out.strip().splitlines()[-1] == (
+        "root cause: ROW_ALL_NULL, AGE_PRESENT, DATES_PRESENT, EMAIL_PRESENT")
 
 
 def test_explain_outside_the_frame_exits_two() -> None:
@@ -116,7 +115,7 @@ def test_summary_reports_counts_and_root_causes() -> None:
     out = run_cli("examples/main.py", "--summary").stdout
     assert "== Summary" in out
     assert "skipped" in out
-    assert "Root cause of each failing row:" in out
+    assert "root_cause_rows" in out
 
 
 def test_unknown_flag_exits_two() -> None:

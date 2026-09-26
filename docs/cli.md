@@ -29,9 +29,8 @@ usage: main.py [-h] [--data PATH] [--rules PATH [PATH ...]]
 
 No positional arguments. Nothing is read from stdin. Results go to stdout; column
 warnings and uncaught errors go to stderr. Every table prints under its own
-heading — `== Registry: 11 check(s), 3 rule(s) considered ==` — written by the
-library rather than by this script, and carrying what the call was given. The
-CSV report is the exception and has no heading, so it stays parseable.
+heading — `== Registry ==` — which `jobcheck.render` takes from the table itself.
+The CSV report is the exception and has no heading, so it stays parseable.
 
 The check files are named in the entry point itself, as `CHECK_FILES`, and are not
 selectable from the command line: which checks a pipeline runs is a property of the
@@ -87,7 +86,8 @@ defines is an error, not a silent skip.
 
 Optional, default `table`. Format of the failure report: bordered text with the message
 and comments wrapped, or CSV with the same columns unwrapped. Both come from
-`jobcheck.render_report`; the flag only chooses which.
+`jobcheck.render`; the flag only chooses which. A report with no failures prints
+`(empty)` under its heading, or the CSV header row alone.
 
 ### `--explain ROW`
 
@@ -98,9 +98,9 @@ the row's root cause. A position outside the frame exits 2.
 
 ### `--summary`
 
-Optional, off by default. After the report, print per-check counts (`failed`, `errored`,
-`skipped`, `disabled`, `passed`, worst first) and a tally of what each failing row bottomed
-out at. A high `skipped` count means a fundamental check is failing often and hiding the
+Optional, off by default. After the report, print per-check counts (`failed`,
+`root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`, worst first);
+`root_cause_rows` is how many rows bottomed out at that check. A high `skipped` count means a fundamental check is failing often and hiding the
 layer below it.
 
 ### `--rules-table`
@@ -109,7 +109,7 @@ Optional, off by default. Before the registry table, print one row per loaded ru
 registry table is one row per *code*, so a rule touching eight codes is eight lines there
 and one line here — this is the view that answers "what did this rule file actually say".
 `codes_hit_count` is a count rather than the codes themselves, so a broad rule does not
-widen the table; `print_rules(rules, add_columns=["codes"])` gives the detail.
+widen the table; `rules_table(rules, add_columns=["codes"])` gives the detail.
 
 Under the table, one `warning:` line per rule a later `match: all` rule overrules for
 every row -- a rule that can never apply, which nothing else reports. The shipped rule
@@ -124,7 +124,7 @@ Optional. After printing the report, also write it to *PATH* in the `--report` f
 creating or replacing the file, then print how many rows were written. It is the same
 report frame that was printed, so the file and the terminal cannot disagree — `--report
 csv --write out.csv` is the pairing that gets the failures into a spreadsheet, and the CSV
-is written with the leading-formula guard `jobcheck.escape_for_spreadsheet` applies.
+is written with the leading-formula guard `jobcheck.render` applies to CSV.
 
 The directory is checked before anything is loaded or validated: `--write` into a
 directory that does not exist prints `error: cannot write <path>: no directory <dir>` to
@@ -207,15 +207,15 @@ All three keys are required. `setup` and `data` resolve against **the run file's
 directory**, as the paths inside a setup file resolve against its, so the run file and what
 it names travel together; the run file's own path is relative to where you stand.
 
-Each entry of `tables` names one `table` and the options it takes, which are the printing
+Each entry of `tables` names one `table` and the options it takes, which are the table
 functions' own argument names:
 
-| `table` | Options | Prints with |
+| `table` | Options | Built with, then printed with `render` |
 |---|---|---|
-| `registry` | `add_columns`, `drop_columns` | `print_registry`, handed the loaded rules |
-| `rules` | `add_columns`, `drop_columns` | `print_rules`, then a `warning:` line per shadowed rule |
-| `report` | `key_column`, `add_columns`, `drop_columns`, `include`, `format` | `build_report`, then `print_report`; `format` is `table` (default) or `csv` |
-| `summary` | none | `print_summary` |
+| `registry` | `add_columns`, `drop_columns` | `registry_table`, handed the loaded rules |
+| `rules` | `add_columns`, `drop_columns` | `rules_table`, then a `warning:` line per shadowed rule |
+| `report` | `key_column`, `add_columns`, `drop_columns`, `include`, `format` | `build_report`; `format` is `table` (default) or `csv` |
+| `summary` | none | `summarize_outcomes` |
 
 A rule naming a column the data lacks is warned about on stderr, as `main.py` does.
 

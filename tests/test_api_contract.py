@@ -85,8 +85,8 @@ def test_the_rule_parser_does_not_import_the_registry() -> None:
 
 
 def test_every_public_function_is_exported() -> None:
-    """Regression: root_cause_counts was documented but never re-exported, so
-    importing it from the package raised."""
+    """Regression: a function was documented but never re-exported, so importing
+    it from the package raised."""
 
     exported = set(validation.__all__)
     unexported: list[str] = []
@@ -119,11 +119,8 @@ PUBLIC_NAMES = {
     # Running.
     "validate", "validate_row", "explain_row", "root_causes",
     # Reports and tables.
-    "build_report", "REPORT_COLUMNS", "render_report", "print_report", "write_report",
-    "render_comments", "escape_for_spreadsheet", "row_explanation",
-    "print_row_explanation", "summarize_outcomes", "root_cause_counts", "print_summary",
-    "get_registry_table", "print_registry", "get_rules_table", "print_rules",
-    "format_table", "is_null",
+    "build_report", "REPORT_COLUMNS", "render_comments", "row_explanation",
+    "summarize_outcomes", "registry_table", "rules_table", "render", "is_null",
 }
 
 
@@ -161,7 +158,7 @@ def test_report_columns_are_stable() -> None:
 
 
 def test_registry_table_columns_are_stable(example_checks: None) -> None:
-    assert list(registry_tables.get_registry_table().columns) == [
+    assert list(registry_tables.registry_table().columns) == [
         "code", "layer", "default", "message", "depends_on"
     ]
 
@@ -195,11 +192,7 @@ def defaults(fn: Any) -> dict[str, Any]:
                      {"key_column": None, "add_columns": None,
                       "include": "failures", "drop_columns": None},
                      id="build_report"),
-        pytest.param(rep.render_report,
-                     {"fmt": "table", "wrap_width": 48}, id="render_report"),
-        pytest.param(rep.write_report,
-                     {"fmt": "csv"}, id="write_report"),
-        pytest.param(tables.format_table, {"wrap_columns": None}, id="format_table"),
+        pytest.param(tables.render, {"fmt": "table"}, id="render"),
     ],
 )
 def test_public_defaults(fn: Any, expected: dict[str, Any]) -> None:

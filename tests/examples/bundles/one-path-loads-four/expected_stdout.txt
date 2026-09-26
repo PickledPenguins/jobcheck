@@ -6,7 +6,6 @@
 <project>/examples/checks/all_checks.py
 
 == Registry ==
-== Registry: 11 check(s) ==
 code                 | layer | default | message                                 | depends_on      
 ---------------------+-------+---------+-----------------------------------------+-----------------
 AGE_PRESENT          | 0     | ON      | Age is missing                          | -               

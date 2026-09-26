@@ -180,7 +180,7 @@ def test_every_check_code_a_document_shows_is_a_real_one(
     """Regression: a document showed `AGE_IN_RANGE`, which no check ever defined,
     and a reader writing a rule file for it would meet an unknown-code error."""
 
-    real = set(prv.get_registry_table()["code"]) | {
+    real = set(prv.registry_table()["code"]) | {
         # Codes the documents invent to show a reader writing their own check.
         "AGE_ABOVE_LIMIT", "THREADS_INT", "BRAND_NEW_CODE", "ADDED_AT_RUNTIME",
         "FIELD_MISSING", "NO_SUCH_CODE", "SOURCE_CODE", "MY_CODE",

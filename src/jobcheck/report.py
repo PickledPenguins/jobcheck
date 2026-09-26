@@ -1,17 +1,10 @@
-"""Turning outcomes into a report: the failure table, the summary, and rendering.
+"""Turning outcomes into tables: the failure report, a row's explanation, and the
+summary. Each is a DataFrame carrying its own title; `render` makes it text.
 
 The report is **long format** -- one line per failed check per data row -- which
 is the diagnostic unit, survives being written as CSV, and sorts and filters
 cleanly downstream. There is no command line; a pipeline decides where output
 goes.
-
-Who owns the frame decides what a function returns, which is the same rule
-`registry_tables.py` states from its own side. `build_report`, `row_explanation`
-and `summarize_outcomes` build a frame and return it. `print_row_explanation` and
-`print_summary` build one too, so they return it as well rather than making the
-caller build it twice. `print_report` and `write_report` are handed a finished
-report and return `None` -- handing back the caller's own argument would say
-nothing -- and `render_report` returns the text it produced instead.
 """
 
 from __future__ import annotations
@@ -22,8 +15,7 @@ import pandas as pd
 
 from .engine import root_causes
 from .results import DISABLED, ERRORED, FAILED, PASSED, SKIPPED, CheckOutcome, render_status
-from .tables import (_keep_columns, _print_title, _reject_unknown_columns, _format_cell,
-                     format_table)
+from .tables import _format_cell, _keep_columns, _reject_unknown_columns
 
 REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "detail", "comments",
                   "is_root_cause")
@@ -36,13 +28,6 @@ INCLUDE_LEVELS: dict[str, set[str]] = {
     "blocked": {FAILED, ERRORED, SKIPPED, DISABLED},
     "all": {FAILED, ERRORED, SKIPPED, DISABLED, PASSED},
 }
-
-# A spreadsheet treats a cell starting with one of these as a formula, so a value
-# taken from the data and written into a CSV can execute when someone opens the
-# report. Escaping happens on the way out, not on the way in, so the outcomes and
-# the table view keep the value the check actually saw.
-FORMULA_PREFIXES = ("=", "+", "@", "\t", "\r")
-
 
 def _included(include: str) -> set[str]:
     """The outcomes an ``include`` level covers, or a ValueError naming the levels."""
@@ -58,9 +43,6 @@ def render_comments(comments: Mapping[str, Any]) -> str:
     same failure renders identically every run and reports can be diffed."""
 
     return "; ".join(f"{key}={comments[key]}" for key in sorted(comments))
-
-
-
 
 
 def _row_labels(df: pd.DataFrame, key_column: str | None) -> list[str]:
@@ -178,90 +160,9 @@ def build_report(
     # survived `drop_columns`.
     ordered = [*add_columns, *(name for name in REPORT_COLUMNS[1:] if name in kept)]
     columns = (["row", *ordered] if "row" in kept else ordered)
-    return pd.DataFrame(rows, columns=columns)
-
-
-def _looks_numeric(text: str) -> bool:
-    """Whether a string is just a number, so a leading ``-`` is a minus sign."""
-
-    try:
-        float(text)
-    except ValueError:
-        return False
-    return True
-
-
-def escape_for_spreadsheet(value: Any) -> Any:
-    """Prefix a cell a spreadsheet would run as a formula with an apostrophe, so
-    a value from the data such as `=cmd|'/c calc'!A1` displays as text instead of
-    executing. A negative number keeps its minus sign."""
-
-    if not isinstance(value, str) or not value:
-        return value
-    if value[0] in FORMULA_PREFIXES or (value[0] == "-" and not _looks_numeric(value)):
-        return "'" + value
-    return value
-
-
-def render_report(report: pd.DataFrame, fmt: str = "table", wrap_width: int = 48) -> str:
-    """Render a report as bordered text, wrapped at *wrap_width*, or as CSV.
-
-    CSV cells a spreadsheet would run as a formula are neutralized on the way
-    out, and that is not optional: a report is written to be opened by a person.
-    A *wrap_width* of zero or less is refused -- there is no spelling of "do not
-    wrap".
-    """
-
-    if wrap_width <= 0:
-        raise ValueError(f"wrap_width must be greater than 0, got {wrap_width!r}.")
-    if fmt == "table":
-        return format_table(
-            report,
-            wrap_columns={"message": wrap_width, "detail": wrap_width,
-                          "comments": wrap_width},
-        )
-    if fmt == "csv":
-        # Headings too, not only cells: an add_columns name comes from the data's
-        # own columns, so a frame with a column called `=cmd|'/c calc'!A1` would
-        # otherwise write that formula into the header row unescaped.
-        escaped = report.map(escape_for_spreadsheet)
-        escaped.columns = [escape_for_spreadsheet(str(name)) for name in escaped.columns]
-        return escaped.to_csv(index=False)
-    raise ValueError(f"fmt must be 'table' or 'csv', got {fmt!r}.")
-
-
-def write_report(report: pd.DataFrame, path: str, fmt: str = "csv") -> None:
-    """Write a rendered report to a file, creating or replacing it.
-
-    Rendered before the file is opened: opening for writing truncates it, so a
-    rejected *fmt* would otherwise leave nothing where the last good report was.
-    """
-
-    text = render_report(report, fmt=fmt)
-    with open(path, "w", encoding="utf-8", newline="") as handle:
-        handle.write(text)
-
-
-def print_report(report: pd.DataFrame, fmt: str = "table", wrap_width: int = 48,
-                 title: bool = True, key_column: str | None = None) -> None:
-    """Print a rendered report, or a plain line when nothing failed.
-
-    The heading is written for `fmt="table"` only. A line above CSV would make the
-    output unparseable, and CSV is the format a caller redirects to a file, so
-    `title=True` is honored for the table and ignored for the CSV rather than
-    quietly breaking it. Print your own line above CSV if you want one.
-    """
-
-    if title and fmt != "csv":
-        # key_column is the one fact about a report this function cannot read off
-        # the frame -- the name is not a column -- and it is what tells a reader
-        # what the `row` values are. Given for the heading, nothing else.
-        _print_title("Report", f"{len(report)} line(s)",
-                     f"keyed by {key_column}" if key_column else "")
-    if report.empty:
-        print("No failures.")
-        return
-    print(render_report(report, fmt=fmt, wrap_width=wrap_width))
+    report = pd.DataFrame(rows, columns=columns)
+    report.attrs["title"] = "Report"
+    return report
 
 
 def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> pd.DataFrame:
@@ -273,7 +174,7 @@ def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> p
 
     wanted = _included(include)
     kept = [outcome for outcome in row_outcomes if outcome.outcome in wanted]
-    return pd.DataFrame(
+    table = pd.DataFrame(
         [
             {
                 "layer": outcome.layer,
@@ -289,42 +190,23 @@ def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> p
         ],
         columns=["layer", "code", "outcome", "status", "detail"],
     )
-
-
-def print_row_explanation(row_outcomes: list[CheckOutcome], include: str = "all",
-                          title: bool = True, row_key: Any = None) -> pd.DataFrame:
-    """Print what every check did on one row, then the row's root cause(s).
-
-    The cause is named at the end rather than left to the reader: it is not
-    always the first failing line, since two chains that do not touch can both
-    fail and the deeper one may be evaluated first.
-    """
-
-    table = row_explanation(row_outcomes, include=include)
-    if title:
-        # The outcomes say nothing about which row they came from, and a row
-        # explanation with no row in its heading is the one table where that
-        # matters. Given for the heading, nothing else.
-        _print_title("Row explanation", f"row {row_key}" if row_key is not None else "",
-                     f"{len(table)} of {len(row_outcomes)} check(s)", f"include={include}")
-    print(format_table(table, wrap_columns={"detail": 60}))
-    causes = root_causes(row_outcomes)
-    label = "root cause" if len(causes) == 1 else "root causes"
-    print(f"{label}: {', '.join(causes)}" if causes else "root cause: none - the row passed")
+    table.attrs["title"] = "Row explanation"
     return table
 
 
 def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataFrame:
-    """Count what happened to each check across many rows.
+    """Count what happened to each check across many rows, worst first.
 
     `skipped` is the column that matters when tuning layered checks -- a high
     count means a fundamental check is failing often and hiding what is below it.
     `errored` stays separate from `failed` so a broken check is never mistaken
-    for bad data.
+    for bad data. `root_cause_rows` counts the rows whose root cause the check
+    is; a row failing two chains at the same depth counts against both.
     """
 
     counts: dict[str, dict[str, int]] = {}
     layers: dict[str, int] = {}
+    causes: dict[str, int] = {}
     for row_outcomes in frame_outcomes:
         for outcome in row_outcomes:
             entry = counts.setdefault(
@@ -332,13 +214,17 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
             )
             entry[outcome.outcome] += 1
             layers[outcome.code] = outcome.layer
+        for cause in root_causes(row_outcomes):
+            causes[cause] = causes.get(cause, 0) + 1
 
-    columns = ["code", "layer", "failed", "errored", "skipped", "disabled", "passed"]
+    columns = ["code", "layer", "failed", "root_cause_rows", "errored", "skipped",
+               "disabled", "passed"]
     rows = [
         {
             "code": code,
             "layer": layers[code],
             "failed": entry[FAILED],
+            "root_cause_rows": causes.get(code, 0),
             "errored": entry[ERRORED],
             "skipped": entry[SKIPPED],
             "disabled": entry[DISABLED],
@@ -346,66 +232,10 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
         }
         for code, entry in counts.items()
     ]
-    if not rows:
-        return pd.DataFrame(rows, columns=columns)
-    return (
-        pd.DataFrame(rows, columns=columns)
-        .sort_values(["failed", "errored", "skipped", "code"],
-                     ascending=[False, False, False, True])
-        .reset_index(drop=True)
-    )
-
-
-def _by_rows_then_code(entry: tuple[str, int]) -> tuple[int, str]:
-    """Sort key: most rows first, then code, so the tally reads worst-first and
-    two runs over the same data order it the same way."""
-
-    code, rows = entry
-    return (-rows, code)
-
-
-def root_cause_counts(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataFrame:
-    """How many rows bottomed out at each code, worst first.
-
-    A row failing two chains at the same depth counts against each: the question
-    is "how many rows would this code explain", and both explain that row.
-    """
-
-    causes: dict[str, int] = {}
-    for row_outcomes in frame_outcomes:
-        for cause in root_causes(row_outcomes):
-            causes[cause] = causes.get(cause, 0) + 1
-    ranked = sorted(causes.items(), key=_by_rows_then_code)
-    return pd.DataFrame(
-        [{"root_cause": code, "rows": count} for code, count in ranked],
-        columns=["root_cause", "rows"],
-    )
-
-
-def print_summary(frame_outcomes: Iterable[list[CheckOutcome]],
-                  title: bool = True) -> pd.DataFrame:
-    """Print the per-check summary, worst first, and the root-cause tally.
-
-    The outcomes are walked twice -- once for the summary, once for the root
-    causes -- so they are materialized first: handed a generator, the second walk
-    would find it spent and print "every row passed" under a table of failures.
-    """
-
-    frame_outcomes = list(frame_outcomes)
-    table = summarize_outcomes(frame_outcomes)
-    if title:
-        _print_title("Summary", f"{len(frame_outcomes)} row(s)",
-                     f"{len(table)} check(s)" if not table.empty else "")
-    if table.empty:
-        print("No checks ran.")
-        return table
-    print(format_table(table))
-
-    causes = root_cause_counts(frame_outcomes)
-    print()
-    if causes.empty:
-        print("Root causes: none - every row passed.")
-        return table
-    print("Root cause of each failing row:")
-    print(format_table(causes))
+    table = pd.DataFrame(rows, columns=columns)
+    if rows:
+        table = (table.sort_values(["failed", "errored", "skipped", "code"],
+                                   ascending=[False, False, False, True])
+                 .reset_index(drop=True))
+    table.attrs["title"] = "Summary"
     return table

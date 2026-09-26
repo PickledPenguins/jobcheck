@@ -1,22 +1,11 @@
-"""Plain-text table rendering, shared by the registry and the report.
+"""Plain-text and CSV rendering, shared by every table the package builds.
 
 `DataFrame.to_string()` is cramped and unbordered for auditing, and a table
 library would be a runtime dependency for formatting alone.
 
-A leading underscore here marks a name outside the package's *public surface*,
-not one that stays in this file. `_format_cell` and `_reject_unknown_columns` are
-imported by `report.py`, `rules.py` and `registry_tables.py`, and are meant to
-be: they are how three tables render a cell and reject an unknown column name
-the same way. `_print_title` is imported by both table modules for the same reason.
-`_cell_lines`, `_padded_line` and `_LINE_BREAKS` are internal to the file as well,
-and nothing outside it should reach for them. The two names
-without an underscore, `is_null` and `format_table`, are exported from
-`__init__.py` and are the only part of this module a user calls.
-
-The underscore stays on the shared two rather than coming off. Dropping it would
-put them in `__all__` -- `tests/test_api_contract.py` fails on a public callable
-that is not exported -- and `_reject_unknown_columns`, which exists to reject a bad
-`add_columns=` argument, has no use for a caller outside those three tables.
+`render` and `is_null` are the public part. The underscored helpers are shared
+with `report.py`, `rules.py` and `registry_tables.py` -- how every table renders a
+cell and rejects a bad column name the same way -- and are not for callers.
 """
 
 from __future__ import annotations
@@ -133,7 +122,7 @@ def _padded_line(texts: list[str], widths: list[int]) -> str:
     return " | ".join(text.ljust(width) for text, width in zip(texts, widths))
 
 
-def format_table(table: pd.DataFrame, wrap_columns: dict[str, int] | None = None) -> str:
+def _format_table(table: pd.DataFrame, wrap_columns: dict[str, int] | None = None) -> str:
     """Render a DataFrame as a bordered plain-text table using only the stdlib.
 
     ``|``-separated columns, a ``-+-`` divider, left-aligned, widths sized to the
@@ -145,18 +134,7 @@ def format_table(table: pd.DataFrame, wrap_columns: dict[str, int] | None = None
     cell in it has been wrapped.
     """
 
-    # Argued before the empty frame is answered, so a bad width is refused whether
-    # or not there is anything to wrap. textwrap refuses a width below 1 with a
-    # message naming neither the column nor this function, and there is no spelling
-    # of "do not wrap": leave the column out of wrap_columns instead.
-    # render_report guards its own width the same way.
     wrap = wrap_columns or {}
-    unusable = sorted(name for name, width in wrap.items() if width <= 0)
-    if unusable:
-        raise ValueError(
-            f"wrap_columns width for {unusable} must be greater than 0. Leave a column "
-            "out of wrap_columns rather than asking for a width of zero.")
-
     if table.empty:
         return "(empty)"
 
@@ -195,16 +173,55 @@ def format_table(table: pd.DataFrame, wrap_columns: dict[str, int] | None = None
     return "\n".join(out)
 
 
-def _print_title(subject: str, *facts: str) -> None:
-    """Print a table's own heading: ``== Registry: 11 checks ==``.
+# A spreadsheet treats a cell starting with one of these as a formula, so a value
+# taken from the data and written into a CSV can execute when someone opens it.
+# Escaping happens on the way out, so the tables keep the value the check saw.
+_FORMULA_PREFIXES = ("=", "+", "@", "\t", "\r")
 
-    Every `print_*` function writes one, so a caller printing three tables in a
-    row does not have to label them itself -- which is what every entry point
-    using this library ended up doing, in its own wording each time. The facts
-    are the arguments the function was given, because "which table is this" and
-    "what was it asked for" are the same question once two of them are on screen:
-    a row explanation is `include=blocked` or it is not the table you meant.
+#: How wide each long free-text column wraps, by name, whichever table holds it.
+_WRAP_WIDTHS = {"message": 40, "detail": 48, "comments": 48, "match": 44, "codes": 40,
+                "could_be_overridden_by": 34, "effective_state": 34}
+
+
+def _looks_numeric(text: str) -> bool:
+    """Whether a string is just a number, so a leading ``-`` is a minus sign."""
+
+    try:
+        float(text)
+    except ValueError:
+        return False
+    return True
+
+
+def _escape_for_spreadsheet(value: Any) -> Any:
+    """Prefix a cell a spreadsheet would run as a formula with an apostrophe, so
+    a value such as `=cmd|'/c calc'!A1` displays as text instead of executing. A
+    negative number keeps its minus sign."""
+
+    if not isinstance(value, str) or not value:
+        return value
+    if value[0] in _FORMULA_PREFIXES or (value[0] == "-" and not _looks_numeric(value)):
+        return "'" + value
+    return value
+
+
+def render(table: pd.DataFrame, fmt: str = "table") -> str:
+    """Any table as text: bordered for a terminal (`"table"`) or CSV (`"csv"`).
+
+    Every table this package builds carries its title in `table.attrs["title"]`,
+    and the bordered form opens with it as `== Title ==`, so tables printed one
+    after another stay apart. A frame of your own gets one by setting that key.
+    CSV gets no heading -- a line above it would break the file -- and any cell
+    or column name a spreadsheet would run as a formula is escaped.
     """
 
-    detail = ", ".join(fact for fact in facts if fact)
-    print(f"== {subject}: {detail} ==" if detail else f"== {subject} ==")
+    if fmt == "table":
+        body = _format_table(table, wrap_columns=_WRAP_WIDTHS)
+        title = table.attrs.get("title")
+        return f"== {title} ==\n{body}" if title else body
+    if fmt == "csv":
+        # Headings too: an add_columns name comes from the data's own columns.
+        escaped = table.map(_escape_for_spreadsheet)
+        escaped.columns = [_escape_for_spreadsheet(str(name)) for name in escaped.columns]
+        return escaped.to_csv(index=False)
+    raise ValueError(f"fmt must be 'table' or 'csv', got {fmt!r}.")

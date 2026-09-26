@@ -1,6 +1,6 @@
 Loaded 6 rule(s) from 4 file(s)
 
-== Row explanation: row 1999, 11 of 11 check(s), include=all ==
+== Row explanation ==
 layer | code                 | outcome  | status   | detail                                            
 ------+----------------------+----------+----------+---------------------------------------------------
 0     | ROW_ALL_NULL         | passed   | PASS (0) | -                                                 
@@ -15,4 +15,4 @@ layer | code                 | outcome  | status   | detail
 0     | EMAIL_PRESENT        | passed   | PASS (0) | -                                                 
 1     | EMAIL_MISSING_AT     | passed   | PASS (0) | -                                                 
 2     | EMAIL_DOMAIN_INVALID | passed   | PASS (0) | -                                                 
-root cause: none - the row passed
+root cause: none
