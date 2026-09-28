@@ -114,6 +114,19 @@ would leave the cached evaluation order contradicting the graph (noted 2026-09-2
 bundle that catches its own member's exception and loads it again in the same process
 would hit "Duplicate check code" (noted 2026-09-22).
 
+**`explain_row` versus `row_explanation`: two confusing names, and two meanings of
+`detail`** (F.63, raised by the owner on 2026-09-28, to come back to). `explain_row`
+returns the outcomes for one row; `row_explanation` turns outcomes into a table. The
+names are close enough that it is hard to remember which does which. The `detail`
+column also means two things. In the report it is only why a check gave no verdict,
+with `message` and `comments` in their own columns. In the row explanation it is the
+first non-empty of detail, rendered comments, message, then `-`
+(`src/jobcheck/report.py:205`). There is a related trap: calling `explain_row(row)`
+without the `context` and `rules` that `validate` was given re-runs the checks with an
+empty `RowContext`, so a check that reads context raises. The explanation then shows
+`errored` where the report shows a verdict. Explaining from `validate`'s own result,
+`row_explanation(outcomes[i])`, avoids it. Not yet surveyed.
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
