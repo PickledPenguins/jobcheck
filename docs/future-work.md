@@ -12,11 +12,127 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-No review finding is open. Every item raised by the reviews of 2026-09-15, 2026-09-21,
-2026-09-23, 2026-09-24 and 2026-09-25 has been worked through: what was built is in the
-git log, and what was decided against is in the section below, with the reason. An
-entry there is closed, not pending. Work in progress and known defects not yet worked
-on are the handoff record's, not this file's.
+Every item raised by the reviews of 2026-09-15, 2026-09-21, 2026-09-23, 2026-09-24 and
+2026-09-25 has been worked through: what was built is in the git log, and what was
+decided against is in the section below, with the reason. An entry there is closed, not
+pending.
+
+The three reviews of 2026-09-27 are worked through in part. Every silent finding —
+anything that goes wrong with no sign a user could see — was built the same day:
+duplicate YAML keys and unknown `match` keys refused, the shared empty context made to
+refuse attributes, `warn_blocking_rules`, `rules` read once as a list, incomplete outcome
+lists refused by the summary, a `functools.partial` no longer evicting `functools`,
+`load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
+refusing a name that matches nothing, five untested contracts and four unpinned messages
+closed, and the false docstrings, comments and catalog descriptions corrected. What was
+left is open below, from F.46. Each is either loud already, or needs the owner's decision.
+
+**A context builder that raises aborts `validate` for every row** (F.46, high, from the
+2026-09-27 diff review). `validate` calls the builder outside the `try` that turns a
+check's exception into `errored` (`engine.py`, the line calling the builder), so
+`on_error="record"` does not cover it. The catalog case
+`job-manifest-with-per-row-paths` builds a path from `row["run_dir"]`; a blank cell there
+raises `TypeError` and the whole call returns nothing, naming no row. Loud, so not built
+with the silent fixes. The owner's choice: record that row's checks as `errored` with
+detail `context_builder raised: ...` (re-raising under `"raise"`), or document that a
+builder must not raise. Either way the job-manifest case wants a blank-path row, a
+builder mapping a blank cell to `None`, and a presence check on `run_dir` ahead of the
+check that the directory exists.
+
+**`is_root_cause` claims causality, and `root_cause_rows` counts errored rows** (F.47,
+from the 2026-09-27 reviews). The docs no longer call deeper failures "downstream" — they
+never are, since a check runs only once its prerequisites passed — and now say that an
+errored check counts as a root cause, so `root_cause_rows` can exceed `failed` and a
+broken shallow check takes the flag from real failures. Two decisions remain: whether the
+flag and the column keep names that claim a cause, and whether root causes should be
+counted from `failed` alone, leaving `errored` to its own column.
+
+**A check whose second parameter has a default is handed the context in it** (F.48, low).
+`def age_below(row, limit=130)` counts as `(row, context)`, so `limit` receives the
+`RowContext` and every row errors with a `TypeError`. Loud, but once per row instead of
+once at registration. Options: refuse a defaulted second positional parameter (other than
+`= None`) at registration, suggesting `functools.partial`; or document the rule in
+`writing-checks.md`. `engine._context_caller` applies the same rule to builders.
+
+**YAML's booleans in rule files** (F.49, low). PyYAML reads unquoted `on`, `off`, `yes`
+and `no`, in any case, as booleans: `name: off` fails as "every rule needs a non-empty
+string 'name'", giving no position and no hint; `codes: [ON]` fails without showing the
+`True`; `pattern: NO` (Norway) shows the `False` but not why. Loud, and confusing to the
+non-developers who write these files. The fix: name the entry's position and the value
+read, and where a bool arrived in place of a string, add "quote it: YAML reads unquoted
+yes/no/on/off as true/false". The strict reader in `paths._read_yaml` is where it would
+live.
+
+**Wide characters misalign the bordered table** (F.50, low). Columns are padded by
+`len()`, so `名前名前` (length 4, eight columns on screen) pushes every column after it.
+Visible. Padding by display width (`unicodedata.east_asian_width`) is a few lines, but
+changes every width calculation in `_format_table`.
+
+**The CSV printed to a terminal keeps control characters** (F.51, low). The bordered form
+now shows them as escapes; `render(fmt="csv")` keeps the data as it is, since a CSV file
+is data for another program. `examples/main.py --report csv` prints that CSV to stdout,
+so on a terminal an escape sequence in a cell still acts. A design question rather than a
+defect: an entry point could escape when stdout is a tty, or the library could offer it.
+
+**Equal-length failures-only lists still pass the summary's check** (F.52, low).
+`summarize_outcomes` and `build_report(include=...)` refuse lists that differ in length,
+which is what `validate_row`'s failures-only lists do on any ordinary frame. They cannot
+catch a single row, or a frame where every row fails the same number of checks. A
+complete check would need `validate_row` to mark its lists, or a comparison against the
+registry, which hand-built outcome lists (the tests have many) do not match.
+
+**`clear_registry` still evicts a third-party callable object's module** (F.53, low). The
+standard library and a partial's `functools` are now exempt, but a callable object of a
+class from an installed package (`register_check(...)(SomeValidator(5))`) records that
+package's module, and evicting it leaves earlier importers holding a second copy. The
+module to evict is really the one whose execution called `register_check`, which the
+decorator cannot see for an object; a plain function is the only shape where the two
+agree. Options: skip modules under `site-packages`, or record nothing for a callable
+object and document that such a check must be registered in a file `load_checks` loads.
+
+**`scripts/regen_docs.py` duplicates skills `bin/doc-examples`** (F.54, from the
+2026-09-27 commit review). doc-examples was committed 29 seconds after it, to replace
+it, and gives the same verdict on `docs/` in 3 seconds. Keeping both leaves two fence
+parsers that must agree (`tests/doc_files.py` matches a fence anywhere and allows no
+info string; doc-examples anchors at line start and allows one) and breaks the rule that
+a tool lives in skills. Either delete the script and its test and point
+`test_docs_blocks_unit.py`, `doc_files.py`, `contributing.md`, `testing.md`,
+`architecture.md` and `.claude/CLAUDE.md` at doc-examples, or record here why the
+published repository keeps its own copy.
+
+**Case-local `.py` basenames must be unique across `tests/`** (F.55, low). The catalog's
+case directories are not packages, so mypy checks each case-local file as a top-level
+module named after its basename; a second `check_job_paths.py` in another case fails the
+fast suite with `Duplicate module named ...`. Loud. Either say so in
+`tests/examples/README.md` or `exclude` the case directories from mypy.
+
+**The scaling test is flaky under load** (F.56).
+`test_building_a_report_scales_with_the_failures_not_the_rows` failed 2 of 7 runs under
+load on 2026-09-25 and has passed since. Not investigated.
+
+**`paths.resolve_input_file` has no underscore** (F.57, low). `paths` is exempted in
+the internal-modules list of `tests/test_api_contract.py` rather than having its public-looking
+name made private. Not checked since 2026-09-26.
+
+**A `creadme` audit of `docs/`** (F.58). `f068452` rewrote about 1,100 lines, and the doc
+tests check names, blocks and counts, not prose claims — which is how the "downstream"
+root-cause line got in.
+
+**A property test for the rule parser over generated YAML text** (F.59).
+`tests/test_fuzz.py` generates structures and dumps them with `yaml.safe_dump`, which
+never writes a repeated key, an unquoted boolean or an unknown criterion key: text is the
+only input that holds them.
+
+**The declared floors, Python 3.10 and pandas 2.1, have never been run** (F.60). No such
+interpreter exists here, and installing one needs the owner's permission. One difference
+is already known: formatting an `Outcome` member (see its docstring).
+
+**The native `/code-review` pass** (F.61) was not run in any of the 2026-09-27 reviews.
+
+**Two tentative traps, reasoned but never reproduced** (F.62). `registry._CHECKS.sort()`
+would leave the cached evaluation order contradicting the graph (noted 2026-09-24). A
+bundle that catches its own member's exception and loads it again in the same process
+would hit "Duplicate check code" (noted 2026-09-22).
 
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
@@ -508,7 +624,9 @@ recorded as "a `@dataclass` under `fresh_registry` fails": after eviction
 `sys.modules[name]` is `None`, and a dataclass whose annotations must be resolved
 (`ClassVar`, `InitVar`, `get_type_hints`) raises `AttributeError: 'NoneType' object has
 no attribute '__dict__'` from `dataclasses`. A dataclass with none of those is fine,
-which is why it looked intermittent.
+which is why it looked intermittent. Narrowed 2026-09-27: a `functools.partial` reported
+`functools` as its module and evicted it; the wrapped function's module is now recorded,
+and no standard-library module is ever evicted (F.53 is what is left).
 
 **Refusing patterns that backtrack catastrophically (was F.9).** Rejected 2026-09-22;
 [configuration.md](configuration.md) states the cost and the non-goal instead, with the
@@ -543,6 +661,9 @@ as well as the unwrapped one, so the two agree on what a line is; a wrapped colu
 to collapse a newline to a space. Deliberately not `str.splitlines()`: it also splits on
 `\x0b`, `\x1c` and ` `, which draw as nothing, and a cell going tall for an
 invisible character is its own bug. CSV output was never affected — pandas quotes.
+Extended 2026-09-27: "draws as nothing" was not true of ESC, which starts sequences a
+terminal acts on. Every C0 and C1 control but the handled breaks and tab, DEL, and the
+bidirectional overrides are now shown as their escapes (`\x1b`).
 
 **Checks seeing two context types, one per entry point (was F.6).** Fixed 2026-09-22.
 `validate` handed every row an empty `RowContext`; `explain_row` and `validate_row`
@@ -554,7 +675,10 @@ algorithm — so it covers `validate_row`, a `context_builder` that returns `Non
 boundary types stay `RowContext | None`: a caller may still pass `None`, it is what a
 check receives that is guaranteed. A check written `if context is None:` to skip
 cross-row logic on the per-row path loses that signal; nothing shipped did it, and under
-`validate` it never worked anyway.
+`validate` it never worked anyway. Amended 2026-09-27: the one shared object was mutable,
+so a check caching a value on it handed the first row's value to every later row and
+call. `RowContext` now has an empty `__slots__`, so the base instance refuses a new
+attribute (recorded as `errored`) while subclasses keep their `__dict__`.
 
 **A rule pattern matching a whole number pandas holds as float (was F.5).** Fixed
 2026-09-21. `cell_text` now renders a cell through the same `_format_cell` the report
