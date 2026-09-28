@@ -303,6 +303,45 @@ args = Namespace(data="customers.csv", strict=True)   # your parsed command line
 outcomes = validate(df, context_builder=build_context, context_args=args)
 ```
 
+**A builder must not raise on the data.** It is called outside the protection a check
+gets: `on_error="record"` turns a check's exception into an `errored` outcome, but an
+exception from the builder propagates out of `validate`, and every row's outcomes are
+lost with it. A builder reads the same untrusted cells the checks do, so write it to
+survive them: map a blank or unparseable cell to `None` in the context, and put a
+presence check ahead of the checks that read it, so the blank is reported as one
+failure rather than ending the run.
+
+```python
+from dataclasses import dataclass
+from pathlib import Path
+
+from jobcheck import OK, RowContext, Status, Verdict, is_null, register_check
+
+
+@dataclass
+class JobContext(RowContext):
+    run_dir: Path | None = None       # None where the cell is blank
+
+
+def build_context(row, args):
+    blank = is_null(row["run_dir"])
+    return JobContext(run_dir=None if blank else args.base / row["run_dir"])
+
+
+@register_check("RUN_DIR_PRESENT", "Run directory is blank")
+def run_dir_present(row):
+    return Verdict(Status.MISSING) if is_null(row["run_dir"]) else OK
+
+
+@register_check("RUN_DIR_EXISTS", "Run directory does not exist",
+                depends_on=["RUN_DIR_PRESENT"])
+def run_dir_exists(row, context):
+    return OK if context.run_dir.is_dir() else Verdict(Status.MISSING)
+```
+
+The catalog case `tests/examples/complex/job-manifest-with-per-row-paths/` is this
+pattern at full size.
+
 `context_args` is passed through untouched, once per row, so a named function is
 the common case and a lambda is the corner case. A builder taking `(row)` alone
 still works and is never handed the arguments. A builder is held to the same shape rule
