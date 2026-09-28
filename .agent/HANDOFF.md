@@ -1,200 +1,310 @@
 # Handoff
 
-Written 2026-09-21. Branch `simplify`, commit `3500999`, 42 commits ahead of `main`, tree
-clean. Start at `README.md` and the documents its index links; `.claude/CLAUDE.md` holds the
-project's history, which is stranger than most. This session was a gate-and-ledger session:
-one `creview` (of the uncommitted handoff), one `ctesting` audit with every gate run and
-mutation re-measured, one `creadme` audit, one `caddressreview` that worked all six reports
-to an outcome. One commit, no new features.
+Written 2026-09-27. Branch `simplify`, commit `dd2b631`, 110 commits ahead of `main`.
+**The tree is not clean**, and most of what is uncommitted is not this session's work
+(see "Uncommitted"). Start at `README.md` and the documents its index links;
+`.claude/CLAUDE.md` holds the project's history. Then read the three review reports this
+session saved under `.agent/reviews/` (gitignored), oldest first:
+
+- `2026-09-27T14-13-04.claude-opus-5-5.md` — the uncommitted catalog work (diff scope).
+- `2026-09-27T14-40-45.claude-opus-5-5.md` — `93941cf..dd2b631`, the commits since the
+  2026-09-25 `src/` review, plus the mutation survivors in `engine`, `registry`, `rules`.
+- `2026-09-27T15-11-05.claude-opus-5-5.md` — all of `src/`, function by function, with
+  hand probes.
+
+This session made no code changes and no commits. It reviewed three times, and was
+asked to implement "all silent issues" and to put the rest in `docs/future-work.md`. It
+stopped before editing anything (see "In flight").
 
 ## State
 
-Measured 2026-09-21 against `b648bcf` (and the fast and long suites again against the
-working tree that became `3500999`) with the conda `pytesting` environment
-(`~/.conda/envs/pytesting/bin/python`, Python 3.12.14, pandas 3.0.5, pytest 9.1.1,
-mypy 2.3.1, hypothesis 6.167.1, mutmut 3.5.0), one gate at a time.
+Observed this session, with `~/.conda/envs/pytesting/bin/python` (Python 3.12.14, pandas
+3.0.5, PyYAML 6.0.3, mutmut 3.5.0). All against `dd2b631` plus the uncommitted tree
+described below.
 
 | Gate | Result | Observed |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 612 passed, 17.8s, mypy clean (57 files) | 2026-09-21, tree of `3500999` (610 at `b648bcf`) |
-| `./tests/run-tests.sh cov` | 100% lines and branches: 880 statements, 296 branches, 0 missed; floor 95 | 2026-09-21 at `b648bcf` |
-| `./tests/run-tests.sh long` | 235 passed, 299s, 56 pandas `RuntimeWarning`s from `test_fuzz.py` (benign); profile printed | 2026-09-21, tree of `3500999` (294s at `b648bcf`) |
-| `./tests/run-tests.sh perf` | 6 passed, 91s, against `.build/perf-baseline.json` | 2026-09-21 at `b648bcf` |
-| `./tests/run-tests.sh memory` | 3 passed, 80s | 2026-09-21 at `b648bcf` |
-| Mutation | 1,304 mutants, 1,175 killed, 129 survived, 0 timeouts — 90.1%, 208s at 6.0/s | 2026-09-21 at `b648bcf`; the new assertions in `3500999` kill at least four more (each checked with `breaks-it`), not re-run |
-| pyflakes | clean on the three test files touched | 2026-09-21 at `3500999` |
+| `./tests/run-tests.sh fast` | 815 passed, mypy clean (87 files), ~22s | 2026-09-27 |
+| `./tests/run-tests.sh long` | 272 passed, 94.7s, then the profile | 2026-09-27, load ~0.6 |
+| `./tests/run-tests.sh mutation` | 1,369 mutants, 1,310 killed, 59 survived, 95.7% vs 94% floor, PASS | 2026-09-27 (`src/` unchanged since `61bb827`, so identical to the previous handoff's run) |
+| `doc-counts --list` (skills `bin/`) | 9 numbers, 0 drifted | 2026-09-27 |
+| `doc-examples` check on `docs/*.md` with `--setup tests/doc_files.py:documented_world` | 6 blocks, 0 different, 3s | 2026-09-27 |
+| jobchain `tests/test_checks_unit.py` + `tests/examples` against this `src` | 136 passed, 52s | 2026-09-27, jobchain `0d0975a` |
+| pyflakes on the 6 new case-local `.py` files | clean | 2026-09-27 |
+
+Not run this session: `cov`, `perf`, `memory`, `profile` alone. Their last figures are in
+the previous handoff (2026-09-26): cov 100% lines and branches, perf 6 passed at
+`d7dc3c7`, memory 3 passed at `c4d6b0b`. They were not re-run, because `src/` has not
+changed since `61bb827`.
+
+Survivors by module (2026-09-27): `engine` 22, `registry` 13, `tables` 8, `report` 8,
+`rules` 6, `registry_tables` 2. This session read the engine, registry and rules
+survivors (findings in report 2). The rest were read on 2026-09-26.
 
 ```sh
 PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh fast    # the commit gate
-PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh long    # + the profile, ~5 min
+PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh long
 PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh cov
 PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh perf
 PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh memory
-rm -rf mutants .mutmut-cache && ~/.conda/envs/pytesting/bin/python -c \
-    "import pandas, sys; sys.argv=['mutmut','run']; from mutmut.__main__ import cli; cli()"
+PYTHON=~/.conda/envs/pytesting/bin/python ./tests/run-tests.sh mutation   # ~4 min
+~/work/ai/skills/bin/mutmut-survivors --python ~/.conda/envs/pytesting/bin/python \
+    --preload pandas [--diffs] [-m jobcheck.engine]
+~/work/ai/skills/bin/doc-counts --python ~/.conda/envs/pytesting/bin/python [--write]
+~/work/ai/skills/bin/doc-examples --python ~/.conda/envs/pytesting/bin/python \
+    --setup tests/doc_files.py:documented_world --path src --path examples --path tests docs/*.md
+cd ~/work/ai/jobchain && JOBCHECK=~/work/ai/jobcheck/src \
+    ~/.conda/envs/pytesting/bin/python -m pytest tests/test_checks_unit.py tests/examples -q
 ```
 
-Run anything past the fast suite through `~/work/ai/skills/bin/bgrun` and wait on the
-process: `id=$(bgrun start -l long -- env PYTHON=... ./tests/run-tests.sh long); bgrun wait "$id" -t 900`.
-Its log is at `/tmp/bgrun-1000/<id>/log`. Never two timing suites at once: this session ran
-long, then mutation, then perf, then memory, in sequence.
+## What changed since the previous handoff
 
-## What this session changed
+Commits, made by an earlier session after the previous handoff was written; neither
+handoff recorded them:
 
-- **`3500999` Pin four messages word for word, and the checks that survive a failed
-  load.** Suite: `test_error_messages_unit.py` gains the bare-string-path message of both
-  loaders and `validate`'s non-DataFrame error in full; `test_overrides_unit.py` asserts two
-  unknown keys as a sorted comma list and every match-block rejection opening with
-  `rule 'r' in <path>: `; `test_faults.py`'s partial-load test calls `explain_row` afterward
-  so a stale order cache on the failure path would show as zero checks run. Each new
-  assertion was checked with `breaks-it` against the mutant it was written for. Docs:
-  `testing.md` carries the 2026-09-21 mutation figures, per-module survivors, the
-  classification of the 47 non-print survivors, the measured gate timings and the suite
-  sizes 612/847; `future-work.md` gains F.4 through F.16. The 2026-09-15 handoff, which had
-  never been committed, went in with three wording fixes.
+- **`f068452`** Docs match the code again, and the doc tests now hold them to it. It
+  rewrote about 1,100 lines of `docs/` and added `docs/concepts.md`, whose root-cause
+  line contradicts `reporting.md` (report 1).
+- **`dd2b631`** Adds `scripts/regen_docs.py`. Skills `bin/doc-examples` was committed 29
+  seconds later to replace it (report 2).
+
+### Uncommitted — another session's work, not this one's
+
+Left by a session that wrote complex catalog cases on 2026-09-26. All tests pass with it
+in place.
+
+- `tests/examples/complex/{order-lines-two-root-causes-at-once,
+  a-broken-check-among-real-failures, excusing-a-blank-field-silences-its-checks,
+  job-manifest-with-per-row-paths}/` — four catalog cases (untracked). They carry their
+  own checks, data and rules, and the last one has its own script with a context
+  builder.
+- `README.md`, `docs/testing.md` — counts for those cases: 76 cases in all, long 272,
+  all 1087, catalog 50 = 19 simple / 17 moderate / 14 complex.
+- `tests/examples/README.md` — a paragraph on the four cases. It misdescribes three of
+  them (report 1).
+- `pyproject.toml` — a `[tool.doc-counts]` block for skills `bin/doc-counts`, which is
+  still **untracked in the skills repo**.
+- `.agent/example-pain-points.md` — a friction log from writing those cases, untracked
+  and not ignored, so a `git clean` deletes it. Its 25 entries were checked in report 1:
+  the real ones became findings, and the rest were judged deliberate or documented.
+- `.agent/HANDOFF.md` — this file.
+
+This session also left `mutants/` from its mutation run in the project root. It is
+gitignored, and goes stale with the next `src/` change.
 
 ## In flight — where the session stopped
 
-Nothing mid-edit. `.agent/reviews/` is empty: every finding in all six reports has an
-outcome (fixed at `b648bcf`, fixed at `3500999`, rejected, or recorded in `future-work.md`
-by the owner's decision). The next concrete step is whichever of F.4–F.16 the owner picks;
-each entry says where to start.
+The owner's last instruction was: **"Implement all silent issues, add the rest to future
+work."** Nothing is edited yet. The session had sorted every finding across the three
+reports and was reading `docs/future-work.md`'s layout. That layout is: bold-titled
+paragraphs numbered F.nn, a "Known gaps" section, then "Considered and deliberately not
+done". The last number used is F.45, so new entries start at F.46.
+
+**Silent, to implement.** "Silent" means something goes wrong with no signal. The
+classification is this session's reading of the instruction and has not been confirmed
+with the owner.
+
+1. Duplicate YAML keys: PyYAML keeps the last one, silently. This affects rule files
+   (`rules.py:174`), setup files (`registry.py:451`) and the example run file
+   (`examples/run_from_config.py`). The plan: one duplicate-refusing `SafeLoader`, as
+   `_read_yaml` beside `resolve_input_file` in `paths.py`, used by both library loaders.
+   The example needs its own small copy, because examples use only the public API.
+2. Unknown keys in a `match` criterion are ignored (`rules.py:82-99`); a `negate: true`
+   loaded and inverted the rule's intent. Refuse any key but `column` and `pattern`.
+3. `_EMPTY_CONTEXT` (`engine.py:31`) is shared and mutable, so a check that caches a
+   value on it leaks that value across rows and calls. Plan: `__slots__ = ()` on
+   `RowContext` (`context.py:14`). First grep the tests and jobchain for code that sets
+   attributes on a bare `RowContext()`.
+4. A disable rule on a check with dependents silently switches off the whole chain.
+   Plan: a new public warning, probably `warn_blocking_rules(rules)` in
+   `registry_tables.py`, because it needs the dependency graph and `rules.py` must not
+   import the registry. It should report dependents the rule does not itself disable:
+   the shipped `error_rules.yaml` disables both `EMAIL_MISSING_AT` and its dependent, so
+   it should stay silent. `main.py --rules-table` and the run file print it beside the
+   shadow warnings. Add a sentence to `docs/configuration.md`. As a new export it needs
+   an entry in `PUBLIC_NAMES` (`tests/test_api_contract.py`), a section in
+   `interfaces.md`, and a catalog case that shows it. **It changes the uncommitted
+   excusing case's output and its README's point ("warns about nothing").**
+5. `rules` passed as a generator applies to the first row only. Add
+   `rules = list(rules or [])` in `validate`, `registry_table` and `warn_shadowed_rules`.
+6. `summarize_outcomes` (and `build_report` with `include` other than `"failures"`) given
+   `validate_row` lists reports wrong counts silently. Plan: refuse rows whose outcome
+   lists differ in length, which is cheap. Mind the perf gate, since
+   `summarize_outcomes/4000` has only about 30% headroom. Also fix the docs.
+7. Registering a `functools.partial` evicts `functools` from `sys.modules` on
+   `clear_registry` (`registry.py:195`). Record `fn.func.__module__` for a partial, and
+   skip names in `sys.stdlib_module_names`.
+8. Concurrent `load_checks` can let a broken load succeed while another caller fails,
+   and leaves `sys.dont_write_bytecode` stuck `True` (`registry.py:286-298`). Plan: a
+   module-level `threading.RLock` around the whole call.
+9. Escape sequences in data cells reach the terminal raw (`tables.py:82`). Plan: render
+   C0/C1 control characters, other than the handled breaks and tab, visibly in
+   `_cell_lines`, and leave the CSV data alone.
+10. `scripts/regen_docs.py` with a filter that matches nothing exits 0. It should exit 2
+    with a message.
+11. Test gaps that let silent regressions through:
+    - `validate_row` passing its context: assert `seen[0] is context` in
+      `tests/test_validate_row_unit.py:113`.
+    - A two-argument builder receiving the row: record `row["a"]` in
+      `tests/test_validate_unit.py:151`.
+    - `warn_shadowed_rules` with `continue` changed to `break`: add a test whose first
+      code has no `match: all` rule.
+
+**The rest, to add to `future-work.md` as F.46 onward:**
+- A raising context builder aborts `validate` (`engine.py:247`). This is the high
+  finding, and needs the owner's decision: record it as errored, or document that a
+  builder must not raise.
+- The "downstream" root-cause wording (`concepts.md:49`, `interfaces.md:273`,
+  `engine.py:178`), and `root_cause_rows` counting errored rows.
+- `regen_docs.py` duplicating `doc-examples`.
+- Four error messages the tests don't pin word for word.
+- Two stale comments in `registry.py` (lines 24-26 and 269-271).
+- A defaulted second check parameter being handed the context.
+- YAML boolean messages: `name: off` reads as `False`.
+- Five false docstrings.
+- Wide-character column alignment.
+- The mypy rule that case-local `.py` basenames must be unique across `tests/`.
+- `doc-counts` uncommitted in skills.
+- The misdescriptions in the uncommitted catalog cases: `tests/examples/README.md:15`,
+  and "two of them" in `check_order_total.py:3` and its README.
+
+**Open question for the owner — ask before committing.** The uncommitted catalog work
+belongs to another session. Items 4 and 11 change files it also touched:
+`docs/testing.md` counts, and the excusing case's output. There are two options:
+- Commit that work first as its own commit, then this work on top.
+- Stage only this session's changes, hunk by hunk, with `git apply --cached`.
+
+Interactive staging is not available here. The pre-commit hook tests the working tree,
+not the index.
 
 ## Not addressed — the real to-do list
 
-- **`docs/future-work.md` F.4–F.16** are the thirteen items the owner chose on 2026-09-21
-  to record rather than build: csv header on an empty report (F.4), the float-upcast id
-  match (F.5, reproduced: any float column makes `iterrows` render an int id as `101.0`;
-  an all-int frame is fine), `RowContext()` vs `None` (F.6, reproduced), newline in an
-  unwrapped cell (F.7), deep-chain width vs depth (F.8), the regex bound (F.9, two shapes
-  given), `clear_registry` eviction of plain-import modules (F.10, root of the dataclass
-  trap), the internal-test catalog case (F.11), exit codes in 33 READMEs (F.12),
-  large-export size (F.13), output dedupe in `new_catalog_case.py` (F.14), single-measure
-  ratios in `test_scaling.py` (F.15), 55 `test`-vocabulary names (F.16). Each has the fix
-  written beside it; F.5 and F.6 are the two a user can hit.
-- **Mutation survivors still worth a look: the 82 in `report` and `registry_tables`.**
-  Classified by function name this session (print wording, catalog-pinned), not read one
-  by one. Of the 17 real gaps among the 47 read, `3500999` closes four; the rest are F.10
-  and message wording.
-- **jobchain's suite still fails against this branch** — not checked this session;
-  recorded 2026-09-12 at `966c9ff`: `~/work/ai/jobchain` (branch `simplify-port`) reads
-  this `src` live and five of its override-rule fixtures lack `message:`. One line each;
-  grep for `action: disable` and `action: enable`.
-- **`test_docs_unit.py` is 473 lines carrying six concerns** — the next split candidate.
-  Unchanged this session.
-- **No gate on the mutation score.** `docs/testing.md`'s section is the only record and no
-  test covers it, so it drifts again after the next source change. A floor in the runner
-  would be a release gate (208s), not a commit one. Raised by the ctesting audit; not
-  decided.
+Carried from the previous handoff:
 
-Settled by standing preference, not open: work stays on `simplify` and is not merged;
-breaking the CLI or the Python API is acceptable, no shims; no CI; no changelog; the
-license is the owner's; **American English everywhere, identifiers included**; held
-review findings go to `future-work.md`, not into code, until the owner names one.
+- **The flaky scaling test**: `test_building_a_report_scales_with_the_failures_not_the_rows`
+  (`tests/test_scaling.py:120-147`). It failed 2 of 7 runs under load on 2026-09-25, and
+  passed once this session (2026-09-27, load ~0.6). Not investigated.
+- **`paths.resolve_input_file`** has no underscore, and `paths` is still exempted in
+  `INTERNAL_MODULES`. Not checked this session; recorded 2026-09-26.
+
+New this session:
+
+- **A `creadme` audit of `docs/`**: `f068452` rewrote about 1,100 lines, and the doc
+  tests don't check prose claims.
+- **A property test for the rule parser over generated YAML text**. `tests/test_fuzz.py:93`
+  dumps structures, so it can never produce a duplicate key, an unquoted boolean or an
+  unknown criterion key.
+- **Python 3.10 with pandas 2.1**, the declared floors, has never been run here: there is
+  no such interpreter. `Outcome` formatting already differs between 3.10 and 3.11+. Ask
+  before installing anything.
+- **The native `/code-review` pass** was not run in any of the three reviews.
+
+Settled by standing preference, not open:
+- Work stays on `simplify` and is not merged. The memory note's `claude` branch is 91
+  commits behind and an ancestor of `simplify`; the project's own rule wins.
+- Breaking the CLI or API is fine: no shims, and jobchain changes in the same step.
+- No CI, and no changelog. The license is the owner's.
+- American English everywhere.
+- Held findings go to `future-work.md`, and are surveyed in full before being built.
+- Every exported name needs an honest example.
+
+## Tentative, not verified — carried
+
+- **`registry._CHECKS.sort()`** leaves the cached order contradicting the graph.
+  Reasoned, not reproduced. Carried from 2026-09-24; not checked this session.
+- **A bundle that catches its own member's exception and carries on** was never tried.
+  After `2304057`, a retry in-process would hit "Duplicate check code". Carried from
+  2026-09-22; not checked.
+- **Inline rules in a setup file remain a defensible design** (rejected 2026-09-24).
+  Not revisited.
 
 ## Considered and deliberately not done
 
-- **A fifth whole-tree `creview` at `b648bcf`.** Not run: four reports at that commit were
-  still open with eleven held findings, so the review scoped itself to the one dirty file
-  (the handoff) and said so. Reopen after F.4–F.16 move the code.
-- **Silently fixing F.7 (newline cell) and F.5 (float id).** Both have one obvious fix
-  shape and a wrong output, which is the silent column — but the owner had held them on
-  2026-09-15 and on 2026-09-21 chose future-work for everything non-silent. Not a
-  rejection of the fixes; a rejection of building them unasked.
-- **Deleting the 2026-09-10/09-11 mutation history from `docs/testing.md`.** Reworded to
-  read as history and kept; `creadme` does not own records and removing them is the
-  owner's call.
-- Carried from 2026-09-15 and 2026-09-12, still closed: whole-call rollback in
-  `load_checks` (per-file landed instead; `test_the_good_files_of_a_failed_call_still_registered`
-  pins it); `pyflakes tests` in the fast gate; `docs/*.md` blocks as one cumulative
-  session; narrowing the registry table by breaking words or counting rules; docstring
-  rationale moved to `architecture.md`; an `explain_row` split; a shared path-guard
-  helper; a shared empty-table print. `future-work.md` "Considered and deliberately not
-  done" holds the evidence for each.
+Everything in `docs/future-work.md` under "Considered and deliberately not done" still
+stands, including B, C, J, the atomic per-call load, `render(title=)`, `add_columns`
+restoring hidden report columns, and plain outcome strings (all 2026-09-25/26).
+
+Checked this session and judged deliberate or documented, so not raised as findings:
+- The report's key column is headed `row` (`reporting.md:49`).
+- Exit 0 with failures or errors (`cli.md:267`).
+- An errored line carries the check's message (`reporting.md:54`).
+- A check returning a non-`Verdict` raises unconditionally, even under `"record"`
+  (`interfaces.md:252`, `architecture.md:231`).
+- `main.py` reads `NA`, `null`, `None` and the like as missing (`cli.md:48-51`).
+- `yaml.YAMLError` propagates unwrapped (`interfaces.md:201`).
+- The summary's tie order, and `disabled` outranking `skipped`.
 
 ## Decisions worth knowing before changing things
 
-- **A failed check file loads nothing; earlier files in the same call stay, and they
-  run.** Pinned by `test_a_file_that_raises_after_registering_leaves_none_of_its_checks_behind`
-  and `test_the_good_files_of_a_failed_call_still_registered` (which since `3500999` also
-  validates a row afterward).
-- **Library error messages are pinned word for word in `tests/test_error_messages_unit.py`.**
-  A new message goes there in full, not as a substring elsewhere — the three from
-  `b648bcf` were the substring kind and survived nine mutants until this session.
-- **`_get_topo_order` tests `is None`** (`registry.py:384`), so every path that
-  invalidates the cache must set `None`, not a falsy value. The failed-load path is now
-  the one that is pinned.
-- **The suite was right and the docs were wrong about bare returns** (2026-09-15). When a
-  document and a test disagree, check the test first.
-- **`documented_world` lays down the files the docs name** (2026-09-15). Add a new
-  illustrative path to `ILLUSTRATIVE_CHECK_FILES` when a doc uses one.
-- **Catalog stable root is `prv-catalog-root-<uid>-<8-hex sha1 of the clone path>`**
-  (2026-09-15); `test_cases_run_through_a_root_of_a_fixed_length` asserts 17+8+1+8.
-- **The rule fuzzer's `VALID`/`INVALID` tables are the schema, restated** (2026-09-15). A
-  new rule key must be added to both.
+Carried from 2026-09-25 and 26, still true at `dd2b631`:
+- Titles live in `attrs["title"]`.
+- `_DEFAULT_COLUMNS` is the one place to set which columns show.
+- `Outcome` is `(str, Enum)`, so text needs `.value`.
+- A failed `load_checks` is not rolled back.
+- `clear_registry` never evicts `__main__`.
+- Messages are pinned in `tests/test_error_messages_unit.py`, but not all of them word
+  for word (report 2).
+- `__all__` must equal `PUBLIC_NAMES`.
+- jobchain's `_ENGINE_NAMES` lists what jobchain needs.
 
-## Measurements, so they are not re-derived
+New:
 
-- **Mutation survivors at `b648bcf`, 129**: `report` 52, `registry_tables` 30, `engine` 20,
-  `registry` 15, `rules` 10, `tables` 2. Of the 47 outside the print modules, read as
-  diffs: 7 default-argument (unkillable through the trampoline), 9 unreachable, 14
-  equivalent, 17 real assertion gaps — four of which `3500999` closes (messages ×9
-  mutants, unknown-keys join, match-block rule name, failed-load cache); the rest are
-  F.10 and print wording.
-- **Float upcast** (F.5): on pandas 3.0.5, `pd.DataFrame({"id":[101,102],"age":[1,2]})`
-  keeps `id` as `101` through `iterrows`; adding one float or one blank to `age` makes it
-  `101.0` and `^102$` stops matching.
-- **Context types** (F.6): the same check sees `RowContext` from `validate` and `NoneType`
-  from `validate_row` and `explain_row`.
-- Gate runtimes 2026-09-21: fast 17.8s, cov 23s, long 294–299s, perf 91s, memory 80s,
-  mutation 208s.
-- Carried from 2026-09-15 at `b648bcf`: fuzzer seed 20260902, 300 files, 36 rules
-  accepted, 186 files rejected across nine messages; memory test clean engine 0.2 MB
-  (2,000 rows) / 0.6 MB (8,000), leaking engine 5.0 / 19.8 MB, bound `large - small < 2 MB`;
-  catalog 61 cases (42 examples: 17 simple, 15 moderate, 10 complex; 19 failures), 1.6 MB,
-  1.1 MB in the seven `large-export` cases.
-- Carried from 2026-09-12 at `966c9ff`: perf baseline on a 4,000-row frame, `validate`
-  6.250s, `validate_row` 6.174s, `build_report` 0.048s, `render_report` 0.048s,
-  `summarize_outcomes` 0.020s, `validate` with 50 rules over 1,000 rows 0.403s. The
-  baseline file still holds a stale `summarise_outcomes/4000` key beside the current one
-  (seen 2026-09-21); harmless, gitignored.
+- **`clear_registry` evicts whatever module a registered callable reports.** That is
+  documented as the price in `architecture.md:186-200`, but for a partial it is
+  `functools` (report 2).
+- **Without a builder, every row of every call shares one `RowContext`** (F.6, chosen
+  for type consistency). Report 3 shows why that is unsafe once checks cache values on
+  it.
+
+## Measurements
+
+- Mutation: 1,369 mutants, 95.7%, 250s wall clock; the same as 2026-09-26 (2026-09-27).
+- Long suite: 94.7s at load ~0.6 (2026-09-27).
+- `doc-examples` on `docs/`: 3s for 6 blocks, each in its own interpreter (2026-09-27).
+- jobchain check tests against this `src`: 52s (2026-09-27).
+- Size: `pyloc` on `src/jobcheck/*.py` gives 1,084 executable lines in 10 files
+  (2026-09-27).
 
 ## Environment and housekeeping
 
-- **Use `PYTHON=~/.conda/envs/pytesting/bin/python`** for anything but the fast suite. The
-  default `python3` is anaconda 3.14.6 without hypothesis or mutmut; the pre-commit hook
-  runs the fast suite under it (one test skips there — observed 2026-09-21 at the
-  `3500999` commit).
-- **Never install anything without asking.**
-- Generated and gitignored: everything under `.build/`, plus `.agent/reviews/` (empty
-  now) and `mutants/` (removed after this session's run).
-- A sibling clone `~/work/ai/jobcheck-main/` exists; the catalog symlink is per clone,
-  so both suites can run at once for the catalog (timing gates still cannot).
-- Tools used this session from `~/work/ai/skills/bin/`: `bgrun` for every long run,
-  `subst` for every doc and test edit, `breaks-it` to confirm each new assertion fails on
-  its mutant.
+- Use `PYTHON=~/.conda/envs/pytesting/bin/python` for everything except the pre-commit
+  hook, which runs the fast suite under anaconda `python3` 3.14. Never install anything
+  without asking.
+- Generated and gitignored: `.build/`, `.agent/reviews/`, `mutants/` (present now),
+  `.mutmut-cache`.
+- The sibling worktree `~/work/ai/jobcheck-main/` is on branch `main`.
+- Hand probes from this session are in the session scratchpad, outside the repo, and
+  will not survive it. What they showed is written into report 3.
 
 ## Things that will bite
 
-Every trap from the 2026-09-15 and 2026-09-12 handoffs still applies: a `@dataclass`
-defined inside a test function under `fresh_registry` fails because `clear_registry`
-evicts the test module (now F.10); `mutmut` needs pandas imported first; a targeted
-`mutmut run <name>` discards every other result; a stale `mutants/` lies; the exclusions
-in `pyproject.toml` are load-bearing; `long` refuses to run without hypothesis;
-regenerating is not fixing — read the diff; do not run two timing suites at once; long
-commands die at the foreground timeout — use `bgrun`;
-`scripts/new_catalog_case.py` runs the case immediately and refuses an existing
-directory; `test_the_documented_suite_sizes_are_the_real_ones` fails on any test count
-change (edit the fast and all rows in `docs/testing.md`); sniff-test findings against the
-file, not remembered output; `pytest -p no:cacheprovider` prints a harmless
-`Unknown config option: cache_dir` warning; 33 catalog READMEs state no exit code (F.12).
-Added this session:
+Every trap in the previous handoff still applies:
+- mutmut needs pandas preloaded, and a stale `mutants/` lies.
+- The long suite refuses to run without hypothesis.
+- Regenerating is not fixing: read the diff.
+- Never run two timing suites at once. Use `bgrun`.
+- Every python block in `docs/` runs.
+- Use `git add -A ':!.agent/HANDOFF.md'`.
+- A scripted rename reaches strings.
+- mypy rejects two files with the same name.
+- An API change needs jobchain changed in the same step.
+- The documented suite sizes move with nearly every commit.
+- The docs checkers read a backticked `ALL_CAPS` word as a check code.
+- The mutation mode ignores mutmut's exit status.
+- `setdefault` evaluates its default argument every call.
+- Run `regen_catalog.py` after any output change.
+- `perf` records a renamed key as a new baseline.
+- `subst` applies all edits or none.
 
-- **`test_no_document_names_a_public_function_that_is_gone` rejects any backticked
-  `name()` in `docs/` that is not a package, pandas or builtin name** — a test helper
-  such as `fastest()` fails it. Write `fastest` helper, without the parentheses.
-- **`mutmut results` output is 1,304 lines; `mutmut show <name>` is one process each.**
-  Filter `results` to `survived`, strip `__mutmut_N` and `uniq -c` to get survivors by
-  function before opening any; showing the 47 logic-module diffs took a few minutes.
-- **The pytest tally in `bgrun wait` output can be lost by `tail -N`** on the long suite:
-  the profile prints after pytest's summary line. Grep the log for `passed` instead.
+New:
+
+- **`git add -A` now sweeps in another session's work.** Stage by path.
+- **Case-local `.py` files are checked by mypy as top-level modules.** A second
+  `check_job_paths.py` anywhere under `tests/` fails the fast suite with
+  `Duplicate module named ...` (reproduced 2026-09-27).
+- **The catalog's `rglob("cmd")` makes any file named `cmd` under `tests/examples/` a
+  case.**
+- **PyYAML reads unquoted `on`, `off`, `yes` and `no` as booleans.** A probe rule named
+  `off` failed with "every rule needs a non-empty string 'name'".
+- **`regen_docs.py nosuchname` exits 0 having done nothing.** A typo'd filter looks
+  like success.
