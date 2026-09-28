@@ -154,6 +154,19 @@ additions: the file and line of the innermost frame in the check (from
 `exc.__traceback__`), or the full traceback kept on the outcome for `render` to show on
 request. Not yet surveyed.
 
+**A unique line counter in the output tables** (F.66, raised by the owner on 2026-09-28).
+The owner wants a counter that uniquely identifies each line of a table. It is global:
+it counts the lines of the whole table rather than restarting for each data row. It is
+added beside the existing `row` column, which it does not replace. `row` is the
+`key_column` value or the frame's index (`src/jobcheck/report.py:67`). In the long-format
+report it repeats on every failure of a data row, and a key column may itself repeat or
+be missing (`<no key>`), so no column today names one line uniquely. The survey must
+settle which tables carry the counter (the report only, or every table `render` prints),
+whether it starts at 0 or 1, whether it counts before or after `include` filtering (a
+failures-only report and an `include="all"` report would number the same failure
+differently), its column name and position, and how it interacts with `add_columns`
+name collisions and the CSV output. Not yet surveyed.
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
