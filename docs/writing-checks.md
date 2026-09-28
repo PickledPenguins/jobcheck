@@ -20,6 +20,13 @@ rejected when the module imports. It reads whatever columns it needs from the
 row itself, which is why there is no `column` argument: these rules are
 row-scoped, and many of them weigh several fields together.
 
+A second parameter is the context, so a setting cannot go there with a default:
+`def age_below(row, limit=130)` would be handed the context as `limit`, and is refused
+when it registers. Make the setting keyword-only — `def age_below(row, *, limit=130)` —
+or bind it with `functools.partial(age_below, limit=130)` for a family of checks. A
+context parameter may still default to `None`. A context builder is held to the same
+rule.
+
 Add one by putting a function in any `check_*.py` file the entry point loads.
 There is no central list to update.
 

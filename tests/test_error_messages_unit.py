@@ -112,6 +112,36 @@ def test_a_required_keyword_argument_says_how_to_fix_it(fresh_registry: None) ->
     )
 
 
+def test_a_defaulted_second_parameter_names_both_fixes(fresh_registry: None) -> None:
+    """`limit` would be handed the context and every row would error (F.48)."""
+
+    with pytest.raises(ValueError) as raised:
+        @reg.register_check(code="AGE_BELOW", message="m")
+        def age_below(row, limit=130):  # type: ignore[no-untyped-def]
+            return OK
+    assert message_of(raised) == (
+        "Check 'AGE_BELOW': age_below(row, limit=130) has a default on its second "
+        "parameter, 'limit', which would be handed the row's context. Bind the value "
+        "with functools.partial, or make it keyword-only by putting it after a *."
+    )
+
+
+def test_a_builder_with_a_defaulted_second_parameter_names_both_fixes(
+    fresh_registry: None,
+) -> None:
+    make_check("CODE")
+
+    def build(row, strict=False):  # type: ignore[no-untyped-def]
+        return None
+
+    with pytest.raises(ValueError) as raised:
+        validate(FRAME, context_builder=build)
+    assert message_of(raised) == (
+        "context_builder 'build' has a default on its second parameter, 'strict', "
+        "which would be handed context_args. Read the value from context_args, or "
+        "make it keyword-only by putting it after a *.")
+
+
 # --- loading ----------------------------------------------------------------
 
 

@@ -120,8 +120,11 @@ Raises at import for a duplicate code, an empty code or message, a non-list
 `depends_on` (a bare string would otherwise register one prerequisite per
 character), a non-bool `default_enabled`,
 or a signature the engine cannot call -- including a required keyword-only
-argument. The `depends_on` *codes* are checked later, when the dependency graph is
-validated, since a prerequisite may live in a module not yet imported.
+argument, and a second positional parameter with a default other than `None`, which
+would be handed the context (`def age_below(row, limit=130)`; write `*, limit=130` or
+use `functools.partial`). A context builder is refused the same way. The `depends_on`
+*codes* are checked later, when the dependency graph is validated, since a prerequisite
+may live in a module not yet imported.
 
 ### `load_checks(paths: list[str], base_dir: str | Path | None = None) -> None`
 

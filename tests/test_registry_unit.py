@@ -72,6 +72,28 @@ def test_a_partial_registers_and_is_named_by_its_own_kind(fresh_registry: None) 
     assert engine.validate_row(pd.Series({"age": 200}))[0].code == "AGE_ABOVE"
 
 
+def test_the_two_fixes_for_a_defaulted_second_parameter_both_register(
+    fresh_registry: None,
+) -> None:
+    """The refusal names two ways to write `age_below(row, limit=130)`, and a
+    default of None on the context stays allowed: each one registers and runs."""
+
+    def below(row: "pd.Series[Any]", limit: int) -> Verdict:
+        return OK if row["age"] <= limit else Verdict(Status.INVALID)
+
+    def below_keyword(row: "pd.Series[Any]", *, limit: int = 130) -> Verdict:
+        return OK if row["age"] <= limit else Verdict(Status.INVALID)
+
+    def reads_context(row: "pd.Series[Any]", context: Any = None) -> Verdict:
+        return OK if context is not None else Verdict(Status.INVALID)
+
+    reg.register_check(code="PARTIAL", message="m")(functools.partial(below, limit=130))
+    reg.register_check(code="KEYWORD", message="m")(below_keyword)
+    reg.register_check(code="CONTEXT", message="m")(reads_context)
+    failed = [outcome.code for outcome in engine.validate_row(pd.Series({"age": 200}))]
+    assert failed == ["PARTIAL", "KEYWORD"]
+
+
 def test_clearing_after_a_partial_leaves_functools_imported(fresh_registry: None) -> None:
     """A partial reports `functools` as its module, and clear_registry evicted
     it: the next `import functools` built a second module, with new `wraps`,
