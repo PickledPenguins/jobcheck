@@ -49,7 +49,8 @@ the status says something only beside a failure.
 - **root cause** — a row's failures at its shallowest failing layer: the ones to read
   first. A deeper failure is never downstream of one — a check runs only once its
   prerequisites passed, so every failure is the root of its own chain — it is simply read
-  after. Two failures at the same depth are two root causes. `root_causes` returns them.
+  after. Two failures at the same depth are two root causes. Data failures come first: a
+  check that raised counts only on a row with no data failure. `root_causes` returns them.
 - **context** — per-row state that is not a column: a `RowContext` subclass, built for
   each row by the `context_builder` handed to `validate`. A check asks for it by taking
   `(row, context)`.

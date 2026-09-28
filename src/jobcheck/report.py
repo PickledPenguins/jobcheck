@@ -221,8 +221,8 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
     `errored` stays separate from `failed` so a broken check is never mistaken
     for bad data. `root_cause_rows` counts the rows whose root cause the check
     is; a row failing two chains at the same depth counts against both. An
-    errored row counts as a root cause too, which is how `root_cause_rows` can
-    exceed `failed`.
+    errored check counts only on a row with no data failure, where it is the
+    one thing to read; that is how `root_cause_rows` can exceed `failed`.
 
     Every row's list must be complete -- `validate`'s, or `explain_row`'s per
     row, a generator of them included. A list whose length differs from the one

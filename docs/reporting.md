@@ -154,9 +154,10 @@ print(render(summarize_outcomes(outcomes)))
 
 Per check: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`,
 worst first. `root_cause_rows` counts the rows the check was a root cause of; a row
-failing two chains at the same depth counts against both. An errored check counts as a
-root cause too, so `root_cause_rows` can exceed `failed`, and a broken shallow check takes
-the flag from real failures on deeper layers of the same row.
+failing two chains at the same depth counts against both. Data failures come first: an
+errored check is a root cause only on a row with no data failure, where it is the one
+thing to read. A broken shallow check therefore never takes the flag from a real
+failure, and `root_cause_rows` can exceed `failed` by the rows where it stood alone.
 
 Every row's list must be complete: `validate`'s result, or `explain_row` per row
 streamed as a generator. `validate_row` keeps only the failures, so a list of its
