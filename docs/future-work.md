@@ -196,6 +196,30 @@ or by default.
 - Priority: medium. Nothing fails, but "ran because of a rule" is only approximate.
 - Recommended: the separate `rule` field. Not yet decided.
 
+**Consider removing or simplifying `render`** (F.68, raised by the owner on 2026-09-28).
+`render(table, fmt)` (`src/jobcheck/tables.py:231`) is a thin layer over pandas: it
+chooses no columns and reformats no values, since `build_report` and the other table
+builders have already done both. What it adds:
+
+- `fmt="table"`: the `== Title ==` heading from `attrs["title"]`, `|` borders, wrapping
+  of free-text columns at the per-name `_WRAP_WIDTHS` (`tables.py:185`), tall cells for
+  embedded line breaks, expanded tabs, terminal control characters shown as escapes
+  (`_visible`), blanks for nulls, `(empty)`, and cells read by position. pandas has no
+  equivalent; `to_string()` is the nearest and does none of the safety or wrapping.
+- `fmt="csv"`: `to_csv(index=False)` plus the spreadsheet formula guard
+  (`_escape_for_spreadsheet`, `tables.py:201`). The guard is the only thing a caller
+  loses by calling `to_csv` directly.
+
+Shapes to survey: drop `fmt="csv"` and export the formula guard for callers who write
+CSV themselves (a caller who forgets it gets a file that can execute in a spreadsheet);
+split `render` into two named functions, one per format, so the `fmt` string and its
+`ValueError` go; or leave it as the single entry point. Removing the bordered form
+outright would take the only terminal-safe view the package has. Callers: 11 in
+`examples/` (`main.py`, `run_from_config.py`, `bundle_main.py`), at least 10 test
+modules, and the README plus six documents. `render` is 10 executable lines;
+`tables.py` as a whole is 93. Related: F.64 (wrap width) changes the same code. Not yet
+surveyed.
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
