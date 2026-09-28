@@ -696,7 +696,7 @@ def test_an_unknown_setup_key_is_refused_and_lists_the_two(
     with pytest.raises(ValueError) as raised:
         reg.load_setup(path)
     assert str(raised.value) == (
-        f"{path}: unknown key(s) ['rule']. A setup file holds 'checks', 'rules'.")
+        f"{path}: unknown key(s) 'rule'. A setup file holds 'checks', 'rules'.")
 
 
 def test_a_setup_key_yaml_reads_as_a_number_is_named_rather_than_crashing(
@@ -708,7 +708,7 @@ def test_a_setup_key_yaml_reads_as_a_number_is_named_rather_than_crashing(
     with pytest.raises(ValueError) as raised:
         reg.load_setup(path)
     assert str(raised.value) == (
-        f"{path}: unknown key(s) ['1', 'extra']. A setup file holds 'checks', 'rules'.")
+        f"{path}: unknown key(s) 1, 'extra'. A setup file holds 'checks', 'rules'.")
 
 
 def test_a_setup_file_naming_only_rules_is_refused(

@@ -284,14 +284,14 @@ setup file, a check file — raises its own `ValueError` instead, listed in
 |---|---|
 | the file is not there | `error: run.yaml: cannot read it: No such file or directory` |
 | not YAML, or a key given twice | `error: run.yaml: not valid YAML: key 'setup' appears twice in one mapping, on lines 1 and 2; YAML would keep only the last ...` |
-| not a mapping | `error: run.yaml: a run file is a mapping of setup, data, tables, got list.` |
-| an unknown key | `error: run.yaml: unknown key(s) ['extra']. A run file holds setup, data, tables.` |
+| not a mapping | `error: run.yaml: a run file is a mapping of 'data', 'setup', 'tables', got list.` |
+| an unknown key | `error: run.yaml: unknown key(s) 'extra'. A run file holds 'data', 'setup', 'tables'.` |
 | a key missing | `error: run.yaml: 'data' is required.` |
 | `setup` or `data` not a path | `error: run.yaml: 'setup' must be a path, got list.` |
 | `tables` empty | `error: run.yaml: 'tables' must be a non-empty list: a run prints at least one.` |
 | an entry that is not a mapping | `error: run.yaml: table 1 must be a mapping with a 'table' key naming one of registry, rules, report, summary.` |
 | an unknown table | `error: run.yaml: table 1: unknown table 'chart'. The tables are registry, rules, report, summary.` |
-| an option the table does not take | `error: run.yaml: table 1 (summary): unknown option(s) ['include']. It takes no options.` |
+| an option the table does not take | `error: run.yaml: table 1 (summary): unknown option(s) 'include'. It takes no options.` |
 | a column option not a list | `error: run.yaml: table 1 (report): 'add_columns' must be a list of column names. Write it as a list even for one column.` |
 | a text option not text | `error: run.yaml: table 1 (report): 'key_column' must be a string, got list.` |
 | an option the library refuses | `error: run.yaml: table 2 (report): <the library's message>` |

@@ -20,7 +20,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from .context import RowContext
-from .paths import _read_yaml, resolve_input_file
+from .paths import _key_names, _read_yaml, resolve_input_file
 from . import rules
 from .rules import Rule
 
@@ -510,12 +510,11 @@ def load_setup(path: str) -> list[Rule]:
             f"{setup_file}: a setup file is a mapping of "
             f"{' and '.join(repr(key) for key in SETUP_KEYS)}, "
             f"got {type(document).__name__}.")
-    # str(): YAML reads `on:` or `1:` as a bool or an int, which cannot sort beside text.
-    unknown = sorted(str(key) for key in set(document) - set(SETUP_KEYS))
+    unknown = set(document) - set(SETUP_KEYS)
     if unknown:
         raise ValueError(
-            f"{setup_file}: unknown key(s) {unknown}. A setup file holds "
-            f"{', '.join(repr(key) for key in SETUP_KEYS)}.")
+            f"{setup_file}: unknown key(s) {_key_names(unknown)}. A setup file holds "
+            f"{_key_names(SETUP_KEYS)}.")
 
     here = setup_file.parent
     check_files = _setup_paths(document, "checks", setup_file, required=True)

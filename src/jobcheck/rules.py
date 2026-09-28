@@ -14,7 +14,7 @@ from typing import Any
 
 import pandas as pd
 
-from .paths import _read_yaml, resolve_input_file
+from .paths import _key_names, _read_yaml, resolve_input_file
 from .tables import _format_cell, is_null
 
 
@@ -87,10 +87,10 @@ def _parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[_Matc
                 "'pattern'.")
         # Refused like a rule's unknown key: `negate: true` read as nothing would
         # disable the checks on exactly the rows the author meant to exempt.
-        unknown = sorted(str(key) for key in set(entry) - _CRITERION_KEYS)
+        unknown = set(entry) - _CRITERION_KEYS
         if unknown:
             raise ValueError(
-                f"{where}: 'match' entry {entry!r} has unknown key(s) {', '.join(unknown)}. "
+                f"{where}: 'match' entry {entry!r} has unknown key(s) {_key_names(unknown)}. "
                 "A criterion holds only 'column' and 'pattern'.")
         if "column" not in entry or "pattern" not in entry:
             raise ValueError(
@@ -122,12 +122,11 @@ def _parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
     if not isinstance(name, str) or not name:
         raise ValueError(f"{source_file}: every rule needs a non-empty string 'name'.")
 
-    # str(): YAML reads `on:` or `1:` as a bool or an int, which cannot be joined.
-    unknown = sorted(str(key) for key in set(raw) - _RULE_KEYS)
+    unknown = set(raw) - _RULE_KEYS
     if unknown:
         raise ValueError(
-            f"rule {name!r} in {source_file}: unknown key(s) {', '.join(unknown)}. "
-            f"Allowed: {', '.join(sorted(_RULE_KEYS))}."
+            f"rule {name!r} in {source_file}: unknown key(s) {_key_names(unknown)}. "
+            f"Allowed: {_key_names(_RULE_KEYS)}."
         )
 
     action = raw.get("action")

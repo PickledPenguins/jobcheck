@@ -199,14 +199,15 @@ and the rule too once the entry has a name to give.
 | missing `match` | `missing 'match'. Use 'match: all' to apply the rule to every row.` |
 | `match: al` | `'match' must be a list of criteria or the literal 'all', got 'al'.` |
 | criterion missing a key | `'match' entry {'column': 'email'} needs both 'column' and 'pattern'.` |
-| criterion with another key | `'match' entry {'column': 'email', 'pattern': 'x', 'negate': True} has unknown key(s) negate. A criterion holds only 'column' and 'pattern'.` |
+| criterion with another key | `'match' entry {'column': 'email', 'pattern': 'x', 'negate': True} has unknown key(s) 'negate'. A criterion holds only 'column' and 'pattern'.` |
 | a key given twice | `key 'codes' appears twice in one mapping, on lines 4 and 5. YAML would keep only the last; remove one.` |
 | bad regex | `invalid regex '([unclosed' for column 'email': unterminated character set at position 1` |
 | bad action | `'action' must be exactly 'enable' or 'disable', got 'turn_on'.` |
 | unknown code | `unknown code 'NO_SUCH_CODE'. Load the check file that defines it before loading rules, or fix the code.` |
 | duplicate name | `Duplicate rule name 'same_name': defined in a.yaml and again in b.yaml.` |
 | nested under a key | `rule files must contain a flat top-level list of rules (no 'rules:' key), got dict.` |
-| misspelled key | `unknown key(s) codez. Allowed: action, codes, match, message, name.` |
+| misspelled key | `unknown key(s) 'codez'. Allowed: 'action', 'codes', 'match', 'message', 'name'.` |
+| `on:` unquoted, which YAML reads as a bool | `unknown key(s) True. Allowed: 'action', 'codes', 'match', 'message', 'name'.` |
 | an entry that is not a mapping | `each rule must be a mapping, got str.` |
 | no `name`, or not text | `every rule needs a non-empty string 'name'.` |
 | `codes` not a list of text | `'codes' must be a non-empty list of code strings.` |
@@ -308,7 +309,7 @@ characters), an entry that is not a path, and an empty `checks`:
 | Problem | Message |
 |---|---|
 | a flat list | `setup.yaml: a setup file is a mapping of 'checks' and 'rules', got list.` |
-| an unknown key | `setup.yaml: unknown key(s) ['extra']. A setup file holds 'checks', 'rules'.` |
+| an unknown key | `setup.yaml: unknown key(s) 'extra'. A setup file holds 'checks', 'rules'.` |
 | no `checks` | `setup.yaml: 'checks' is required: a setup file names the files to load.` |
 | `checks: one.py` | `setup.yaml: 'checks' must be a list of paths, got str. Write it as a list even for one file.` |
 | `checks: [3]` | `setup.yaml: 'checks' entry 1 must be a path, got int.` |

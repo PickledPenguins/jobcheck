@@ -40,7 +40,8 @@ string 'name'", giving no position and no hint; `codes: [ON]` fails without show
 non-developers who write these files. The fix: name the entry's position and the value
 read, and where a bool arrived in place of a string, add "quote it: YAML reads unquoted
 yes/no/on/off as true/false". The strict reader in `paths._read_yaml` is where it would
-live.
+live. Keys are half covered since 2026-09-28: an unknown key is listed as Python writes
+it, so `on:` shows as an unquoted `True` beside quoted names; nothing says why yet.
 
 **Wide characters misalign the bordered table** (F.50, low). Columns are padded by
 `len()`, so `名前名前` (length 4, eight columns on screen) pushes every column after it.
