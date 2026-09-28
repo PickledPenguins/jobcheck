@@ -9,11 +9,11 @@ fixed location: every path comes from the entry point, on the command line or in
 A relative path is resolved against the working directory, or against the `base_dir` the
 call names — an entry point passes the directory its own files sit in, a wrapper passes
 the directory of the configuration the paths were read from. Nothing is searched for: a
-path that is not a file is an error naming the absolute path that was tried.
+path that is not a file is an error naming the absolute path that was tried.<sup>[1](#errors)</sup>
 
 Rules let a non-developer enable a normally-off code, or disable a normally-on
 code, **for specific rows**, without touching Python. They cannot define new checks,
-change a message, or alter what a check does.
+change a message, or alter what a check does.<sup>[2](writing-checks.md#the-shape-of-a-check)</sup>
 
 Back to the [README](../README.md). Checks themselves are written in
 [Python](writing-checks.md); the Python loaders are in
@@ -77,7 +77,7 @@ quietly does nothing.
 
 A key written twice in one mapping — a second `codes:` appended to a rule — is refused
 too, naming both lines. YAML itself would keep the last and drop the first without a word,
-so the rule would say something other than it appears to.
+so the rule would say something other than it appears to.<sup>[1](#errors)</sup>
 
 ## Matching
 
@@ -92,10 +92,10 @@ anchored with `^`/`$`. Values are compared as the text the report prints for the
 whole number is `41` even when pandas holds it as `41.0` — which it does for an integer
 column with one blank cell, and for every column of an all-numeric frame — and a fraction
 keeps its decimals. Anything else is `str(value)`. (Checks still receive the cell as
-pandas holds it; only matching and the report render it.)
+pandas holds it; only matching and the report render it.)<sup>[3](reporting.md#showing-data-alongside-the-failures)</sup>
 
 A rule applies to a row only when **every** criterion matches (AND). A criterion whose
-column is absent from the row, or whose value is null, does not match.
+column is absent from the row, or whose value is null, does not match.<sup>[4](#warnings)</sup>
 
 `match: all` is the explicit way to say "every row, no column filtering".
 
@@ -162,7 +162,7 @@ It is also the shape worth finding when it *is* a mistake, so it is reported.
 prints those warnings under the rules table, which is why the shipped file's own
 demonstration shows up there. Nothing else tells you: the registry table lists both
 rules under `could_be_overridden_by` and answers `depends on row`, which is right in
-general and unhelpful in this one case where every row gives the same answer. The
+general and unhelpful in this one case where every row gives the same answer.<sup>[5](interfaces.md#registry_tablerulesnone-add_columnsnone---dataframe)</sup> The
 pattern that works is the reverse order — disable for every row, then enable for the
 rows that match — and it reports nothing.
 
@@ -176,7 +176,7 @@ A check runs only once every check it depends on has passed, and a disabled one 
 Disabling `AGE_PRESENT` for some rows therefore switches off `AGE_NOT_A_NUMBER`,
 `AGE_NEGATIVE`, `AGE_TOO_HIGH` and the off-by-default `AGE_NOT_INTEGER` on those rows as
 well: a negative or unreadable age there
-passes without a line in the report, and only the summary's `skipped` column counts it. A
+passes without a line in the report, and only the summary's `skipped` column counts it.<sup>[6](writing-checks.md#layering-one-problem-one-error)</sup> A
 rule cannot say "this field may be blank"; the check has to know which rows may leave it
 empty.
 
@@ -185,7 +185,7 @@ below it the rule does not list itself. `python3 examples/main.py --rules-table`
 those warnings under the rules table. Listing the dependents in the same rule says the
 silence is meant and ends the warning: the shipped file's
 `suppress_email_checks_for_test_accounts` disables `EMAIL_MISSING_AT` together with the
-check that depends on it, and reports nothing.
+check that depends on it, and reports nothing.<sup>[7](interfaces.md#warn_blocking_rulesrules---liststr)</sup>
 
 ## Errors
 
@@ -207,9 +207,42 @@ and the rule too once the entry has a name to give.
 | duplicate name | `Duplicate rule name 'same_name': defined in a.yaml and again in b.yaml.` |
 | nested under a key | `rule files must contain a flat top-level list of rules (no 'rules:' key), got dict.` |
 | misspelled key | `unknown key(s) codez. Allowed: action, codes, match, message, name.` |
+| an entry that is not a mapping | `each rule must be a mapping, got str.` |
+| no `name`, or not text | `every rule needs a non-empty string 'name'.` |
+| `codes` not a list of text | `'codes' must be a non-empty list of code strings.` |
+| no `message` | `'message' must be the text saying why the rule exists. It is printed beside the rule wherever the rules are listed.` |
+| a criterion that is not a mapping | `each 'match' entry must be a mapping with 'column' and 'pattern'.` |
+| a criterion value that is not text | `'column' and 'pattern' must both be strings in {'column': 'country', 'pattern': False}.` |
+| `load_rules("rules.yaml")` | `load_rules takes a list of paths, not one string: pass ['rules.yaml']. A bare string would be read as a list of its characters.` |
 
 An "unknown code" that you know exists usually means its check file was not loaded by this
 entry point — see [writing-checks.md](writing-checks.md#troubleshooting).
+
+A file that is not there is refused before it is read, by rule file, check file and
+setup file alike, naming the path it tried:
+
+| Problem | Message |
+|---|---|
+| relative path, nothing there | `No rule file at 'rules/missing.yaml': nothing at /home/me/run/rules/missing.yaml, where a relative path is resolved against the working directory. load_rules() names files explicitly; nothing is discovered.` |
+| the same, with `base_dir` | `No rule file at 'missing.yaml': nothing at /srv/run/missing.yaml, where a relative path is resolved against base_dir /srv/run. load_rules() names files explicitly; nothing is discovered.` |
+| a directory | `No rule file at 'rules': /home/me/run/rules is a directory, so name the file in it. load_rules() names files explicitly; nothing is discovered.` |
+| absolute path, nothing there | `No rule file at '/srv/missing.yaml'. load_rules() names files explicitly; nothing is discovered.` |
+
+A check file reads `No check file at` and `load_checks()`; a setup file, `No setup file
+at` and `load_setup()`.
+
+### Warnings
+
+Three mistakes load cleanly and are only visible against the registry or the data, so
+they are warnings, returned as lines by the functions in
+[interfaces.md](interfaces.md#warn_missing_rule_columnsdf-rules---liststr) rather than
+raised:
+
+| Function | Line |
+|---|---|
+| `warn_missing_rule_columns` | `rule 'uk_only' matches on column 'country', which is not in the data: the rule will never apply` |
+| `warn_shadowed_rules` | `rule 'uk_only' is overruled for <code> by the later rule 'everyone', which matches every row: it can never apply to <code>` |
+| `warn_blocking_rules` | `rule 'no_age' disables <code>, which also stops <dependents> on the rows it matches: a check whose prerequisite is off is skipped, and reports nothing` |
 
 ## Secrets
 
@@ -247,7 +280,7 @@ print(len(report), "failure(s)")
 `load_setup` returns the rules for `validate`, having already registered the check files.
 Both lists resolve against **the setup file's own directory**, so a setup file and the paths
 in it travel together; the setup file's own path is relative to where you stand, like any
-path you type.
+path you type.<sup>[8](interfaces.md#loading-both-at-once)</sup>
 
 `checks` is required: a setup naming only rules configures nothing, because rules switch
 checks on and off. `rules` may be absent or empty -- the no-rules baseline every rule file
@@ -270,4 +303,29 @@ Every refusal names the file: a document that is not a mapping (a flat list is t
 file's shape, and the mistake somebody makes having written one first), a key given twice
 (a second `checks:` would otherwise replace the first list), an unknown key, a
 string where a list belongs (`checks: one.py` is a string, and a string is a list of
-characters), an entry that is not a path, and an empty `checks`.
+characters), an entry that is not a path, and an empty `checks`:
+
+| Problem | Message |
+|---|---|
+| a flat list | `setup.yaml: a setup file is a mapping of 'checks' and 'rules', got list.` |
+| an unknown key | `setup.yaml: unknown key(s) ['extra']. A setup file holds 'checks', 'rules'.` |
+| no `checks` | `setup.yaml: 'checks' is required: a setup file names the files to load.` |
+| `checks: one.py` | `setup.yaml: 'checks' must be a list of paths, got str. Write it as a list even for one file.` |
+| `checks: [3]` | `setup.yaml: 'checks' entry 1 must be a path, got int.` |
+| `checks: []` | `setup.yaml: 'checks' is empty: name at least one file.` |
+
+`setup.yaml` stands for the setup file's absolute path, which every one of these
+messages starts with.
+
+## References
+
+| # | Section | What it covers |
+|---|---|---|
+| 1 | [Errors](#errors) | every message a rule or setup file can raise |
+| 2 | [writing-checks.md: The shape of a check](writing-checks.md#the-shape-of-a-check) | where checks are defined instead |
+| 3 | [reporting.md: Showing data](reporting.md#showing-data-alongside-the-failures) | the same rendering in the report |
+| 4 | [Warnings](#warnings) | `warn_missing_rule_columns`, for a column the data lacks |
+| 5 | [interfaces.md: registry_table](interfaces.md#registry_tablerulesnone-add_columnsnone---dataframe) | what `could_be_overridden_by` and `effective_state` say |
+| 6 | [writing-checks.md: Layering](writing-checks.md#layering-one-problem-one-error) | why a skipped check reports nothing |
+| 7 | [interfaces.md: warn_blocking_rules](interfaces.md#warn_blocking_rulesrules---liststr) | the function in full |
+| 8 | [interfaces.md: Loading both at once](interfaces.md#loading-both-at-once) | `load_setup` as a call |

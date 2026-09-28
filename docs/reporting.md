@@ -47,14 +47,14 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 | Column | What it carries |
 |---|---|
 | `row` | The key of the data row: the `key_column` value, or the frame's index. |
-| `code` | The permanent check code. |
-| `status` | The failure kind, rendered as `INVALID (3)`. |
-| `layer` | How deep the check sits in the dependency graph; 0 is fundamental. |
-| `outcome` | `failed`, `errored`, and `skipped`/`disabled`/`passed` when asked for. |
+| `code` | The permanent check code.<sup>[1](writing-checks.md#codes-are-permanent)</sup> |
+| `status` | The failure kind, rendered as `INVALID (3)`; `PASS (0)` on a line that did not fail, including one that never ran.<sup>[2](concepts.md#what-a-check-says-and-what-the-engine-records)</sup> |
+| `layer` | How deep the check sits in the dependency graph; 0 is fundamental.<sup>[3](writing-checks.md#layering-one-problem-one-error)</sup> |
+| `outcome` | `failed`, `errored`, and `skipped`/`disabled`/`passed` when asked for.<sup>[4](interfaces.md#outcome)</sup> |
 | `message` | The check's message — what a person reads first — for a check that failed or errored. Empty for one that passed, was skipped or was disabled. |
 | `detail` | Why a check gave no verdict: the rule that disabled it, the prerequisites that blocked it, or the exception it raised. Empty for a check that passed or failed. |
 | `comments` | What the check attached, rendered `key=value; key=value`, sorted. |
-| `is_root_cause` | True for **every** failure at that row's shallowest failing layer. Two failures at the same depth are two root causes: neither is upstream of the other. |
+| `is_root_cause` | True for **every** failure at that row's shallowest failing layer. Two failures at the same depth are two root causes: neither is upstream of the other. Not always the row's first line: lines are in evaluation order, so an independent chain registered earlier prints above a shallower failure.<sup>[5](interfaces.md#root_causesrow_outcomes---liststr)</sup> |
 
 ## Identifying rows
 
@@ -68,7 +68,7 @@ Two conveniences: an integer key column that pandas widened to float still reads
 as `102`, not `102.0`, and a row whose key is missing reads `<no key>` rather
 than `nan`.
 
-A column the frame holds more than once is refused, naming how often it appears:
+A column the frame holds more than once is refused, naming how often it appears:<sup>[6](interfaces.md#error-messages)</sup>
 `df[key_column]` is a table rather than a column then, and every line of the
 report would be labeled with the column's *name* instead of the row's key.
 
@@ -134,7 +134,7 @@ root cause: AGE_PRESENT
 ```
 
 Passed `rules=rules`, a check a rule switched off reads `disabled by rule '<name>'`
-instead.
+instead.<sup>[7](configuration.md#precedence-last-rule-wins)</sup>
 
 Reading order is evaluation order, so every `skipped` line names what blocked it.
 `root_causes` gives the row's **shallowest** failures, and there may be more than
@@ -169,7 +169,7 @@ explain_row's per row. validate_row keeps only the failures.`
 Read it this way: a high `failed` count is a data problem; a high `skipped` count
 is a *layering* signal — some fundamental check is failing often and hiding
 everything below it, so fix that code first; any `errored` count at all is a
-broken check, not bad data.
+broken check, not bad data.<sup>[8](writing-checks.md#when-a-check-raises)</sup>
 
 ## Working with the tables
 
@@ -366,3 +366,16 @@ matters, call `validate_row` per row instead and skip the report: it returns onl
 the failures and retains nothing for the checks that passed. It still evaluates
 every check — it is `explain_row` filtered, not a second algorithm — so the saving
 is what is held, not what is computed.
+
+## References
+
+| # | Section | What it covers |
+|---|---|---|
+| 1 | [writing-checks.md: Codes are permanent](writing-checks.md#codes-are-permanent) | what a reused code would break |
+| 2 | [concepts.md: What a check says](concepts.md#what-a-check-says-and-what-the-engine-records) | status against outcome, and why a line that never ran shows `PASS (0)` |
+| 3 | [writing-checks.md: Layering](writing-checks.md#layering-one-problem-one-error) | how layers come from `depends_on` |
+| 4 | [interfaces.md: Outcome](interfaces.md#outcome) | the five outcomes as values |
+| 5 | [interfaces.md: root_causes](interfaces.md#root_causesrow_outcomes---liststr) | the rule in full, errored checks included |
+| 6 | [interfaces.md: Error messages](interfaces.md#error-messages) | the report's refusals, quoted |
+| 7 | [configuration.md: Precedence](configuration.md#precedence-last-rule-wins) | which rule decides for a row |
+| 8 | [writing-checks.md: When a check raises](writing-checks.md#when-a-check-raises) | what an errored check records |

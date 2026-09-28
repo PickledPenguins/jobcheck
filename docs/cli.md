@@ -36,7 +36,7 @@ table itself. The CSV report is the exception and has no heading, so it stays pa
 The check files are named in the entry point itself, as `CHECK_FILES`, and are not
 selectable from the command line: which checks a pipeline runs is a property of the
 pipeline, not of an invocation. A second entry point beside this one naming a different
-list is what gives two scripts in one codebase different registries.
+list is what gives two scripts in one codebase different registries.<sup>[1](writing-checks.md#which-checks-an-entry-point-loads)</sup>
 
 ### `--data PATH`
 
@@ -79,7 +79,7 @@ Optional. Rule YAML files, loaded through `load_rules`. Default
 `examples/rules/error_rules.yaml`.
 
 Multi-valued: files need not share a directory, and **the order given is the precedence
-order** — later files win over earlier ones for the same code.
+order** — later files win over earlier ones for the same code.<sup>[2](configuration.md#precedence-last-rule-wins)</sup>
 
 `--rules` with no paths after it applies **no** rules, which is the baseline every
 rule file is a deviation from:
@@ -95,7 +95,7 @@ python3 examples/main.py --rules examples/rules/split_by_topic/01_age_rules.yaml
 ```
 
 Every rule is validated as it loads. A rule naming a code that no loaded check file
-defines is an error, not a silent skip.
+defines is an error, not a silent skip.<sup>[3](configuration.md#errors)</sup>
 
 ### `--report {table,csv}`
 
@@ -110,14 +110,14 @@ Optional. Print what every check did on one row, by position (`0` is the first),
 without printing the registry or the report. Each line's outcome is `passed`, `failed`,
 `errored` with the exception, `disabled` with the rule or default that switched it off, or
 `skipped` with its blocking prerequisites, and the last line is the row's root cause
-(`none` for a clean row). A position outside the frame exits 2.
+(`none` for a clean row). A position outside the frame exits 2.<sup>[4](reporting.md#diagnosing-one-row)</sup>
 
 ### `--summary`
 
 Optional, off by default. After the report, print per-check counts (`failed`,
 `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`, worst first);
 `root_cause_rows` is how many rows bottomed out at that check. A high `skipped` count
-means a fundamental check is failing often and hiding the layer below it.
+means a fundamental check is failing often and hiding the layer below it.<sup>[5](reporting.md#diagnosing-a-whole-file)</sup>
 
 ### `--rules-table`
 
@@ -147,7 +147,7 @@ Optional. After printing the report, also write it to *PATH* in the `--report` f
 creating or replacing the file, then print how many rows were written. It is the same
 report frame that was printed, so the file and the terminal cannot disagree — `--report
 csv --write out.csv` is the pairing that gets the failures into a spreadsheet, and the CSV
-is written with the leading-formula guard `jobcheck.render` applies to CSV.
+is written with the leading-formula guard `jobcheck.render` applies to CSV.<sup>[6](reporting.md#opening-the-csv-in-a-spreadsheet)</sup>
 
 The directory is checked before anything is loaded or validated: `--write` into a
 directory that does not exist prints `error: cannot write <path>: no directory <dir>` to
@@ -261,6 +261,40 @@ Optional, default the shipped `examples/run.yaml`. A second argument is an error
 
 Prints usage and exits 0.
 
+## Error messages
+
+Every `error:` line the example scripts print, each followed by exit 2. `<...>` stands
+for a value from your command or file. A mistake the library refuses — a rule file, a
+setup file, a check file — raises its own `ValueError` instead, listed in
+[configuration.md](configuration.md#errors) and [interfaces.md](interfaces.md#error-messages).
+
+`examples/main.py`:
+
+| Problem | Message |
+|---|---|
+| `--data` unreadable | `error: cannot read /nonexistent.csv: [Errno 2] No such file or directory: '/nonexistent.csv'` |
+| no `id` column | `error: no_id.csv has no 'id' column, which labels each row of the report (columns: customer, age, email)` |
+| `--explain` past the end | `error: --explain 99 is outside the frame's 6 row(s)` |
+| `--write` into a missing directory | `error: cannot write <path>: no directory <dir>` |
+| `--write` refused otherwise | `error: cannot write <path>: <reason>` |
+
+`examples/run_from_config.py`, each line starting `error: <run file>:`:
+
+| Problem | Message |
+|---|---|
+| the file is not there | `error: run.yaml: cannot read it: No such file or directory` |
+| not YAML, or a key given twice | `error: run.yaml: not valid YAML: key 'setup' appears twice in one mapping, on lines 1 and 2; YAML would keep only the last ...` |
+| not a mapping | `error: run.yaml: a run file is a mapping of setup, data, tables, got list.` |
+| an unknown key | `error: run.yaml: unknown key(s) ['extra']. A run file holds setup, data, tables.` |
+| a key missing | `error: run.yaml: 'data' is required.` |
+| `setup` or `data` not a path | `error: run.yaml: 'setup' must be a path, got list.` |
+| `tables` empty | `error: run.yaml: 'tables' must be a non-empty list: a run prints at least one.` |
+| an entry that is not a mapping | `error: run.yaml: table 1 must be a mapping with a 'table' key naming one of registry, rules, report, summary.` |
+| an unknown table | `error: run.yaml: table 1: unknown table 'chart'. The tables are registry, rules, report, summary.` |
+| an option the table does not take | `error: run.yaml: table 1 (summary): unknown option(s) ['include']. It takes no options.` |
+| a column option not a list | `error: run.yaml: table 1 (report): 'add_columns' must be a list of column names. Write it as a list even for one column.` |
+| a text option not text | `error: run.yaml: table 1 (report): 'key_column' must be a string, got list.` |
+| an option the library refuses | `error: run.yaml: table 2 (report): <the library's message>` |
 ## Exit codes
 
 The three entry points share one table. Exit 2 is theirs, raised deliberately with an
@@ -272,3 +306,14 @@ and argparse's refusals are 2 as well.
 | 0 | Ran to completion. Rows failing validation still exit 0 — failures are data, printed per row, not a process error. |
 | 1 | An uncaught exception, with traceback. In practice a load-time `ValueError`: a bad rule file or setup file, a dependency problem, or a check or rule path that is not a file. |
 | 2 | argparse rejected the command line (unknown flag, missing value, a surplus argument); `--explain` named a row outside the frame; `--data` or a run file's `data` named a path that is missing, a directory, empty, unreadable, not UTF-8 or not CSV; `--data` named a file with no `id` column; `--write` named a path that could not be opened; or a run file was missing, not YAML, malformed, or asked a table for something the library refused. |
+
+## References
+
+| # | Section | What it covers |
+|---|---|---|
+| 1 | [writing-checks.md: Which checks an entry point loads](writing-checks.md#which-checks-an-entry-point-loads) | naming check files, and where paths resolve |
+| 2 | [configuration.md: Precedence](configuration.md#precedence-last-rule-wins) | last rule wins, within a file and across files |
+| 3 | [configuration.md: Errors](configuration.md#errors) | every rule file message, quoted |
+| 4 | [reporting.md: Diagnosing one row](reporting.md#diagnosing-one-row) | reading a row's explanation, with `PASS (0)` on lines that did not fail |
+| 5 | [reporting.md: Diagnosing a whole file](reporting.md#diagnosing-a-whole-file) | reading the summary's columns |
+| 6 | [reporting.md: Opening the CSV](reporting.md#opening-the-csv-in-a-spreadsheet) | what is escaped, and why |

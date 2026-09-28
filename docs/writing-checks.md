@@ -25,7 +25,7 @@ A second parameter is the context, so a setting cannot go there with a default:
 when it registers. Make the setting keyword-only — `def age_below(row, *, limit=130)` —
 or bind it with `functools.partial(age_below, limit=130)` for a family of checks. A
 context parameter may still default to `None`. A context builder is held to the same
-rule.
+rule.<sup>[1](interfaces.md#error-messages)</sup>
 
 Add one by putting a function in any `check_*.py` file the entry point loads.
 There is no central list to update.
@@ -48,7 +48,7 @@ codes, so a reused code silently changes the meaning of data already written.
 Anything else — a bare `True`, a bare `Status` value, or falling off the end of
 the function and returning `None` — raises `TypeError` naming the check. A check
 that forgets to return must never be read as a pass, and a bare bool is refused
-rather than guessed at, since `True == 1 == Status.MISSING`.
+rather than guessed at, since `True == 1 == Status.MISSING`.<sup>[2](interfaces.md#verdict)</sup>
 
 `Verdict` is truthy when the check **passed**, so `if result:` reads as "if the
 check was happy". Do not lean on the raw `status` for truthiness: `0` is a pass but
@@ -70,11 +70,11 @@ def email_present(row):
 ```
 
 `is_null` is `None`-and-`NaN` aware and never raises on a list or an array, where
-`pd.isna` returns an array and `bool()` of that is an error.
+`pd.isna` returns an array and `bool()` of that is an error.<sup>[3](interfaces.md#is_nullvalue---bool)</sup>
 
 ### Statuses
 
-Five, and no others:
+Five, and no others:<sup>[4](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
 
 | Status | Use it for |
 |---|---|
@@ -87,7 +87,7 @@ Five, and no others:
 The vocabulary is fixed: these five are the whole of it, and a `Verdict`
 carrying anything else is refused at construction. What varies between projects is
 the *codes*, not the kinds — a check says which of these five happened, and its
-comments say the rest.
+comments say the rest.<sup>[5](reporting.md#shape-one-row-per-failure)</sup>
 
 ### Comments
 
@@ -125,7 +125,7 @@ load_checks(["check_age.py"], base_dir=os.path.join(os.getcwd(), "my_checks"))
 
 That is how a script keeps naming the files that sit beside it while being run
 from anywhere: it passes its own directory, `os.path.dirname(os.path.abspath(
-__file__))`, and `examples/main.py` does exactly that. An absolute path ignores
+__file__))`, and `examples/main.py` does exactly that.<sup>[6](configuration.md#errors)</sup> An absolute path ignores
 `base_dir`. A file listed
 twice, or already loaded, is skipped; prerequisites may live in any file of one
 call, since the dependency graph is validated once the whole call has been
@@ -193,7 +193,7 @@ by `examples/main.py` from the list it names in `CHECK_FILES`.
 `depends_on` names codes that must **pass on the same row** before a check runs.
 Prerequisites are all-or-nothing — every one must pass, there is no "or" — and a
 check whose prerequisites did not all pass is skipped entirely: not a pass, not a
-failure, absent from the row's errors.
+failure, absent from the row's errors.<sup>[7](reporting.md#diagnosing-one-row)</sup>
 
 A workable three-layer shape, which the shipped checks follow:
 
@@ -214,12 +214,12 @@ Rules of thumb:
   A check that never ran confirmed nothing about the row, so it must not silently
   unlock what sits below it. Switching off a presence check with a rule therefore
   switches off its whole layer. `warn_blocking_rules(rules)` names every check a
-  disable rule silences that way, and the summary's `skipped` column counts them.
+  disable rule silences that way, and the summary's `skipped` column counts them.<sup>[8](configuration.md#disabling-a-check-disables-what-depends-on-it)</sup>
 
 `layer` is computed, never declared: 0 with no prerequisites, otherwise one more
 than the deepest one. The registry table sorts on it, so fundamental checks read
 first, and `root_causes` reads it: a row's root causes are its failures at the
-shallowest layer.
+shallowest layer.<sup>[9](interfaces.md#root_causesrow_outcomes---liststr)</sup>
 
 Everything structural fails at load: an unknown prerequisite code, a prerequisite
 in a check file that was not loaded, a cycle (direct or transitive), a duplicate
@@ -252,7 +252,7 @@ exception text, the row carries on, and dependents treat it as "did not pass".
 Errors are counted separately from failures in the summary, so a broken check can
 never be mistaken for bad data. Pass `on_error="raise"` to `explain_row`,
 `validate_row` or `validate` for a run that should stop at the first
-broken check instead.
+broken check instead.<sup>[10](reporting.md#diagnosing-a-whole-file)</sup>
 
 A check reading a column that is not in the frame raises `KeyError`, which lands
 as one of these `ERROR` outcomes naming the column.
@@ -354,7 +354,7 @@ the common case and a lambda is the corner case. A builder taking `(row)` alone
 still works and is never handed the arguments. A builder is held to the same shape rule
 as a check, and settled once before any row: other arities, and a keyword-only parameter
 without a default, are refused with a `ValueError` naming the builder, even for an empty
-frame.
+frame.<sup>[11](interfaces.md#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone---listlistcheckoutcome)</sup>
 
 Without a `context_builder` every row is handed the same empty `RowContext`, and so
 is every row of `validate_row` and `explain_row` called without one: a check taking
@@ -426,5 +426,23 @@ rename the new one.
 the frame; check the spelling against the data.
 
 **A rule looks right but has no effect.** Another rule later in load order
-matches the same row and code, and last wins — or its criterion names a column
-the data lacks, which `warn_missing_rule_columns` reports.
+matches the same row and code, and last wins<sup>[12](configuration.md#precedence-last-rule-wins)</sup> — or its criterion names a column
+the data lacks, which `warn_missing_rule_columns` reports.<sup>[13](configuration.md#warnings)</sup>
+
+## References
+
+| # | Section | What it covers |
+|---|---|---|
+| 1 | [interfaces.md: Error messages](interfaces.md#error-messages) | the registration refusals, quoted |
+| 2 | [interfaces.md: Verdict](interfaces.md#verdict) | the type in full: truthiness, comments, what construction refuses |
+| 3 | [interfaces.md: is_null](interfaces.md#is_nullvalue---bool) | exactly what counts as null |
+| 4 | [concepts.md: What a check says](concepts.md#what-a-check-says-and-what-the-engine-records) | status, outcome and verdict: three questions, three types |
+| 5 | [reporting.md: Shape](reporting.md#shape-one-row-per-failure) | where status and comments land in the report |
+| 6 | [configuration.md: Errors](configuration.md#errors) | the message for a path that is not there |
+| 7 | [reporting.md: Diagnosing one row](reporting.md#diagnosing-one-row) | seeing which checks a row skipped, and why |
+| 8 | [configuration.md: Disabling a check](configuration.md#disabling-a-check-disables-what-depends-on-it) | the same rule, from the rule file's side |
+| 9 | [interfaces.md: root_causes](interfaces.md#root_causesrow_outcomes---liststr) | the rule in full, errored checks included |
+| 10 | [reporting.md: Diagnosing a whole file](reporting.md#diagnosing-a-whole-file) | the summary's `errored` column |
+| 11 | [interfaces.md: validate](interfaces.md#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone---listlistcheckoutcome) | `context_builder` and `context_args` in full |
+| 12 | [configuration.md: Precedence](configuration.md#precedence-last-rule-wins) | last rule wins, and what sets the order |
+| 13 | [configuration.md: Warnings](configuration.md#warnings) | the warning lines, quoted |

@@ -52,7 +52,8 @@ def test_no_internal_link_or_anchor_is_dead(path: Path) -> None:
         assert target_path.exists(), f"{path.name}: {target} does not exist"
         if anchor:
             headings = re.findall(r"^#{1,6} (.+)$", target_path.read_text(encoding="utf-8"), re.M)
-            slugs = {re.sub(r"[^a-z0-9 -]", "", h.lower()).strip().replace(" ", "-")
+            # GitHub's rule: drop punctuation except `-` and `_`, spaces become `-`.
+            slugs = {re.sub(r"[^a-z0-9 _-]", "", h.lower()).strip().replace(" ", "-")
                      for h in headings}
             assert anchor in slugs, f"{path.name}: {target} has no such heading"
 
