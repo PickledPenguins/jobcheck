@@ -120,7 +120,8 @@ def test_a_two_argument_check_receives_the_context(fresh_registry: None) -> None
 
     context = RowContext()
     engine.validate_row(ROW, context=context)
-    assert seen == [context]
+    # `is`, not `==`: every bare context is equal, so the empty default would pass.
+    assert seen[0] is context
 
 
 def test_an_unnamed_context_is_an_empty_one_not_none(fresh_registry: None) -> None:

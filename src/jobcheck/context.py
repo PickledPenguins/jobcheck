@@ -17,4 +17,10 @@ class RowContext:
     What belongs in a row's context is the adopting pipeline's business, so the
     library defines the type and nothing else. See `writing-checks.md` for how a
     pipeline builds one and hands it to `validate(context_builder=...)`.
+
+    The base class takes no attributes: without a builder every row is handed
+    the same instance, so a value a check cached on it would reach every later
+    row. A subclass has its own `__dict__` and takes whatever it declares.
     """
+
+    __slots__ = ()

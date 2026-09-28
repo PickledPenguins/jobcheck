@@ -28,7 +28,7 @@ usage: main.py [-h] [--data PATH] [--rules [PATH ...]] [--report {table,csv}]
 ```
 
 No positional arguments. Nothing is read from stdin. Results go to stdout; the column
-warnings, every `error:` line and uncaught exceptions go to stderr. The shadowed-rule
+warnings, every `error:` line and uncaught exceptions go to stderr. The rule
 warnings `--rules-table` prints go to stdout, under the table they describe. Every table
 prints under its own heading — `== Registry ==` — which `jobcheck.render` takes from the
 table itself. The CSV report is the exception and has no heading, so it stays parseable.
@@ -134,6 +134,11 @@ which nothing else reports. The shipped rule
 file has one deliberately, as the precedence demonstration
 [configuration.md](configuration.md#precedence-last-rule-wins) describes.
 
+Then one `warning:` line for each code a disable rule switches off that other checks
+depend on, naming the dependents the rule does not itself list: on the rows it matches
+they are skipped and report nothing. See
+[configuration.md](configuration.md#disabling-a-check-disables-what-depends-on-it).
+
 With `--rules` passed no paths, there are no rules and the table is empty.
 
 ### `--write PATH`
@@ -233,7 +238,7 @@ built table with pandas (`table.drop(columns=...)`):
 | `table` | Options | Built with, then printed with `render` |
 |---|---|---|
 | `registry` | `add_columns`, `drop_columns` | `registry_table`, handed the loaded rules |
-| `rules` | `add_columns`, `drop_columns` | `rules_table`, then a `warning:` line per shadowed rule and code |
+| `rules` | `add_columns`, `drop_columns` | `rules_table`, then a `warning:` line per shadowed rule and code, and per disabled code with dependents |
 | `report` | `key_column`, `add_columns`, `drop_columns`, `include`, `format` | `build_report`; `format` is `table` (default) or `csv` |
 | `summary` | none | `summarize_outcomes` |
 

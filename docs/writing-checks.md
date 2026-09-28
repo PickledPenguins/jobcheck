@@ -206,7 +206,8 @@ Rules of thumb:
 - A **disabled** prerequisite blocks its dependents, as does an **errored** one.
   A check that never ran confirmed nothing about the row, so it must not silently
   unlock what sits below it. Switching off a presence check with a rule therefore
-  switches off its whole layer — check the `skipped` column afterwards.
+  switches off its whole layer. `warn_blocking_rules(rules)` names every check a
+  disable rule silences that way, and the summary's `skipped` column counts them.
 
 `layer` is computed, never declared: 0 with no prerequisites, otherwise one more
 than the deepest one. The registry table sorts on it, so fundamental checks read
@@ -311,7 +312,10 @@ frame.
 
 Without a `context_builder` every row is handed the same empty `RowContext`, and so
 is every row of `validate_row` and `explain_row` called without one: a check taking
-`(row, context)` never sees `None`.
+`(row, context)` never sees `None`. That shared base object takes no attributes, so a
+check caching a parsed value on it gets an `AttributeError`, recorded as `errored`,
+rather than handing the first row's value to every later row. Caching per row needs a
+builder that returns a fresh subclass instance for each row.
 
 Metadata that is not tabular — flags, computed paths, pipeline state — goes in
 `RowContext`, not in extra DataFrame columns, which cause dtype churn and end up

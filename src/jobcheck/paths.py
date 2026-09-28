@@ -1,12 +1,17 @@
-"""Turning a path a caller named into a file on disk.
+"""Turning a path a caller named into a file on disk, and reading a YAML one.
 
-Both loaders need the same step: the file, or an error naming the absolute path
-tried. It lives here because `rules.py` may not import the registry.
+Both loaders need the same two steps: the file, or an error naming the absolute
+path tried; then its YAML, read strictly enough that a hand-edited file cannot
+say something other than it appears to. They live here because `rules.py` may
+not import the registry.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 
 def resolve_input_file(path: str, kind: str, caller: str,
@@ -47,3 +52,49 @@ def _where(named: Path, candidate: Path, anchor: Path | None) -> str:
         return ""
     against = "the working directory" if anchor is None else f"base_dir {anchor}"
     return f": nothing at {candidate}, where a relative path is resolved against {against}"
+
+
+class _DuplicateKey(Exception):
+    """A mapping named one key twice; `_read_yaml` adds the file to the message."""
+
+
+class _StrictLoader(yaml.SafeLoader):
+    """`SafeLoader`, except that a mapping holding one key twice is refused.
+
+    PyYAML keeps the last of two identical keys and says nothing, so a second
+    `codes:` appended to a rule, or a second `checks:` in a setup file, would
+    quietly replace the first.
+    """
+
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> Any:
+        first_line: dict[Any, int] = {}
+        for key_node, _ in node.value:
+            # A `<<` merge may repeat a key on purpose: the explicit one overrides it.
+            if key_node.tag == "tag:yaml.org,2002:merge":
+                continue
+            key = self.construct_object(key_node, deep=deep)
+            line = key_node.start_mark.line + 1
+            try:
+                earlier = first_line.get(key)
+            except TypeError:  # unhashable: SafeLoader refuses it with its own message
+                continue
+            if earlier is not None:
+                raise _DuplicateKey(
+                    f"key {key!r} appears twice in one mapping, on lines {earlier} and "
+                    f"{line}. YAML would keep only the last; remove one.")
+            first_line[key] = line
+        return super().construct_mapping(node, deep=deep)
+
+
+def _read_yaml(file: Path, shown: str) -> Any:
+    """The YAML document in *file*. A repeated key raises `ValueError`, starting
+    with *shown*: the path as the caller should see it."""
+
+    with open(file, encoding="utf-8") as handle:
+        loader = _StrictLoader(handle)
+        try:
+            return loader.get_single_data()
+        except _DuplicateKey as exc:
+            raise ValueError(f"{shown}: {exc}") from None
+        finally:
+            loader.dispose()

@@ -337,3 +337,61 @@ def test_a_duplicated_key_column_names_the_count_and_the_fix(fresh_registry: Non
         "key_column 'id' appears 2 times in the data: df[key_column] is then a table "
         "rather than a column, and every row would be labeled with the column name. "
         "Rename or drop the duplicate columns.")
+
+
+# --- messages the pins above left partly open ---------------------------------
+
+
+def test_a_rule_without_a_message_says_where_the_message_is_shown(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    make_check("CODE")
+    path = tmp_path / "r.yaml"
+    path.write_text('- name: "r"\n  action: disable\n  codes: [CODE]\n  match: all\n',
+                    encoding="utf-8")
+    with pytest.raises(ValueError) as raised:
+        load_rules([str(path)])
+    assert message_of(raised) == (
+        f"rule 'r' in {path}: 'message' must be the text saying why the rule exists. "
+        "It is printed beside the rule wherever the rules are listed.")
+
+
+def test_a_builder_of_the_wrong_arity_is_named(fresh_registry: None) -> None:
+    make_check("CODE")
+    with pytest.raises(ValueError) as raised:
+        validate(FRAME, context_builder=lambda row, args, extra: None)
+    assert message_of(raised) == (
+        "context_builder '<lambda>' must take (row) or (row, context_args), not 3 "
+        "positional argument(s).")
+
+
+def test_a_nameless_builder_needing_two_keywords_is_shown_as_itself(
+    fresh_registry: None,
+) -> None:
+    """A partial has no __name__, so the message shows the object; and two
+    missing keywords are listed with a comma between."""
+
+    import functools
+
+    def build(row, *, mode, level):  # type: ignore[no-untyped-def]
+        return None
+
+    builder = functools.partial(build)
+    make_check("CODE")
+    with pytest.raises(ValueError) as raised:
+        validate(FRAME, context_builder=builder)
+    assert message_of(raised) == (
+        f"context_builder {builder!r} needs keyword argument(s) mode, level that "
+        "validate cannot supply. Give them defaults, or read them from context_args.")
+
+
+def test_a_setup_file_s_rules_errors_name_the_setup_file(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    path = tmp_path / "setup.yaml"
+    path.write_text("checks: [checks.py]\nrules: r.yaml\n", encoding="utf-8")
+    with pytest.raises(ValueError) as raised:
+        reg.load_setup(str(path))
+    assert message_of(raised) == (
+        f"{path}: 'rules' must be a list of paths, got str. Write it as a list even "
+        "for one file.")

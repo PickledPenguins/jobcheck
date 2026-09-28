@@ -144,7 +144,9 @@ the working directory, or against a `base_dir` the call names — the directory 
 entry point lives in, or the one a configuration file was read from.
 
 For a frame too large to keep every outcome, call `validate_row(row)` per row
-instead: it returns that row's failures and retains nothing for the rest.
+instead: it returns that row's failures and retains nothing for the rest. Those
+lists feed `build_report`, but not the summary, which counts passes and skips
+too; stream `explain_row(row)` per row for that.
 
 ## Documentation
 

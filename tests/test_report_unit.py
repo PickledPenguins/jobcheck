@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from conftest import make_check, one_row_report
+from jobcheck import engine
 from jobcheck import registry as reg
 from jobcheck import results as res
 from jobcheck import report as rep
@@ -491,6 +492,46 @@ def test_the_summary_reads_a_generator_once_and_still_finds_the_root_causes(
 
     table = rep.summarize_outcomes(row for row in outcomes())
     assert table["root_cause_rows"].sum() == 2
+
+
+def test_the_summary_refuses_validate_rows_failures_only_lists(two_layers: None) -> None:
+    """Counted as if complete, they dropped AGE_IN_RANGE's blocked row and every
+    pass, and printed the wrong counts with nothing to say so."""
+
+    failures_only = [engine.validate_row(row) for _, row in FRAME.iterrows()]
+    assert [len(row) for row in failures_only] == [0, 1, 1]
+    with pytest.raises(ValueError) as raised:
+        rep.summarize_outcomes(failures_only)
+    assert str(raised.value) == (
+        "summarize_outcomes needs every check's outcome on every row, but the list for "
+        "row 1 holds 1 and the one before it 0: pass validate's result, or explain_row's "
+        "per row. validate_row keeps only the failures.")
+
+
+def test_explain_row_per_row_is_the_streaming_form_of_the_summary(two_layers: None) -> None:
+    streamed = rep.summarize_outcomes(engine.explain_row(row) for _, row in FRAME.iterrows())
+    pd.testing.assert_frame_equal(streamed, rep.summarize_outcomes(outcomes()))
+
+
+def test_a_report_beyond_failures_refuses_failures_only_lists(two_layers: None) -> None:
+    """`include="blocked"` would print no skipped line from such a list; the
+    failures-only default reads nothing they lack, so it takes them."""
+
+    failures_only = [engine.validate_row(row) for _, row in FRAME.iterrows()]
+    assert len(rep.build_report(failures_only, df=FRAME)) == 2
+    with pytest.raises(ValueError, match=r"^build_report\(include='blocked'\) needs every "
+                                         "check's outcome on every row, but the list for "
+                                         "row 1 holds 1 and the one before it 0"):
+        rep.build_report(failures_only, df=FRAME, include="blocked")
+
+
+def test_a_short_last_list_is_named_by_its_own_row(two_layers: None) -> None:
+    """Each list is compared with the one before it, and named by its own position."""
+
+    complete = outcomes()
+    lists = [complete[0], complete[1], complete[2][:1]]
+    with pytest.raises(ValueError, match="the list for row 2 holds 1 and the one before it 2"):
+        rep.build_report(lists, df=FRAME, include="all")
 
 
 def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> None:

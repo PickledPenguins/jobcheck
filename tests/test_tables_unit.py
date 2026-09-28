@@ -385,6 +385,39 @@ def test_a_character_that_draws_as_nothing_does_not_split_a_cell() -> None:
     assert tables._format_table(frame).count("\n") == 2
 
 
+def test_an_escape_sequence_in_a_cell_is_shown_rather_than_obeyed() -> None:
+    """ESC [2K ESC [1A erases a line and moves up: a crafted cell could blank the
+    failures printed above it and make a failing report read clean."""
+
+    frame = pd.DataFrame([{"id": "S1", "comment": "fine\x1b[2K\x1b[1A"}])
+    rendered = render(frame)
+    assert "\x1b" not in rendered
+    assert "fine\\x1b[2K\\x1b[1A" in rendered
+
+
+@pytest.mark.parametrize("control, shown", [
+    ("\x00", "\\x00"), ("\x07", "\\x07"), ("\x0b", "\\x0b"), ("\x7f", "\\x7f"),
+    ("\x85", "\\x85"), ("\x9b", "\\x9b"), ("‮", "\\u202e"), ("⁦", "\\u2066"),
+])
+def test_every_terminal_control_is_shown_as_its_escape(control: str, shown: str) -> None:
+    """C0 besides the handled breaks and tab, DEL, C1 (\\x9b is a one-byte ESC [),
+    and the bidirectional overrides, which reorder the text a reader sees."""
+
+    assert tables._cell_lines(f"a{control}b", None) == [f"a{shown}b"]
+
+
+def test_a_heading_from_the_data_is_shown_safely_too() -> None:
+    """add_columns copies the frame's own column names into a table's headings."""
+
+    assert "\\x1b]0;x\\x07" in render(pd.DataFrame({"\x1b]0;x\x07": [1]}))
+
+
+def test_the_csv_keeps_a_control_character_as_the_data_holds_it() -> None:
+    """The file is data for another program; only the terminal rendering changes."""
+
+    assert "a\x1bb" in render(pd.DataFrame({"x": ["a\x1bb"]}), fmt="csv")
+
+
 # --- add_columns, the one argument every table takes ----------------------
 
 

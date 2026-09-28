@@ -75,12 +75,18 @@ There are no other keys. An unrecognized key is rejected, naming the rule and li
 is allowed: in a file edited by hand, a key that is silently ignored is a setting that
 quietly does nothing.
 
+A key written twice in one mapping — a second `codes:` appended to a rule — is refused
+too, naming both lines. YAML itself would keep the last and drop the first without a word,
+so the rule would say something other than it appears to.
+
 ## Matching
 
 Matching is **regex only**. There is no glob or wildcard alternative: one mechanism is
 easier for non-developers to get right than two.
 
-Each criterion is a mapping with both `column` and `pattern`. The pattern is a Python
+Each criterion is a mapping with both `column` and `pattern`, and nothing else: an extra
+key such as `negate: true` is refused, since ignoring it would apply the rule to exactly the
+rows it was meant to spare. The pattern is a Python
 regular expression applied with `re.search`, so it matches anywhere in the value unless
 anchored with `^`/`$`. Values are compared as the text the report prints for them: a
 whole number is `41` even when pandas holds it as `41.0` — which it does for an integer
@@ -164,11 +170,28 @@ Two conditional rules are not compared. Whether their patterns overlap is a ques
 about the regexes rather than about the file, and a wrong answer would be worse than
 none.
 
+## Disabling a check disables what depends on it
+
+A check runs only once every check it depends on has passed, and a disabled one has not.
+Disabling `AGE_PRESENT` for some rows therefore switches off `AGE_NOT_A_NUMBER`,
+`AGE_NEGATIVE`, `AGE_TOO_HIGH` and the off-by-default `AGE_NOT_INTEGER` on those rows as
+well: a negative or unreadable age there
+passes without a line in the report, and only the summary's `skipped` column counts it. A
+rule cannot say "this field may be blank"; the check has to know which rows may leave it
+empty.
+
+`warn_blocking_rules` takes the loaded rules and names, for each disabled code, the checks
+below it the rule does not list itself. `python3 examples/main.py --rules-table` prints
+those warnings under the rules table. Listing the dependents in the same rule says the
+silence is meant and ends the warning: the shipped file's
+`suppress_email_checks_for_test_accounts` disables `EMAIL_MISSING_AT` together with the
+check that depends on it, and reports nothing.
+
 ## Errors
 
 Everything is validated when the file loads, never when a rule first meets a row, so a
-malformed file stops the run before any data is processed. Each message names the rule and
-the file it came from.
+malformed file stops the run before any data is processed. Each message names the file,
+and the rule too once the entry has a name to give.
 
 | Problem | Message |
 |---|---|
@@ -176,6 +199,8 @@ the file it came from.
 | missing `match` | `missing 'match'. Use 'match: all' to apply the rule to every row.` |
 | `match: al` | `'match' must be a list of criteria or the literal 'all', got 'al'.` |
 | criterion missing a key | `'match' entry {'column': 'email'} needs both 'column' and 'pattern'.` |
+| criterion with another key | `'match' entry {'column': 'email', 'pattern': 'x', 'negate': True} has unknown key(s) negate. A criterion holds only 'column' and 'pattern'.` |
+| a key given twice | `key 'codes' appears twice in one mapping, on lines 4 and 5. YAML would keep only the last; remove one.` |
 | bad regex | `invalid regex '([unclosed' for column 'email': unterminated character set at position 1` |
 | bad action | `'action' must be exactly 'enable' or 'disable', got 'turn_on'.` |
 | unknown code | `unknown code 'NO_SUCH_CODE'. Load the check file that defines it before loading rules, or fix the code.` |
@@ -242,6 +267,7 @@ A setup file configures the library; it does not say what data to read or what t
 setup file, the data and the tables; [cli.md](cli.md) describes it.
 
 Every refusal names the file: a document that is not a mapping (a flat list is the *rule*
-file's shape, and the mistake somebody makes having written one first), an unknown key, a
+file's shape, and the mistake somebody makes having written one first), a key given twice
+(a second `checks:` would otherwise replace the first list), an unknown key, a
 string where a list belongs (`checks: one.py` is a string, and a string is a list of
 characters), an entry that is not a path, and an empty `checks`.

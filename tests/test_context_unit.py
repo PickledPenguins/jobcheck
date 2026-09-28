@@ -38,11 +38,43 @@ class FileContext(RowContext):
         return cls(counts={str(row["source"]): 1})
 
 
+def test_the_base_context_refuses_a_new_attribute() -> None:
+    """Without a builder every row shares one bare context, so a value cached on
+    it would reach every later row, and later calls too."""
+
+    with pytest.raises(AttributeError):
+        RowContext().parsed = 5  # type: ignore[attr-defined]
+
+
+def test_a_check_caching_on_the_shared_context_errors_rather_than_reusing_a_row(
+    fresh_registry: None,
+) -> None:
+    """The memo pattern the context exists for. On the shared context it gave
+    every row the first row's value, so -3 and -7 passed as 5; now it errors."""
+
+    from jobcheck import OK, Verdict, validate
+    from jobcheck import registry as reg
+    from jobcheck.results import Outcome
+
+    @reg.register_check(code="PARSES", message="m")
+    def parses(row: "pd.Series[Any]", context: Any) -> Verdict:
+        if getattr(context, "parsed", None) is None:
+            context.parsed = float(row["x"])
+        return OK
+
+    outcomes = validate(pd.DataFrame({"x": ["5", "-3"]}))
+    assert [row[0].outcome for row in outcomes] == [Outcome.ERRORED] * 2
+    assert "AttributeError" in outcomes[0][0].detail
+
+
 def test_a_subclass_carries_whatever_the_pipeline_needs() -> None:
     context = FileContext(counts={"MODERN": 2})
     assert isinstance(context, RowContext)
     assert context.counts == {"MODERN": 2}
     assert FileContext().counts == {}
+    # The base's empty __slots__ does not reach a subclass: it keeps its __dict__.
+    context.cached = 1  # type: ignore[attr-defined]
+    assert context.cached == 1  # type: ignore[attr-defined]
 
 
 def test_validate_without_a_builder_hands_every_row_a_bare_context(

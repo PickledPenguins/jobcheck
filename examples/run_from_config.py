@@ -48,6 +48,7 @@ from jobcheck import (  # noqa: E402
     rules_table,
     summarize_outcomes,
     validate,
+    warn_blocking_rules,
     warn_missing_rule_columns,
     warn_shadowed_rules,
 )
@@ -72,6 +73,35 @@ TABLE_OPTIONS: dict[str, tuple[str, ...]] = {
 
 #: The options that hold a list of column names; every other one is a string.
 LIST_OPTIONS = ("add_columns", "drop_columns")
+
+
+class StrictLoader(yaml.SafeLoader):
+    """`SafeLoader`, refusing a key given twice in one mapping.
+
+    PyYAML keeps the last of two identical keys and says nothing, so a second
+    `tables:` would quietly drop every table the first one listed. The library
+    reads its own files the same way; an entry point reading a format of its
+    own needs its own copy.
+    """
+
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> Any:
+        seen: dict[Any, int] = {}
+        for key_node, _ in node.value:
+            if key_node.tag == "tag:yaml.org,2002:merge":
+                continue  # `<<` may repeat a key on purpose; the explicit one wins
+            key = self.construct_object(key_node, deep=deep)
+            line = key_node.start_mark.line + 1
+            try:
+                earlier = seen.get(key)
+            except TypeError:  # unhashable: SafeLoader refuses it itself
+                continue
+            if earlier is not None:
+                raise yaml.constructor.ConstructorError(
+                    None, None,
+                    f"key {key!r} appears twice in one mapping, on lines {earlier} and "
+                    f"{line}; YAML would keep only the last", key_node.start_mark)
+            seen[key] = line
+        return super().construct_mapping(node, deep=deep)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -102,7 +132,7 @@ def read_run_file(run_file: str) -> dict[str, Any]:
 
     try:
         with open(run_file, encoding="utf-8") as handle:
-            document = yaml.safe_load(handle)
+            document = yaml.load(handle, Loader=StrictLoader)
     except OSError as exc:
         fail(run_file, f"cannot read it: {exc.strerror}")
     except yaml.YAMLError as exc:
@@ -191,11 +221,12 @@ def print_tables(tables: list[dict[str, Any]], rules: list[Rule], df: Any,
 
 def print_rules_and_warnings(rules: list[Rule], options: dict[str, Any],
                              drop: list[str]) -> None:
-    """The rules table, then any rule a later one overrules on every row -- the
-    same pairing `main.py --rules-table` prints."""
+    """The rules table, then any rule a later one overrules on every row and any
+    disable rule that silences checks it does not name -- what
+    `main.py --rules-table` prints."""
 
     print(render(rules_table(rules, **options).drop(columns=drop)))
-    for warning in warn_shadowed_rules(rules):
+    for warning in warn_shadowed_rules(rules) + warn_blocking_rules(rules):
         print(f"warning: {warning}")
 
 

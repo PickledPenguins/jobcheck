@@ -27,7 +27,8 @@ import pandas as pd
 
 
 class Status(IntEnum):
-    """Built-in outcome codes. ``PASS`` is 0; every other value is a failure."""
+    """What is wrong with a value: the fixed status vocabulary. ``PASS`` is 0;
+    every other value is a failure."""
 
     PASS = 0
     MISSING = 1
@@ -45,8 +46,10 @@ class Outcome(str, Enum):
     """What happened to one check on one row, as recorded by the engine.
 
     A `str` as well, so `outcome == "failed"` holds; write `.value` where the text
-    is wanted, since formatting a member prints `Outcome.FAILED` before Python 3.11's
-    StrEnum, which this package does not require.
+    is wanted. Formatting a member depends on the Python version, because
+    `Enum.__format__` changed: `f"{outcome}"` gives `failed` on 3.10 and
+    `Outcome.FAILED` on later versions (seen on 3.12 and 3.14). `StrEnum` would
+    settle it, but needs 3.11.
     """
 
     PASSED = "passed"

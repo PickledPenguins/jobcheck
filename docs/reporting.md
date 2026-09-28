@@ -154,7 +154,16 @@ print(render(summarize_outcomes(outcomes)))
 
 Per check: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`,
 worst first. `root_cause_rows` counts the rows the check was a root cause of; a row
-failing two chains at the same depth counts against both.
+failing two chains at the same depth counts against both. An errored check counts as a
+root cause too, so `root_cause_rows` can exceed `failed`, and a broken shallow check takes
+the flag from real failures on deeper layers of the same row.
+
+Every row's list must be complete: `validate`'s result, or `explain_row` per row
+streamed as a generator. `validate_row` keeps only the failures, so a list of its
+results would count too few passes and skips; one whose rows differ in length is
+refused with a `ValueError`: `summarize_outcomes needs every check's outcome on every
+row, but the list for row 1 holds 1 and the one before it 0: pass validate's result, or
+explain_row's per row. validate_row keeps only the failures.`
 
 Read it this way: a high `failed` count is a data problem; a high `skipped` count
 is a *layering* signal — some fundamental check is failing often and hiding
@@ -328,7 +337,10 @@ Path("report.csv").write_text(render(report, fmt="csv"))
 ```
 
 `render` returns a string, so where it goes — the terminal, a file, a log line, an
-email body — is the caller's choice. `fmt` is validated: anything but `table` or
+email body — is the caller's choice. The bordered form shows every control character
+a terminal would act on as its escape — `\x1b` rather than ESC — so a cell from the
+data cannot erase lines or move the cursor over the report; the CSV keeps the data as
+it is. `fmt` is validated: anything but `table` or
 `csv` raises. An empty table renders as its title over `(empty)`, or as the CSV
 header row alone.
 

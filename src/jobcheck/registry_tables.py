@@ -1,4 +1,5 @@
-"""The registry, the rules, and the relationship between them, as tables.
+"""The registry, the rules, and the relationship between them, as tables -- and
+the one rule warning that needs the registry to give.
 
 Kept apart from registering and evaluating because it is the job that grows:
 every question about the configuration becomes another column rather than
@@ -54,7 +55,8 @@ def registry_table(rules: list[Rule] | None = None,
     # Layers are computed with the evaluation order; a check registered outside
     # load_checks has none until something asks for it.
     _get_topo_order()
-    rules = rules or []
+    # Read once per check, so a generator is made a list first.
+    rules = list(rules or [])
 
     rows: list[dict[str, Any]] = []
     for check in _CHECKS:
@@ -79,6 +81,57 @@ def registry_table(rules: list[Rule] | None = None,
     table = (pd.DataFrame(rows, columns=_REGISTRY_COLUMNS)
              .sort_values(["layer", "code"]).reset_index(drop=True))
     return _shown(table, "Registry", add_columns)
+
+
+def warn_blocking_rules(rules: list[Rule]) -> list[str]:
+    """Warn about disable rules that switch off more than they name.
+
+    A check runs only once its prerequisites passed, so disabling one skips
+    everything that depends on it, directly or not, on every row the rule
+    matches -- and a skipped check reports nothing. One line per rule and
+    disabled code, naming the dependents the rule does not itself disable:
+    listing them in the rule says the silence is meant, and ends the warning.
+    Needs the registry, which is why it lives here rather than beside
+    `warn_shadowed_rules`.
+    """
+
+    order = _get_topo_order()
+    dependents: dict[str, list[str]] = {check.code: [] for check in order}
+    for check in order:
+        for prerequisite in check.depends_on:
+            dependents[prerequisite].append(check.code)
+    rank = {check.code: (check.layer, check.code) for check in order}
+
+    def below(code: str) -> set[str]:
+        """Every check depending on *code*, directly or through others."""
+
+        found: set[str] = set()
+        waiting = list(dependents.get(code, []))
+        while waiting:
+            dependent = waiting.pop()
+            if dependent not in found:
+                found.add(dependent)
+                waiting.extend(dependents[dependent])
+        return found
+
+    warnings: list[str] = []
+    for rule in list(rules):
+        if rule.action != "disable":
+            continue
+        reach = {code: below(code) for code in rule.codes}
+        for code in rule.codes:
+            # A code below another one the rule disables is silent either way;
+            # naming it again would repeat that code's warning.
+            if any(code in reach[other] for other in rule.codes if other != code):
+                continue
+            blocked = sorted(reach[code] - set(rule.codes), key=rank.__getitem__)
+            if blocked:
+                warnings.append(
+                    f"rule {rule.name!r} disables {code}, which also stops "
+                    f"{', '.join(blocked)} on the rows it matches: a check whose "
+                    "prerequisite is off is skipped, and reports nothing"
+                )
+    return warnings
 
 
 def rules_table(rules: list[Rule], add_columns: list[str] | None = None) -> pd.DataFrame:
