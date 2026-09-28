@@ -127,6 +127,33 @@ empty `RowContext`, so a check that reads context raises. The explanation then s
 `errored` where the report shows a verdict. Explaining from `validate`'s own result,
 `row_explanation(outcomes[i])`, avoids it. Not yet surveyed.
 
+**A column widened by one long word should wrap its other cells at that width** (F.64,
+raised by the owner on 2026-09-28). `render` wraps each free-text column to a fixed
+width from `_WRAP_WIDTHS` (`src/jobcheck/tables.py:187`) and never breaks inside a
+word (`break_long_words=False`, `tables.py:105`). A single long unbroken string, such
+as a path or an identifier, therefore overflows the limit. The column is then as wide
+as that string (`tables.py:145-152`), but every other cell in the column is still
+wrapped at the smaller configured width. The result is a wide column whose other cells
+are split over more lines than necessary. Proposed: wrap each column at the larger of
+its configured width and its longest unbreakable word, so every cell uses the width
+the column already takes. The wrap would then need two passes, one to measure the
+longest word per column and one to wrap. Not yet surveyed.
+
+**A check that raises should report its exception type and message** (F.65, raised by
+the owner on 2026-09-28). With `on_error="record"`, the owner found the exception
+effectively hidden unless the run is repeated with `on_error="raise"`, and wants the
+exception type and message in `detail` or `comments`, whichever fits. What the code
+does today: the engine already writes `f"{type(exc).__name__}: {exc}"` into the
+outcome's `detail` (`src/jobcheck/engine.py:138`), and the report and the row
+explanation both show it in their `detail` columns. The owner's own case showed
+`detail='AttributeError: ...'` on the outcome. So the survey must first find out why it
+read as hidden. Candidates: the `detail` column is not where a reader looks, next to
+an empty `comments` column; `str(exc)` can be terse or empty, leaving only the type;
+and there is no location, so nothing says which line of which check raised. Possible
+additions: the file and line of the innermost frame in the check (from
+`exc.__traceback__`), or the full traceback kept on the outcome for `render` to show on
+request. Not yet surveyed.
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
