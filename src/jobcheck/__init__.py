@@ -2,7 +2,7 @@
 
 Importing this package registers **no** checks: an entry point calls
 `load_checks` with the files it wants, and `load_rules` with the rule files
-that switch individual checks off for chosen rows.
+that switch individual checks on or off for chosen rows.
 """
 
 from __future__ import annotations
@@ -14,7 +14,6 @@ code."""
 
 from .context import RowContext
 from .registry import (
-    Rule,
     clear_registry,
     load_checks,
     load_setup,
@@ -27,8 +26,8 @@ from .engine import (
     validate,
     validate_row,
 )
-from .registry_tables import registry_table, rules_table
-from .rules import warn_missing_rule_columns, warn_shadowed_rules
+from .registry_tables import registry_table, rules_table, warn_blocking_rules
+from .rules import Rule, warn_missing_rule_columns, warn_shadowed_rules
 from .report import (
     build_report,
     render_comments,
@@ -65,6 +64,7 @@ __all__ = [
     "validate",
     "validate_row",
     "__version__",
+    "warn_blocking_rules",
     "warn_missing_rule_columns",
     "warn_shadowed_rules",
 ]

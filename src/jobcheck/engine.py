@@ -27,7 +27,8 @@ from .rules import Rule, _rule_matches
 ContextBuilder = Callable[..., RowContext | None]
 
 # What a check is handed when there is no context. One shared object: the base
-# class has no fields, so every empty context is the same anyway.
+# class has no fields, and its empty __slots__ refuses a new attribute, so no
+# check can leave a value on it for a later row to find.
 _EMPTY_CONTEXT = RowContext()
 
 
@@ -64,8 +65,10 @@ def explain_row(
     """Run the checks against one row and report what *every* check did.
 
     The root-cause tool, and the single implementation of the per-row algorithm.
-    Outcomes come back in evaluation order, so the first failure is the most
-    fundamental: a check runs only once every check it depends on has passed.
+    Outcomes come back in evaluation order: a check runs only once every check it
+    depends on has passed. The first failure is not necessarily the shallowest --
+    an independent chain registered earlier can fail deeper -- so ask
+    `root_causes` which to read first.
 
     "Did not pass" covers a prerequisite that was *disabled* or *errored* as well
     as one that failed -- a check that never ran confirmed nothing about the row,
@@ -175,7 +178,10 @@ def root_causes(row_outcomes: list[CheckOutcome]) -> list[str]:
     """Every failure at the shallowest failing layer, in evaluation order.
 
     Every one, not the first: two failures in the same layer are two causes.
-    Deeper failures are downstream of these, so they are left out.
+    Deeper failures are left out. They are never downstream of these -- a check
+    runs only once its prerequisites passed, so each failure is the root of its
+    own chain -- they are the ones to read after. `errored` outcomes count as
+    failures here, so a broken shallow check can take the flag from real ones.
     """
 
     failures = [outcome for outcome in row_outcomes if outcome.failed]
@@ -241,6 +247,8 @@ def validate(
             f"validate takes a DataFrame, got {type(df).__name__}; for one row, call "
             "validate_row or explain_row.")
 
+    # Read once per row: a generator would apply to the first row only.
+    rules = list(rules or [])
     build = None if context_builder is None else _context_caller(context_builder)
     frame_outcomes = []
     for _, row in df.iterrows():

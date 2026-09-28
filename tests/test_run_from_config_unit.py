@@ -162,6 +162,33 @@ def test_a_missing_run_file_names_itself(capsys: Any, tmp_path: Path) -> None:
     assert err == f"error: {run_file}: cannot read it: No such file or directory\n"
 
 
+def test_a_key_given_twice_is_refused_rather_than_the_last_winning(
+    capsys: Any, tmp_path: Path
+) -> None:
+    """A second `tables:` would otherwise drop every table the first one listed."""
+
+    run_file = write_run(tmp_path, BASE + "tables: [{table: summary}]\n"
+                                          "tables: [{table: registry}]\n")
+    err = refused(capsys, run_file)
+    assert err.startswith(
+        f"error: {run_file}: not valid YAML: key 'tables' appears twice in one mapping, "
+        "on lines 3 and 4; YAML would keep only the last")
+    assert err.count("\n") == 1
+
+
+def test_a_merge_key_and_an_unhashable_key_are_left_to_yaml(
+    fresh_registry: None, capsys: Any, tmp_path: Path
+) -> None:
+    """`<<` may restate a key on purpose; a list as a key is refused by YAML itself."""
+
+    merged = write_run(tmp_path, BASE + "tables:\n  - &t {table: summary}\n"
+                                        "  - {<<: *t, table: summary}\n")
+    run_from_config.main([merged])
+    assert capsys.readouterr().out.count("== Summary ==") == 2
+    err = refused(capsys, write_run(tmp_path, BASE + "? [a, b]\n: 1\ntables: []\n"))
+    assert "found unhashable key" in err
+
+
 def test_invalid_yaml_is_one_line(capsys: Any, tmp_path: Path) -> None:
     err = refused(capsys, write_run(tmp_path, "tables: [ {\n"))
     assert ": not valid YAML: " in err

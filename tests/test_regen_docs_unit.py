@@ -94,3 +94,16 @@ def test_a_name_on_the_command_line_selects_the_documents(
     assert chosen[0] == [Path("docs/reporting.md")]
     assert regen.main([]) == 0
     assert chosen[1] == [Path("docs/cli.md"), Path("docs/reporting.md")]
+
+
+def test_a_name_matching_no_document_is_refused(
+    regen: ModuleType, monkeypatch: Any, capsys: Any,
+) -> None:
+    """Exit 0 having done nothing is how a typo'd name passed for success."""
+
+    monkeypatch.setattr(regen, "regenerate", lambda documents: pytest.fail("ran"))
+    monkeypatch.setattr(regen, "DOCS", [Path("docs/cli.md"), Path("docs/reporting.md")])
+    assert regen.main(["reporting", "nosuchdoc"]) == 2
+    assert capsys.readouterr().err == (
+        "regen_docs: no document under docs/ matches nosuchdoc "
+        "(documents: cli.md, reporting.md)\n")

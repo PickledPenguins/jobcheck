@@ -98,6 +98,11 @@ common one — a pipeline's context is built from the run's own arguments — so
 named function is passed directly rather than wrapped in a lambda that closes over
 them. Without a builder, every row is handed the same empty context.
 
+The base class takes no attributes (`__slots__ = ()`): shared by every row, a value
+a check cached on it would reach every later row. Setting one raises
+`AttributeError`, which the engine records as `errored`. A subclass keeps its
+`__dict__` and takes whatever it declares.
+
 ### `Rule`
 
 One loaded rule: `name`, `action`, `codes`, `criteria`, `match_all`, `message`,
@@ -163,6 +168,10 @@ rather than recursing. A file that raises is not rolled back: the error propagat
 the checks registered before it stay, and the failing file is not recorded as
 loaded. Loading again in the same process starts with `clear_registry()`.
 
+One thread loads at a time: `load_checks` and `clear_registry` hold one reentrant
+lock, so a second thread waits for the first to finish, and a bundle's nested call
+still works.
+
 Importing the members instead — `sys.path.insert` and `import check_age` — also
 registers them, but they are then ordinary modules: two bundles holding a
 same-named member silently load only the first, since the second import finds the
@@ -183,7 +192,9 @@ size and that limit, rather than a bare `RecursionError` naming nothing.
 ### `clear_registry() -> None`
 
 Empties the registry and evicts the modules that registered
-checks from `sys.modules` -- never `__main__` -- so a later `load_checks` re-registers rather than
+checks from `sys.modules` -- never `__main__`, and never a standard-library module,
+which is what a `functools.partial` or an `operator` callable reports; for a partial
+it is the wrapped function's module -- so a later `load_checks` re-registers rather than
 silently doing nothing. It is the whole of the registry-state API: there is no
 way to save a registry and put it back, because outside a test there is no use
 for one. A caller loads its check files at start-up, or clears and loads a
@@ -270,8 +281,10 @@ or `context`. For the one to read first, ask `root_causes`.
 `root_causes` returns **every** failure at the shallowest failing layer, in
 evaluation order: two chains failing at the same depth are two root causes, and
 naming only the first evaluated would let registration order decide what a
-person reads as the cause. Deeper failures are excluded as downstream — a check
-only runs once its prerequisites passed. Empty for a row that passed.
+person reads as the cause. Deeper failures are left out as the ones to read next,
+not as downstream of these: a check only runs once its prerequisites passed, so
+every failure is the root of its own chain. An `errored` outcome counts as a
+failure here. Empty for a row that passed.
 
 A caller wanting a single label per row (a tally, a column in a frame) takes the
 first. Accepts either `validate_row` or `explain_row` output.
@@ -296,6 +309,19 @@ one and decisive for another. Warns rather than raises, like
 `warn_missing_rule_columns` — `examples/rules/error_rules.yaml` ships a shadowed
 rule on purpose, as the precedence demonstration, and
 `python3 examples/main.py --rules-table` prints the warning under the rules table.
+
+### `warn_blocking_rules(rules) -> list[str]`
+
+One line per disable rule and code that other checks depend on, naming every
+dependent, direct or not, that the rule does not list itself: a check whose
+prerequisite is off is skipped, so on the rows the rule matches those checks never
+run and report nothing. Listing them in the same rule says the silence is meant and
+ends the warning, which is why `examples/rules/error_rules.yaml`, disabling
+`EMAIL_MISSING_AT` together with its dependent, reports nothing. A code below
+another one the same rule disables is not reported again. Reads the registry for
+the dependency graph, so load the checks first; like the other two, it warns rather
+than raises, and `python3 examples/main.py --rules-table` prints it under the rules
+table.
 
 ### `validate(df, rules=None, context_builder=None, on_error="record", context_args=None) -> list[list[CheckOutcome]]`
 
@@ -341,7 +367,8 @@ once, raises `ValueError`; without it the frame's index labels the rows.
 `add_columns` copies frame columns into the report just after `row`; a name not in
 the frame, named twice, or colliding with one of the report's own columns raises
 `ValueError`. `include` is `"failures"`, `"blocked"` or `"all"`, and anything else
-raises `ValueError`. Titled `Report`. The columns are in
+raises `ValueError`. `"failures"` takes `validate_row`'s failures-only lists too;
+the other two need every outcome, and refuse lists that differ in length. Titled `Report`. The columns are in
 [reporting.md](reporting.md#shape-one-row-per-failure).
 
 ### `row_explanation(row_outcomes, include="all") -> DataFrame`
@@ -358,8 +385,11 @@ the default here; `"blocked"` drops the checks that simply passed. Titled
 Per check, across every row: `code`, `layer`, `failed`, `root_cause_rows`, `errored`,
 `skipped`, `disabled`, `passed`, sorted by `failed`, `errored` and `skipped`, most
 first, then by code. `root_cause_rows` counts the rows whose root causes include the
-check. Takes `validate`'s result or any iterable of per-row lists, a generator
-included, and keeps only the counts. Titled `Summary`.
+check, errored rows included, so it can exceed `failed`. Takes `validate`'s result
+or any iterable of complete per-row lists, a generator included — `explain_row(row)`
+per row is the streaming form — and keeps only the counts. `validate_row`'s lists
+hold failures only and would count wrong, so lists that differ in length raise
+`ValueError`. Titled `Summary`.
 
 ### `render_comments(comments) -> str`
 

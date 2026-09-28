@@ -13,7 +13,7 @@ A block's shown output is a bare block straight after it, with nothing but blank
 lines between; blocks without one are not run. A block that raises is named on
 stderr and its shown output left alone.
 
-Exit codes: 0 done; 1 a block raised.
+Exit codes: 0 done; 1 a block raised; 2 a name matched no document.
 """
 
 from __future__ import annotations
@@ -78,6 +78,12 @@ def regenerate(documents: list[Path]) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     wanted = sys.argv[1:] if argv is None else argv
+    # A name matching nothing is refused: done-with-nothing reads as success.
+    unmatched = [part for part in wanted if not any(part in path.name for path in DOCS)]
+    if unmatched:
+        print(f"regen_docs: no document under docs/ matches {', '.join(unmatched)} "
+              f"(documents: {', '.join(path.name for path in DOCS)})", file=sys.stderr)
+        return 2
     return regenerate([path for path in DOCS
                        if not wanted or any(part in path.name for part in wanted)])
 

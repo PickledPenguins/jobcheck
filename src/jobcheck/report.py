@@ -38,6 +38,25 @@ def _included(include: str) -> set[str]:
     return INCLUDE_LEVELS[include]
 
 
+def _refuse_partial_row(caller: str, position: int, found: int, expected: int) -> None:
+    """Refuse a row whose outcome list is not as long as the others.
+
+    `validate` and `explain_row` give every check an outcome on every row, so
+    their lists are all one length. `validate_row` keeps only the failures, and
+    counted as if complete they would report too few passed, skipped and
+    disabled, and drop the checks that never failed -- with nothing to say so.
+    Equal lengths do not prove the lists complete, but unequal ones prove not.
+    """
+
+    if found != expected:
+        raise ValueError(
+            f"{caller} needs every check's outcome on every row, but the list for row "
+            f"{position} holds {found} and the one before it {expected}: pass "
+            "validate's result, or explain_row's per row. validate_row keeps only "
+            "the failures."
+        )
+
+
 def render_comments(comments: Mapping[str, Any]) -> str:
     """Render a check's comments as `key=value; key=value`, sorted by key so the
     same failure renders identically every run and reports can be diffed."""
@@ -116,6 +135,11 @@ def build_report(
             "pass the same frame the outcomes were collected from."
         )
     wanted = _included(include)
+    # "failures" reads nothing a failures-only list lacks; the other levels do.
+    if include != "failures":
+        for position, row_outcomes in enumerate(frame_outcomes[1:], 1):
+            _refuse_partial_row(f"build_report(include={include!r})", position,
+                                len(row_outcomes), len(frame_outcomes[position - 1]))
     add_columns = list(add_columns or [])
 
     # A column is on offer when its name appears exactly once -- a duplicated
@@ -196,13 +220,24 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
     count means a fundamental check is failing often and hiding what is below it.
     `errored` stays separate from `failed` so a broken check is never mistaken
     for bad data. `root_cause_rows` counts the rows whose root cause the check
-    is; a row failing two chains at the same depth counts against both.
+    is; a row failing two chains at the same depth counts against both. An
+    errored row counts as a root cause too, which is how `root_cause_rows` can
+    exceed `failed`.
+
+    Every row's list must be complete -- `validate`'s, or `explain_row`'s per
+    row, a generator of them included. A list whose length differs from the one
+    before it raises `ValueError`, since `validate_row`'s failures-only lists
+    would count wrong without a sign.
     """
 
     counts: dict[str, dict[Outcome, int]] = {}
     layers: dict[str, int] = {}
     causes: dict[str, int] = {}
-    for row_outcomes in frame_outcomes:
+    expected = -1
+    for position, row_outcomes in enumerate(frame_outcomes):
+        if expected < 0:
+            expected = len(row_outcomes)
+        _refuse_partial_row("summarize_outcomes", position, len(row_outcomes), expected)
         for outcome in row_outcomes:
             entry = counts.get(outcome.code)
             if entry is None:   # built once per code, not per outcome

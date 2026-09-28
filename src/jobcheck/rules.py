@@ -13,14 +13,15 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import yaml
 
-from .paths import resolve_input_file
+from .paths import _read_yaml, resolve_input_file
 from .tables import _format_cell, is_null
 
 
 # Every key a rule may carry. Anything else is a typo, and rejected as one.
 _RULE_KEYS = {"name", "action", "codes", "match", "message"}
+# The same for one criterion in a rule's `match`.
+_CRITERION_KEYS = {"column", "pattern"}
 
 
 @dataclass
@@ -84,6 +85,13 @@ def _parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[_Matc
             raise ValueError(
                 f"{where}: each 'match' entry must be a mapping with 'column' and "
                 "'pattern'.")
+        # Refused like a rule's unknown key: `negate: true` read as nothing would
+        # disable the checks on exactly the rows the author meant to exempt.
+        unknown = sorted(str(key) for key in set(entry) - _CRITERION_KEYS)
+        if unknown:
+            raise ValueError(
+                f"{where}: 'match' entry {entry!r} has unknown key(s) {', '.join(unknown)}. "
+                "A criterion holds only 'column' and 'pattern'.")
         if "column" not in entry or "pattern" not in entry:
             raise ValueError(
                 f"{where}: 'match' entry {entry!r} needs both 'column' and 'pattern'.")
@@ -169,9 +177,7 @@ def _parse_file(path: str, known_codes: set[str],
     there would be this machine's, not the one the caller would recognize.
     """
 
-    with open(resolve_input_file(path, "rule file", "load_rules()", base_dir),
-              "r", encoding="utf-8") as handle:
-        raw = yaml.safe_load(handle)
+    raw = _read_yaml(resolve_input_file(path, "rule file", "load_rules()", base_dir), path)
     if raw is None:
         return []
     if not isinstance(raw, list):
@@ -250,7 +256,7 @@ def warn_missing_rule_columns(df: pd.DataFrame, rules: list[Rule]) -> list[str]:
 
     present = set(df.columns)
     warnings: list[str] = []
-    for rule in rules:
+    for rule in list(rules):
         for criterion in rule.criteria:
             if criterion.column not in present:
                 warnings.append(
@@ -271,6 +277,8 @@ def warn_shadowed_rules(rules: list[Rule]) -> list[str]:
     shadowed rule can be deliberate (`examples/rules/error_rules.yaml` has one).
     """
 
+    # Read more than once below, so a generator is made a list first.
+    rules = list(rules)
     warnings: list[str] = []
     seen: list[str] = []
     for rule in rules:

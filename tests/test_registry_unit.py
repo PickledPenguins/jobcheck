@@ -72,6 +72,38 @@ def test_a_partial_registers_and_is_named_by_its_own_kind(fresh_registry: None) 
     assert engine.validate_row(pd.Series({"age": 200}))[0].code == "AGE_ABOVE"
 
 
+def test_clearing_after_a_partial_leaves_functools_imported(fresh_registry: None) -> None:
+    """A partial reports `functools` as its module, and clear_registry evicted
+    it: the next `import functools` built a second module, with new `wraps`,
+    `lru_cache` and `partial` objects, beside the ones earlier importers hold."""
+
+    def above(limit: int, row: "pd.Series[Any]") -> Verdict:
+        return OK
+
+    reg.register_check(code="AGE_ABOVE", message="m")(
+        functools.partial(functools.partial(above), 130))
+    assert "functools" not in reg._LOADED_MODULES
+    assert __name__ in reg._LOADED_MODULES   # the module the wrapped function lives in
+    reg.clear_registry()
+    assert sys.modules.get("functools") is functools
+
+
+def test_a_standard_library_callable_is_never_evicted(fresh_registry: None) -> None:
+    """A callable object reports its class's module; `operator` would go the way
+    `functools` did."""
+
+    import email.utils
+    import operator
+
+    reg.register_check(code="TRUTHY", message="m")(operator.truth)
+    reg.register_check(code="CALLS", message="m")(operator.methodcaller("get", "age"))
+    # A submodule is judged by its package: email.utils is standard library too.
+    reg.register_check(code="PARSES", message="m")(email.utils.parseaddr)
+    assert {"operator", "_operator", "email.utils"}.isdisjoint(reg._LOADED_MODULES)
+    reg.clear_registry()
+    assert sys.modules.get("operator") is operator
+
+
 def test_a_callable_object_of_the_wrong_shape_is_refused_with_a_message(
     fresh_registry: None,
 ) -> None:

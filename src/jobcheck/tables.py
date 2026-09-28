@@ -64,9 +64,23 @@ def _reject_unknown_columns(requested: list[str], available: list[str], subject:
 
 
 # The breaks a terminal acts on. Not `str.splitlines`, which also splits on
-# \x0b, \x1c and   -- characters that draw as nothing, so a cell would go
-# tall for no visible reason.
+# \x0b, \x1c and \x85 -- characters that draw as nothing, so a cell would go
+# tall for no visible reason. `_visible` shows them as escapes instead.
 _LINE_BREAKS = re.compile(r"\r\n|[\r\n\f]")
+
+# What a terminal acts on rather than draws, left once the breaks are split and
+# tabs expanded: the other C0 controls, DEL, the C1 controls, and the Unicode
+# bidirectional overrides. ESC starts sequences that erase lines and move the
+# cursor, so a crafted cell could blank the failures printed above it.
+_TERMINAL_CONTROLS = re.compile(
+    "[\x00-\x08\x0b\x0e-\x1f\x7f-\x9f؜‎‏‪-‮⁦-⁩]")
+
+
+def _visible(text: str) -> str:
+    """*text* with every terminal control shown as its escape, such as `\\x1b`."""
+
+    return _TERMINAL_CONTROLS.sub(
+        lambda match: match.group().encode("unicode_escape").decode("ascii"), text)
 
 
 def _cell_lines(value: Any, width: int | None) -> list[str]:
@@ -77,10 +91,12 @@ def _cell_lines(value: Any, width: int | None) -> list[str]:
     breaking the row: the renderer pads with `len()`, so a cell that emits a
     newline of its own slides every column after it. Tabs are expanded for the
     same reason -- `len()` counts one character where a terminal draws eight.
+    Every other control character is printed as its escape, `\\x1b`, so data
+    being reported on cannot drive the terminal showing the report.
     """
 
     text = "" if value is None or is_null(value) else str(value)
-    segments = [segment.expandtabs() for segment in _LINE_BREAKS.split(text)]
+    segments = [_visible(segment.expandtabs()) for segment in _LINE_BREAKS.split(text)]
     if width is None:
         return segments
     return [
@@ -113,7 +129,8 @@ def _format_table(table: pd.DataFrame, wrap_columns: dict[str, int] | None = Non
     if table.empty:
         return "(empty)"
 
-    headers = [str(column) for column in table.columns]
+    # A heading can come from the data too: add_columns copies the frame's names.
+    headers = [_visible(str(column)) for column in table.columns]
 
     # First pass: wrap every cell. rows[r][c] is the list of lines that column c
     # occupies in row r -- one line for most cells, several for a wrapped one.

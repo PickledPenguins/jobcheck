@@ -176,6 +176,13 @@ def test_missing_file_is_refused_the_way_a_missing_check_file_is(one_code: None,
         ),
         pytest.param(
             '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match:\n'
+            '    - column: email\n      pattern: "x"\n      negate: true\n      flags: i\n',
+            "'match' entry {'column': 'email', 'pattern': 'x', 'negate': True, 'flags': 'i'} "
+            "has unknown key(s) flags, negate. A criterion holds only 'column' and 'pattern'.",
+            id="criterion-unknown-key",
+        ),
+        pytest.param(
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match:\n'
             "    - column: 7\n      pattern: \"x\"\n",
             "'column' and 'pattern' must both be strings in {'column': 7, 'pattern': 'x'}.",
             id="criterion-wrong-types",
@@ -256,6 +263,53 @@ def test_malformed_rule_is_rejected_at_load_time(
     # reader can find it in a file of many.
     if 'name: "r"' in body:
         assert str(excinfo.value).startswith(f"rule 'r' in {path}: ")
+
+
+def test_a_key_given_twice_in_one_rule_is_refused_rather_than_the_last_winning(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """PyYAML keeps the second `codes:` and says nothing, so a rule written for A
+    with `codes: [B]` appended later would load as a rule about B alone."""
+
+    make_check("A_CODE")
+    make_check("B_CODE")
+    path = write(tmp_path, "r.yaml",
+                 '- name: "r"\n  message: "m"\n  action: disable\n'
+                 "  codes: [A_CODE]\n  codes: [B_CODE]\n  match: all\n")
+    with pytest.raises(ValueError) as raised:
+        reg.load_rules([path])
+    assert str(raised.value) == (
+        f"{path}: key 'codes' appears twice in one mapping, on lines 4 and 5. "
+        "YAML would keep only the last; remove one.")
+
+
+def test_a_key_repeated_on_one_line_is_refused_too(one_code: None, tmp_path: Path) -> None:
+    """A flow mapping puts both on one line, so the line number cannot be what
+    tells the first from the second."""
+
+    path = write(tmp_path, "r.yaml",
+                 '- {name: "r", name: "s", message: "m", action: disable, '
+                 "codes: [A_CODE], match: all}\n")
+    with pytest.raises(ValueError, match="key 'name' appears twice in one mapping, "
+                                         "on lines 1 and 1"):
+        reg.load_rules([path])
+
+
+def test_a_merge_key_may_restate_a_key_it_merges(one_code: None, tmp_path: Path) -> None:
+    """`<<: *base` then `name:` overrides the merged name, which is what YAML
+    merge keys are for rather than a repeated key."""
+
+    loaded = reg.load_rules([write(tmp_path, "r.yaml", """
+- &base
+  name: "first"
+  message: "m"
+  action: disable
+  codes: [A_CODE]
+  match: all
+- <<: *base
+  name: "second"
+""")])
+    assert [rule.name for rule in loaded] == ["first", "second"]
 
 
 def test_duplicate_rule_name_within_one_file_is_rejected(one_code: None, tmp_path: Path) -> None:
@@ -598,6 +652,60 @@ def test_the_shipped_example_reports_its_deliberate_shadowed_rule(
     ]
 
 
+def test_a_code_with_no_unconditional_rule_does_not_end_the_search(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """The first code has only a conditional rule; the second is shadowed. A loop
+    that stopped at the first code would lose the second's warning."""
+
+    make_check("A_CODE")
+    make_check("B_CODE")
+    loaded = _rules(tmp_path, """
+- name: "a_for_legacy"
+  message: "m"
+  action: disable
+  codes: [A_CODE]
+  match:
+    - column: source
+      pattern: "^LEGACY"
+- name: "b_for_legacy"
+  message: "m"
+  action: enable
+  codes: [B_CODE]
+  match:
+    - column: source
+      pattern: "^LEGACY"
+- name: "b_everywhere"
+  message: "m"
+  action: disable
+  codes: [B_CODE]
+  match: all
+""")
+    assert rules.warn_shadowed_rules(loaded) == [
+        "rule 'b_for_legacy' is overruled for B_CODE by the later rule 'b_everywhere', "
+        "which matches every row: it can never apply to B_CODE"
+    ]
+
+
+def test_the_rule_warnings_take_a_generator(one_code: None, tmp_path: Path) -> None:
+    """A generator is read more than once inside; read as it came, the second
+    pass found it empty and the warning went missing."""
+
+    loaded = _rules(tmp_path, """
+- name: "narrow"
+  message: "m"
+  action: enable
+  codes: [A_CODE]
+  match:
+    - column: source
+      pattern: "^LEGACY"
+""" + GLOBAL_DISABLE)
+    assert len(rules.warn_shadowed_rules(rule for rule in loaded)) == 1  # type: ignore[arg-type]
+    frame = pd.DataFrame({"other": [1]})
+    assert len(rules.warn_missing_rule_columns(
+        frame, (rule for rule in loaded))) == 1  # type: ignore[arg-type]
+
+
 def test_no_rules_and_no_unconditional_rule_report_nothing(one_code: None, tmp_path: Path) -> None:
     assert rules.warn_shadowed_rules([]) == []
     loaded = _rules(tmp_path, """
@@ -610,3 +718,101 @@ def test_no_rules_and_no_unconditional_rule_report_nothing(one_code: None, tmp_p
       pattern: "^LEGACY"
 """)
     assert rules.warn_shadowed_rules(loaded) == []
+
+
+# --- disable rules that silence the checks below them ------------------------
+
+
+@pytest.fixture
+def age_chain(fresh_registry: None) -> None:
+    """AGE_PRESENT <- AGE_NUMBER <- AGE_NEGATIVE, with EMAIL_PRESENT beside them."""
+
+    make_check("AGE_PRESENT")
+    make_check("AGE_NUMBER", depends_on=["AGE_PRESENT"])
+    make_check("AGE_NEGATIVE", depends_on=["AGE_NUMBER"])
+    make_check("EMAIL_PRESENT")
+
+
+def disabling(*codes: str, name: str = "excuse", action: str = "disable") -> reg.Rule:
+    return rule(name, action, list(codes), [("source", "^LEGACY_B$")])
+
+
+def test_a_disable_rule_on_a_prerequisite_names_every_check_it_silences(
+    age_chain: None,
+) -> None:
+    """The rule says AGE_PRESENT; on its rows AGE_NUMBER and AGE_NEGATIVE never
+    run either, and report nothing -- the dependents, deepest last."""
+
+    assert registry_tables.warn_blocking_rules([disabling("AGE_PRESENT")]) == [
+        "rule 'excuse' disables AGE_PRESENT, which also stops AGE_NUMBER, AGE_NEGATIVE "
+        "on the rows it matches: a check whose prerequisite is off is skipped, and "
+        "reports nothing"
+    ]
+
+
+def test_naming_the_dependents_in_the_rule_says_the_silence_is_meant(
+    age_chain: None,
+) -> None:
+    whole_chain = disabling("AGE_PRESENT", "AGE_NUMBER", "AGE_NEGATIVE")
+    assert registry_tables.warn_blocking_rules([whole_chain]) == []
+
+
+def test_a_chain_partly_named_is_reported_once_from_its_top(age_chain: None) -> None:
+    """AGE_NUMBER is below AGE_PRESENT, so its own warning would repeat the one
+    for AGE_PRESENT."""
+
+    # The lower code listed first: skipping it must not end the rule's other codes.
+    assert registry_tables.warn_blocking_rules(
+        [disabling("AGE_NUMBER", "AGE_PRESENT")]) == [
+        "rule 'excuse' disables AGE_PRESENT, which also stops AGE_NEGATIVE on the rows "
+        "it matches: a check whose prerequisite is off is skipped, and reports nothing"
+    ]
+
+
+def test_enable_rules_and_leaf_checks_block_nothing(age_chain: None) -> None:
+    assert registry_tables.warn_blocking_rules([
+        disabling("AGE_PRESENT", action="enable"),
+        disabling("AGE_NEGATIVE", "EMAIL_PRESENT", name="leaves"),
+    ]) == []
+
+
+def test_an_enable_rule_first_does_not_end_the_search(age_chain: None) -> None:
+    assert len(registry_tables.warn_blocking_rules([
+        disabling("AGE_PRESENT", action="enable", name="first"),
+        disabling("AGE_NUMBER", name="second"),
+    ])) == 1
+
+
+def test_a_rule_naming_a_code_no_longer_registered_warns_about_nothing(
+    age_chain: None,
+) -> None:
+    """Rules loaded, then the registry cleared and a different set loaded."""
+
+    assert registry_tables.warn_blocking_rules([disabling("GONE_CODE")]) == []
+
+
+def test_the_blocking_warning_takes_a_generator(age_chain: None) -> None:
+    rules_given = [disabling("AGE_NUMBER")]
+    assert len(registry_tables.warn_blocking_rules(
+        rule for rule in rules_given)) == 1  # type: ignore[arg-type]
+
+
+def test_the_shipped_rules_silence_nothing_they_do_not_name(example_checks: None) -> None:
+    """`error_rules.yaml` disables EMAIL_MISSING_AT and, in the same rule, the
+    check depending on it -- the way to say a chain's silence is meant."""
+
+    loaded = reg.load_rules([str(Path(PROJECT_ROOT) / "examples/rules/error_rules.yaml")])
+    assert registry_tables.warn_blocking_rules(loaded) == []
+
+
+def test_a_check_reached_by_two_paths_is_named_once(fresh_registry: None) -> None:
+    """A diamond: TOTAL depends on QTY and PRICE, which both depend on LINE."""
+
+    make_check("LINE")
+    make_check("QTY", depends_on=["LINE"])
+    make_check("PRICE", depends_on=["LINE"])
+    make_check("TOTAL", depends_on=["QTY", "PRICE"])
+    assert registry_tables.warn_blocking_rules([disabling("LINE")]) == [
+        "rule 'excuse' disables LINE, which also stops PRICE, QTY, TOTAL on the rows it "
+        "matches: a check whose prerequisite is off is skipped, and reports nothing"
+    ]

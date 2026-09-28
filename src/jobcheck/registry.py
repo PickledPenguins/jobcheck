@@ -8,21 +8,20 @@ file composes `load_checks` and `load_rules` and this is the module that has bot
 
 from __future__ import annotations
 
+import functools
 import importlib.util
 import inspect
 import sys
+import threading
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
 import pandas as pd
-import yaml
 
 from .context import RowContext
-from .paths import resolve_input_file
+from .paths import _read_yaml, resolve_input_file
 from . import rules
-# Rule is re-exported from here for __init__.py, which imports the public rule
-# type from the registry rather than reaching into .rules directly.
 from .rules import Rule
 
 # What an author writes: (row) or (row, context), returning OK or a
@@ -33,7 +32,7 @@ RunnerFn = Callable[["pd.Series[Any]", RowContext | None], Any]
 
 @dataclass
 class _Check:
-    """One named validation rule.
+    """One registered check: its code, its message and the function that runs it.
 
     `code` is permanent: never renumbered, never reused even after the check it
     named is deleted, because rule files and saved reports refer to codes.
@@ -77,6 +76,11 @@ _TOPO_ORDER: list[_Check] | None = None
 # len(_LOADED_FILES): a bundle is named before its members finish, so the two
 # would share a number.
 _LOAD_SEQUENCE = 0
+# Held for the whole of load_checks and clear_registry. The bookkeeping above
+# and sys.dont_write_bytecode are process-wide, so two threads loading at once
+# would let one call skip validating what the other loaded, and leave bytecode
+# writing off. Reentrant, because a bundle calls load_checks from inside one.
+_LOAD_LOCK = threading.RLock()
 
 
 def _name_of(fn: CheckFn) -> str:
@@ -84,6 +88,27 @@ def _name_of(fn: CheckFn) -> str:
     carries `__name__`; a `functools.partial` or a callable object does not."""
 
     return getattr(fn, "__name__", type(fn).__name__)
+
+
+def _module_to_evict(fn: CheckFn) -> str | None:
+    """The module clear_registry must evict for *fn* to register again, or None.
+
+    The module the author's function lives in, which for a `functools.partial`
+    is the wrapped function's, not `functools`. Never the standard library: a
+    callable object of a library class reports the library's module, and
+    evicting it would leave every earlier importer holding a second copy. Never
+    the running script either: evicting `__main__` breaks pickling, spawned
+    workers and `import __main__` for the rest of the process.
+    """
+
+    while isinstance(fn, functools.partial):
+        fn = fn.func
+    module = getattr(fn, "__module__", None)
+    if not module or module == "__main__":
+        return None
+    if module.partition(".")[0] in sys.stdlib_module_names:
+        return None
+    return str(module)
 
 
 def _source_file_of(fn: CheckFn) -> str:
@@ -190,10 +215,9 @@ def register_check(
             where=f"{module}.{_name_of(fn)}" if module else _name_of(fn),
         )
 
-        # Never the running script: evicting __main__ breaks pickling, spawned
-        # workers and `import __main__` for the rest of the process.
-        if module and module != "__main__":
-            _LOADED_MODULES.add(module)
+        evict = _module_to_evict(fn)
+        if evict:
+            _LOADED_MODULES.add(evict)
         check = _Check(
             code=code,
             message=message,
@@ -218,16 +242,17 @@ def clear_registry() -> None:
     """
 
     global _TOPO_ORDER, _LOAD_SEQUENCE
-    _CHECKS.clear()
-    _LOADED_FILES.clear()
-    _LOAD_SEQUENCE = 0
-    # Evict the check modules too: Python caches a module after its first import,
-    # so without this a later load_checks() would re-import nothing and leave
-    # the registry silently empty.
-    for name in _LOADED_MODULES:
-        sys.modules.pop(name, None)
-    _LOADED_MODULES.clear()
-    _TOPO_ORDER = None
+    with _LOAD_LOCK:
+        _CHECKS.clear()
+        _LOADED_FILES.clear()
+        _LOAD_SEQUENCE = 0
+        # Evict the check modules too: Python caches a module after its first
+        # import, so without this a later load_checks() would re-import nothing
+        # and leave the registry silently empty.
+        for name in _LOADED_MODULES:
+            sys.modules.pop(name, None)
+        _LOADED_MODULES.clear()
+        _TOPO_ORDER = None
 
 
 def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
@@ -249,16 +274,25 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
 
     A relative path is resolved against *base_dir* when one is given and
     against the working directory otherwise.
+
+    One thread loads at a time: a second caller waits for the first to finish.
     """
 
-    global _LOAD_SEQUENCE
     if isinstance(paths, str):
         raise TypeError(
             f"load_checks takes a list of paths, not one string: pass [{paths!r}]. "
             "A bare string would be read as a list of its characters."
         )
+    with _LOAD_LOCK:
+        _load_checks(list(paths), base_dir)
+
+
+def _load_checks(paths: list[str], base_dir: str | Path | None) -> None:
+    """`load_checks` itself, run while holding `_LOAD_LOCK`."""
+
+    global _LOAD_SEQUENCE
     resolved: list[str] = []
-    for path in list(paths):
+    for path in paths:
         name = str(resolve_input_file(path, "check file", "load_checks()", base_dir))
         # A file mid-import is skipped, so a bundle naming itself, or two naming
         # each other, finish instead of recursing.
@@ -267,8 +301,9 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
 
     for name in resolved:
         # A unique module name per load: two run directories can each hold a
-        # checks.py, and importing the second under the first's name would be a
-        # no-op that silently registered nothing.
+        # checks.py, and each needs its own sys.modules entry -- sharing one, the
+        # second would replace the first there, so the first could no longer be
+        # imported or pickled by name.
         module_name = f"jobcheck_check_file_{Path(name).stem}_{_LOAD_SEQUENCE}"
         _LOAD_SEQUENCE += 1
         spec = importlib.util.spec_from_file_location(module_name, name)
@@ -447,8 +482,7 @@ def load_setup(path: str) -> list[Rule]:
     """
 
     setup_file = resolve_input_file(path, "setup file", "load_setup()")
-    with open(setup_file, encoding="utf-8") as handle:
-        document = yaml.safe_load(handle)
+    document = _read_yaml(setup_file, str(setup_file))
     if not isinstance(document, dict):
         raise ValueError(
             f"{setup_file}: a setup file is a mapping of "

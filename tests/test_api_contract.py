@@ -110,6 +110,7 @@ PUBLIC_NAMES = {
     "register_check", "load_checks", "clear_registry", "load_setup",
     # Rules.
     "Rule", "load_rules", "warn_missing_rule_columns", "warn_shadowed_rules",
+    "warn_blocking_rules",
     # What a check returns and what the engine records.
     "Verdict", "OK", "Status", "CheckOutcome", "Outcome", "RowContext",
     # Running.

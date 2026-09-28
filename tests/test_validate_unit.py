@@ -94,6 +94,17 @@ def test_rules_reach_the_per_row_engine(fresh_registry: None) -> None:
     assert outcomes[0][0].detail == "disabled by rule 'off'"
 
 
+def test_rules_given_as_a_generator_apply_to_every_row(fresh_registry: None) -> None:
+    """A filtering generator is the idiomatic way to pass a subset. Read once per
+    row as it came, it was empty from the second row on, and the check ran there."""
+
+    make_check("A", passes=False)
+    rules = [Rule(name="off", action="disable", codes=["A"], criteria=[], match_all=True,
+                  message="why the rule exists")]
+    outcomes = validate(frame(3), rules=(rule for rule in rules))  # type: ignore[arg-type]
+    assert [row[0].outcome for row in outcomes] == [Outcome.DISABLED] * 3
+
+
 def test_the_context_builder_is_called_once_per_row(fresh_registry: None) -> None:
     """The context reaches the check unchanged, which is what lets one shared
     object carry the whole frame to a cross-row check."""
@@ -154,7 +165,10 @@ def test_a_context_builder_taking_two_arguments_is_given_the_context_args(
     """The shape a pipeline wants: a named function taking `(row, args)`, not a
     lambda closing over them. `context_args` is passed through untouched."""
 
+    rows_seen: list[int] = []
+
     def build_context(row: Any, args: Any) -> RunContext:
+        rows_seen.append(row["a"])
         return RunContext(strict=args["strict"])
 
     seen: list[bool] = []
@@ -167,6 +181,7 @@ def test_a_context_builder_taking_two_arguments_is_given_the_context_args(
     frame = pd.DataFrame([{"a": 1}, {"a": 2}])
     validate(frame, context_builder=build_context, context_args={"strict": True})
     assert seen == [True, True]
+    assert rows_seen == [1, 2]
 
 
 def test_a_context_builder_taking_one_argument_still_gets_only_the_row(

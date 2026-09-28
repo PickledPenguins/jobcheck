@@ -8,6 +8,7 @@ nothing, and that a bad path is loud rather than silently empty.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -103,6 +104,23 @@ def test_two_files_of_the_same_name_in_different_directories_both_load(
         write_check_file(right, "checks.py", "RIGHT"),
     ])
     assert sorted(t.code for t in reg._CHECKS) == ["LEFT", "RIGHT"]
+
+
+def test_every_file_of_one_name_gets_its_own_module(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """Three, not two: a sequence stuck at one still names the first two apart,
+    and only the third collides. Sharing a name, the later file would replace the
+    earlier one in sys.modules."""
+
+    paths = []
+    for side in ("a", "b", "c"):
+        (tmp_path / side).mkdir()
+        paths.append(write_check_file(tmp_path / side, "checks.py", side.upper()))
+    reg.load_checks(paths)
+    names = sorted(name for name in reg._LOADED_MODULES if name.startswith("jobcheck_check_file_"))
+    assert len(names) == 3
+    assert all(name in sys.modules for name in names)
 
 
 def test_a_missing_path_raises_and_registers_nothing(fresh_registry: None, tmp_path: Path) -> None:
@@ -640,6 +658,20 @@ def test_a_setup_file_without_rules_registers_the_checks_and_returns_none(
         encoding="utf-8",
     )
     assert reg.load_setup(_setup(tmp_path, "checks: [check_one.py]\n")) == []
+
+
+def test_a_key_given_twice_in_a_setup_file_is_refused(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """PyYAML keeps the second `checks:`, so the files the first one named would
+    never load, and nothing would say so."""
+
+    path = _setup(tmp_path, "checks: [one.py]\nrules: [r.yaml]\nchecks: [two.py]\n")
+    with pytest.raises(ValueError) as raised:
+        reg.load_setup(path)
+    assert str(raised.value) == (
+        f"{path}: key 'checks' appears twice in one mapping, on lines 1 and 3. "
+        "YAML would keep only the last; remove one.")
 
 
 def test_a_setup_file_that_is_not_a_mapping_says_so(

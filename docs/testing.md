@@ -15,14 +15,14 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 815 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 272 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1087 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 862 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 273 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 1135 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
 | `./tests/run-tests.sh profile` | the example profile alone | 3s |
-| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 95.7%) | 250s |
+| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 96.6%) | 300s |
 | `./tests/run-tests.sh types` | mypy alone | 8s |
 
 Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
@@ -102,7 +102,7 @@ Long:
 |---|---|
 | `tests/test_e2e_catalogs.py` | Every catalog case through the real entry point, plus the catalog's own rules: each case documents itself, states its level, and the level counts stay above their floors. |
 | `tests/test_integration.py` | Real rule files on disk driving a whole DataFrame, precedence across directories, CSV export, a check file written at runtime and loaded by path, a written report re-read as a spreadsheet reader would. |
-| `tests/test_concurrency.py` | Threads sharing one registry agree with one thread; separate processes do not share one; several processes loading the same file all succeed and leave no bytecode; a crashing process does not affect its neighbor. |
+| `tests/test_concurrency.py` | Threads sharing one registry agree with one thread; two threads loading take turns, so a broken load still fails; separate processes do not share one; several processes loading the same file all succeed and leave no bytecode; a crashing process does not affect its neighbor. |
 | `tests/test_faults.py` | The filesystem failing underneath: unreadable rule and check files, a directory where a file was expected, symlinks pointing nowhere, NUL bytes, a full disk mid-write, and a read-only output directory. |
 | `tests/test_scaling.py` | The *shape* of the cost: four times the rows or the checks costs under eight times the time, a 100-deep dependency chain does not cost more than a flat registry, a frame with no failures costs the report a fraction of a failing one, and going row by row holds a quarter of what collecting holds. Every timing here is a ratio with room in it, and the one that compares two small measurements takes the best of five runs after a warm-up, so a busy machine does not fail a run. |
 | `tests/test_load.py` | 20,000 rows within a time ceiling, correctness at volume, 500 checks × 200 rows, 500 rules × 200 rows, and a guard that the topological sort never runs inside the row loop. |
@@ -217,6 +217,14 @@ read `mutmut results` in between as the suite's score.
 
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
+
+Measured on 2026-09-28, with the silent fixes of the 2026-09-27 reviews and their tests:
+**1,525 mutants, 1,473 killed, 52 survived, 0 timeouts — 96.6%**, in about five minutes.
+Survivors by module: `engine` 13, `tables` 10, `paths` 9, `report` 9, `registry` 9,
+`registry_tables` 2. Those in the new code were read: the ones left are equivalents
+(`deep=None` for `deep=False` in the YAML loader, the letter case of a codec name, a
+negative sentinel of -2 for -1, an explicit `utf-8` on a UTF-8 box) and `continue` turned
+to `break` after an unhashable key, which YAML then refuses anyway.
 
 Measured on 2026-09-26 on a tree cleaned first (`rm -rf mutants .mutmut-cache`), at
 commit `c4d6b0b` plus the `summarize_outcomes` fix: **1,369 mutants, 1,310 killed, 59

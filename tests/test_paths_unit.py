@@ -13,7 +13,9 @@ from typing import Any
 
 import pytest
 
-from jobcheck.paths import resolve_input_file
+import yaml
+
+from jobcheck.paths import _read_yaml, resolve_input_file
 
 pytestmark = pytest.mark.fast
 
@@ -113,3 +115,23 @@ def test_the_kind_and_the_caller_are_the_words_the_message_uses(tmp_path: Path) 
     message = str(raised.value)
     assert message.startswith("No rule file at ")
     assert "load_rules() names files explicitly" in message
+
+
+def test_a_repeat_after_a_merge_key_is_still_refused(tmp_path: Path) -> None:
+    """The `<<` is skipped, not the rest of the mapping after it."""
+
+    path = tmp_path / "f.yaml"
+    path.write_text("base: &b {x: 1}\nm:\n  <<: *b\n  y: 1\n  y: 2\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="^f.yaml: key 'y' appears twice in one mapping, "
+                                         "on lines 4 and 5"):
+        _read_yaml(path, "f.yaml")
+
+
+def test_the_yaml_reader_leaves_an_unhashable_key_to_yaml(tmp_path: Path) -> None:
+    """A list as a key cannot be looked up to find a repeat; SafeLoader refuses it
+    with its own message rather than the reader failing with a TypeError."""
+
+    path = tmp_path / "f.yaml"
+    path.write_text("? [a, b]\n: 1\n", encoding="utf-8")
+    with pytest.raises(yaml.constructor.ConstructorError, match="found unhashable key"):
+        _read_yaml(path, "f.yaml")

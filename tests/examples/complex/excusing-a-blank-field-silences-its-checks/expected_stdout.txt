@@ -5,6 +5,7 @@ name                | action  | codes_hit_count | match                       | 
 --------------------+---------+-----------------+-----------------------------+-----------------------------------------
 legacy_b_has_no_age | disable | 1               | source_system~=/^LEGACY_B$/ | LEGACY_B exports never carried an age; a
                     |         |                 |                             | blank one is expected                   
+warning: rule 'legacy_b_has_no_age' disables AGE_PRESENT, which also stops AGE_NOT_A_NUMBER, AGE_NEGATIVE, AGE_NOT_INTEGER, AGE_TOO_HIGH on the rows it matches: a check whose prerequisite is off is skipped, and reports nothing
 
 == Registry ==
 code                 | layer | default | message                                 | depends_on       | could_be_overridden_by       

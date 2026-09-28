@@ -21,6 +21,7 @@ import pandas as pd
 
 from jobcheck import (
     build_report,
+    warn_blocking_rules,
     warn_missing_rule_columns,
     warn_shadowed_rules,
     load_checks,
@@ -173,10 +174,11 @@ def main(argv: list[str] | None = None) -> None:
         # a rule touching eight codes is one line here and eight there, which is
         # the view that answers "what did this file actually say".
         print(render(rules_table(rules)))
-        # Beside the rules themselves, because "this rule can never apply" is a
-        # fact about the file rather than about a row. The shipped rule file has
-        # one on purpose: it is the precedence demonstration.
-        for warning in warn_shadowed_rules(rules):
+        # Beside the rules themselves, because "this rule can never apply" and
+        # "this rule silences checks it does not name" are facts about the file
+        # rather than about a row. The shipped rule file has a shadowed rule on
+        # purpose: it is the precedence demonstration.
+        for warning in warn_shadowed_rules(rules) + warn_blocking_rules(rules):
             print(f"warning: {warning}")
         print()
 

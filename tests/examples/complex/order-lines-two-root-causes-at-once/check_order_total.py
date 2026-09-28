@@ -1,8 +1,8 @@
 """Layer 2: the line total agrees with quantity times price.
 
-Three prerequisites, two of them in another file that the setup names *after*
-this one: the graph is checked once the whole load returns, so the order of the
-files does not matter.
+Three prerequisites, all three in `check_order_numbers.py`, which the setup
+names *after* this one: the graph is checked once the whole load returns, so the
+order of the files does not matter.
 """
 
 from jobcheck import OK, Status, Verdict, register_check
