@@ -167,6 +167,35 @@ failures-only report and an `include="all"` report would number the same failure
 differently), its column name and position, and how it interacts with `add_columns`
 name collisions and the CSV output. Not yet surveyed.
 
+**Record the rule that enabled a check** (F.67, raised on 2026-09-28 while answering the
+owner's request for a table of every check a rule decided). The engine records a rule
+only when it disables a check: the outcome's `detail` reads `disabled by rule 'name'`
+(`src/jobcheck/engine.py:111`). `_resolve_enabled_state` computes the same reason for a
+rule that enables a check, but the loop at `engine.py:104` drops it, so a rule-enabled
+check's PASSED, FAILED or SKIPPED outcome has no trace of the rule. Today the only way
+to find one is indirect: an off-by-default code (`registry_table()`'s `default == 'OFF'`)
+whose outcome is not `disabled`. That loses the rule's name, and it cannot see an enable
+rule on a check that is on by default (one re-enabled after an earlier rule disabled it).
+A related gap: `prerequisite disabled: X` does not say whether X was disabled by a rule
+or by default.
+
+- Gained: the table of rule-decided checks becomes one filter, names the rule, and
+  catches enables of default-on checks.
+- Lost, if written into `detail`: its documented meaning, "empty for a check that passed
+  or failed" (`docs/reporting.md:53`, the `CheckOutcome` docstring); any caller that
+  treats `detail == ""` as "ran normally"; and a failures report would show `detail` on
+  every rule-enabled line, so the column would sometimes explain the outcome and
+  sometimes explain why the check ran at all.
+- Alternative: a separate `rule` field on `CheckOutcome` and a report column. That keeps
+  `detail` to one meaning, but changes the report's columns and more of the docs.
+- Size: about 10 source lines in `engine.py` for the `detail` form, or about 25 across
+  `results.py`, `engine.py` and `report.py` for the field; docs in `reporting.md` and
+  `interfaces.md`; about 3 tests.
+- Blast radius: `build_report`, `row_explanation`, the CSV columns, and the shown output
+  of the doc examples, which the doc-example test would catch.
+- Priority: medium. Nothing fails, but "ran because of a rule" is only approximate.
+- Recommended: the separate `rule` field. Not yet decided.
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
