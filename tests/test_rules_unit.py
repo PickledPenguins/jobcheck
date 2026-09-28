@@ -80,28 +80,29 @@ def test_an_unknown_key_is_rejected_rather_than_silently_ignored(
     path = write(tmp_path, "r.yaml", GLOBAL_DISABLE + "  bogus_key: 1\n")
     with pytest.raises(ValueError) as excinfo:
         reg.load_rules([path])
-    assert "unknown key(s) bogus_key" in str(excinfo.value)
-    assert "Allowed: action, codes, match, message, name." in str(excinfo.value)
+    assert "unknown key(s) 'bogus_key'" in str(excinfo.value)
+    assert "Allowed: 'action', 'codes', 'match', 'message', 'name'." in str(excinfo.value)
 
     # Two typos are listed together, sorted, so one run reports both.
     path = write(tmp_path, "r2.yaml", GLOBAL_DISABLE + "  zzz: 1\n  bogus_key: 1\n")
     with pytest.raises(ValueError) as excinfo:
         reg.load_rules([path])
-    assert "unknown key(s) bogus_key, zzz." in str(excinfo.value)
+    assert "unknown key(s) 'bogus_key', 'zzz'." in str(excinfo.value)
 
 
 def test_a_key_yaml_reads_as_a_bool_is_named_rather_than_crashing(
     one_code: None, tmp_path: Path
 ) -> None:
-    """YAML 1.1 reads `on:` as True and `2:` as an int; neither can be joined
-    into the message as it stood, which raised a bare TypeError instead."""
+    """YAML 1.1 reads `on:` as True and `2:` as an int. Joining them raised a bare
+    TypeError once; now each shows as Python writes it, so the unquoted `True`
+    says YAML read a bool where the file said `on`."""
 
     path = write(tmp_path, "r.yaml", GLOBAL_DISABLE + "  on: 1\n  2: x\n")
     with pytest.raises(ValueError) as excinfo:
         reg.load_rules([path])
     assert str(excinfo.value) == (
         f"rule 'kill_it' in {path}: unknown key(s) 2, True. "
-        "Allowed: action, codes, match, message, name.")
+        "Allowed: 'action', 'codes', 'match', 'message', 'name'.")
 
 
 def test_every_documented_key_is_accepted(one_code: None, tmp_path: Path) -> None:
@@ -178,7 +179,8 @@ def test_missing_file_is_refused_the_way_a_missing_check_file_is(one_code: None,
             '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match:\n'
             '    - column: email\n      pattern: "x"\n      negate: true\n      flags: i\n',
             "'match' entry {'column': 'email', 'pattern': 'x', 'negate': True, 'flags': 'i'} "
-            "has unknown key(s) flags, negate. A criterion holds only 'column' and 'pattern'.",
+            "has unknown key(s) 'flags', 'negate'. A criterion holds only 'column' and "
+            "'pattern'.",
             id="criterion-unknown-key",
         ),
         pytest.param(

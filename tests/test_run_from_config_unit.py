@@ -117,9 +117,9 @@ def test_a_rule_column_the_data_lacks_is_warned_on_stderr(fresh_registry: None,
 
 
 @pytest.mark.parametrize("body, message", [
-    ("- setup\n", "a run file is a mapping of setup, data, tables, got list."),
+    ("- setup\n", "a run file is a mapping of 'data', 'setup', 'tables', got list."),
     (BASE + "tables: [{table: summary}]\nextra: 1\n",
-     "unknown key(s) ['extra']. A run file holds setup, data, tables."),
+     "unknown key(s) 'extra'. A run file holds 'data', 'setup', 'tables'."),
     ("setup: setup.yaml\ntables: [{table: summary}]\n", "'data' is required."),
     ("setup: [setup.yaml]\ndata: data.csv\ntables: [{table: summary}]\n",
      "'setup' must be a path, got list."),
@@ -131,9 +131,10 @@ def test_a_rule_column_the_data_lacks_is_warned_on_stderr(fresh_registry: None,
     (BASE + "tables: [{table: summary}, {table: bogus}]\n",
      "table 2: unknown table 'bogus'. The tables are registry, rules, report, summary."),
     (BASE + "tables: [{table: summary, key_column: id}]\n",
-     "table 1 (summary): unknown option(s) ['key_column']. It takes no options."),
+     "table 1 (summary): unknown option(s) 'key_column'. It takes no options."),
     (BASE + "tables: [{table: rules, key_column: id}]\n",
-     "table 1 (rules): unknown option(s) ['key_column']. It takes add_columns, drop_columns."),
+     "table 1 (rules): unknown option(s) 'key_column'. "
+     "It takes 'add_columns', 'drop_columns'."),
     (BASE + "tables: [{table: report, add_columns: name}]\n",
      "table 1 (report): 'add_columns' must be a list of column names. "
      "Write it as a list even for one column."),
@@ -142,12 +143,12 @@ def test_a_rule_column_the_data_lacks_is_warned_on_stderr(fresh_registry: None,
     # Regression: a key YAML reads as a bool or an int beside a text key, and a
     # table name that is a list, raised TypeError -- a traceback and exit 1.
     (BASE + "tables: [{table: summary}]\non: 1\nextra: 2\n",
-     "unknown key(s) ['True', 'extra']. A run file holds setup, data, tables."),
+     "unknown key(s) True, 'extra'. A run file holds 'data', 'setup', 'tables'."),
     (BASE + "tables: [{table: [report]}]\n",
      "table 1: unknown table ['report']. The tables are registry, rules, report, summary."),
     (BASE + "tables: [{table: report, 1: x, bogus: y}]\n",
-     "table 1 (report): unknown option(s) ['1', 'bogus']. "
-     "It takes key_column, add_columns, drop_columns, include, format."),
+     "table 1 (report): unknown option(s) 1, 'bogus'. "
+     "It takes 'add_columns', 'drop_columns', 'format', 'include', 'key_column'."),
 ])
 def test_a_malformed_run_file_is_refused_before_anything_loads(
     fresh_registry: None, capsys: Any, tmp_path: Path, body: str, message: str

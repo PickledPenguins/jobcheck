@@ -115,6 +115,12 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def key_names(keys: Any) -> str:
+    """Keys as a message lists them, `'extra', True`: each as Python writes it, so a
+    key YAML read as a bool or a number shows as one. The library's own messages
+    use the same form."""
+
+    return ", ".join(repr(key) for key in sorted(keys, key=str))
 def fail(run_file: str, message: str) -> NoReturn:
     """Every problem with the run file, one line on stderr and exit 2."""
 
@@ -140,12 +146,12 @@ def read_run_file(run_file: str) -> dict[str, Any]:
         fail(run_file, f"not valid YAML: {' '.join(str(exc).split())}")
 
     if not isinstance(document, dict):
-        fail(run_file, f"a run file is a mapping of {', '.join(RUN_KEYS)}, "
+        fail(run_file, f"a run file is a mapping of {key_names(RUN_KEYS)}, "
                        f"got {type(document).__name__}.")
-    # str(): YAML reads `on:` or `1:` as a bool or an int, which cannot sort beside text.
-    unknown = sorted(str(key) for key in set(document) - set(RUN_KEYS))
+    unknown = set(document) - set(RUN_KEYS)
     if unknown:
-        fail(run_file, f"unknown key(s) {unknown}. A run file holds {', '.join(RUN_KEYS)}.")
+        fail(run_file, f"unknown key(s) {key_names(unknown)}. A run file holds "
+                       f"{key_names(RUN_KEYS)}.")
     for key in RUN_KEYS:
         if key not in document:
             fail(run_file, f"{key!r} is required.")
@@ -174,10 +180,11 @@ def check_table(run_file: str, position: int, spec: Any) -> None:
         fail(run_file, f"{where}: unknown table {name!r}. "
                        f"The tables are {', '.join(TABLE_OPTIONS)}.")
     allowed = TABLE_OPTIONS[name]
-    unknown = sorted(str(key) for key in set(spec) - {"table", *allowed})
+    unknown = set(spec) - {"table", *allowed}
     if unknown:
-        takes = ", ".join(allowed) if allowed else "no options"
-        fail(run_file, f"{where} ({name}): unknown option(s) {unknown}. It takes {takes}.")
+        takes = key_names(allowed) if allowed else "no options"
+        fail(run_file, f"{where} ({name}): unknown option(s) {key_names(unknown)}. "
+                       f"It takes {takes}.")
     for option, value in spec.items():
         if option == "table":
             continue

@@ -9,7 +9,7 @@ not import the registry.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 import yaml
 
@@ -54,6 +54,12 @@ def _where(named: Path, candidate: Path, anchor: Path | None) -> str:
     return f": nothing at {candidate}, where a relative path is resolved against {against}"
 
 
+def _key_names(keys: Iterable[Any]) -> str:
+    """Mapping keys as a message lists them: `'codez', True`, sorted as text. Each is
+    shown as Python writes it, so a key YAML read as a bool or a number -- `on:`,
+    `1:` -- shows as `True` or `1`, not as the text it looked like in the file."""
+
+    return ", ".join(repr(key) for key in sorted(keys, key=str))
 class _DuplicateKey(Exception):
     """A mapping named one key twice; `_read_yaml` adds the file to the message."""
 
