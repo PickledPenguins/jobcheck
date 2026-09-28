@@ -239,3 +239,19 @@ def test_a_builder_whose_keyword_argument_has_a_default_is_accepted(
 
     validate(pd.DataFrame([{"a": 1}]), context_builder=build)
     assert seen == ["strict"]
+
+
+def test_a_builder_that_raises_propagates_unchanged_under_record(
+    fresh_registry: None,
+) -> None:
+    """The documented contract (owner's decision, 2026-09-28): on_error covers the
+    checks, not the builder, so a builder must not raise on the data. Pinned so a
+    change to it is a decision rather than an accident."""
+
+    make_check("CODE")
+
+    def build_context(row: Any) -> RowContext:
+        raise TypeError("blank cell")
+
+    with pytest.raises(TypeError, match="^blank cell$"):
+        validate(frame(2), context_builder=build_context)

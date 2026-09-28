@@ -19,22 +19,28 @@ sys.path.insert(0, str(HERE.parents[3] / "src"))
 import pandas as pd  # noqa: E402
 
 from jobcheck import (  # noqa: E402
-    RowContext, build_report, load_checks, render, summarize_outcomes, validate,
+    RowContext, build_report, is_null, load_checks, render, summarize_outcomes, validate,
 )
 
 
 @dataclass
 class JobContext(RowContext):
-    """The paths one row's checks read, derived once for the row."""
+    """The paths one row's checks read, derived once for the row. None where the
+    cell it comes from is blank: the presence checks report that."""
 
-    run_dir: Path = Path()
-    input_file: Path = Path()
+    run_dir: Path | None = None
+    input_file: Path | None = None
     output_writers: dict[str, list[str]] = field(default_factory=dict)
 
 
 def build_context(row: "pd.Series[str]", args: Namespace) -> JobContext:
-    run_dir = args.base / row["run_dir"]
-    return JobContext(run_dir=run_dir, input_file=run_dir / row["input"],
+    """Never raises on the data. A builder that raised would stop validate for every
+    row, so a blank cell becomes None here and a check reports it as one failure."""
+
+    run_dir = None if is_null(row["run_dir"]) else args.base / row["run_dir"]
+    input_file = (None if run_dir is None or is_null(row["input"])
+                  else run_dir / row["input"])
+    return JobContext(run_dir=run_dir, input_file=input_file,
                       output_writers=args.output_writers)
 
 

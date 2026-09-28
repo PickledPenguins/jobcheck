@@ -334,6 +334,11 @@ every check; hand back one shared object when a check needs the whole frame.
 Without one, and for a builder that returns `None`, every row is handed the same
 empty `RowContext`.
 
+The builder is not covered by `on_error`: an exception it raises propagates out of
+`validate` unchanged, and no row's outcomes are returned. It must not raise on the
+data — map a blank cell to `None` and let a presence check report it; see
+[writing-checks.md](writing-checks.md#per-row-context).
+
 It takes `(row)` or `(row, context_args)`, settled once per `validate` rather than
 per row, the same way a check takes `(row)` or `(row, context)`. `context_args` is
 whatever the entry point wants every context built from — its parsed command line,

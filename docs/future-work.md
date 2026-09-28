@@ -17,6 +17,8 @@ Every item raised by the reviews of 2026-09-15, 2026-09-21, 2026-09-23, 2026-09-
 decided against is in the section below, with the reason. An entry there is closed, not
 pending.
 
+F.46 was decided on 2026-09-28 and moved to the section below.
+
 The three reviews of 2026-09-27 are worked through in part. Every silent finding —
 anything that goes wrong with no sign a user could see — was built the same day:
 duplicate YAML keys and unknown `match` keys refused, the shared empty context made to
@@ -25,19 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.46. Each is either loud already, or needs the owner's decision.
-
-**A context builder that raises aborts `validate` for every row** (F.46, high, from the
-2026-09-27 diff review). `validate` calls the builder outside the `try` that turns a
-check's exception into `errored` (`engine.py`, the line calling the builder), so
-`on_error="record"` does not cover it. The catalog case
-`job-manifest-with-per-row-paths` builds a path from `row["run_dir"]`; a blank cell there
-raises `TypeError` and the whole call returns nothing, naming no row. Loud, so not built
-with the silent fixes. The owner's choice: record that row's checks as `errored` with
-detail `context_builder raised: ...` (re-raising under `"raise"`), or document that a
-builder must not raise. Either way the job-manifest case wants a blank-path row, a
-builder mapping a blank cell to `None`, and a presence check on `run_dir` ahead of the
-check that the directory exists.
+left is open below, from F.47. Each is either loud already, or needs the owner's decision.
 
 **`is_root_cause` claims causality, and `root_cause_rows` counts errored rows** (F.47,
 from the 2026-09-27 reviews). The docs no longer call deeper failures "downstream" — they
@@ -143,6 +133,25 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**Recording a raising context builder as `errored`** (F.46, high, from the 2026-09-27
+diff review; decided by the owner 2026-09-28: document instead). `validate` calls the
+builder outside the `try` that turns a check's exception into `errored`, so a builder
+raising on one row -- `args.base / row["run_dir"]` on a blank cell -- ends the whole call
+and names no row. Four options were prototyped on the job-manifest case with a blank
+`run_dir`: every check on the row recorded `errored` (the run survives, but checks that
+never read the context lose their verdict there, and every layer-0 check gains a
+`root_cause_rows` count); a stand-in context that raises when read (most information,
+but a check testing `isinstance(context, TheirContext)` passes silently); raising with
+the row named (the run is still lost, and the exception type changes); and documenting
+that a builder must not raise, with the defensive pattern. The last was chosen: the
+builder is the caller's code, and written to map a blank cell to `None` behind a
+presence check it gives the best report of the four -- one `MISSING` failure, no
+`errored` lines. `writing-checks.md` and `interfaces.md` state the contract,
+`test_a_builder_that_raises_propagates_unchanged_under_record` pins it, and the
+job-manifest catalog case shows the pattern (rows J7 and J8). Reopen if builders written
+by people other than the pipeline's own authors become common, where the trap would bite
+someone who never read the contract.
 
 **Building rules in Python** (F.38, raised by the `src/` review of 2026-09-25, declined by the
 owner the same day). `Rule` is exported, but a hand-built one needs the private
