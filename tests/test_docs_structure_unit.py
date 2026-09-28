@@ -52,9 +52,15 @@ def test_no_internal_link_or_anchor_is_dead(path: Path) -> None:
         assert target_path.exists(), f"{path.name}: {target} does not exist"
         if anchor:
             headings = re.findall(r"^#{1,6} (.+)$", target_path.read_text(encoding="utf-8"), re.M)
-            # GitHub's rule: drop punctuation except `-` and `_`, spaces become `-`.
-            slugs = {re.sub(r"[^a-z0-9 _-]", "", h.lower()).strip().replace(" ", "-")
-                     for h in headings}
+            # GitHub's rule: drop punctuation except `-` and `_`, spaces become `-`,
+            # a repeated heading gets -1, -2. Trimmed before, not after: `[PATH ...]`
+            # leaves a trailing space, and GitHub keeps its `-`.
+            slugs: set[str] = set()
+            for heading in headings:
+                slug = re.sub(r"[^a-z0-9 _-]", "", heading.strip().lower()).replace(" ", "-")
+                repeat = sum(1 for s in slugs if s == slug or re.fullmatch(
+                    re.escape(slug) + r"-\d+", s))
+                slugs.add(slug if repeat == 0 else f"{slug}-{repeat}")
             assert anchor in slugs, f"{path.name}: {target} has no such heading"
 
 
