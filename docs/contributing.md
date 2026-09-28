@@ -40,6 +40,8 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | The README runs and prints exactly what it shows | `tests/test_readme.py` |
 | The README stays an index (300 lines), every document is reachable from it, no dead link or anchor | `tests/test_docs_structure_unit.py` |
 | What a document copies from the code matches it: the shipped rule file, `_DEFAULT_COLUMNS`, the rule and setup keys, the module and script tables | `tests/test_docs_structure_unit.py` |
+| Every message a user can meet — a raised error, an example script's `error:` line, a warning — is quoted in the document that owns it | `tests/test_docs_messages_unit.py` |
+| Every superscript cross-reference is a row of its document's `## References` table, and every row is cited | `tests/test_docs_references_unit.py` |
 | Every catalog case documents itself and states its level, and each level keeps its floor | `tests/test_e2e_catalogs.py` |
 | The shipped rule files load together and name real codes and columns | `tests/test_shipped_examples_unit.py` |
 | The example data is what its generator produces | `tests/test_shipped_examples_unit.py` |
@@ -76,6 +78,38 @@ reason several obvious-looking shortcuts are absent:
   enforces for every module but `paths`, and anything exported needs a use case a
   user outside this package actually has.
 
+## Writing the documents
+
+Each subject has one owning document, and the others point to it rather than restate
+it. A term used in one document and explained in another carries a superscript number
+linking straight to the explanation:
+
+```
+Zero is a pass; every other value is a failure.<sup>[1](concepts.md#rows)</sup>
+```
+
+and the document ends with a `## References` table, one row per number: where it points,
+and what a reader finds there.
+
+```
+## References
+
+| # | Section | What it covers |
+|---|---|---|
+| 1 | [concepts.md: Rows](concepts.md#rows) | what a root cause is |
+```
+
+The number stays out of the reader's way; the table shows at a glance what else to read.
+Number the rows 1, 2, 3 in the order they are first cited, cite a number again rather
+than adding a second row to the same place, and keep the table the last section. Add a
+reference where a reader could otherwise conclude something is undocumented — a term
+defined elsewhere, a behavior whose reason lives in another document — not on every
+mention of a name. A plain inline link stays right where the link is the point of the
+sentence ("see [reporting.md](reporting.md)").
+
+A message the code can show a user is quoted, not paraphrased: the table in the owning
+document (`interfaces.md`, `configuration.md` or `cli.md`) holds its text, with `<...>`
+for the values that vary, because a user holding the message searches for its words.
 ## Adding to the suite
 
 Read [testing.md](testing.md) for what each file covers and which suite it belongs to.

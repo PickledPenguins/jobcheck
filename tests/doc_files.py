@@ -1,8 +1,9 @@
 """The documents every docs check reads, and the world their examples run in.
 
-`test_docs_api_unit.py`, `test_docs_blocks_unit.py`, `test_docs_cli_unit.py` and
+`test_docs_api_unit.py`, `test_docs_blocks_unit.py`, `test_docs_cli_unit.py`,
+`test_docs_messages_unit.py`, `test_docs_references_unit.py` and
 `test_docs_structure_unit.py` split the documentation checks by concern; the paths and
-the public-name table they share live here so the four cannot disagree about which
+the public-name table they share live here so the six cannot disagree about which
 documents exist. The Python blocks, the output each shows, and the world they are run
 in live here too, because `scripts/regen_docs.py` runs them exactly as the test does.
 """

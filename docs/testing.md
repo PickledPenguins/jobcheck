@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 869 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 898 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 273 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1142 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1171 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -85,7 +85,9 @@ Fast:
 | `tests/test_docs_structure_unit.py` | The documents as a set: the README stays an index and links every document, no internal link or anchor is dead, the rule and setup keys, statuses and outcome names are documented where they belong, what a document copies from the code matches it -- the shipped rule file, `_DEFAULT_COLUMNS`, a row in `architecture.md` for every module, entry point and script -- and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. It also gates line width: no Python line in `src/`, `examples/` or `scripts/` exceeds the 100 characters `contributing.md` claims, and that document names the three directories the gate covers. |
 | `tests/test_mutation_score_unit.py` | `scripts/mutation_score.py`: detected over total across every `.meta` file, the floor boundary, an unfinished run refused, no results refused. |
 | `tests/test_read_bytecode_api_unit.py` | `scripts/read_bytecode_api.py` reads the check-era bytecode straight out of the recovery commit, and a directory argument reads the same files. Skipped in a clone without that commit. |
-| `tests/doc_files.py` | Not a test: the documents and public names the four `test_docs_*` files share, and the Python blocks, their shown output and the world they run in, which `scripts/regen_docs.py` shares with the blocks test. |
+| `tests/test_docs_messages_unit.py` | Every message a user can meet is quoted in the document that owns it: each exception raised with a message in `src/` and `examples/`, each `error:` line an example script prints, and each warning line, read from the source rather than a list. `interfaces.md`, `configuration.md` and `cli.md` own them, by source file; a new source file that speaks to a user must be given an owner. |
+| `tests/test_docs_references_unit.py` | The superscript cross-references agree with each document's `## References` table: every citation is a row, every row is cited, rows are numbered 1, 2, 3 and point to distinct places, and the table is the last section. |
+| `tests/doc_files.py` | Not a test: the documents and public names the six `test_docs_*` files share, and the Python blocks, their shown output and the world they run in, which `scripts/regen_docs.py` shares with the blocks test. |
 | `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
 | `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, `__all__` equal to the list written in the test so a new export is a decision, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
 | `tests/test_tables_unit.py` | The bordered renderer: wrapping, empty frames, tall cells; `render`'s title bar; every column of the registry and rules tables. |
@@ -94,7 +96,7 @@ Fast:
 | `tests/test_smoke.py` | The entry point starts, exits 0, and produces its main output. |
 | `tests/test_interface_cli.py` | The CLI contract as a user meets it, in subprocesses: defaults, exit codes 0/1/2, stdout vs stderr routing, and the data-file flag. |
 | `tests/test_pathological.py` | Malformed YAML, unicode, 1000 rules, empty and wide rows, duplicate column labels, a 200-deep dependency chain, a check that raises. |
-| `tests/test_safety.py` | `safe_load` refuses `!!python/object`, patterns are never evaluated, loading writes nothing, validation does not mutate the frame, a check file name is a path and never a module name, a catastrophic regex stays bounded, and CSV reports neutralize cells a spreadsheet would run as a formula. |
+| `tests/test_safety.py` | the safe YAML loader refuses `!!python/object`, patterns are never evaluated, loading writes nothing, validation does not mutate the frame, a check file name is a path and never a module name, a catastrophic regex stays bounded, and CSV reports neutralize cells a spreadsheet would run as a formula. |
 
 Long:
 
@@ -190,11 +192,11 @@ in `[tool.mutmut]`:
 - `also_copy = ["examples/", "scripts/"]` — mutmut runs the suite against a copy of the
   tree under `mutants/`; the entry point and example check files the tests load live in
   `examples/`, and one test regenerates the example data from `scripts/` and compares.
-- `pytest_add_cli_args_test_selection` excludes eighteen test files **from mutmut's runs
+- `pytest_add_cli_args_test_selection` excludes twenty test files **from mutmut's runs
   only** — they still run in every normal suite. Four of them shell out to a subprocess,
   which never loads mutmut's instrumentation, so a mutant would always look like it
-  survived; six assert on the module's own structure or read the documents
-  (`test_api_contract.py`, `test_readme.py` and the four `test_docs_*` files), neither of
+  survived; eight assert on the module's own structure or read the documents
+  (`test_api_contract.py`, `test_readme.py` and the six `test_docs_*` files), neither of
   which survives being copied into `mutants/`; one reads git history; the remaining
   seven (load, scaling, perf, memory, concurrency, property, fuzz) are excluded for cost,
   since mutmut runs the whole selection once per mutant and each of those is covered by

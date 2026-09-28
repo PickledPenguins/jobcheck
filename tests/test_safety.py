@@ -30,7 +30,7 @@ def one_code(fresh_registry: None) -> None:
 
 
 def test_yaml_cannot_construct_arbitrary_python_objects(one_code: None, tmp_path: Path) -> None:
-    """safe_load, not load: a !!python/object tag must be refused, not executed."""
+    """A SafeLoader, not load: a !!python/object tag must be refused, not executed."""
 
     path = write(tmp_path, "evil.yaml", "- !!python/object/apply:os.system ['echo pwned']\n")
     with pytest.raises(Exception) as excinfo:
