@@ -202,6 +202,45 @@ def test_interfaces_does_not_document_names_that_are_gone() -> None:
     assert unknown == [], f"documented but not exported: {unknown}"
 
 
+def glance_rows() -> dict[str, list[str]]:
+    """The cells of each row of interfaces.md's "At a glance" tables, by name."""
+
+    text = INTERFACES.read_text(encoding="utf-8")
+    match = re.search(r"^## At a glance\n(.*?)(?=^## )", text, re.M | re.S)
+    assert match, "interfaces.md has no `## At a glance` section"
+    rows = {}
+    for line in match.group(1).splitlines():
+        name = re.match(r"\| \[?`(\w+)`", line)
+        if name:
+            rows[name.group(1)] = [cell.strip() for cell in line.strip("|").split(" | ")]
+    return rows
+
+
+def test_at_a_glance_has_one_row_per_exported_name() -> None:
+    """The summary tables exist so a reader never has to hunt: a name missing from
+    them is exactly the scattering they replace."""
+
+    rows = glance_rows()
+    assert sorted(rows) == sorted(prv.__all__), (
+        f"missing: {sorted(set(prv.__all__) - set(rows))}; "
+        f"not exported: {sorted(set(rows) - set(prv.__all__))}")
+
+
+@pytest.mark.parametrize(
+    "name", sorted(name for name, value in PUBLIC.items() if inspect.isfunction(value)))
+def test_at_a_glance_shows_each_function_s_real_arguments(name: str) -> None:
+    """Required cell: the parameters without a default; optional cell: the rest as
+    `name=default`. Both in the real order, both with the real defaults."""
+
+    _, required, optional, *_ = glance_rows()[name]
+    documented = [(argument, NO_DEFAULT) for argument in re.findall(r"`(\w+)`", required)]
+    for argument, default in re.findall(r"`(\w+)=([^`]*)`", optional):
+        documented.append((argument, ast.literal_eval(default)))
+    assert documented == real_parameters(PUBLIC[name]), (
+        f"At a glance, `{name}`: shows {required} / {optional}; "
+        f"the signature is {inspect.signature(PUBLIC[name])}")
+
+
 
 def _main() -> Any:
     """The demo entry point, imported the way the catalog runs it."""
