@@ -27,15 +27,11 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.48. Each is either loud already, or needs the owner's decision.
-F.46 and F.47 were decided on 2026-09-28 and are in the section below.
-
-**A check whose second parameter has a default is handed the context in it** (F.48, low).
-`def age_below(row, limit=130)` counts as `(row, context)`, so `limit` receives the
-`RowContext` and every row errors with a `TypeError`. Loud, but once per row instead of
-once at registration. Options: refuse a defaulted second positional parameter (other than
-`= None`) at registration, suggesting `functools.partial`; or document the rule in
-`writing-checks.md`. `engine._context_caller` applies the same rule to builders.
+left is open below, from F.49. Each is either loud already, or needs the owner's decision.
+F.46 and F.47 were decided on 2026-09-28 and are in the section below. F.48 was built the
+same day: a second positional parameter with a default other than `None` is refused at
+registration, for a check and for a context builder alike, naming `functools.partial` and
+a keyword-only parameter as the two ways to write it.
 
 **YAML's booleans in rule files** (F.49, low). PyYAML reads unquoted `on`, `off`, `yes`
 and `no`, in any case, as booleans: `name: off` fails as "every rule needs a non-empty

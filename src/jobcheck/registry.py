@@ -121,6 +121,19 @@ def _source_file_of(fn: CheckFn) -> str:
         return "<unknown>"
 
 
+def _defaulted_second(positional: list[inspect.Parameter]) -> inspect.Parameter | None:
+    """The second of two positional parameters, when it has a default other than
+    None: `def f(row, limit=130)` reads as `(row, context)`, so `limit` would be
+    handed the context. Shared by `_make_runner` and `engine._context_caller`."""
+
+    if len(positional) != 2:
+        return None
+    second = positional[1]
+    if second.default is second.empty or second.default is None:
+        return None
+    return second
+
+
 def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
     """Wrap an author's function so the engine can always call `fn(row, context)`.
 
@@ -141,6 +154,15 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
             f"{', '.join(needed)} that the engine cannot supply. Give them defaults, "
             "or read them from the row or the context."
         )
+    defaulted = _defaulted_second(positional)
+    if defaulted is not None:
+        raise ValueError(
+            f"Check {code!r}: {_name_of(fn)}{signature} has a default on its second "
+            f"parameter, {defaulted.name!r}, which would be handed the row's context. "
+            "Bind the value with functools.partial, or make it keyword-only by "
+            "putting it after a *."
+        )
+
     def call_with_context(row: "pd.Series[Any]", context: RowContext | None) -> Any:
         return fn(row, context)
 

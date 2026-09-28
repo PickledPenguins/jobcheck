@@ -13,7 +13,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from .context import RowContext
-from .registry import _CHECKS, _get_topo_order
+from .registry import _CHECKS, _defaulted_second, _get_topo_order
 from .results import (
     CheckOutcome,
     Outcome,
@@ -215,6 +215,13 @@ def _context_caller(
             f"context_builder {getattr(builder, '__name__', builder)!r} needs keyword "
             f"argument(s) {', '.join(needed)} that validate cannot supply. Give them "
             "defaults, or read them from context_args.")
+    defaulted = _defaulted_second(positional)
+    if defaulted is not None:
+        raise ValueError(
+            f"context_builder {getattr(builder, '__name__', builder)!r} has a default on "
+            f"its second parameter, {defaulted.name!r}, which would be handed "
+            "context_args. Read the value from context_args, or make it keyword-only "
+            "by putting it after a *.")
     if any(p.kind is p.VAR_POSITIONAL for p in parameters) or len(positional) == 2:
         return lambda row, context_args: builder(row, context_args)
     if len(positional) == 1:
