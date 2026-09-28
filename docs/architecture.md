@@ -62,6 +62,10 @@ the package by accident from the working directory. The demos and the scripts ad
 
 ## Modules
 
+What each module holds. For the public functions themselves -- arguments, defaults,
+return values and what each does, one line apiece -- see
+[interfaces.md: At a glance](interfaces.md#at-a-glance).
+
 | File | Responsibility |
 |---|---|
 | `src/jobcheck/registry.py` | The registry: registration, file import, dependency validation, ordering and layers. What checks *exist*. `load_setup` lives here too, being the one place that composes both loaders. |

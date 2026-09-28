@@ -26,6 +26,74 @@ inspecting the registry, and the pieces a wrapper around this library reaches
 for. It is exported and supported -- jobchain, the pipeline runner built on this
 library, uses several of these names -- but a first check file needs none of it.
 
+## At a glance
+
+Every exported name, one line each, grouped by the step it belongs to; the name links
+to its full entry below. **Required** arguments are positional and have no default;
+**Optional** ones show their default. A dash means none.
+
+**Writing checks**
+
+| Name | Required | Optional (default) | Returns | What it does |
+|---|---|---|---|---|
+| [`register_check`](#register_checkcode-message-default_enabledtrue-depends_onnone) | `code`, `message` | `default_enabled=True`, `depends_on=None` | decorator | Registers a `(row)` or `(row, context)` function as check `code`; `message` is what a failure prints. `default_enabled=False` keeps it off until a rule enables it. `depends_on` lists codes that must pass before it runs. Bad arguments raise at import. |
+| [`is_null`](#is_nullvalue---bool) | `value` | – | `bool` | True for `None`, `NaN`, `NaT` and `pd.NA`; never for a list or array. The safe blank test inside a check. |
+
+**Loading checks and rules**
+
+| Name | Required | Optional (default) | Returns | What it does |
+|---|---|---|---|---|
+| [`load_checks`](#load_checkspaths-liststr-base_dir-str--path--none--none---none) | `paths` | `base_dir=None` | `None` | Imports the listed `.py` files so their checks register. Nothing is discovered. Relative paths resolve against `base_dir`, else the working directory. A file already loaded is skipped. Validates the dependency graph on return. |
+| [`load_rules`](#loading-rules) | `paths` | `base_dir=None` | `list[Rule]` | Parses rule YAML files, paths resolved as `load_checks` does. List order is precedence: the last matching rule wins. Load checks first; an unknown code raises. |
+| [`load_setup`](#loading-both-at-once) | `path` | – | `list[Rule]` | Reads one YAML file naming `checks` (required) and `rules` (optional), resolved against that file's directory. Loads the checks, returns the rules. |
+| [`clear_registry`](#clear_registry---none) | – | – | `None` | Empties the registry and evicts the check modules, so the next `load_checks` registers afresh. For tests, or loading a different set in one process. |
+
+**Running checks**
+
+| Name | Required | Optional (default) | Returns | What it does |
+|---|---|---|---|---|
+| [`validate`](#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone---listlistcheckoutcome) | `df` | `rules=None`, `context_builder=None`, `on_error="record"`, `context_args=None` | `list[list[CheckOutcome]]` | Every check on every row of a DataFrame; one complete outcome list per row, in frame order. `context_builder` builds each row's `RowContext` from `(row)` or `(row, context_args)`. `on_error="raise"` propagates a check's exception instead of recording it as `errored`. Holds every outcome in memory. |
+| [`explain_row`](#explain_rowrow-contextnone-rulesnone-on_errorrecord---listcheckoutcome) | `row` | `context=None`, `rules=None`, `on_error="record"` | `list[CheckOutcome]` | Every check's outcome on one `Series`, in evaluation order: passed, failed, disabled, skipped or errored. |
+| [`validate_row`](#validate_rowrow-contextnone-rulesnone-on_errorrecord---listcheckoutcome) | `row` | `context=None`, `rules=None`, `on_error="record"` | `list[CheckOutcome]` | The failures from `explain_row` only. The per-row form for a frame too large for `validate`. |
+| [`root_causes`](#root_causesrow_outcomes---liststr) | `row_outcomes` | – | `list[str]` | The codes to read first on one row: every failure at the shallowest failing layer, data failures ahead of errored checks. Empty for a row that passed. |
+
+**Checking rule files**
+
+Each returns warning lines and raises nothing; an empty list means no problem.
+
+| Name | Required | Optional (default) | Returns | What it does |
+|---|---|---|---|---|
+| [`warn_missing_rule_columns`](#warn_missing_rule_columnsdf-rules---liststr) | `df`, `rules` | – | `list[str]` | One line per rule criterion naming a column `df` lacks: a rule that can never fire. |
+| [`warn_shadowed_rules`](#warn_shadowed_rulesrules---liststr) | `rules` | – | `list[str]` | One line per rule and code that a later `match: all` rule overrules on every row. |
+| [`warn_blocking_rules`](#warn_blocking_rulesrules---liststr) | `rules` | – | `list[str]` | One line per disable rule and code whose dependents it silently skips without listing them. Reads the registry, so load the checks first. |
+
+**Reporting**
+
+Every table is a DataFrame titled in `attrs["title"]`; `render` prints any of them.
+
+| Name | Required | Optional (default) | Returns | What it does |
+|---|---|---|---|---|
+| [`build_report`](#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | `frame_outcomes`, `df` | `key_column=None`, `add_columns=None`, `include="failures"` | DataFrame `Report` | The long-format report: one line per outcome per data row. `key_column` labels rows (default: the index); `add_columns` copies frame columns in; `include` is `"failures"`, `"blocked"` or `"all"`. |
+| [`row_explanation`](#row_explanationrow_outcomes-includeall---dataframe) | `row_outcomes` | `include="all"` | DataFrame `Row explanation` | One line per check on one data row: `layer`, `code`, `outcome`, `status`, `detail`. |
+| [`summarize_outcomes`](#summarize_outcomesframe_outcomes---dataframe) | `frame_outcomes` | – | DataFrame `Summary` | Per-check counts across all rows: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`. Takes complete lists (not `validate_row`'s), a generator included. |
+| [`registry_table`](#registry_tablerulesnone-add_columnsnone---dataframe) | – | `rules=None`, `add_columns=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `message`, `depends_on`. On request: `source_file`, and from `rules`, `could_be_overridden_by` and `effective_state`. |
+| [`rules_table`](#rules_tablerules-add_columnsnone---dataframe) | `rules` | `add_columns=None` | DataFrame `Rules` | One line per rule: `name`, `action`, `codes_hit_count`, `match`, `message`. On request: `codes`, `source_file`. |
+| [`render`](#rendertable-fmttable---str) | `table` | `fmt="table"` | `str` | Any of the tables above as text: bordered under its title, or `fmt="csv"` with formula-like cells escaped. |
+| [`render_comments`](#render_commentscomments---str) | `comments` | – | `str` | A check's comments as `key=value; key=value`, sorted by key; empty for no comments. |
+
+**Types and constants**
+
+| Name | Fields or members | What it is |
+|---|---|---|
+| [`Verdict`](#verdict) | `status=Status.PASS`, `comments={}` | What a check returns. A bool status is accepted: True passes, False is an `INVALID` failure. `comments` is the detail printed with a failure. True in a boolean test when it passed. |
+| `OK` | – | The shared passing `Verdict`. |
+| [`Status`](#status) | `PASS` 0, `MISSING` 1, `MALFORMED` 2, `INVALID` 3, `ERROR` 9 | `IntEnum` of failure kinds. `ERROR` is the engine's, for a check that raised; a check never returns it. |
+| [`CheckOutcome`](#checkoutcome) | `code`, `outcome`, `status`, `layer`, `message`, `detail`, `comments` | What the engine recorded for one check on one row. `.failed` covers failed and errored; `detail` says why a check did not run or what it raised. |
+| [`Outcome`](#outcome) | `PASSED`, `FAILED`, `DISABLED`, `SKIPPED`, `ERRORED` | `str` enum of what happened to a check on a row. |
+| [`RowContext`](#rowcontext) | none; subclass to add | Per-row state the frame does not carry, handed to `(row, context)` checks. Built by `validate`'s `context_builder`. |
+| [`Rule`](#rule) | `name`, `action`, `codes`, `criteria`, `match_all`, `message`, `source_file` | One loaded rule, as `load_rules` returns it. |
+| `__version__` | – | The package version string; pre-1.0. |
+
 ## Data types
 
 ### `Status`

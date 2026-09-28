@@ -159,7 +159,9 @@ too; stream `explain_row(row)` per row for that.
 - [docs/configuration.md](docs/configuration.md) — rules: switching
   checks on or off for specific rows.
 - [docs/interfaces.md](docs/interfaces.md) — the Python API: every exported name,
-  signature, return shape, and error raised.
+  signature, return shape, and error raised. Its
+  [At a glance](docs/interfaces.md#at-a-glance) tables give every function's
+  arguments, defaults and purpose on one line each.
 - [docs/cli.md](docs/cli.md) — the demo entry points and their flags, including
   `--data` for validating a CSV file of your own (it needs an `id` column), and the
   run file that holds a whole run.
