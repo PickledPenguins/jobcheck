@@ -130,3 +130,37 @@ pytest_add_cli_args_test_selection = [
     "--ignore=tests/test_properties.py",
     "--ignore=tests/test_fuzz.py",
 ]
+
+# The counts the documents state, and where each real number comes from, for
+# ~/work/ai/skills/bin/doc-counts (`doc-counts --write` after adding tests or
+# catalog cases). tests/test_docs_structure_unit.py gates the same numbers.
+[[tool.doc-counts.count]]
+file = "docs/testing.md"
+pattern = '\| `\./tests/run-tests\.sh fast` \| ([\d,]+) tests'
+source = { pytest = "-m fast" }
+
+[[tool.doc-counts.count]]
+file = "docs/testing.md"
+pattern = '\| `\./tests/run-tests\.sh long` \| ([\d,]+) tests'
+source = { pytest = "-m long" }
+
+[[tool.doc-counts.count]]
+file = "docs/testing.md"
+pattern = '\| `\./tests/run-tests\.sh all` \| ([\d,]+) tests'
+source = { pytest = "-m 'fast or long'" }
+
+[[tool.doc-counts.count]]
+file = "docs/testing.md"
+pattern = 'holds (\d+) cases at three levels — (\d+) simple, (\d+) moderate, (\d+) complex —\s+and `tests/failures/` holds (\d+),'
+sources = [
+    { glob = "tests/examples/**/cmd" },
+    { glob = "tests/examples/**/README.md", contains = "Level:    simple" },
+    { glob = "tests/examples/**/README.md", contains = "Level:    moderate" },
+    { glob = "tests/examples/**/README.md", contains = "Level:    complex" },
+    { glob = "tests/failures/**/cmd" },
+]
+
+[[tool.doc-counts.count]]
+file = "README.md"
+pattern = 'the (\d+)-case example and failure catalogs'
+source = { glob = ["tests/examples/**/cmd", "tests/failures/**/cmd"] }

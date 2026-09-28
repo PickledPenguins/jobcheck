@@ -1,0 +1,1 @@
+python3 examples/main.py --data tests/examples/complex/excusing-a-blank-field-silences-its-checks/legacy_import.csv --rules tests/examples/complex/excusing-a-blank-field-silences-its-checks/legacy_rules.yaml --rules-table --summary

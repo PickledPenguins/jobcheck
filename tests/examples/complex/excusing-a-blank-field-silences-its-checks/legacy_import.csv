@@ -1,0 +1,7 @@
+id,name,age,email,start_date,end_date,source_system,record_type
+2001,Modern blank age,,m1@example.com,2024-01-01,2024-02-01,MODERN,STREAM
+2002,Modern negative age,-3,m2@example.com,2024-01-01,2024-02-01,MODERN,STREAM
+2003,Legacy blank age,,l1@example.com,2024-01-01,2024-02-01,LEGACY_B,BATCH
+2004,Legacy negative age,-3,l2@example.com,2024-01-01,2024-02-01,LEGACY_B,BATCH
+2005,Legacy age as text,forty,l3@example.com,2024-01-01,2024-02-01,LEGACY_B,BATCH
+2006,Legacy age too high,212,l4@example.com,2024-01-01,2024-02-01,LEGACY_B,BATCH

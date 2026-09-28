@@ -1,0 +1,1 @@
+python3 examples/run_from_config.py tests/examples/complex/order-lines-two-root-causes-at-once/run.yaml

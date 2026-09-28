@@ -1,0 +1,9 @@
+setup: setup.yaml
+data: orders.csv
+tables:
+  - table: registry
+    add_columns: [could_be_overridden_by]
+  - table: report
+    key_column: id
+    add_columns: [sku]
+  - table: summary

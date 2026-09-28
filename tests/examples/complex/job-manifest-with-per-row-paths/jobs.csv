@@ -1,0 +1,7 @@
+id,run_dir,input,output
+J1,runs/r1,input.dat,out/r1.h5
+J2,runs/r2,input.dat,out/shared.h5
+J3,runs/r3,input.dat,out/r3.h5
+J4,runs/r4,input.dat,out/r4.h5
+J5,runs/r5,input.dat,out/shared.h5
+J6,runs/r1,input.dat,
