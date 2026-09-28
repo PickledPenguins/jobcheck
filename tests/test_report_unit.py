@@ -119,6 +119,35 @@ def test_a_failure_below_another_is_not_a_root_cause(fresh_registry: None) -> No
     assert flagged == {"FIRST": True, "CHILD": False}
 
 
+def test_a_broken_check_never_takes_the_flag_from_a_data_failure(
+    fresh_registry: None,
+) -> None:
+    """Decided 2026-09-28 (F.47): data failures come first. The broken check sits on
+    layer 0 and the real failure on layer 1, yet the real one is flagged."""
+
+    make_check("BROKEN", raises=RuntimeError("bug"))
+    make_check("PARENT")
+    make_check("REAL", passes=False, depends_on=["PARENT"])
+    outcomes = validate(pd.DataFrame([{"age": 1}]))
+    assert engine.root_causes(outcomes[0]) == ["REAL"]
+    summary = rep.summarize_outcomes(outcomes).set_index("code")
+    assert summary.loc["BROKEN", "root_cause_rows"] == 0
+    assert summary.loc["REAL", "root_cause_rows"] == 1
+
+
+def test_a_row_whose_only_problem_is_a_broken_check_is_still_flagged(
+    fresh_registry: None,
+) -> None:
+    """Otherwise a filter on is_root_cause would never show the row at all."""
+
+    make_check("BROKEN", raises=RuntimeError("bug"))
+    make_check("FINE")
+    report = report_for(pd.DataFrame([{"age": 1}]))
+    assert list(zip(report["code"], report["is_root_cause"])) == [("BROKEN", True)]
+    assert rep.summarize_outcomes(validate(pd.DataFrame([{"age": 1}]))).set_index(
+        "code").loc["BROKEN", "root_cause_rows"] == 1
+
+
 def test_rows_without_a_key_column_are_labeled_by_index(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME)
     assert list(report["row"]) == ["1", "2"]

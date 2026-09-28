@@ -283,8 +283,10 @@ evaluation order: two chains failing at the same depth are two root causes, and
 naming only the first evaluated would let registration order decide what a
 person reads as the cause. Deeper failures are left out as the ones to read next,
 not as downstream of these: a check only runs once its prerequisites passed, so
-every failure is the root of its own chain. An `errored` outcome counts as a
-failure here. Empty for a row that passed.
+every failure is the root of its own chain. Data failures come first: an
+`errored` outcome counts only on a row with no `failed` one, so a broken check
+never takes the flag from a real failure, and a row whose only problem is a broken
+check is still flagged. Empty for a row that passed.
 
 A caller wanting a single label per row (a tally, a column in a frame) takes the
 first. Accepts either `validate_row` or `explain_row` output.
@@ -390,8 +392,9 @@ the default here; `"blocked"` drops the checks that simply passed. Titled
 Per check, across every row: `code`, `layer`, `failed`, `root_cause_rows`, `errored`,
 `skipped`, `disabled`, `passed`, sorted by `failed`, `errored` and `skipped`, most
 first, then by code. `root_cause_rows` counts the rows whose root causes include the
-check, errored rows included, so it can exceed `failed`. Takes `validate`'s result
-or any iterable of complete per-row lists, a generator included — `explain_row(row)`
+check — an errored check among them on the rows with no data failure, so it can
+exceed `failed`. Takes `validate`'s result or any iterable of complete per-row lists,
+a generator included — `explain_row(row)`
 per row is the streaming form — and keeps only the counts. `validate_row`'s lists
 hold failures only and would count wrong, so lists that differ in length raise
 `ValueError`. Titled `Summary`.

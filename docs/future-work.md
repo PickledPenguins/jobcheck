@@ -27,15 +27,8 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.47. Each is either loud already, or needs the owner's decision.
-
-**`is_root_cause` claims causality, and `root_cause_rows` counts errored rows** (F.47,
-from the 2026-09-27 reviews). The docs no longer call deeper failures "downstream" — they
-never are, since a check runs only once its prerequisites passed — and now say that an
-errored check counts as a root cause, so `root_cause_rows` can exceed `failed` and a
-broken shallow check takes the flag from real failures. Two decisions remain: whether the
-flag and the column keep names that claim a cause, and whether root causes should be
-counted from `failed` alone, leaving `errored` to its own column.
+left is open below, from F.48. Each is either loud already, or needs the owner's decision.
+F.46 and F.47 were decided on 2026-09-28 and are in the section below.
 
 **A check whose second parameter has a default is handed the context in it** (F.48, low).
 `def age_below(row, limit=130)` counts as `(row, context)`, so `limit` receives the
@@ -133,6 +126,22 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**Errored checks as root causes, and renaming the root-cause columns** (F.47, from the
+2026-09-27 reviews; decided by the owner 2026-09-28). `root_causes` picked the shallowest
+of every failure, errored ones included, so on the broken-check catalog case's row S4 a
+check that raised on layer 0 took the flag from a genuine delivered-before-shipped failure
+on layer 2, and the broken check read `failed 1, root_cause_rows 4` (now 2). Counting
+real failures only was prototyped and rejected: row S3, whose only problem is the broken
+check, then had no flagged line at all, so a filter on `is_root_cause` hid it. Built
+instead: data failures come first, and an errored check counts only on a row with no
+`failed` one (`test_a_broken_check_never_takes_the_flag_from_a_data_failure`,
+`test_a_row_whose_only_problem_is_a_broken_check_is_still_flagged`). Renaming
+`is_root_cause`, `root_cause_rows` and `root_causes` to something that claims no cause
+(`is_shallowest`, `shallowest_rows`) was declined: the docs now define the term as "the
+shallowest failing layer, read first", and the rename would touch about 48 fixtures, 10
+test modules, 7 documents and jobchain for a heading. Reopen if the column is misread in
+practice.
 
 **Recording a raising context builder as `errored`** (F.46, high, from the 2026-09-27
 diff review; decided by the owner 2026-09-28: document instead). `validate` calls the

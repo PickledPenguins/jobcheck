@@ -180,11 +180,16 @@ def root_causes(row_outcomes: list[CheckOutcome]) -> list[str]:
     Every one, not the first: two failures in the same layer are two causes.
     Deeper failures are left out. They are never downstream of these -- a check
     runs only once its prerequisites passed, so each failure is the root of its
-    own chain -- they are the ones to read after. `errored` outcomes count as
-    failures here, so a broken shallow check can take the flag from real ones.
+    own chain -- they are the ones to read after.
+
+    Data failures come first: an `errored` check counts only on a row with no
+    `failed` one, so a broken check never takes the flag from a real failure,
+    and a row whose only problem is a broken check is still flagged.
     """
 
-    failures = [outcome for outcome in row_outcomes if outcome.failed]
+    failures = [outcome for outcome in row_outcomes if outcome.outcome is Outcome.FAILED]
+    if not failures:
+        failures = [outcome for outcome in row_outcomes if outcome.failed]
     if not failures:
         return []
     shallowest = min(outcome.layer for outcome in failures)
