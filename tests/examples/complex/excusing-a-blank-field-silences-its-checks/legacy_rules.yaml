@@ -1,0 +1,11 @@
+# The intent: LEGACY_B never captured an age, so a blank one is not an error there.
+# The effect: every age check on those rows goes quiet, blank or not -- a disabled
+# prerequisite blocks everything that depends on it.
+- name: "legacy_b_has_no_age"
+  message: "LEGACY_B exports never carried an age; a blank one is expected"
+  action: disable
+  codes:
+    - AGE_PRESENT
+  match:
+    - column: source_system
+      pattern: "^LEGACY_B$"

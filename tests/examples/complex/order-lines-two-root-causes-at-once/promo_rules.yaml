@@ -1,0 +1,8 @@
+- name: "promo_lines_are_discounted"
+  message: "Promotional lines carry a discount, so their total is not qty x price"
+  action: disable
+  codes:
+    - TOTAL_MISMATCH
+  match:
+    - column: sku
+      pattern: "^PROMO-"

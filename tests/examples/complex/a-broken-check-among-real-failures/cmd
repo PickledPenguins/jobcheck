@@ -1,0 +1,1 @@
+python3 examples/run_from_config.py tests/examples/complex/a-broken-check-among-real-failures/run.yaml

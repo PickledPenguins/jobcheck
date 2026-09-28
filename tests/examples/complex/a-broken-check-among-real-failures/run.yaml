@@ -1,0 +1,7 @@
+setup: setup.yaml
+data: shipments.csv
+tables:
+  - table: report
+    key_column: id
+    add_columns: [carrier]
+  - table: summary

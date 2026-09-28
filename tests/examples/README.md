@@ -12,6 +12,13 @@ CSV), one row explained, and the summary. The `bundles/` cases run
 read together with the files beside it. The `run_file/` case runs
 `examples/run_from_config.py` on the shipped `examples/run.yaml`.
 
+Four `complex/` cases carry their own check files, data and rules, because the
+shipped four cannot show what they show: a check with three prerequisites across
+files, a check that raises, a rule disabling a presence check, and checks reading
+a per-row context. Three run through `examples/run_from_config.py` (or
+`examples/main.py`) on files in the case directory; the context case runs its own
+script, since neither entry point passes a context builder.
+
 Overlap is deliberate — several cases differ only in one flag, and each stands
 alone as a copyable reference.
 

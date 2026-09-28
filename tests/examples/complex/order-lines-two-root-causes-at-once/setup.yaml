@@ -1,0 +1,7 @@
+checks:
+  # The dependent file first: its prerequisites arrive with the files after it.
+  - check_order_total.py
+  - check_order_presence.py
+  - check_order_numbers.py
+rules:
+  - promo_rules.yaml

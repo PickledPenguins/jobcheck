@@ -16,8 +16,8 @@ pip install -e ".[dev]"
 | Command | Runs | Time |
 |---|---|---|
 | `./tests/run-tests.sh fast` | 815 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 260 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1075 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh long` | 272 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 1087 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -119,12 +119,12 @@ Own gates:
 
 ## The example catalog
 
-`tests/examples/` holds 46 cases at three levels — 19 simple, 17 moderate, 10 complex —
+`tests/examples/` holds 50 cases at three levels — 19 simple, 17 moderate, 14 complex —
 and `tests/failures/` holds 26, each asserting the exact message and exit code a user
 sees. Both run through a real entry point in a subprocess — `examples/main.py`,
-`examples/bundle_main.py` for the bundle cases, or `examples/run_from_config.py` for the
-run-file cases — so the documentation cannot drift from
-the behavior.
+`examples/bundle_main.py` for the bundle cases, `examples/run_from_config.py` for the
+run-file cases, or a script inside the case where no entry point reaches the feature (a
+context builder) — so the documentation cannot drift from the behavior.
 
 Nothing is faked. The entry point, the library, the rule files and the data files are the
 real ones; the only normalization is the absolute project root, replaced by `<project>`

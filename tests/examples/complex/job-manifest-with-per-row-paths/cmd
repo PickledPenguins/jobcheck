@@ -1,0 +1,1 @@
+python3 tests/examples/complex/job-manifest-with-per-row-paths/validate_jobs.py
