@@ -27,21 +27,14 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.53. Each is either loud already, or needs the owner's decision.
-F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 on
-2026-09-29; they are in the section below. F.48 was built the
+left is open below, from F.54. Each is either loud already, or needs the owner's decision.
+F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
+on 2026-09-29; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
 registration, for a check and for a context builder alike, naming `functools.partial` and
 a keyword-only parameter as the two ways to write it.
 
-**`clear_registry` still evicts a third-party callable object's module** (F.53, low). The
-standard library and a partial's `functools` are now exempt, but a callable object of a
-class from an installed package (`register_check(...)(SomeValidator(5))`) records that
-package's module, and evicting it leaves earlier importers holding a second copy. The
-module to evict is really the one whose execution called `register_check`, which the
-decorator cannot see for an object; a plain function is the only shape where the two
-agree. Options: skip modules under `site-packages`, or record nothing for a callable
-object and document that such a check must be registered in a file `load_checks` loads.
+
 
 **`scripts/regen_docs.py` duplicates skills `bin/doc-examples`** (F.54, from the
 2026-09-27 commit review). doc-examples was committed 29 seconds after it, to replace
@@ -207,6 +200,22 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**Evicting the module a check registered from** (F.53, low; the eviction removed by the
+owner 2026-09-29). `register_check` recorded a module for `clear_registry` to drop from
+`sys.modules`, guessed from the registered object: `fn.__module__`, unwrapping a
+partial, never `__main__` or the standard library. For a callable object that is its
+class's module, and for an imported function the module it was imported from; neither
+registered anything, and evicting one left earlier importers holding a second copy
+(reproduced with a package on `PYTHONPATH`). Surveyed fixes: skip `site-packages` (a
+path heuristic that misses editable installs), record nothing for a callable object,
+and read the calling module from the frame. The owner chose none: registration is flat,
+a duplicate code raises, and `clear_registry` drops only the check-file modules
+`load_checks` made. The cost: a module a check file imports registers once per process,
+and after a clear registers nothing. No example, catalog case or jobchain check file did
+that; the documents now say checks register only in the files `load_checks` is given.
+The load sequence no longer resets on a clear, so a module name is never reused, and the
+dataclass trap after eviction is gone with it.
 
 **Refusing every failures-only list in the summary** (F.52, low; declined by the owner
 2026-09-29). `summarize_outcomes` and `build_report(include="blocked"|"all")` refuse
@@ -691,11 +700,8 @@ directory has neither -- so the rule would silently fall back to the working dir
 behave differently in production than on the machine it was written on.
 
 **Accepting importable module names, `load_checks(["mypkg.checks.age"])`**, same session.
-It is the literal reading of "use the Python path" and it collides with `clear_registry`,
-which drops every module that registered a check out of `sys.modules`: doing that to a
-real package module leaves other holders of it stale and re-imports it as a second,
-distinct module -- a new way to get the silently empty registry the eviction exists to
-prevent.
+It is the literal reading of "use the Python path" and it collides with `clear_registry`:
+Python caches an imported module, so after a clear the reload would register nothing.
 
 **A whole-frame `validate` that streams by default.** Rejected: the two ways to spend
 memory are genuinely different jobs. `validate` keeps every outcome because the report,
@@ -774,9 +780,9 @@ one the check rejects, as F.11 proposed, would not have worked -- the domain reg
 `internal.test`, and a subdomain address stops matching the rule's `@internal\.test$`.
 
 **Dropping the registering module `clear_registry` evicts (was F.10).** Rejected
-2026-09-22; the behavior is pinned instead, by
-`test_a_module_that_registered_by_plain_import_is_evicted_too`, and the trap is written
-down in [architecture.md](architecture.md). `load_checks` records the modules it imports
+2026-09-22, then done 2026-09-29 as F.53, below: the whole eviction record went, and
+the silent empty registry it guarded against is now a documented rule instead. The
+2026-09-22 reasoning, kept for the record: `load_checks` records the modules it imports
 itself, so the line in `register_check` covers only the other routes in — a check file
 importing a shared module of its own, which Python would keep cached and which would
 register nothing on the next load, leaving a silently empty registry. That is the worse

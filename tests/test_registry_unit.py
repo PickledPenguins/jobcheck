@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import re
 import sys
 from typing import Any
 
@@ -94,36 +95,23 @@ def test_the_two_fixes_for_a_defaulted_second_parameter_both_register(
     assert failed == ["PARTIAL", "KEYWORD"]
 
 
-def test_clearing_after_a_partial_leaves_functools_imported(fresh_registry: None) -> None:
-    """A partial reports `functools` as its module, and clear_registry evicted
-    it: the next `import functools` built a second module, with new `wraps`,
-    `lru_cache` and `partial` objects, beside the ones earlier importers hold."""
+def test_clearing_leaves_every_module_a_check_came_from_imported(fresh_registry: None) -> None:
+    """Only the check-file modules `load_checks` made are dropped. Evicting the
+    module of a partial, a callable object or an imported function would leave
+    earlier importers holding a second copy of it."""
+
+    import operator
 
     def above(limit: int, row: "pd.Series[Any]") -> Verdict:
         return OK
 
-    reg.register_check(code="AGE_ABOVE", message="m")(
-        functools.partial(functools.partial(above), 130))
-    assert "functools" not in reg._LOADED_MODULES
-    assert __name__ in reg._LOADED_MODULES   # the module the wrapped function lives in
+    reg.register_check(code="AGE_ABOVE", message="m")(functools.partial(above, 130))
+    reg.register_check(code="CALLS", message="m")(operator.methodcaller("get", "age"))
+    reg.register_check(code="TRUTHY", message="m")(operator.truth)
     reg.clear_registry()
     assert sys.modules.get("functools") is functools
-
-
-def test_a_standard_library_callable_is_never_evicted(fresh_registry: None) -> None:
-    """A callable object reports its class's module; `operator` would go the way
-    `functools` did."""
-
-    import email.utils
-    import operator
-
-    reg.register_check(code="TRUTHY", message="m")(operator.truth)
-    reg.register_check(code="CALLS", message="m")(operator.methodcaller("get", "age"))
-    # A submodule is judged by its package: email.utils is standard library too.
-    reg.register_check(code="PARSES", message="m")(email.utils.parseaddr)
-    assert {"operator", "_operator", "email.utils"}.isdisjoint(reg._LOADED_MODULES)
-    reg.clear_registry()
     assert sys.modules.get("operator") is operator
+    assert sys.modules.get(__name__) is not None
 
 
 def test_a_callable_object_of_the_wrong_shape_is_refused_with_a_message(
@@ -191,21 +179,7 @@ def test_clear_registry_empties_the_checks_and_the_loaded_files(example_checks: 
     assert reg._LOADED_FILES == []
 
 
-def test_clear_registry_leaves_the_running_script_in_sys_modules(fresh_registry: None) -> None:
-    """A check defined in the script itself belongs to `__main__`; evicting that
-    breaks pickling and spawned workers for the rest of the process."""
 
-    def check(row: Any) -> Verdict:
-        return OK
-
-    check.__module__ = "__main__"
-    main = sys.modules["__main__"]
-    try:
-        reg.register_check("IN_MAIN", "defined in the script")(check)
-        reg.clear_registry()
-        assert sys.modules.get("__main__") is main
-    finally:
-        sys.modules["__main__"] = main
 
 
 def test_clear_registry_then_load_checks_re_registers(fresh_registry: None) -> None:
@@ -347,7 +321,7 @@ def test_a_duplicate_code_names_the_module_the_second_check_lives_in(
     )
     with pytest.raises(ValueError) as excinfo:
         reg.load_checks([str(path)])
-    assert "(registering jobcheck_check_file_second_0.rule)" in str(excinfo.value)
+    assert re.search(r"\(registering jobcheck_check_file_second_\d+\.rule\)", str(excinfo.value))
 
 
 def test_an_empty_string_prerequisite_is_refused(fresh_registry: None) -> None:
@@ -389,7 +363,7 @@ def test_saving_the_registry_copies_every_global_clear_registry_clears(
     what happened to the load sequence."""
 
     saved = set(SavedRegistry.__slots__)
-    cleared = {"checks", "loaded_files", "loaded_modules", "topo_order", "load_sequence"}
+    cleared = {"checks", "loaded_files", "topo_order"}
     assert saved == cleared
 
 
@@ -401,21 +375,15 @@ def test_saving_the_registry_leaves_out_the_in_progress_load_stack() -> None:
     assert not any("loading" in name for name in SavedRegistry.__slots__)
 
 
-def test_putting_the_registry_back_keeps_the_load_sequence_rather_than_zeroing_it(
-    fresh_registry: None, tmp_path: Any
-) -> None:
-    """A module name is numbered by the load sequence, and restore() clears the
-    registry first, which zeroes it. Without carrying it the next load would be
-    handed a number an earlier one already used."""
+def test_the_load_sequence_survives_a_clear(fresh_registry: None, tmp_path: Any) -> None:
+    """A module name is numbered by the load sequence, which never goes back:
+    a number reused after a clear would name a second module like the first."""
 
     reg.load_checks([_check_file(tmp_path / "first.py", "FIRST")])
-    assert "jobcheck_check_file_first_0" in reg._LOADED_MODULES
-    saved = SavedRegistry()
+    first = reg._LOAD_SEQUENCE
     reg.clear_registry()
-    saved.restore()
-
-    reg.load_checks([_check_file(tmp_path / "second.py", "SECOND")])
-    assert "jobcheck_check_file_second_1" in reg._LOADED_MODULES
+    reg.load_checks([_check_file(tmp_path / "first.py", "FIRST")])
+    assert f"jobcheck_check_file_first_{first}" in sys.modules
 
 
 def test_putting_the_registry_back_restores_checks_that_still_run(

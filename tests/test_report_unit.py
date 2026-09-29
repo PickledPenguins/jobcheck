@@ -414,9 +414,6 @@ def test_validate_hands_each_row_the_context_its_builder_returned(
 
     from jobcheck import OK, RowContext, Outcome
 
-    # A plain subclass rather than a nested dataclass: fresh_registry evicts the
-    # test module from sys.modules, and @dataclass resolves annotations through
-    # it when the class is built inside a function.
     class Allowed(RowContext):
         def __init__(self, allowed: bool) -> None:
             self.allowed = allowed

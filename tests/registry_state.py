@@ -24,11 +24,6 @@ from jobcheck import registry as reg
 class SavedRegistry:
     """Every registry global `clear_registry` clears, copied.
 
-    A plain class rather than a dataclass on purpose: `clear_registry` evicts
-    the module a check registered from, and a dataclass whose annotations have
-    to be resolved afterwards raises from `dataclasses` (see
-    `docs/architecture.md`). Nothing here is worth that risk.
-
     The in-progress load stack (`registry._LOADING`) is not copied. It belongs
     to the `load_checks` call that is running rather than to the registry: a
     frame put back from a load that has since finished would take the blame for
@@ -36,23 +31,19 @@ class SavedRegistry:
     belonging to somebody else. Capturing from inside a load is unsupported.
     """
 
-    __slots__ = ("checks", "loaded_files", "loaded_modules", "topo_order", "load_sequence")
+    __slots__ = ("checks", "loaded_files", "topo_order")
 
     def __init__(self) -> None:
         self.checks: list[Any] = list(reg._CHECKS)
         self.loaded_files: list[str] = list(reg._LOADED_FILES)
-        self.loaded_modules: set[str] = set(reg._LOADED_MODULES)
+
         self.topo_order: list[Any] | None = reg._TOPO_ORDER
-        # The counter that makes each load's module name unique. clear_registry
-        # zeroes it, so a restore that left it there would hand the next load a
-        # number an earlier one already used.
-        self.load_sequence: int = reg._LOAD_SEQUENCE
 
     def restore(self) -> None:
         """Put this registry back, dropping whatever is there now.
 
-        The modules `clear_registry` evicted from `sys.modules` are not
-        re-imported: a restore is a state swap, not a load, and re-running a
+        The check-file modules `clear_registry` dropped from `sys.modules` are
+        not re-imported: a restore is a state swap, not a load, and re-running a
         user's check file here would double-register. The checks still run --
         their runners are closures over the author's functions -- and
         `source_file` still names where each came from.
@@ -61,6 +52,5 @@ class SavedRegistry:
         reg.clear_registry()
         reg._CHECKS.extend(self.checks)
         reg._LOADED_FILES.extend(self.loaded_files)
-        reg._LOADED_MODULES.update(self.loaded_modules)
+
         reg._TOPO_ORDER = self.topo_order
-        reg._LOAD_SEQUENCE = self.load_sequence
