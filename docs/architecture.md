@@ -114,6 +114,16 @@ and never the other way.
 
 ## Decisions
 
+**Simple, and loud with an explanation, over handling every case.** The package supports
+what its documents specify, and nothing more. When a caller or a file does something it
+does not explicitly support, the library raises where it can tell, and the message says
+what was wrong, where, and with what value. It does not guess what was meant, reinterpret
+the input or add code for each corner case. The one obligation is that the failure is
+informative. Cost: some mistakes, such as YAML reading an unquoted `off` as a boolean,
+are refused rather than accepted. Rejected: catching and repairing each such case, which
+grows the code for inputs the documents never promised to accept (F.49 in
+[future-work.md](future-work.md)).
+
 **Codes are permanent identifiers, never renumbered.** Rule files written by
 non-developers, saved reports, and downstream tooling all refer to codes. Reusing a
 retired code would silently change the meaning of data already written. Cost: the code
