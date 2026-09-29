@@ -108,19 +108,23 @@ def _parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[_Matc
     return criteria, False
 
 
-def _parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
+def _parse_rule(raw: Any, source_file: str, known_codes: set[str], position: int) -> Rule:
     """Validate and build one rule, failing at load time rather than part-way
     through a long run.
 
     An unrecognized key is refused too: in a hand-edited file, a misspelled key
-    is a setting that silently does nothing.
+    is a setting that silently does nothing. *position* is the rule's place in
+    its file, counted from 1.
     """
 
     if not isinstance(raw, dict):
         raise ValueError(f"{source_file}: each rule must be a mapping, got {type(raw).__name__}.")
     name = raw.get("name")
     if not isinstance(name, str) or not name:
-        raise ValueError(f"{source_file}: every rule needs a non-empty string 'name'.")
+        # No name to show, so the rule's place in the file identifies it.
+        raise ValueError(
+            f"{source_file}: rule {position}: every rule needs a non-empty string 'name', "
+            f"got {name!r}.")
 
     unknown = set(raw) - _RULE_KEYS
     if unknown:
@@ -139,7 +143,7 @@ def _parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
     if not isinstance(codes, list) or not codes or not all(isinstance(c, str) for c in codes):
         raise ValueError(
             f"rule {name!r} in {source_file}: 'codes' must be a non-empty list of "
-            "code strings.")
+            f"code strings, got {codes!r}.")
 
     for code in codes:
         if code not in known_codes:
@@ -153,7 +157,8 @@ def _parse_rule(raw: Any, source_file: str, known_codes: set[str]) -> Rule:
     if not isinstance(message, str) or not message:
         raise ValueError(
             f"rule {name!r} in {source_file}: 'message' must be the text saying why the "
-            "rule exists. It is printed beside the rule wherever the rules are listed."
+            f"rule exists, got {message!r}. It is printed beside the rule wherever the "
+            "rules are listed."
         )
 
     return Rule(
@@ -184,7 +189,8 @@ def _parse_file(path: str, known_codes: set[str],
             f"{path}: rule files must contain a flat top-level list of rules "
             f"(no 'rules:' key), got {type(raw).__name__}."
         )
-    return [_parse_rule(entry, path, known_codes) for entry in raw]
+    return [_parse_rule(entry, path, known_codes, position)
+            for position, entry in enumerate(raw, start=1)]
 
 
 def _load_rule_files(paths: list[str], known_codes: set[str],

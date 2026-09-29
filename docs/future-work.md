@@ -247,8 +247,12 @@ Two fixes were surveyed: a "quote it" hint and the value read at about 7 raise s
 `rules.py`, and a reader that takes only `true`/`false` as booleans (the YAML 1.2 rule,
 about 8 lines in `paths._StrictLoader` plus the example's copy, prototyped and working).
 Declined: the author writes the values the documents specify, quoted where YAML needs
-it, and the loader does not try to guess what was meant. The existing messages stay as
-documented in `configuration.md` "Errors".
+it, and the loader does not try to guess what was meant. Built instead, under the rule
+that a failure must be informative: the three messages that hid the value now show it as
+read (`name`, `codes`, `message`), and a rule with no usable name is identified by its
+place in the file, so `name: off` second in a file reads `rule 2: every rule needs a
+non-empty string 'name', got False.` `configuration.md` "Errors" says what a stray
+`True` or `False` means.
 
 **Errored checks as root causes, and renaming the root-cause columns** (F.47, from the
 2026-09-27 reviews; decided by the owner 2026-09-28). `root_causes` picked the shallowest

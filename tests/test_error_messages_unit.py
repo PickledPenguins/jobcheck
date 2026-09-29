@@ -382,8 +382,8 @@ def test_a_rule_without_a_message_says_where_the_message_is_shown(
     with pytest.raises(ValueError) as raised:
         load_rules([str(path)])
     assert message_of(raised) == (
-        f"rule 'r' in {path}: 'message' must be the text saying why the rule exists. "
-        "It is printed beside the rule wherever the rules are listed.")
+        f"rule 'r' in {path}: 'message' must be the text saying why the rule exists, "
+        "got None. It is printed beside the rule wherever the rules are listed.")
 
 
 def test_a_builder_of_the_wrong_arity_is_named(fresh_registry: None) -> None:
