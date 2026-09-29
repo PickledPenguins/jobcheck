@@ -35,7 +35,7 @@ from .report import (
     summarize_outcomes,
 )
 from .results import OK, CheckOutcome, Outcome, Status, Verdict
-from .tables import is_null, render
+from .tables import is_null
 
 __all__ = [
     "CheckOutcome",
@@ -55,7 +55,6 @@ __all__ = [
     "load_setup",
     "register_check",
     "registry_table",
-    "render",
     "render_comments",
     "root_causes",
     "row_explanation",

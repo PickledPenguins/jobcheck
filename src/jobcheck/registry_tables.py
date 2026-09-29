@@ -5,7 +5,7 @@ Kept apart from registering and evaluating because it is the job that grows:
 every question about the configuration becomes another column rather than
 another engine feature. Each table carries the columns a reader always wants and
 takes `add_columns` for the ones only some readers do, and each carries its own
-title for `render`.
+title in `attrs["title"]`.
 """
 
 from __future__ import annotations

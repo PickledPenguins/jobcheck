@@ -1,20 +1,18 @@
 Loaded 1 rule(s) from 1 file(s)
 
 == Registry ==
-code                 | layer | default | message                                 | depends_on       | could_be_overridden_by                          
----------------------+-------+---------+-----------------------------------------+------------------+-------------------------------------------------
-AGE_PRESENT          | 0     | ON      | Age is missing                          | -                | -                                               
-DATES_PRESENT        | 0     | ON      | Both start_date and end_date are needed | -                | -                                               
-EMAIL_PRESENT        | 0     | ON      | Email is missing                        | -                | -                                               
-ROW_ALL_NULL         | 0     | ON      | Row is entirely empty                   | -                | -                                               
-AGE_NOT_A_NUMBER     | 1     | ON      | Age is not a number                     | AGE_PRESENT      | -                                               
-DATES_OUT_OF_ORDER   | 1     | ON      | start_date is after end_date            | DATES_PRESENT    | -                                               
-EMAIL_MISSING_AT     | 1     | ON      | Email has no '@'                        | EMAIL_PRESENT    | -                                               
-AGE_NEGATIVE         | 2     | ON      | Age is negative                         | AGE_NOT_A_NUMBER | -                                               
-AGE_NOT_INTEGER      | 2     | OFF     | Age is not a whole number               | AGE_NOT_A_NUMBER | disable_age_integer_check_from_another_directory
-                     |       |         |                                         |                  | (disable)                                       
-AGE_TOO_HIGH         | 2     | ON      | Age is implausibly high (over 130)      | AGE_NOT_A_NUMBER | -                                               
-EMAIL_DOMAIN_INVALID | 2     | ON      | Email domain looks malformed            | EMAIL_MISSING_AT | -                                               
+                code  layer default                                 message       depends_on                                     could_be_overridden_by
+         AGE_PRESENT      0      ON                          Age is missing                -                                                          -
+       DATES_PRESENT      0      ON Both start_date and end_date are needed                -                                                          -
+       EMAIL_PRESENT      0      ON                        Email is missing                -                                                          -
+        ROW_ALL_NULL      0      ON                   Row is entirely empty                -                                                          -
+    AGE_NOT_A_NUMBER      1      ON                     Age is not a number      AGE_PRESENT                                                          -
+  DATES_OUT_OF_ORDER      1      ON            start_date is after end_date    DATES_PRESENT                                                          -
+    EMAIL_MISSING_AT      1      ON                        Email has no '@'    EMAIL_PRESENT                                                          -
+        AGE_NEGATIVE      2      ON                         Age is negative AGE_NOT_A_NUMBER                                                          -
+     AGE_NOT_INTEGER      2     OFF               Age is not a whole number AGE_NOT_A_NUMBER disable_age_integer_check_from_another_directory (disable)
+        AGE_TOO_HIGH      2      ON      Age is implausibly high (over 130) AGE_NOT_A_NUMBER                                                          -
+EMAIL_DOMAIN_INVALID      2      ON            Email domain looks malformed EMAIL_MISSING_AT                                                          -
 
 row,code,status,layer,outcome,message,detail,comments,is_root_cause
 5000,AGE_PRESENT,MISSING (1),0,failed,Age is missing,,,True
@@ -353,16 +351,15 @@ row,code,status,layer,outcome,message,detail,comments,is_root_cause
 
 
 == Summary ==
-code                 | layer | failed | root_cause_rows | errored | skipped | disabled | passed
----------------------+-------+--------+-----------------+---------+---------+----------+-------
-EMAIL_MISSING_AT     | 1     | 86     | 86              | 0       | 0       | 0        | 1914  
-AGE_TOO_HIGH         | 2     | 71     | 71              | 0       | 58      | 0        | 1871  
-DATES_OUT_OF_ORDER   | 1     | 69     | 69              | 0       | 0       | 0        | 1931  
-AGE_PRESENT          | 0     | 58     | 58              | 0       | 0       | 0        | 1942  
-AGE_NEGATIVE         | 2     | 49     | 49              | 0       | 58      | 0        | 1893  
-EMAIL_DOMAIN_INVALID | 2     | 0      | 0               | 0       | 86      | 0        | 1914  
-AGE_NOT_A_NUMBER     | 1     | 0      | 0               | 0       | 58      | 0        | 1942  
-AGE_NOT_INTEGER      | 2     | 0      | 0               | 0       | 0       | 2000     | 0     
-DATES_PRESENT        | 0     | 0      | 0               | 0       | 0       | 0        | 2000  
-EMAIL_PRESENT        | 0     | 0      | 0               | 0       | 0       | 0        | 2000  
-ROW_ALL_NULL         | 0     | 0      | 0               | 0       | 0       | 0        | 2000  
+                code  layer  failed  root_cause_rows  errored  skipped  disabled  passed
+    EMAIL_MISSING_AT      1      86               86        0        0         0    1914
+        AGE_TOO_HIGH      2      71               71        0       58         0    1871
+  DATES_OUT_OF_ORDER      1      69               69        0        0         0    1931
+         AGE_PRESENT      0      58               58        0        0         0    1942
+        AGE_NEGATIVE      2      49               49        0       58         0    1893
+EMAIL_DOMAIN_INVALID      2       0                0        0       86         0    1914
+    AGE_NOT_A_NUMBER      1       0                0        0       58         0    1942
+     AGE_NOT_INTEGER      2       0                0        0        0      2000       0
+       DATES_PRESENT      0       0                0        0        0         0    2000
+       EMAIL_PRESENT      0       0                0        0        0         0    2000
+        ROW_ALL_NULL      0       0                0        0        0         0    2000

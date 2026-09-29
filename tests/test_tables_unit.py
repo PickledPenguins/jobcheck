@@ -1,4 +1,4 @@
-"""Unit checks: table rendering and the registry and rule tables."""
+"""Unit checks: the shared table helpers and the registry and rule tables."""
 
 from __future__ import annotations
 
@@ -11,8 +11,7 @@ import pytest
 from conftest import make_check
 from jobcheck import registry as reg
 from jobcheck import registry_tables
-from jobcheck import render, tables
-from jobcheck.results import OK
+from jobcheck import tables
 from jobcheck.rules import _MatchCriterion
 
 pytestmark = pytest.mark.fast
@@ -24,68 +23,7 @@ def a_rule(name: str = "r", action: str = "disable", codes: list[str] | None = N
                             criteria=[], match_all=True, source_file=source_file, message="why the rule exists")
 
 
-# --- format_table -----------------------------------------------------------
-
-
-def test_format_table_renders_headers_divider_and_rows() -> None:
-    df = pd.DataFrame([{"code": "A", "state": "ON"}, {"code": "BB", "state": "OFF"}])
-    assert tables._format_table(df) == (
-        "code | state\n"
-        "-----+------\n"
-        "A    | ON   \n"
-        "BB   | OFF  "
-    )
-
-
-def test_format_table_sizes_a_column_to_its_widest_cell() -> None:
-    df = pd.DataFrame([{"c": "x"}, {"c": "much longer"}])
-    assert tables._format_table(df).splitlines()[1] == "-----------"
-
-
-def test_format_table_returns_empty_marker_for_an_empty_frame() -> None:
-    assert tables._format_table(pd.DataFrame()) == "(empty)"
-
-
-def test_format_table_returns_empty_marker_for_a_frame_with_columns_but_no_rows() -> None:
-    assert tables._format_table(pd.DataFrame([], columns=["code"])) == "(empty)"
-
-
-def test_format_table_wraps_a_column_onto_extra_lines() -> None:
-    df = pd.DataFrame([{"code": "A", "text": "one two three four"}])
-    assert tables._format_table(df, wrap_columns={"text": 8}) == (
-        "code | text   \n"
-        "-----+--------\n"
-        "A    | one two\n"
-        "     | three  \n"
-        "     | four   "
-    )
-
-
-def test_wrapping_never_breaks_inside_a_word() -> None:
-    df = pd.DataFrame([{"text": "SUPERCALIFRAGILISTIC_CODE"}])
-    assert "SUPERCALIFRAGILISTIC_CODE" in tables._format_table(df, wrap_columns={"text": 8})
-
-
-def test_wrapping_an_empty_cell_produces_one_blank_line() -> None:
-    df = pd.DataFrame([{"code": "A", "text": ""}])
-    assert tables._format_table(df, wrap_columns={"text": 8}) == (
-        "code | text\n"
-        "-----+-----\n"
-        "A    |     "
-    )
-
-
-def test_null_cells_render_blank_not_nan() -> None:
-    """Regression: pandas turns a None in an object column into NaN, which was
-    rendered as the literal text "nan"."""
-
-    df = pd.DataFrame([{"code": "A", "text": None}])
-    assert tables._format_table(df).splitlines()[2] == "A    |     "
-
-
-def test_missing_values_in_a_mixed_column_render_blank() -> None:
-    df = pd.DataFrame([{"code": "A", "text": "here"}, {"code": "B", "text": None}])
-    assert tables._format_table(df).splitlines()[3] == "B    |     "
+# --- is_null ----------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -101,17 +39,12 @@ def test_missing_values_in_a_mixed_column_render_blank() -> None:
 )
 def test_list_like_cells_are_not_treated_as_null(value: object) -> None:
     """pd.isna on a container returns an array, so containers short-circuit to
-    "not null" and render as their repr.
+    "not null".
 
     Regression for the ndarray case, which the old isinstance list did not cover:
     bool() on that array raised "truth value of an array is ambiguous"."""
 
     assert tables.is_null(value) is False
-
-
-def test_non_string_cells_are_stringified() -> None:
-    df = pd.DataFrame([{"count": 7}])
-    assert tables._format_table(df).splitlines()[2] == "7    "
 
 
 # --- get_registry_table -----------------------------------------------------
@@ -173,22 +106,6 @@ def test_registry_table_of_an_empty_registry_has_columns_and_no_rows(fresh_regis
     assert list(table.columns) == [
         "code", "layer", "default", "message", "depends_on",
     ]
-
-
-# --- rendering the registry and rules tables ----------------------------------
-
-
-def test_the_registry_renders_under_its_title(example_checks: None) -> None:
-    text = render(registry_tables.registry_table())
-    assert text.splitlines()[0] == "== Registry =="
-    assert "code" in text.splitlines()[1]
-    assert "AGE_NEGATIVE" in text
-
-
-def test_an_empty_registry_renders_its_title_over_empty(fresh_registry: None) -> None:
-    table = registry_tables.registry_table()
-    assert table.empty
-    assert render(table) == "== Registry ==\n(empty)"
 
 
 def test_could_be_overridden_by_appears_only_when_asked_for(fresh_registry: None) -> None:
@@ -298,126 +215,6 @@ def test_rules_table_adds_source_file_when_asked_for(fresh_registry: None) -> No
     assert list(table["source_file"]) == ["here.yaml"]
 
 
-def test_no_rules_renders_the_title_over_empty(fresh_registry: None) -> None:
-    table = registry_tables.rules_table([])
-    assert table.empty
-    assert render(table) == "== Rules ==\n(empty)"
-
-
-# --- what wrapping must not do ----------------------------------------------
-#
-# Written against surviving mutants: textwrap's break_long_words and
-# break_on_hyphens were flipped and nothing noticed, though both decide whether
-# a code or a rule name comes back readable.
-
-
-def test_a_word_longer_than_the_width_overflows_rather_than_being_split() -> None:
-    """A code or rule name split across lines cannot be searched for or pasted."""
-
-    frame = pd.DataFrame([{"code": "AGE_NOT_A_NUMBER_IN_A_VERY_LONG_CODE"}])
-    rendered = tables._format_table(frame, wrap_columns={"code": 10})
-    assert "AGE_NOT_A_NUMBER_IN_A_VERY_LONG_CODE" in rendered
-    assert len(rendered.splitlines()) == 3  # header, divider, one row
-
-
-def test_a_hyphenated_phrase_is_not_broken_at_its_hyphens() -> None:
-    frame = pd.DataFrame([{"note": "cross-reference-column overflow"}])
-    rendered = tables._format_table(frame, wrap_columns={"note": 12})
-    assert "cross-reference-column" in rendered
-
-
-def test_wrapping_still_breaks_between_words() -> None:
-    """The counterpart: it is wrapping, not merely widening."""
-
-    frame = pd.DataFrame([{"note": "one two three four five six seven"}])
-    rendered = tables._format_table(frame, wrap_columns={"note": 12})
-    body = rendered.splitlines()[2:]
-    assert len(body) > 1
-    assert all(len(line.rstrip()) <= 14 for line in body)
-
-
-def test_an_empty_cell_wraps_to_one_blank_line() -> None:
-    """textwrap.wrap("") is [], and a row with no lines would lose the row."""
-
-    frame = pd.DataFrame([{"note": "", "code": "KEPT"}])
-    rendered = tables._format_table(frame, wrap_columns={"note": 10})
-    assert "KEPT" in rendered
-    assert len(rendered.splitlines()) == 3
-
-
-def test_a_cell_holding_a_newline_renders_tall_instead_of_breaking_the_row() -> None:
-    """A quoted multi-line CSV field reaches an unwrapped column -- the row key
-    and every extra_column -- and the renderer pads with len(), so a cell that
-    emits its own newline slides every column after it."""
-
-    frame = pd.DataFrame([{"id": "a\nb", "note": "one"}, {"id": "c", "note": "two"}])
-    lines = tables._format_table(frame).splitlines()
-    widths = {len(line.split(" | ")) for line in lines[2:]}
-    assert widths == {2}
-    assert [line.split(" | ")[0].rstrip() for line in lines[2:]] == ["a", "b", "c"]
-
-
-def test_the_same_cell_renders_tall_in_a_wrapped_column() -> None:
-    """Wrapped and unwrapped columns agree on what a line is; textwrap on its
-    own collapses the newline to a space."""
-
-    frame = pd.DataFrame([{"note": "a\nb"}])
-    body = tables._format_table(frame, wrap_columns={"note": 10}).splitlines()[2:]
-    assert [line.rstrip() for line in body] == ["a", "b"]
-
-
-def test_a_carriage_return_is_a_line_break_and_a_tab_is_expanded() -> None:
-    """Neither is a newline, and both corrupt a row: a terminal draws \\r over
-    the line it is on and a tab eight columns wide where len() counted one."""
-
-    frame = pd.DataFrame([{"x": "a\tb", "y": "p\rq"}])
-    lines = tables._format_table(frame).splitlines()
-    assert [line.split(" | ")[1].rstrip() for line in lines[2:]] == ["p", "q"]
-    assert lines[2].startswith("a       b")
-
-
-def test_a_character_that_draws_as_nothing_does_not_split_a_cell() -> None:
-    """str.splitlines would split on \\u2028 and \\x1c; the cell would go tall
-    for a character the reader cannot see."""
-
-    frame = pd.DataFrame([{"x": "a b\x1cc"}])
-    # Counted with "\n", not splitlines(), which splits on both of them itself.
-    assert tables._format_table(frame).count("\n") == 2
-
-
-def test_an_escape_sequence_in_a_cell_is_shown_rather_than_obeyed() -> None:
-    """ESC [2K ESC [1A erases a line and moves up: a crafted cell could blank the
-    failures printed above it and make a failing report read clean."""
-
-    frame = pd.DataFrame([{"id": "S1", "comment": "fine\x1b[2K\x1b[1A"}])
-    rendered = render(frame)
-    assert "\x1b" not in rendered
-    assert "fine\\x1b[2K\\x1b[1A" in rendered
-
-
-@pytest.mark.parametrize("control, shown", [
-    ("\x00", "\\x00"), ("\x07", "\\x07"), ("\x0b", "\\x0b"), ("\x7f", "\\x7f"),
-    ("\x85", "\\x85"), ("\x9b", "\\x9b"), ("‮", "\\u202e"), ("⁦", "\\u2066"),
-])
-def test_every_terminal_control_is_shown_as_its_escape(control: str, shown: str) -> None:
-    """C0 besides the handled breaks and tab, DEL, C1 (\\x9b is a one-byte ESC [),
-    and the bidirectional overrides, which reorder the text a reader sees."""
-
-    assert tables._cell_lines(f"a{control}b", None) == [f"a{shown}b"]
-
-
-def test_a_heading_from_the_data_is_shown_safely_too() -> None:
-    """add_columns copies the frame's own column names into a table's headings."""
-
-    assert "\\x1b]0;x\\x07" in render(pd.DataFrame({"\x1b]0;x\x07": [1]}))
-
-
-def test_the_csv_keeps_a_control_character_as_the_data_holds_it() -> None:
-    """The file is data for another program; only the terminal rendering changes."""
-
-    assert "a\x1bb" in render(pd.DataFrame({"x": ["a\x1bb"]}), fmt="csv")
-
-
 # --- add_columns, the one argument every table takes ----------------------
 
 
@@ -454,7 +251,6 @@ def test_the_rules_table_carries_the_message_that_says_why_a_rule_exists(
     make_check("A_CODE")
     table = registry_tables.rules_table([a_rule()])
     assert list(table["message"]) == ["why the rule exists"]
-    assert "why the rule exists" in render(table)
 
 
 @pytest.mark.parametrize(
@@ -543,67 +339,3 @@ def test_the_rules_table_adds_a_hidden_column(fresh_registry: None) -> None:
     table = registry_tables.rules_table([a_rule(source_file="here.yaml")],
                                         add_columns=["source_file"])
     assert list(table.columns) == [*tables._DEFAULT_COLUMNS["Rules"], "source_file"]
-
-
-def test_a_duplicated_column_label_renders_each_column_s_own_value() -> None:
-    """Regression: cells were read by label, so a duplicated label handed back a
-    Series and every cell printed its repr -- `a 1 / a 2 / Name: 0, dtype: int64`."""
-
-    frame = pd.DataFrame([[1, 2], [3, 4]], columns=["a", "a"])
-    assert tables._format_table(frame).splitlines() == [
-        "a | a",
-        "--+--",
-        "1 | 2",
-        "3 | 4",
-    ]
-
-
-def test_a_duplicated_label_in_wrap_columns_wraps_both_columns() -> None:
-    frame = pd.DataFrame([["one two", "three four"]], columns=["a", "a"])
-    lines = tables._format_table(frame, wrap_columns={"a": 5}).splitlines()
-    assert lines[2:] == ["one | three", "two | four "]
-
-
-def test_integers_stay_integers_in_an_all_numeric_frame() -> None:
-    """Regression: rows came from iterrows, which upcasts a whole row to float
-    when every column is numeric, so the integer column printed `1.0`."""
-
-    frame = pd.DataFrame({"n": [1, 2], "x": [2.5, 3.0]})
-    assert tables._format_table(frame).splitlines()[2:] == ["1 | 2.5", "2 | 3.0"]
-
-
-# --- found by reading the mutation survivors, 2026-09-25 ---------------------
-
-
-def test_the_registry_wraps_its_three_long_columns(fresh_registry: None) -> None:
-    """message at 40, and the two rules-derived columns at 34: each full text
-    would fit on one line only if its column were left unwrapped."""
-
-    message = "a message long enough that forty characters cannot hold it"
-
-    @reg.register_check(code="A_CODE", message=message)
-    def check(row: Any) -> Any:
-        return OK
-
-    rule = a_rule("a_rule_named_at_some_length_here")
-    table = registry_tables.registry_table(
-        [rule], add_columns=["could_be_overridden_by", "effective_state"])
-    out = render(table)
-    for column in ("message", "could_be_overridden_by", "effective_state"):
-        assert table.loc[0, column] not in out, f"{column} was not wrapped"
-
-
-def test_the_rules_table_wraps_match_and_message(fresh_registry: None) -> None:
-    import re as _re
-
-    make_check("A_CODE")
-    rule = reg.Rule(
-        name="r", action="disable", codes=["A_CODE"],
-        criteria=[_MatchCriterion("source_system", "^LEGACY_SYSTEM_", _re.compile("^L")),
-                  _MatchCriterion("record_type", "^BATCH_RECORD$", _re.compile("^B"))],
-        match_all=False, source_file="rules.yaml",
-        message="a message long enough that forty characters cannot hold it")
-    table = registry_tables.rules_table([rule])
-    out = render(table)
-    for column in ("match", "message"):
-        assert table.loc[0, column] not in out, f"{column} was not wrapped"

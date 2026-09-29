@@ -9,9 +9,8 @@ import pandas as pd
 import pytest
 import yaml
 
-from conftest import enabled_only, make_check, one_row_report
+from conftest import enabled_only, make_check
 from jobcheck import registry as reg
-from jobcheck import tables
 from jobcheck import engine
 from jobcheck.results import Status
 from jobcheck.rules import _MatchCriterion
@@ -209,72 +208,7 @@ def test_wide_row_with_many_columns(fresh_registry: None) -> None:
     assert engine.validate_row(row) == []
 
 
-def test_table_rendering_of_a_cell_containing_a_pipe(fresh_registry: None) -> None:
-    """The renderer does not escape, so a pipe in data is shown literally."""
-
-    df = pd.DataFrame([{"code": "A|B"}])
-    assert tables._format_table(df).splitlines()[2] == "A|B "
-
-
 # --- hostile values reaching the report ------------------------------------
-
-
-def test_a_newline_in_a_message_does_not_break_the_table(fresh_registry: None) -> None:
-    """It renders as a tall cell: every line stays the same width, and the break
-    the author wrote is kept rather than collapsed into a space."""
-
-    from jobcheck import render
-
-    lines = render(one_row_report({}, message="line one\nline two")).splitlines()[1:]
-    assert len({len(line) for line in lines}) == 1
-    assert "line one" in lines[2] and "line two" not in lines[2]
-    assert "line two" in lines[3]
-
-
-def test_a_newline_in_a_comment_value_does_not_break_the_table(fresh_registry: None) -> None:
-    from jobcheck import render
-
-    lines = render(one_row_report({"note": "a\nb"})).splitlines()[1:]
-    assert len({len(line) for line in lines}) == 1
-
-
-def test_a_very_long_comment_value_overflows_rather_than_being_mangled(
-    fresh_registry: None,
-) -> None:
-    """Wrapping never breaks inside a word, so a long identifier stays greppable
-    at the cost of a wide table."""
-
-    from jobcheck import render
-
-    value = "x" * 200
-    text = render(one_row_report({"big": value}))
-    assert value in text
-
-
-def test_unicode_survives_both_formats(fresh_registry: None) -> None:
-    from jobcheck import render
-
-    report = one_row_report({"ville": "München"}, message="échec de la règle")
-    for fmt in ("table", "csv"):
-        text = render(report, fmt=fmt)
-        assert "München" in text and "échec" in text
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        pytest.param(None, id="none"),
-        pytest.param(float("nan"), id="nan"),
-        pytest.param([1, 2], id="list"),
-        pytest.param({"nested": 1}, id="dict"),
-        pytest.param(pd.Timestamp("2024-01-01"), id="timestamp"),
-    ],
-)
-def test_a_non_string_comment_value_renders(fresh_registry: None, value: Any) -> None:
-    from jobcheck import render
-
-    text = render(one_row_report({"v": value}), fmt="csv")
-    assert "CELL" in text
 
 
 def test_a_hundred_comment_keys_render_in_sorted_order(fresh_registry: None) -> None:

@@ -27,8 +27,9 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.51. Each is either loud already, or needs the owner's decision.
-F.46, F.47, F.49 and F.50 were decided on 2026-09-28 and are in the section below. F.48 was built the
+left is open below, from F.52. Each is either loud already, or needs the owner's decision.
+F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28 and are in the
+section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
 registration, for a check and for a context builder alike, naming `functools.partial` and
 a keyword-only parameter as the two ways to write it.
@@ -36,14 +37,6 @@ a keyword-only parameter as the two ways to write it.
 
 
 
-
-**The CSV printed to a terminal keeps control characters** (F.51, low). The bordered form
-now shows them as escapes; `render(fmt="csv")` keeps the data as it is, since a CSV file
-is data for another program. `examples/main.py --report csv` prints that CSV to stdout,
-so on a terminal an escape sequence in a cell still acts. A design question rather than a
-defect: an entry point could escape when stdout is a tty, or the library could offer it.
-Surveyed 2026-09-28 and set aside by the owner: it may be overtaken by F.68, since
-removing `render` removes the escaping it would extend.
 
 **Equal-length failures-only lists still pass the summary's check** (F.52, low).
 `summarize_outcomes` and `build_report(include=...)` refuse lists that differ in length,
@@ -96,7 +89,9 @@ only input that holds them.
 
 **The declared floors, Python 3.10 and pandas 2.1, have never been run** (F.60). No such
 interpreter exists here, and installing one needs the owner's permission. One difference
-is already known: formatting an `Outcome` member (see its docstring).
+is already known: formatting an `Outcome` member (see its docstring). The pandas floor's
+only stated reason, `DataFrame.map` in the CSV formula guard, went with `render`
+(F.68, 2026-09-28); the floor was kept at 2.1 rather than lowered untested.
 
 **The native `/code-review` pass** (F.61) was not run in any of the 2026-09-27 reviews.
 
@@ -117,18 +112,6 @@ without the `context` and `rules` that `validate` was given re-runs the checks w
 empty `RowContext`, so a check that reads context raises. The explanation then shows
 `errored` where the report shows a verdict. Explaining from `validate`'s own result,
 `row_explanation(outcomes[i])`, avoids it. Not yet surveyed.
-
-**A column widened by one long word should wrap its other cells at that width** (F.64,
-raised by the owner on 2026-09-28). `render` wraps each free-text column to a fixed
-width from `_WRAP_WIDTHS` (`src/jobcheck/tables.py:187`) and never breaks inside a
-word (`break_long_words=False`, `tables.py:105`). A single long unbroken string, such
-as a path or an identifier, therefore overflows the limit. The column is then as wide
-as that string (`tables.py:145-152`), but every other cell in the column is still
-wrapped at the smaller configured width. The result is a wide column whose other cells
-are split over more lines than necessary. Proposed: wrap each column at the larger of
-its configured width and its longest unbreakable word, so every cell uses the width
-the column already takes. The wrap would then need two passes, one to measure the
-longest word per column and one to wrap. Not yet surveyed.
 
 **A check that raises should report its exception type and message** (F.65, raised by
 the owner on 2026-09-28). With `on_error="record"`, the owner found the exception
@@ -152,7 +135,7 @@ added beside the existing `row` column, which it does not replace. `row` is the
 `key_column` value or the frame's index (`src/jobcheck/report.py:67`). In the long-format
 report it repeats on every failure of a data row, and a key column may itself repeat or
 be missing (`<no key>`), so no column today names one line uniquely. The survey must
-settle which tables carry the counter (the report only, or every table `render` prints),
+settle which tables carry the counter (the report only, or every table the library builds),
 whether it starts at 0 or 1, whether it counts before or after `include` filtering (a
 failures-only report and an `include="all"` report would number the same failure
 differently), its column name and position, and how it interacts with `add_columns`
@@ -187,30 +170,6 @@ or by default.
 - Priority: medium. Nothing fails, but "ran because of a rule" is only approximate.
 - Recommended: the separate `rule` field. Not yet decided.
 
-**Consider removing or simplifying `render`** (F.68, raised by the owner on 2026-09-28).
-`render(table, fmt)` (`src/jobcheck/tables.py:231`) is a thin layer over pandas: it
-chooses no columns and reformats no values, since `build_report` and the other table
-builders have already done both. What it adds:
-
-- `fmt="table"`: the `== Title ==` heading from `attrs["title"]`, `|` borders, wrapping
-  of free-text columns at the per-name `_WRAP_WIDTHS` (`tables.py:185`), tall cells for
-  embedded line breaks, expanded tabs, terminal control characters shown as escapes
-  (`_visible`), blanks for nulls, `(empty)`, and cells read by position. pandas has no
-  equivalent; `to_string()` is the nearest and does none of the safety or wrapping.
-- `fmt="csv"`: `to_csv(index=False)` plus the spreadsheet formula guard
-  (`_escape_for_spreadsheet`, `tables.py:201`). The guard is the only thing a caller
-  loses by calling `to_csv` directly.
-
-Shapes to survey: drop `fmt="csv"` and export the formula guard for callers who write
-CSV themselves (a caller who forgets it gets a file that can execute in a spreadsheet);
-split `render` into two named functions, one per format, so the `fmt` string and its
-`ValueError` go; or leave it as the single entry point. Removing the bordered form
-outright would take the only terminal-safe view the package has. Callers: 11 in
-`examples/` (`main.py`, `run_from_config.py`, `bundle_main.py`), at least 10 test
-modules, and the README plus six documents. `render` is 10 executable lines;
-`tables.py` as a whole is 93. Related: F.64 (wrap width) changes the same code. Not yet
-surveyed.
-
 **jobchain's unknown-key messages still list keys the old way** (F.69, raised on
 2026-09-28, moved here from the handoff). Since `22d2973`, jobcheck lists unknown and
 allowed keys one way everywhere: each key's `repr`, sorted as text, joined by commas
@@ -236,7 +195,7 @@ signature and prose. Today the document has two `python` blocks, under `load_che
 `Outcome`, `RowContext`, `Rule`, `register_check`, `clear_registry`, `load_rules`,
 `load_setup`, `explain_row`, `validate_row`, `root_causes`, the three `warn_*`
 functions, `validate`, `build_report`, `row_explanation`, `summarize_outcomes`,
-`registry_table`, `rules_table`, `render` and `is_null` -- have none there. F.37's
+`registry_table`, `rules_table` and `is_null` -- have none there. F.37's
 examples live in `reporting.md` and `writing-checks.md`, grouped by use. Every `python`
 block in `docs/` runs under the fast suite, so each example must execute against the
 documented world (`tests/doc_files.py`). Not yet surveyed.
@@ -259,6 +218,30 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**Removing `render`, and writing tables with pandas** (F.68, raised and decided by the
+owner 2026-09-28; built). `render` in `tables.py` was about 64 of the
+module's 93 executable lines: a bordered, wrapping writer that showed terminal controls
+as escapes, and a CSV writer that put an apostrophe before a formula-like cell. It chose
+no columns and reformatted no values. It is gone. Every table is a titled DataFrame, and
+the caller writes it with `to_string(index=False)` or `to_csv(index=False)`; the example
+entry points share `examples/main.py`'s `table_text`, which adds the `== Title ==` bar.
+Lost, and accepted: wrapping of long text (a wide report runs past the terminal; view the
+CSV with `csvlook`), left-aligned text, the escaping of terminal controls in the default
+view, the spreadsheet formula guard, and `(empty)` for an empty table (pandas prints its
+`Empty DataFrame` notice). The golden files became one CSV per view. `reporting.md`
+"Formats and files" warns that `print(report)` shows only the ends of a long frame.
+
+**Escaping control characters in CSV printed to a terminal** (F.51, low; overtaken by
+F.68 on 2026-09-28). The bordered form escaped terminal controls and the CSV did not, so
+`examples/main.py --report csv` on a terminal let an escape sequence in a cell act. With
+`render` gone neither form escapes anything; `reporting.md` "Formats and files" says so
+and names `csvlook` and `cat -v` for data that is not yours.
+
+**Wrapping a widened column at its widened width** (F.64, overtaken by F.68 on
+2026-09-28). `render` wrapped free-text columns at fixed widths and never broke a word,
+so one long word widened a column whose other cells still wrapped narrow. pandas does
+not wrap, so there is nothing left to tune.
 
 **Aligning the bordered table for wide characters** (F.50, low; declined by the owner
 2026-09-28 as an unreasonable corner case). `render`'s bordered form counts characters,
@@ -548,7 +531,7 @@ explanation, which never had it. The run file keeps its `drop_columns` option, a
 `root_cause_counts`, `get_registry_table`, `get_rules_table` -- under three rules about
 what each returned. Now every view is a DataFrame carrying `attrs["title"]`
 (`build_report`, `registry_table`, `rules_table`, `row_explanation`,
-`summarize_outcomes`), and `render(table, fmt)` draws any of them under a `== Title ==`
+`summarize_outcomes`), and `render` drew any of them under a `== Title ==`
 bar or as escaped CSV. The owner chose a title the table carries over a `title=`
 argument, since naming the table at every call is cumbersome. Lost: the facts in the
 old headings (line and row counts, key column, include level, rule count); "No

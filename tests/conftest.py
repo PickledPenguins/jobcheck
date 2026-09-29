@@ -18,7 +18,6 @@ import pytest
 
 from jobcheck import engine
 from jobcheck import registry as reg
-from jobcheck import report
 from jobcheck import results as res
 from registry_state import SavedRegistry
 
@@ -92,23 +91,6 @@ def make_check(
         if passes:
             return res.OK
         return res.Verdict(status, comments or {})
-
-
-def one_row_report(
-    comments: dict[str, Any] | None = None, message: str = "it failed"
-) -> "pd.DataFrame":
-    """A report with a single failure carrying the given message and comments.
-
-    The shape several suites need to ask "what does this value do to the output?"
-    -- rendered, escaped, wrapped -- without each of them growing its own copy.
-    """
-
-    @reg.register_check(code="CELL", message=message)
-    def check(row: "pd.Series[Any]") -> res.Verdict:
-        return res.Verdict(res.Status.INVALID, comments or {})
-
-    frame = pd.DataFrame([{"id": 1}])
-    return report.build_report(engine.validate(frame), df=frame, key_column="id")
 
 
 @dataclass

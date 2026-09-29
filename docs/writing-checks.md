@@ -96,9 +96,9 @@ actionable. It renders as `key=value; key=value`, sorted by key, in the report's
 `comments` column. Put the numbers a reader would otherwise have to go and look
 up: the value seen, the limit breached, the count that was wrong.
 
-Keep them small and scalar. They end up in a CSV cell — one that is neutralized
-against spreadsheet formula injection on the way out, since the values come from
-the data ([reporting.md](reporting.md#opening-the-csv-in-a-spreadsheet)).
+Keep them small and scalar. They end up in a CSV cell, written as they are — a value
+from the data that looks like a formula stays one
+([reporting.md](reporting.md#opening-the-csv-in-a-spreadsheet)).
 
 ## Which checks an entry point loads
 
@@ -375,7 +375,7 @@ from pathlib import Path
 import pandas as pd
 from jobcheck import (
     build_report, warn_missing_rule_columns, load_checks,
-    load_rules, render, root_causes, validate, validate_row,
+    load_rules, root_causes, validate, validate_row,
 )
 
 load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
@@ -388,7 +388,7 @@ for warning in warn_missing_rule_columns(df, rules):
 
 # Full report, when you want to look at the failures:
 outcomes = validate(df, rules=rules)
-Path("report.csv").write_text(render(build_report(outcomes, df=df, key_column="id"), fmt="csv"))
+Path("report.csv").write_text(build_report(outcomes, df=df, key_column="id").to_csv(index=False))
 
 # Or just the failures per row, when you only need to gate:
 df["errors"] = df.apply(

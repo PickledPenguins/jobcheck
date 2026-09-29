@@ -71,7 +71,7 @@ def test_the_report_names_each_row_by_its_key_column_and_root_cause(
     default_run: CommandResult,
 ) -> None:
     failures = default_run.stdout.split("== Report")[1]
-    assert "2        | AGE_NEGATIVE" in failures
+    assert ["2", "AGE_NEGATIVE"] in [line.split()[:2] for line in failures.splitlines()]
     assert "minimum=0; value=-5.0" in failures
     assert "<no key>" in failures
 
@@ -80,15 +80,15 @@ def test_cascading_checks_are_absent_from_the_report(default_run: CommandResult)
     """Row 5 has no age at all: only AGE_PRESENT is reported for it."""
 
     failures = default_run.stdout.split("== Report")[1]
-    age_lines = [line for line in failures.splitlines() if line.startswith("5 ")]
-    assert [line.split("|")[1].strip() for line in age_lines] == [
+    rows = [line.split() for line in failures.splitlines()]
+    assert [words[1] for words in rows if words[:1] == ["5"]] == [
         "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"
     ]
 
 
 def test_the_csv_report_format_is_selectable() -> None:
     """And carries no heading of its own: a title line above CSV would make the
-    output unparseable, so `render` writes one for the table only."""
+    output unparseable, so `table_text` writes one for the table only."""
 
     out = run_cli("examples/main.py", "--report", "csv").stdout
     assert "row,code,status,layer,outcome" in out

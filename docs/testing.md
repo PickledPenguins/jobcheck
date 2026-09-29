@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 922 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 273 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1195 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 848 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 271 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 1119 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -69,7 +69,7 @@ Fast:
 | `tests/test_rules_unit.py` | Every rule-file rejection (19 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
 | `tests/test_results_unit.py` | The fixed status vocabulary, `Verdict` truthiness and validation, and normalizing whatever a check returned. |
 | `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `warn_missing_rule_columns`, root cause, layers, and the shipped checks at their boundaries. |
-| `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys and added data columns, `include` levels, table and CSV rendering and the formula guard, explanations and summaries, and the default columns. |
+| `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys and added data columns, `include` levels, titles, explanations and summaries, and the default columns. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_run_from_config_unit.py` | The run-file entry point in this process: the shipped run's tables in order, paths resolved against the run file, repeated tables, every rejection of a malformed run file word for word, and that a table the library refuses prints none of the run. |
 | `tests/test_bundle_main_unit.py` | The bundle entry point in this process, and the shipped bundle it loads: the four members and their order, the registry it prints with each check's file, and the argument that names another bundle. |
@@ -88,15 +88,15 @@ Fast:
 | `tests/test_docs_messages_unit.py` | Every message a user can meet is quoted in the document that owns it: each exception raised with a message in `src/` and `examples/`, each `error:` line an example script prints, and each warning line, read from the source rather than a list. `interfaces.md`, `configuration.md` and `cli.md` own them, by source file; a new source file that speaks to a user must be given an owner. |
 | `tests/test_docs_references_unit.py` | The superscript cross-references agree with each document's `## References` table: every citation is a row, every row is cited, rows are numbered 1, 2, 3 and point to distinct places, and the table is the last section. |
 | `tests/doc_files.py` | Not a test: the documents and public names the six `test_docs_*` files share, and the Python blocks, their shown output and the world they run in, which `scripts/regen_docs.py` shares with the blocks test. |
-| `tests/test_golden_output.py` | The report library's exact output, byte for byte, against the files in `tests/golden/`. |
+| `tests/test_golden_output.py` | The report library's exact tables, written as CSV, byte for byte against the files in `tests/golden/`. |
 | `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, `__all__` equal to the list written in the test so a new export is a decision, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
-| `tests/test_tables_unit.py` | The bordered renderer: wrapping, empty frames, tall cells; `render`'s title bar; every column of the registry and rules tables. |
+| `tests/test_tables_unit.py` | `is_null`, the default columns, and every column of the registry and rules tables. |
 | `tests/test_context_unit.py` | `RowContext` as the base type an adopter subclasses. |
 | `tests/test_paths_unit.py` | The step both loaders take before they open anything: an existing file resolved, a symlink followed, and each way a path that is not a file is refused -- relative, absolute and a directory -- word for word. |
 | `tests/test_smoke.py` | The entry point starts, exits 0, and produces its main output. |
 | `tests/test_interface_cli.py` | The CLI contract as a user meets it, in subprocesses: defaults, exit codes 0/1/2, stdout vs stderr routing, and the data-file flag. |
 | `tests/test_pathological.py` | Malformed YAML, unicode, 1000 rules, empty and wide rows, duplicate column labels, a 200-deep dependency chain, a check that raises. |
-| `tests/test_safety.py` | the safe YAML loader refuses `!!python/object`, patterns are never evaluated, loading writes nothing, validation does not mutate the frame, a check file name is a path and never a module name, a catastrophic regex stays bounded, and CSV reports neutralize cells a spreadsheet would run as a formula. |
+| `tests/test_safety.py` | the safe YAML loader refuses `!!python/object`, patterns are never evaluated, loading writes nothing, validation does not mutate the frame, a check file name is a path and never a module name, and a catastrophic regex stays bounded. |
 
 Long:
 
@@ -330,7 +330,7 @@ which is
 records it and says so; later runs fail when a median moves past the machine's own
 measured noise (twice the observed spread, floored at 35% and capped at 150%).
 
-Measured on 2026-09-21 (`render/4000` on 2026-09-26), Python 3.12.14, pandas 3.0.5,
+Measured on 2026-09-21, Python 3.12.14, pandas 3.0.5,
 Linux 6.12 x86_64, 4,000-row
 frame, after the example date checks stopped calling the scalar `pandas.to_datetime`
 (on 2026-09-10 `validate/4000` was 6.250s and `validate_row/4000` 6.174s — 87% of it
@@ -341,7 +341,6 @@ date parsing in example code, which left the gate nearly blind to the engine):
 | `validate/4000` | 1.340s | 16% |
 | `validate_row/4000` | 1.245s | 20% |
 | `build_report/4000` | 0.070s | 98% |
-| `render/4000` (recorded 2026-09-26, replacing `render_report/4000`) | 0.052s | 12% |
 | `summarize_outcomes/4000` | 0.024s | 19% |
 | `validate/1000-rows-50-rules` | 0.501s | 35% |
 
@@ -360,8 +359,9 @@ called the scalar `pandas.to_datetime` per cell, which costs about 300 times
 
 ## Golden files
 
-`tests/golden/` holds the exact text the report library produces — one view per file,
-produced from the fixed frame in `tests/golden_fixture.py` and compared byte for byte.
+`tests/golden/` holds the exact tables the report library builds, written as CSV — one
+view per file, produced from the fixed frame in `tests/golden_fixture.py` and compared
+byte for byte.
 They are tighter than the catalog: the catalog pins everything an entry point prints,
 while these isolate one view each, so a diff points straight at what changed.
 

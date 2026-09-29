@@ -19,7 +19,7 @@ sys.path.insert(0, str(HERE.parents[3] / "src"))
 import pandas as pd  # noqa: E402
 
 from jobcheck import (  # noqa: E402
-    RowContext, build_report, is_null, load_checks, render, summarize_outcomes, validate,
+    RowContext, build_report, is_null, load_checks, summarize_outcomes, validate,
 )
 
 
@@ -53,9 +53,9 @@ def main() -> None:
         .apply(list).to_dict(),
     )
     outcomes = validate(jobs, context_builder=build_context, context_args=shared)
-    print(render(build_report(outcomes, df=jobs, key_column="id", add_columns=["run_dir"])))
-    print()
-    print(render(summarize_outcomes(outcomes)))
+    report = build_report(outcomes, df=jobs, key_column="id", add_columns=["run_dir"])
+    print(report.to_csv(index=False))
+    print(summarize_outcomes(outcomes).to_csv(index=False), end="")
 
 
 if __name__ == "__main__":

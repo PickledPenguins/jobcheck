@@ -1,22 +1,18 @@
-== Report ==
-row | run_dir | code            | status      | layer | outcome | message                                | detail | comments        | is_root_cause
-----+---------+-----------------+-------------+-------+---------+----------------------------------------+--------+-----------------+--------------
-J2  | runs/r2 | OUTPUT_SHARED   | INVALID (3) | 1     | failed  | Another job writes the same output     |        | writers=J2,J5   | True         
-J3  | runs/r3 | INPUT_EMPTY     | INVALID (3) | 3     | failed  | Input file is empty                    |        | bytes=0         | True         
-J4  | runs/r4 | RUN_DIR_EXISTS  | MISSING (1) | 1     | failed  | Run directory does not exist           |        | run_dir=runs/r4 | True         
-J5  | runs/r5 | INPUT_EXISTS    | MISSING (1) | 2     | failed  | Input file is not in the run directory |        | input=input.dat | False        
-J5  | runs/r5 | OUTPUT_SHARED   | INVALID (3) | 1     | failed  | Another job writes the same output     |        | writers=J2,J5   | True         
-J6  | runs/r1 | OUTPUT_PRESENT  | MISSING (1) | 0     | failed  | Output path is missing                 |        |                 | True         
-J7  |         | RUN_DIR_PRESENT | MISSING (1) | 0     | failed  | Run directory is blank                 |        |                 | True         
-J8  | runs/r2 | INPUT_PRESENT   | MISSING (1) | 0     | failed  | Input file name is blank               |        |                 | True         
+row,run_dir,code,status,layer,outcome,message,detail,comments,is_root_cause
+J2,runs/r2,OUTPUT_SHARED,INVALID (3),1,failed,Another job writes the same output,,"writers=J2,J5",True
+J3,runs/r3,INPUT_EMPTY,INVALID (3),3,failed,Input file is empty,,bytes=0,True
+J4,runs/r4,RUN_DIR_EXISTS,MISSING (1),1,failed,Run directory does not exist,,run_dir=runs/r4,True
+J5,runs/r5,INPUT_EXISTS,MISSING (1),2,failed,Input file is not in the run directory,,input=input.dat,False
+J5,runs/r5,OUTPUT_SHARED,INVALID (3),1,failed,Another job writes the same output,,"writers=J2,J5",True
+J6,runs/r1,OUTPUT_PRESENT,MISSING (1),0,failed,Output path is missing,,,True
+J7,,RUN_DIR_PRESENT,MISSING (1),0,failed,Run directory is blank,,,True
+J8,runs/r2,INPUT_PRESENT,MISSING (1),0,failed,Input file name is blank,,,True
 
-== Summary ==
-code            | layer | failed | root_cause_rows | errored | skipped | disabled | passed
-----------------+-------+--------+-----------------+---------+---------+----------+-------
-OUTPUT_SHARED   | 1     | 2      | 2               | 0       | 1       | 0        | 5     
-INPUT_EMPTY     | 3     | 1      | 1               | 0       | 4       | 0        | 3     
-INPUT_EXISTS    | 2     | 1      | 0               | 0       | 3       | 0        | 4     
-RUN_DIR_EXISTS  | 1     | 1      | 1               | 0       | 1       | 0        | 6     
-INPUT_PRESENT   | 0     | 1      | 1               | 0       | 0       | 0        | 7     
-OUTPUT_PRESENT  | 0     | 1      | 1               | 0       | 0       | 0        | 7     
-RUN_DIR_PRESENT | 0     | 1      | 1               | 0       | 0       | 0        | 7     
+code,layer,failed,root_cause_rows,errored,skipped,disabled,passed
+OUTPUT_SHARED,1,2,2,0,1,0,5
+INPUT_EMPTY,3,1,1,0,4,0,3
+INPUT_EXISTS,2,1,0,0,3,0,4
+RUN_DIR_EXISTS,1,1,1,0,1,0,6
+INPUT_PRESENT,0,1,1,0,0,0,7
+OUTPUT_PRESENT,0,1,1,0,0,0,7
+RUN_DIR_PRESENT,0,1,1,0,0,0,7

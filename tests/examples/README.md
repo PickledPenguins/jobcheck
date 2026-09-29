@@ -25,7 +25,7 @@ alone as a copyable reference.
 
 Not covered here, because a unit test asserts it more precisely: every rejection
 of a malformed rule file (see `../failures/`), individual check behavior, and
-table rendering details.
+and how pandas lays out a table.
 
 Absolute paths are normalized to `<project>` before comparison; nothing else is.
 

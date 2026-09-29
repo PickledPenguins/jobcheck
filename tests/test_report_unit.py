@@ -7,12 +7,12 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import make_check, one_row_report
+from conftest import make_check
 from jobcheck import engine
 from jobcheck import registry as reg
 from jobcheck import results as res
 from jobcheck import report as rep
-from jobcheck import render, tables, validate
+from jobcheck import tables, validate
 from jobcheck.results import OK, Status, Verdict
 
 pytestmark = pytest.mark.fast
@@ -215,7 +215,7 @@ def test_data_column_values_render_like_the_row_key(two_layers: None) -> None:
 
 def test_extra_columns_reach_the_csv_too(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
-    assert render(report, fmt="csv").splitlines()[0].startswith("row,age,code")
+    assert report.to_csv(index=False).splitlines()[0].startswith("row,age,code")
 
 
 def test_extra_columns_work_without_a_key_column(two_layers: None) -> None:
@@ -307,7 +307,7 @@ def test_an_errored_check_appears_in_the_report(fresh_registry: None) -> None:
     assert list(report["detail"]) == ["RuntimeError: boom"]
 
 
-# --- rendering --------------------------------------------------------------
+# --- comments and titles ------------------------------------------------------
 
 
 def test_comments_render_sorted_so_output_is_stable() -> None:
@@ -318,36 +318,8 @@ def test_empty_comments_render_as_nothing() -> None:
     assert rep.render_comments({}) == ""
 
 
-def test_the_table_format_is_titled_bordered_and_wrapped(two_layers: None) -> None:
-    text = render(rep.build_report(outcomes(), df=FRAME, key_column="id"))
-    title, header, divider, first = text.splitlines()[:4]
-    assert title == "== Report =="
-    assert [part.strip() for part in header.split(" | ")[:3]] == ["row", "code", "status"]
-    assert set(divider) <= {"-", "+"}
-    assert first.startswith("102")
-
-
-def test_the_csv_format_round_trips_with_no_title(two_layers: None) -> None:
-    report = rep.build_report(outcomes(), df=FRAME, key_column="id")
-    csv = render(report, fmt="csv")
-    assert "==" not in csv
-    parsed = pd.read_csv(pd.io.common.StringIO(csv))
-    assert tuple(parsed.columns) == rep._REPORT_COLUMNS
-    assert list(parsed["code"]) == ["AGE_IN_RANGE", "AGE_PRESENT"]
-
-
-def test_an_unknown_format_is_rejected(two_layers: None) -> None:
-    with pytest.raises(ValueError, match="fmt must be 'table' or 'csv', got 'json'"):
-        render(rep.build_report(outcomes(), df=FRAME), fmt="json")
-
-
-def test_an_empty_report_renders_its_title_over_empty(two_layers: None) -> None:
-    report = report_for(pd.DataFrame([{"id": 1, "age": 30}]))
-    assert render(report) == "== Report ==\n(empty)"
-
-
 def test_every_table_carries_its_own_title(two_layers: None) -> None:
-    """What lets `render` head each table without the caller naming it."""
+    """What lets a caller head each table without naming it."""
 
     assert rep.build_report(outcomes(), df=FRAME).attrs["title"] == "Report"
     assert rep.row_explanation(outcomes()[0]).attrs["title"] == "Row explanation"
@@ -357,11 +329,7 @@ def test_every_table_carries_its_own_title(two_layers: None) -> None:
 def test_the_title_survives_selecting_and_filtering(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id")
     narrowed = report[report["code"] == "AGE_PRESENT"][["row", "code"]]
-    assert render(narrowed).splitlines()[0] == "== Report =="
-
-
-def test_a_frame_without_a_title_renders_without_one() -> None:
-    assert render(pd.DataFrame([{"a": 1}])).splitlines()[0].startswith("a")
+    assert narrowed.attrs["title"] == "Report"
 
 
 # --- explanations and summaries --------------------------------------------
@@ -414,7 +382,6 @@ def test_the_summary_of_nothing_has_columns_and_no_rows(fresh_registry: None) ->
         "code", "layer", "failed", "root_cause_rows", "errored", "skipped", "disabled",
         "passed"
     ]
-    assert render(table) == "== Summary ==\n(empty)"
 
 
 def test_root_cause_rows_counts_the_rows_each_code_explains(fresh_registry: None) -> None:
@@ -469,48 +436,7 @@ def test_validate_hands_each_row_the_context_its_builder_returned(
     assert outcomes[1][0].comments == {"allowed": False}
 
 
-# --- CSV safety ---------------------------------------------------------------
 
-
-def formula_report(fresh: None) -> pd.DataFrame:
-    """A report whose data column holds a value a spreadsheet would execute."""
-
-    make_check("CELL", passes=False)
-    frame = pd.DataFrame([{"id": 1, "name": "=SUM(A1:A9)"}])
-    return rep.build_report(validate(frame), df=frame, key_column="id",
-                            add_columns=["name"])
-
-
-def test_a_csv_report_escapes_formulas(fresh_registry: None) -> None:
-    assert "'=SUM(A1:A9)" in render(formula_report(fresh_registry), fmt="csv")
-
-
-def test_a_formula_column_name_is_escaped_in_the_csv_header(fresh_registry: None) -> None:
-    """Regression: only the cells were escaped. An add_columns name comes from
-    the data's own columns, so a frame column called `=...` wrote that formula
-    into the header row, where a spreadsheet runs it exactly as it would a cell."""
-
-    make_check("CELL", passes=False)
-    frame = pd.DataFrame([{"id": 1, "=SUM(A1:A9)": "x"}])
-    report = rep.build_report(validate(frame), df=frame, key_column="id",
-                              add_columns=["=SUM(A1:A9)"])
-    header = render(report, fmt="csv").splitlines()[0]
-    assert "'=SUM(A1:A9)" in header
-    assert ",=SUM(A1:A9)," not in header
-
-
-def test_escaping_the_header_does_not_rename_the_caller_s_report(
-    fresh_registry: None,
-) -> None:
-    """The escape happens on the way out: the frame the caller still holds keeps
-    the column name it asked for."""
-
-    make_check("CELL", passes=False)
-    frame = pd.DataFrame([{"id": 1, "=SUM(A1:A9)": "x"}])
-    report = rep.build_report(validate(frame), df=frame, key_column="id",
-                              add_columns=["=SUM(A1:A9)"])
-    render(report, fmt="csv")
-    assert "=SUM(A1:A9)" in list(report.columns)
 
 
 def test_the_summary_reads_a_generator_once_and_still_finds_the_root_causes(
@@ -569,14 +495,6 @@ def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> Non
 
     assert list(rep.row_explanation([]).columns) == [
         "layer", "code", "outcome", "status", "detail"]
-
-
-def test_rendering_a_report_wraps_the_message_column(fresh_registry: None) -> None:
-    """Without wrapping, a long message runs the table off the screen."""
-
-    report = one_row_report(message="a message far longer than the wrap width "
-                                    "chosen for the report table by default")
-    assert len(render(report).splitlines()) > 4
 
 
 # --- root causes, and keys that identify a row ------------------------------
@@ -687,8 +605,8 @@ def test_a_report_column_hidden_by_the_defaults_is_not_a_data_column(
 def test_dropping_a_column_with_pandas_keeps_the_title(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id")
     trimmed = report.drop(columns=["comments", "detail"])
-    assert render(trimmed).splitlines()[0] == "== Report =="
-    assert "comments" not in render(trimmed, fmt="csv").splitlines()[0]
+    assert trimmed.attrs["title"] == "Report"
+    assert "comments" not in trimmed.columns
 
 
 def test_add_columns_reads_a_column_whose_label_is_a_number(fresh_registry: None) -> None:
@@ -712,20 +630,6 @@ def a_long(word: str, count: int = 12) -> str:
 
 def outcome(code: str, outcome: res.Outcome, **fields: Any) -> res.CheckOutcome:
     return res.CheckOutcome(code=code, outcome=outcome, **fields)
-
-
-def test_the_table_report_wraps_message_detail_and_comments() -> None:
-    report = pd.DataFrame([{"row": "1", "message": a_long("message"),
-                            "detail": a_long("detail"), "comments": a_long("comment")}])
-    text = render(report)
-    for column in ("message", "detail", "comments"):
-        assert report.loc[0, column] not in text, f"{column} was not wrapped"
-
-
-def test_a_row_explanation_wraps_a_long_detail() -> None:
-    detail = a_long("prerequisite", 8)   # 103 characters
-    assert detail not in render(rep.row_explanation([outcome("A_CODE", res.Outcome.SKIPPED,
-                                                             detail=detail)]))
 
 
 def test_summary_ties_on_failed_are_broken_by_errored_worst_first() -> None:

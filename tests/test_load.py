@@ -20,7 +20,7 @@ import pytest
 from conftest import enabled_only, make_check
 from jobcheck import RowContext, registry as reg
 from jobcheck import report as rep
-from jobcheck import render, validate
+from jobcheck import validate
 from jobcheck import engine
 from jobcheck.rules import _MatchCriterion
 
@@ -140,18 +140,6 @@ def test_repeated_validation_does_not_leak_registry_state(example_checks: None) 
     assert [r.code for r in engine.validate_row(row)] == [
         "AGE_NEGATIVE", "DATES_PRESENT", "EMAIL_MISSING_AT"
     ]
-
-
-def test_rendering_a_large_report_stays_within_the_time_ceiling(example_checks: None) -> None:
-    df = frame(2000)
-    report = rep.build_report(validate(df), df=df)
-    start = time.monotonic()
-    text = render(report)
-    csv = render(report, fmt="csv")
-    elapsed = time.monotonic() - start
-    assert len(text.splitlines()) == len(report) + 3
-    assert len(csv.splitlines()) == len(report) + 1
-    assert elapsed < 30.0, f"rendering {len(report)} failures took {elapsed:.1f}s"
 
 
 def test_summarizing_a_large_frame_stays_within_the_time_ceiling(example_checks: None) -> None:

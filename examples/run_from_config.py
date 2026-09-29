@@ -44,7 +44,6 @@ from jobcheck import (  # noqa: E402
     build_report,
     load_setup,
     registry_table,
-    render,
     rules_table,
     summarize_outcomes,
     validate,
@@ -52,7 +51,7 @@ from jobcheck import (  # noqa: E402
     warn_missing_rule_columns,
     warn_shadowed_rules,
 )
-from main import load_frame  # noqa: E402
+from main import load_frame, table_text  # noqa: E402
 
 #: The run file loaded when the command line names none.
 DEFAULT_RUN = os.path.join(PROJECT_ROOT, "examples/run.yaml")
@@ -131,9 +130,9 @@ def fail(run_file: str, message: str) -> NoReturn:
 def read_run_file(run_file: str) -> dict[str, Any]:
     """The run file, parsed and checked for shape before anything is loaded.
 
-    Only the shape is checked here. Whether a column, an `include` level or a
-    format exists is the library's to say, and it says it when the tables are
-    built -- see `print_tables`.
+    Only the shape is checked here. Whether a column or an `include` level exists
+    is the library's to say, and whether a format exists is `table_text`'s; both
+    say it when the tables are built -- see `print_tables`.
     """
 
     try:
@@ -206,11 +205,11 @@ def print_tables(tables: list[dict[str, Any]], rules: list[Rule], df: Any,
     printers: dict[str, Callable[[dict[str, Any], list[str]], object]] = {
         # Given the rules so `could_be_overridden_by` and `effective_state` can be
         # asked for; without either the argument prints the same table.
-        "registry": lambda options, drop: print(render(
+        "registry": lambda options, drop: print(table_text(
             registry_table(rules=rules, **options).drop(columns=drop))),
         "rules": lambda options, drop: print_rules_and_warnings(rules, options, drop),
         "report": lambda options, drop: print_one_report(df, outcomes, options, drop),
-        "summary": lambda options, drop: print(render(summarize_outcomes(outcomes))),
+        "summary": lambda options, drop: print(table_text(summarize_outcomes(outcomes))),
     }
     for position, spec in enumerate(tables, 1):
         if position > 1:
@@ -232,7 +231,7 @@ def print_rules_and_warnings(rules: list[Rule], options: dict[str, Any],
     disable rule that silences checks it does not name -- what
     `main.py --rules-table` prints."""
 
-    print(render(rules_table(rules, **options).drop(columns=drop)))
+    print(table_text(rules_table(rules, **options).drop(columns=drop)))
     for warning in warn_shadowed_rules(rules) + warn_blocking_rules(rules):
         print(f"warning: {warning}")
 
@@ -242,7 +241,7 @@ def print_one_report(df: Any, outcomes: list[list[CheckOutcome]],
     """Build and print one report. `format` is the run file's name for `fmt`."""
 
     fmt = options.pop("format", "table")
-    print(render(build_report(outcomes, df=df, **options).drop(columns=drop), fmt=fmt))
+    print(table_text(build_report(outcomes, df=df, **options).drop(columns=drop), fmt=fmt))
 
 
 def main(argv: list[str] | None = None) -> None:

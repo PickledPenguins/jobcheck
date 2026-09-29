@@ -9,7 +9,7 @@ caller reads the registry through `registry_table`, because nothing that mutates
 list directly drops the cached evaluation order the row loop walks. Checks are ordinary functions
 that register themselves into it when their module is imported; which modules get
 imported is the loading mechanism. Everything else reads that list: rule files are
-validated against it, the tables render it, and `explain_row` walks it once per row in a
+validated against it, the tables list it, and `explain_row` walks it once per row in a
 precomputed order.
 
 ```
@@ -28,7 +28,7 @@ entry point
   |       fn(row, context)    -> Verdict -> CheckOutcome(passed|failed)
   |       fn raises           -> CheckOutcome(errored, Status.ERROR)
   |
-  +-- build_report(...) -> long-format frame, titled -> render(frame, fmt)
+  +-- build_report(...) -> long-format frame, titled -> pandas to_string / to_csv
 ```
 
 ## Repository layout
@@ -74,7 +74,7 @@ return values and what each does, one line apiece -- see
 | `src/jobcheck/report.py` | The views of outcomes: the long-format failure report, one row's explanation, and the per-check summary, each a titled DataFrame. |
 | `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `Verdict`, `CheckOutcome`. |
 | `src/jobcheck/rules.py` | The rule file format and its parser. Knows nothing about the registry. |
-| `src/jobcheck/tables.py` | What every table shows by default (`_DEFAULT_COLUMNS`), `render` -- bordered text or formula-escaped CSV -- and null handling, shared by every view. |
+| `src/jobcheck/tables.py` | What every table shows by default (`_DEFAULT_COLUMNS`), its title, and null handling, shared by every view. |
 | `src/jobcheck/paths.py` | The path a caller named, turned into a file on disk, and the error when it is not one. Used by both loaders. |
 | `src/jobcheck/context.py` | The per-row metadata type — the one adopter-supplied hook. |
 | `src/jobcheck/__init__.py` | Re-exports the public surface. Registers no checks, and ships none. |
@@ -107,8 +107,8 @@ registry_tables                    <- registry, rules, tables
 __init__                           <- all of the above, to re-export them
 ```
 
-The library parses no arguments, prints nothing and sets no exit code: `render`
-returns text, and every refusal is an exception. Argument parsing, stdout and stderr,
+The library parses no arguments, prints nothing and sets no exit code: it returns
+DataFrames, and every refusal is an exception. Argument parsing, stdout and stderr,
 and exit codes belong to the entry points in `examples/`, which depend on the package
 and never the other way.
 
@@ -184,14 +184,15 @@ configuration, which is why each loader documents its ordering.<sup>[7](configur
 **All rule validation is at load time.** A malformed file stops the run before any data is
 processed, rather than throwing part-way through a long pipeline.<sup>[8](configuration.md#errors)</sup>
 
-**Every view is a titled DataFrame, and one `render` draws any of them.** A function
-that builds a table returns it with its title in `attrs["title"]`; `render` turns it
-into bordered text under a `== Title ==` bar, or into formula-escaped CSV. So there is
-one output function rather than a print, render and write variant per table, and a
-table is data a caller can filter before it is text. The renderer is local because
-`DataFrame.to_string()` is cramped and unbordered for auditing, and a table library
-would be a runtime dependency for formatting alone. Wrapping never breaks inside a
-word, so identifiers stay greppable.<sup>[9](reporting.md#every-table-names-itself)</sup>
+**Every view is a titled DataFrame, and pandas writes it.** A function that builds a
+table returns it with its title in `attrs["title"]`, and the caller turns it into text
+with pandas: `to_string(index=False)` for a terminal, `to_csv(index=False)` for a file.
+So there is no print, render or write variant per table, and a table is data a caller
+can filter before it is text. Cost: pandas neither wraps long text nor escapes a cell,
+so a wide report runs past the terminal and a formula-like value reaches a CSV as it
+is. Rejected (F.68, 2026-09-28): the package's own `render`, a bordered, wrapping,
+escaping writer of about 64 lines that duplicated pandas and `csvlook` for the one
+view it improved.<sup>[9](reporting.md#every-table-names-itself)</sup>
 
 **Tables state what they cannot know.** `could_be_overridden_by` is named for *reference*,
 not effect, and `effective_state` says "depends on row" instead of picking an answer. Only
@@ -284,13 +285,13 @@ to load.
   hand `validate` something that builds it.
 - **An entry point**: a script calling `load_checks` with its own list of files. See
   `examples/main.py`.
-- **A new report**: build a DataFrame, set `attrs["title"]`, and hand it to `render`.
+- **A new report**: build a DataFrame and set `attrs["title"]`; pandas writes it.
 
 ## Dependencies
 
 `pandas` for the row and table types; `PyYAML` for rule and setup files, read with a
 `SafeLoader` subclass that also refuses a key given twice. Nothing
-else at runtime — table rendering uses `textwrap`, file loading uses `importlib`,
+else at runtime — file loading uses `importlib`,
 `source_file` and signature adaptation use `inspect`. `mypy` and `types-PyYAML` are
 development-only.
 

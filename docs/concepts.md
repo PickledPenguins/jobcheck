@@ -75,8 +75,8 @@ the status says something only beside a failure.<sup>[9](reporting.md#diagnosing
 - **table** — every view the library builds (the report, a row's explanation, the
   summary, the registry and rules tables) is a DataFrame carrying its title in
   `attrs["title"]`.<sup>[13](reporting.md#every-table-names-itself)</sup>
-- **render** — `render(table)` draws any table as bordered text under its title, or as
-  CSV with the cells a spreadsheet would run as formulas escaped.<sup>[14](reporting.md#opening-the-csv-in-a-spreadsheet)</sup>
+- **text** — pandas turns any table into text: `to_string(index=False)` for a terminal,
+  `to_csv(index=False)` for a file. Nothing is wrapped or escaped.<sup>[14](reporting.md#formats-and-files)</sup>
 
 ## References
 
@@ -95,4 +95,4 @@ the status says something only beside a failure.<sup>[9](reporting.md#diagnosing
 | 11 | [writing-checks.md: Per-row context](writing-checks.md#per-row-context) | writing a context and its builder |
 | 12 | [configuration.md: Setup files](configuration.md#setup-files-naming-the-checks-and-the-rules-at-once) | the two keys, and where their paths resolve |
 | 13 | [reporting.md: Every table names itself](reporting.md#every-table-names-itself) | titles, and giving your own frame one |
-| 14 | [reporting.md: Opening the CSV](reporting.md#opening-the-csv-in-a-spreadsheet) | what is escaped, and why |
+| 14 | [reporting.md: Formats and files](reporting.md#formats-and-files) | the pandas writers, and what they do not do |

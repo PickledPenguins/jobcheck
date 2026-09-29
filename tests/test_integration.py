@@ -16,7 +16,6 @@ from jobcheck import (
     validate,
     load_checks,
     load_rules,
-    render,
     validate_row,
 )
 from jobcheck import registry as reg
@@ -115,7 +114,7 @@ def test_a_written_report_reads_back_as_a_frame(example_checks: None, tmp_path: 
     outcomes = validate(DEMO, rules=load_rules(["examples/rules/error_rules.yaml"]))
     report = build_report(outcomes, df=DEMO, key_column="id")
     path = tmp_path / "report.csv"
-    path.write_text(render(report, fmt="csv"), encoding="utf-8")
+    path.write_text(report.to_csv(index=False), encoding="utf-8")
     written = pd.read_csv(path)
     assert list(written.columns) == list(report.columns)
     assert list(written["row"]) == [3, 3, 3]
@@ -128,7 +127,7 @@ def test_a_written_report_reads_back_as_a_frame(example_checks: None, tmp_path: 
 
 def test_a_table_report_renders_the_comments_a_reader_needs(example_checks: None) -> None:
     report = build_report(validate(DEMO), df=DEMO, key_column="id")
-    text = render(report)
+    text = "\n".join(report["comments"])
     assert "maximum=130" not in text
     assert "at_signs=0" in text
     assert "end_date=2024-03-01; start_date=2024-05-01" in text
@@ -186,21 +185,13 @@ def test_a_written_report_round_trips_through_a_spreadsheet_reader(
     outcomes = validate(DEMO)
     report = build_report(outcomes, df=DEMO, key_column="id")
     path = tmp_path / "report.csv"
-    path.write_text(render(report, fmt="csv"), encoding="utf-8")
+    path.write_text(report.to_csv(index=False), encoding="utf-8")
 
     reopened = pd.read_csv(path, dtype=str)
     assert list(reopened.columns) == list(report.columns)
     assert list(reopened["code"]) == list(report["code"])
     assert list(reopened["comments"]) == list(report["comments"])
     assert set(reopened["is_root_cause"]) <= {"True", "False"}
-
-
-def test_the_table_and_csv_forms_carry_the_same_failures(example_checks: None) -> None:
-    report = build_report(validate(DEMO), df=DEMO, key_column="id")
-    text = render(report)
-    csv = render(report, fmt="csv")
-    for code in report["code"]:
-        assert code in text and code in csv
 
 
 def test_explaining_a_row_agrees_with_the_report(example_checks: None) -> None:

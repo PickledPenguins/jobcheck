@@ -1,5 +1,4 @@
 == Registry ==
-code              | layer | default | message               | depends_on    | source_file                                                                                    
-------------------+-------+---------+-----------------------+---------------+------------------------------------------------------------------------------------------------
-TOTAL_PRESENT     | 0     | ON      | Total is missing      | -             | <project>/tests/examples/bundles/nested-bundles/check_totals.py           
-TOTAL_IS_A_NUMBER | 1     | ON      | Total is not a number | TOTAL_PRESENT | <project>/tests/examples/bundles/nested-bundles/check_total_is_a_number.py
+             code  layer default               message    depends_on                                                                                     source_file
+    TOTAL_PRESENT      0      ON      Total is missing             -            <project>/tests/examples/bundles/nested-bundles/check_totals.py
+TOTAL_IS_A_NUMBER      1      ON Total is not a number TOTAL_PRESENT <project>/tests/examples/bundles/nested-bundles/check_total_is_a_number.py

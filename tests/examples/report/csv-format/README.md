@@ -1,7 +1,7 @@
 # The report as CSV
 
-`--report csv` renders the report for a spreadsheet or another tool instead of for a terminal.
+`--report csv` writes the report as CSV, for a spreadsheet, `csvlook` or another tool, instead of as aligned text for a terminal.
 
 Level:    simple
 Input:    the demo frame
-Expected: the same columns, comma separated and unwrapped; exit 0
+Expected: the same columns, comma separated; exit 0
