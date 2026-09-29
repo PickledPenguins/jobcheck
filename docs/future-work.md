@@ -27,21 +27,13 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.49. Each is either loud already, or needs the owner's decision.
-F.46 and F.47 were decided on 2026-09-28 and are in the section below. F.48 was built the
+left is open below, from F.50. Each is either loud already, or needs the owner's decision.
+F.46, F.47 and F.49 were decided on 2026-09-28 and are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
 registration, for a check and for a context builder alike, naming `functools.partial` and
 a keyword-only parameter as the two ways to write it.
 
-**YAML's booleans in rule files** (F.49, low). PyYAML reads unquoted `on`, `off`, `yes`
-and `no`, in any case, as booleans: `name: off` fails as "every rule needs a non-empty
-string 'name'", giving no position and no hint; `codes: [ON]` fails without showing the
-`True`; `pattern: NO` (Norway) shows the `False` but not why. Loud, and confusing to the
-non-developers who write these files. The fix: name the entry's position and the value
-read, and where a bool arrived in place of a string, add "quote it: YAML reads unquoted
-yes/no/on/off as true/false". The strict reader in `paths._read_yaml` is where it would
-live. Keys are half covered since 2026-09-28: an unknown key is listed as Python writes
-it, so `on:` shows as an unquoted `True` beside quoted names; nothing says why yet.
+
 
 **Wide characters misalign the bordered table** (F.50, low). Columns are padded by
 `len()`, so `名前名前` (length 4, eight columns on screen) pushes every column after it.
@@ -246,6 +238,17 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**Catching YAML's booleans in rule files** (F.49, low; declined by the owner
+2026-09-28). PyYAML reads unquoted `on`, `off`, `yes` and `no`, in any case, as
+booleans, so `name: off`, `codes: [ON]` or `pattern: NO` is refused with a message that
+does not say why. Every such case fails loudly at load time; none gives a wrong result.
+Two fixes were surveyed: a "quote it" hint and the value read at about 7 raise sites in
+`rules.py`, and a reader that takes only `true`/`false` as booleans (the YAML 1.2 rule,
+about 8 lines in `paths._StrictLoader` plus the example's copy, prototyped and working).
+Declined: the author writes the values the documents specify, quoted where YAML needs
+it, and the loader does not try to guess what was meant. The existing messages stay as
+documented in `configuration.md` "Errors".
 
 **Errored checks as root causes, and renaming the root-cause columns** (F.47, from the
 2026-09-27 reviews; decided by the owner 2026-09-28). `root_causes` picked the shallowest
