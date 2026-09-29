@@ -191,6 +191,38 @@ jobchain as the example; this raises the bar to the examples catalog. The survey
 say, for each missing name, which script it belongs in and why a real caller would reach
 for it there, rather than a call added only to be counted. Not yet surveyed.
 
+**`validate_row`, the outcome-list length guard and `include`** (F.73, medium; from the
+owner's complexity review, 2026-09-29). `validate_row` (`engine.py:158`) is
+`explain_row` filtered to failures; `_refuse_partial_row` (`report.py:41`) exists only
+because its lists look like complete ones (F.52); and the include levels, `_included` and
+`build_report(include=)` (`report.py:26-38`) have no caller outside the tests. Cutting
+all three is about -30 lines, 3 exported names and 3 documented errors. Lost: the named
+per-row call (a streaming caller filters `explain_row` by `.failed`), and a report that
+lists skipped and disabled checks (filter `row_explanation`, or the report's `outcome`
+column). Recommended: cut.
+
+**A recursive topological sort, and its own recursion-limit message** (F.74, low-medium;
+same review). `registry._topological_order` (23 lines) walks recursively, so
+`_validate_registry` catches `RecursionError` and rewrites it (about 10 lines). The
+standard library's `graphlib.TopologicalSorter` (3.9+) is iterative and reports a
+cycle itself (`CycleError.args[1]`): about -20 lines. Lost: only the current cycle
+message's exact format, which would be rebuilt from the cycle `graphlib` names.
+Recommended: build.
+
+**`on_error="raise"`** (F.75, low; same review). A few lines in `explain_row`,
+`validate_row` and `validate`, used only by tests. It is the one way to get a traceback
+from a check that raises, since a recorded error keeps only `Type: message`; F.65 asks
+how a raising check's exception should be shown, so decide the two together.
+Recommended at the review: keep.
+
+**A full pass over the tests** (F.76, raised by the owner on 2026-09-29). About 6,600
+executable test lines against about 1,100 in `src/`. Several files test the tooling
+rather than the library (`test_mutation_score_unit.py`, `test_perf_baseline_unit.py`,
+`test_regen_docs_unit.py`), and many pin behavior the simplicity principle has since
+removed or would remove. The pass should apply the same rule as the code review: each
+test earns its place by guarding core behavior a user relies on, and what it costs to
+keep is weighed. Not yet surveyed.
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
@@ -200,6 +232,22 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**The rest of the 2026-09-29 complexity review** (declined by the owner the same day).
+Built from that review: the load lock removed, every table returned whole with
+`build_report(add_columns=)` kept, `scripts/read_bytecode_api.py` deleted, and
+`Verdict`'s comment freezing and key check dropped; F.73 to F.75 went to the open list.
+Declined, so no later review proposes them again:
+- *Bundles*, a check file calling `load_checks` (`_LOADING`, the self-naming skip, and
+  validating once as the outermost call returns). A second way to group check files
+  beside the plain list and `load_setup`.
+- *`load_setup` and its setup-file format* (`registry.py`, about 37 lines).
+- *One call shape for a context builder*, `(row)` only, dropping `context_args` and
+  `engine._context_caller`; and one shape, `(row, context)`, for every check.
+- *The rule linters* `warn_blocking_rules` and `warn_shadowed_rules`.
+- *`paths._StrictLoader`*, which refuses a repeated YAML key. It turns a silent
+  replacement into an error, so it is the loud half of the simplicity principle, not
+  corner-case handling.
 
 **Evicting the module a check registered from** (F.53, low; the eviction removed by the
 owner 2026-09-29). `register_check` recorded a module for `clear_registry` to drop from
@@ -657,8 +705,8 @@ The bytecode was committed to this branch and then deleted in the next commit, s
 recoverable from history rather than carried: `git restore --source=3fce4b4 -- recovery`
 brings the whole directory back, and `git show 3fce4b4:recovery/README.md` is its entry
 point. It is also still on `origin/main`, where it has lived since 2026-09-09.
-`scripts/read_bytecode_api.py` regenerates the package's interface file straight from
-that commit, without restoring anything, or from a restored directory named as its argument.
+`recovery/recovered-api.md` there is the interface read out of it; the script that
+produced it was deleted on 2026-09-29, its one job done (`git show 14163df:scripts/read_bytecode_api.py`).
 
 **Registry snapshot and restore as library API** (F.18 and F.19, decided 2026-09-23).
 `snapshot` and `restore` copied the registry's module globals and put them back. Both were

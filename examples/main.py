@@ -188,7 +188,7 @@ def main(argv: list[str] | None = None) -> None:
         # One row per rule, where the registry table below is one row per code:
         # a rule touching eight codes is one line here and eight there, which is
         # the view that answers "what did this file actually say".
-        print(table_text(rules_table(rules)))
+        print(table_text(rules_table(rules).drop(columns=["codes"])))
         # Beside the rules themselves, because "this rule can never apply" and
         # "this rule silences checks it does not name" are facts about the file
         # rather than about a row. The shipped rule file has a shadowed rule on
@@ -197,10 +197,9 @@ def main(argv: list[str] | None = None) -> None:
             print(f"warning: {warning}")
         print()
 
-    # could_be_overridden_by is the only use registry_table makes of the rules:
-    # without it the argument is inert and the demo never shows which rule
-    # touches which code.
-    print(table_text(registry_table(rules=rules, add_columns=["could_be_overridden_by"])))
+    # The rules fill could_be_overridden_by, which shows which rule touches which
+    # code; source_file is this machine's path, and dropped to keep output stable.
+    print(table_text(registry_table(rules=rules).drop(columns=["source_file"])))
 
     print()
     report = build_report(outcomes, df=df, key_column=KEY_COLUMN)

@@ -74,7 +74,7 @@ return values and what each does, one line apiece -- see
 | `src/jobcheck/report.py` | The views of outcomes: the long-format failure report, one row's explanation, and the per-check summary, each a titled DataFrame. |
 | `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `Verdict`, `CheckOutcome`. |
 | `src/jobcheck/rules.py` | The rule file format and its parser. Knows nothing about the registry. |
-| `src/jobcheck/tables.py` | What every table shows by default (`_DEFAULT_COLUMNS`), its title, and null handling, shared by every view. |
+| `src/jobcheck/tables.py` | How a cell reads as text, null handling, and the `add_columns` refusal, shared by every view. |
 | `src/jobcheck/paths.py` | The path a caller named, turned into a file on disk, and the error when it is not one. Used by both loaders. |
 | `src/jobcheck/context.py` | The per-row metadata type — the one adopter-supplied hook. |
 | `src/jobcheck/__init__.py` | Re-exports the public surface. Registers no checks, and ships none. |
@@ -91,7 +91,7 @@ return values and what each does, one line apiece -- see
 | `scripts/regen_docs.py` | Rewrites the output shown after each Python block in `docs/` with what the block prints. |
 | `scripts/mutation_score.py` | Scores the results a mutmut run left against a floor: the mutation gate. |
 | `scripts/profile_examples.py` | Profiles the catalog's runs in this process: the `profile` mode. |
-| `scripts/read_bytecode_api.py` | Reads the pre-rename interface out of the bytecode kept in git history. |
+
 
 ## Dependency direction
 
@@ -195,8 +195,7 @@ escaping writer of about 64 lines that duplicated pandas and `csvlook` for the o
 view it improved.<sup>[9](reporting.md#every-table-names-itself)</sup>
 
 **Tables state what they cannot know.** `could_be_overridden_by` is named for *reference*,
-not effect, and `effective_state` says "depends on row" instead of picking an answer. Only
-`explain_row` against a real row can decide.<sup>[10](interfaces.md#registry_tablerulesnone-add_columnsnone---dataframe)</sup>
+not effect: only `explain_row` against a real row can decide.<sup>[10](interfaces.md#registry_tablerulesnone---dataframe)</sup>
 
 **`clear_registry` is a flat reset.** It empties the check list, the loaded-file list
 and the ordering cache, and drops the modules `load_checks` made for check files (named
@@ -317,7 +316,7 @@ development-only.
 | 7 | [configuration.md: Precedence](configuration.md#precedence-last-rule-wins) | the ordering each loader uses |
 | 8 | [configuration.md: Errors](configuration.md#errors) | every load-time message, quoted |
 | 9 | [reporting.md: Every table names itself](reporting.md#every-table-names-itself) | titles as a caller uses them |
-| 10 | [interfaces.md: registry_table](interfaces.md#registry_tablerulesnone-add_columnsnone---dataframe) | the two columns in full |
+| 10 | [interfaces.md: registry_table](interfaces.md#registry_tablerulesnone---dataframe) | the column in full |
 | 11 | [writing-checks.md: What to return](writing-checks.md#what-to-return) | every form a check may return |
 | 12 | [concepts.md: What a check says](concepts.md#what-a-check-says-and-what-the-engine-records) | status against outcome: why the kinds hold no "failed" |
 | 13 | [writing-checks.md: When a check raises](writing-checks.md#when-a-check-raises) | what an errored check records |

@@ -116,8 +116,7 @@ pytest_add_cli_args_test_selection = [
     "--ignore=tests/test_docs_cli_unit.py",
     "--ignore=tests/test_docs_messages_unit.py",
     "--ignore=tests/test_docs_references_unit.py",
-    # Reads git history for a commit's bytecode; nothing in src/ is involved.
-    "--ignore=tests/test_read_bytecode_api_unit.py",
+
     # Excluded for cost rather than correctness: mutmut runs the whole selection
     # once per mutant, so a suite member that takes a minute makes the run take
     # days. Each of these is covered by a faster test of the same behavior --

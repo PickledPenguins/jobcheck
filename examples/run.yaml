@@ -17,7 +17,7 @@ tables:
   - table: rules
 
   - table: registry
-    add_columns: [could_be_overridden_by]
+    drop_columns: [source_file]
 
   # The report a person reads: the name beside the row, and no evidence column.
   - table: report

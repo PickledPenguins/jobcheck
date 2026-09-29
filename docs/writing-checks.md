@@ -111,7 +111,7 @@ interfering.
 from jobcheck import load_checks, registry_table
 
 load_checks(["my_checks/check_age.py", "my_checks/check_email.py"])
-registry_table(add_columns=["source_file"])   # each check and the file it came from
+registry_table()[["code", "source_file"]]   # each check and the file it came from
 ```
 
 Files are named explicitly and **nothing is discovered** — no directory scan, no

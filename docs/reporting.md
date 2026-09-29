@@ -203,10 +203,10 @@ what it found:
 from jobcheck import load_checks, registry_table, rules_table
 
 load_checks(["my_checks/check_age.py", "my_checks/check_email.py"])
-registry = registry_table(add_columns=["source_file"])
+registry = registry_table()
 registry.to_csv("registry.csv", index=False)   # the checks this run had
 off_by_default = registry.loc[registry["default"] == "OFF", "code"].tolist()
-broad_rules = rules_table(rules, add_columns=["codes"]).query("codes_hit_count > 1")
+broad_rules = rules_table(rules).query("codes_hit_count > 1")
 ```
 
 And for output of your own that should read like the tables:
@@ -249,30 +249,13 @@ Path("flagged.csv").write_text(df.assign(failed=failed).to_csv(index=False))
 
 ## Which columns a table shows
 
-Every table's default columns are set in one place, `_DEFAULT_COLUMNS` in
-`src/jobcheck/tables.py`, keyed by the table's title:
+Every table carries every column it builds; the library chooses none. The report's
+are `row`, `code`, `status`, `layer`, `outcome`, `message`, `detail`, `comments` and
+`is_root_cause`, and `build_report`'s `add_columns` copies columns of the data in,
+straight after `row`. The registry table carries `source_file` and
+`could_be_overridden_by`, and the rules table both `codes` and its count.
 
-```
-_DEFAULT_COLUMNS = {
-    "Report": ["row", "code", "status", "layer", "outcome", "message", "detail",
-               "comments", "is_root_cause"],
-    "Registry": ["code", "layer", "default", "message", "depends_on"],
-    "Rules": ["name", "action", "codes_hit_count", "match", "message"],
-    "Row explanation": ["layer", "code", "outcome", "status", "detail"],
-    "Summary": ["code", "layer", "failed", "root_cause_rows", "errored", "skipped",
-                "disabled", "passed"],
-}
-```
-
-Edit it to change what every entry point shows; no entry point sets columns in its
-own code. A column left out is still built: the registry and rules tables take it
-back per call through `add_columns` (`source_file`, `could_be_overridden_by`,
-`effective_state`, `codes`), and `build_report`'s `add_columns` copies columns of
-the data in, straight after `row`. A report column hidden there comes back only by
-editing the dict. A test checks every name in it is a column its table builds, so a
-typo fails the suite rather than a run.
-
-For one run that wants fewer columns, drop them with pandas; the title survives:
+For a run that wants fewer columns, drop them with pandas; the title survives:
 
 ```python
 debug = False                       # your run's own flag

@@ -134,7 +134,7 @@ def test_a_rule_column_the_data_lacks_is_warned_on_stderr(fresh_registry: None,
      "table 1 (summary): unknown option(s) 'key_column'. It takes no options."),
     (BASE + "tables: [{table: rules, key_column: id}]\n",
      "table 1 (rules): unknown option(s) 'key_column'. "
-     "It takes 'add_columns', 'drop_columns'."),
+     "It takes 'drop_columns'."),
     (BASE + "tables: [{table: report, add_columns: name}]\n",
      "table 1 (report): 'add_columns' must be a list of column names. "
      "Write it as a list even for one column."),
@@ -199,8 +199,8 @@ def test_invalid_yaml_is_one_line(capsys: Any, tmp_path: Path) -> None:
 @pytest.mark.parametrize("table, message", [
     ("{table: report, add_columns: [nope]}", "add_columns ['nope'] cannot be used for the report."),
     ("{table: report, format: xml}", "fmt must be 'table' or 'csv', got 'xml'."),
-    ("{table: registry, add_columns: [bogus]}",
-     "add_columns ['bogus'] cannot be used for the registry table."),
+    ("{table: registry, drop_columns: [bogus]}",
+     "['bogus'] not found in axis"),
 ])
 def test_an_option_the_library_refuses_prints_none_of_the_run(
     fresh_registry: None, capsys: Any, tmp_path: Path, table: str, message: str

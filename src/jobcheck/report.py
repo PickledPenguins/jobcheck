@@ -15,7 +15,7 @@ import pandas as pd
 
 from .engine import root_causes
 from .results import CheckOutcome, Outcome, _render_status
-from .tables import _DEFAULT_COLUMNS, _format_cell, _reject_unknown_columns, _shown
+from .tables import _format_cell, _reject_unknown_columns
 
 _REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "detail", "comments",
                   "is_root_cause")
@@ -125,8 +125,7 @@ def build_report(
     printed above a shallower failure. The columns, the `include` levels and what
     `add_columns` refuses are in `reporting.md`.
 
-    The report's own columns shown are `tables._DEFAULT_COLUMNS["Report"]`, from
-    `_REPORT_COLUMNS`. `add_columns` copies columns of *df* in, straight after `row`.
+    `add_columns` copies columns of *df* in, straight after `row`.
     """
 
     if len(df) != len(frame_outcomes):
@@ -177,10 +176,7 @@ def build_report(
             )
     # `row` first and the added columns straight after it, so a reader meets the
     # identity and its context before the outcome.
-    shown = _DEFAULT_COLUMNS["Report"]
-    rest = [name for name in shown if name != "row"]
-    columns = ["row", *add_columns, *rest] if "row" in shown else [*add_columns, *rest]
-    report = pd.DataFrame(rows, columns=[*_REPORT_COLUMNS, *add_columns])[columns]
+    report = pd.DataFrame(rows, columns=["row", *add_columns, *_REPORT_COLUMNS[1:]])
     report.attrs["title"] = "Report"
     return report
 
@@ -210,7 +206,8 @@ def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> p
         ],
         columns=["layer", "code", "outcome", "status", "detail"],
     )
-    return _shown(table, "Row explanation")
+    table.attrs["title"] = "Row explanation"
+    return table
 
 
 def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataFrame:
@@ -267,4 +264,5 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
         table = (table.sort_values(["failed", "errored", "skipped", "code"],
                                    ascending=[False, False, False, True])
                  .reset_index(drop=True))
-    return _shown(table, "Summary")
+    table.attrs["title"] = "Summary"
+    return table

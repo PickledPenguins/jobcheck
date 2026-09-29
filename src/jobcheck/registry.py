@@ -11,7 +11,6 @@ from __future__ import annotations
 import importlib.util
 import inspect
 import sys
-import threading
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -73,11 +72,6 @@ _TOPO_ORDER: list[_Check] | None = None
 # len(_LOADED_FILES): a bundle is named before its members finish, so the two
 # would share a number.
 _LOAD_SEQUENCE = 0
-# Held for the whole of load_checks and clear_registry. The bookkeeping above
-# and sys.dont_write_bytecode are process-wide, so two threads loading at once
-# would let one call skip validating what the other loaded, and leave bytecode
-# writing off. Reentrant, because a bundle calls load_checks from inside one.
-_LOAD_LOCK = threading.RLock()
 
 
 def _name_of(fn: CheckFn) -> str:
@@ -239,12 +233,11 @@ def clear_registry() -> None:
     """
 
     global _TOPO_ORDER
-    with _LOAD_LOCK:
-        _CHECKS.clear()
-        _LOADED_FILES.clear()
-        for name in [name for name in sys.modules if name.startswith(_CHECK_FILE_PREFIX)]:
-            del sys.modules[name]
-        _TOPO_ORDER = None
+    _CHECKS.clear()
+    _LOADED_FILES.clear()
+    for name in [name for name in sys.modules if name.startswith(_CHECK_FILE_PREFIX)]:
+        del sys.modules[name]
+    _TOPO_ORDER = None
 
 
 def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
@@ -267,7 +260,8 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     A relative path is resolved against *base_dir* when one is given and
     against the working directory otherwise.
 
-    One thread loads at a time: a second caller waits for the first to finish.
+    Load from one thread: the registry and `sys.dont_write_bytecode` are
+    process-wide, and nothing guards them.
     """
 
     if isinstance(paths, str):
@@ -275,16 +269,10 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
             f"load_checks takes a list of paths, not one string: pass [{paths!r}]. "
             "A bare string would be read as a list of its characters."
         )
-    with _LOAD_LOCK:
-        _load_checks(list(paths), base_dir)
-
-
-def _load_checks(paths: list[str], base_dir: str | Path | None) -> None:
-    """`load_checks` itself, run while holding `_LOAD_LOCK`."""
 
     global _LOAD_SEQUENCE
     resolved: list[str] = []
-    for path in paths:
+    for path in list(paths):
         name = str(resolve_input_file(path, "check file", "load_checks()", base_dir))
         # A file mid-import is skipped, so a bundle naming itself, or two naming
         # each other, finish instead of recursing.

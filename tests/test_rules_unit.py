@@ -378,15 +378,12 @@ def test_the_codes_column_lists_every_code_a_rule_touches(one_code: None, tmp_pa
     path = write(
         tmp_path, "r.yaml", '- name: "two"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE, B_CODE]\n  match: all\n'
     )
-    table = registry_tables.rules_table(reg.load_rules([path]), add_columns=["codes"])
-    assert list(table.columns)[-1] == "codes"
+    table = registry_tables.rules_table(reg.load_rules([path]))
     assert table.loc[0, "codes"] == "A_CODE, B_CODE"
     assert table.loc[0, "codes_hit_count"] == 2
 
 
-def test_the_codes_column_appears_only_when_asked_for(one_code: None, tmp_path: Path) -> None:
-    loaded = reg.load_rules([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
-    assert "codes" not in registry_tables.rules_table(loaded).columns
+
 
 
 # --- matching and precedence ------------------------------------------------

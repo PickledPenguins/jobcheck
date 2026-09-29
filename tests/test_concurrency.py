@@ -10,8 +10,9 @@ several runs -- and the guarantees are different for each:
 - **Processes do not share it.** Each builds its own from its own suites or
   files, and one process's loading says nothing about another's.
 
-Loading a suite while another thread validates is *not* a supported state and is
-not tested as one: registration mutates a global list, and the library says so.
+Loading from more than one thread, or while another thread validates, is *not* a
+supported state and is not tested as one: registration mutates a global list and
+nothing guards it, and the library says so.
 """
 
 from __future__ import annotations
@@ -175,67 +176,3 @@ def test_a_second_process_is_unaffected_by_a_crashing_one(tmp_path: Path) -> Non
     assert "RuntimeError: boom" in failed.stderr
     assert survived.returncode == 0
     assert survived.stdout.splitlines() == ["GOOD", "1"]
-
-
-def test_two_threads_loading_take_turns(fresh_registry: None, tmp_path: Path) -> None:
-    """Thread A loads a file naming an unregistered prerequisite; thread B starts
-    loading a good file while A's is still importing. Without a lock A saw B's
-    load in progress, left validation to it and returned normally -- a broken
-    load passing -- and bytecode writing stayed off for the process."""
-
-    import threading
-    import types
-
-    from jobcheck import registry as reg
-
-    sync = types.SimpleNamespace(a_started=threading.Event(), a_release=threading.Event(),
-                                 b_started=threading.Event())
-    sys.modules["_jobcheck_load_race"] = sync  # type: ignore[assignment]
-    (tmp_path / "check_a.py").write_text(textwrap.dedent("""
-        import _jobcheck_load_race as sync
-        from jobcheck import OK, register_check
-        sync.a_started.set()
-        sync.a_release.wait(10)
-
-        @register_check("A_BAD", "m", depends_on=["NOT_REGISTERED"])
-        def a(row):
-            return OK
-        """), encoding="utf-8")
-    (tmp_path / "check_b.py").write_text(textwrap.dedent("""
-        import _jobcheck_load_race as sync
-        from jobcheck import OK, register_check
-        sync.b_started.set()
-
-        @register_check("B_GOOD", "m")
-        def b(row):
-            return OK
-        """), encoding="utf-8")
-
-    writing_bytecode = sys.dont_write_bytecode
-    results: dict[str, BaseException | None] = {}
-
-    def load(label: str, name: str) -> None:
-        try:
-            reg.load_checks([str(tmp_path / name)])
-            results[label] = None
-        except BaseException as exc:  # recorded for the assertions below
-            results[label] = exc
-
-    try:
-        first = threading.Thread(target=load, args=("a", "check_a.py"))
-        first.start()
-        assert sync.a_started.wait(10)
-        second = threading.Thread(target=load, args=("b", "check_b.py"))
-        second.start()
-        # B must wait for A's call to finish, not start importing beside it.
-        assert not sync.b_started.wait(0.3)
-        sync.a_release.set()
-        first.join(10)
-        second.join(10)
-    finally:
-        sync.a_release.set()
-        sys.modules.pop("_jobcheck_load_race", None)
-
-    assert isinstance(results["a"], ValueError)
-    assert "depends on 'NOT_REGISTERED'" in str(results["a"])
-    assert sys.dont_write_bytecode == writing_bytecode

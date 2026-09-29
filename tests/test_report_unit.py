@@ -12,7 +12,7 @@ from jobcheck import engine
 from jobcheck import registry as reg
 from jobcheck import results as res
 from jobcheck import report as rep
-from jobcheck import tables, validate
+from jobcheck import validate
 from jobcheck.results import OK, Status, Verdict
 
 pytestmark = pytest.mark.fast
@@ -569,34 +569,12 @@ def test_a_frame_offering_no_extra_columns_says_so(fresh_registry: None) -> None
 
 def test_the_report_shows_its_default_columns_in_their_order(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id")
-    assert list(report.columns) == tables._DEFAULT_COLUMNS["Report"]
+    assert list(report.columns) == list(rep._REPORT_COLUMNS)
 
 
-def test_editing_the_defaults_changes_every_report(two_layers: None, monkeypatch: Any) -> None:
-    """The one place a run's shipped columns are chosen, with no argument per call."""
-
-    monkeypatch.setitem(tables._DEFAULT_COLUMNS, "Report", ["row", "code", "message"])
+def test_added_columns_follow_row(two_layers: None) -> None:
     report = rep.build_report(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
-    assert list(report.columns) == ["row", "age", "code", "message"]
-
-
-def test_added_columns_lead_when_the_defaults_leave_out_row(
-    two_layers: None, monkeypatch: Any
-) -> None:
-    monkeypatch.setitem(tables._DEFAULT_COLUMNS, "Report", ["code", "status"])
-    report = rep.build_report(outcomes(), df=FRAME, add_columns=["age"])
-    assert list(report.columns) == ["age", "code", "status"]
-
-
-def test_a_report_column_hidden_by_the_defaults_is_not_a_data_column(
-    two_layers: None, monkeypatch: Any
-) -> None:
-    """add_columns copies data in; a hidden report column comes back only by
-    editing the defaults, so one argument never means two things."""
-
-    monkeypatch.setitem(tables._DEFAULT_COLUMNS, "Report", ["row", "code"])
-    with pytest.raises(ValueError, match=r"add_columns \['comments'\] cannot be used"):
-        rep.build_report(outcomes(), df=FRAME, add_columns=["comments"])
+    assert list(report.columns) == ["row", "age", *rep._REPORT_COLUMNS[1:]]
 
 
 def test_dropping_a_column_with_pandas_keeps_the_title(two_layers: None) -> None:
