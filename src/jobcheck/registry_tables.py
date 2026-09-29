@@ -3,9 +3,8 @@ the one rule warning that needs the registry to give.
 
 Kept apart from registering and evaluating because it is the job that grows:
 every question about the configuration becomes another column rather than
-another engine feature. Each table carries the columns a reader always wants and
-takes `add_columns` for the ones only some readers do, and each carries its own
-title in `attrs["title"]`.
+another engine feature. Each table carries every column it builds, and its own
+title in `attrs["title"]`; a caller drops what it does not want with pandas.
 """
 
 from __future__ import annotations
@@ -16,11 +15,9 @@ import pandas as pd
 
 from .registry import _CHECKS, _get_topo_order
 from .rules import Rule
-from .tables import _shown
 
-# Every column each table builds; tables._DEFAULT_COLUMNS picks which are shown.
 _REGISTRY_COLUMNS = ["code", "layer", "default", "message", "depends_on", "source_file",
-                     "could_be_overridden_by", "effective_state"]
+                     "could_be_overridden_by"]
 _RULES_COLUMNS = ["name", "action", "codes_hit_count", "codes", "match", "message",
                   "source_file"]
 
@@ -40,16 +37,13 @@ def _render_match(rule: Rule) -> str:
                      for criterion in rule.criteria)
 
 
-def registry_table(rules: list[Rule] | None = None,
-                   add_columns: list[str] | None = None) -> pd.DataFrame:
+def registry_table(rules: list[Rule] | None = None) -> pd.DataFrame:
     """One row per registered check, ordered layer then code, so the fundamental
-    checks read first. The columns shown are `tables._DEFAULT_COLUMNS["Registry"]`
-    plus `add_columns`: `source_file`, `could_be_overridden_by`, `effective_state`.
+    checks read first.
 
-    `could_be_overridden_by` and `effective_state` are the two columns that read
-    `rules`, and `rules` feeds nothing else. Neither is "was overridden by":
-    whether a rule fires depends on the row it is matched against, and this table
-    has no row.
+    `could_be_overridden_by` is the one column that reads `rules`, and `rules`
+    feeds nothing else. It is not "was overridden by": whether a rule fires
+    depends on the row it is matched against, and this table has no row.
     """
 
     # Layers are computed with the evaluation order; a check registered outside
@@ -71,16 +65,13 @@ def registry_table(rules: list[Rule] | None = None,
             "source_file": check.source_file,
             "could_be_overridden_by":
                 "; ".join(f"{rule.name} ({rule.action})" for rule in matching) or "-",
-            "effective_state":
-                f"depends on row (default {state} unless a rule above matches)"
-                if matching else f"DEFAULT ({state})",
         })
 
-    # Sorted before it is narrowed, since the defaults may leave out `layer` or
-    # `code`. Columns are named so an empty registry still has them to sort by.
+    # Columns are named so an empty registry still has them to sort by.
     table = (pd.DataFrame(rows, columns=_REGISTRY_COLUMNS)
              .sort_values(["layer", "code"]).reset_index(drop=True))
-    return _shown(table, "Registry", add_columns)
+    table.attrs["title"] = "Registry"
+    return table
 
 
 def warn_blocking_rules(rules: list[Rule]) -> list[str]:
@@ -134,13 +125,11 @@ def warn_blocking_rules(rules: list[Rule]) -> list[str]:
     return warnings
 
 
-def rules_table(rules: list[Rule], add_columns: list[str] | None = None) -> pd.DataFrame:
-    """One row per rule, rather than per code. The columns shown are
-    `tables._DEFAULT_COLUMNS["Rules"]` plus `add_columns`: `codes`, `source_file`.
+def rules_table(rules: list[Rule]) -> pd.DataFrame:
+    """One row per rule, rather than per code.
 
-    `codes_hit_count` is a count rather than the code list, so a rule touching
-    many codes does not blow the table apart; `add_columns=["codes"]` gives the
-    detail.
+    `codes_hit_count` is a count beside the code list, so a caller can drop
+    `codes` and keep a rule touching many codes from blowing the table apart.
     """
 
     rows: list[dict[str, Any]] = []
@@ -155,4 +144,6 @@ def rules_table(rules: list[Rule], add_columns: list[str] | None = None) -> pd.D
             "source_file": rule.source_file,
         })
 
-    return _shown(pd.DataFrame(rows, columns=_RULES_COLUMNS), "Rules", add_columns)
+    table = pd.DataFrame(rows, columns=_RULES_COLUMNS)
+    table.attrs["title"] = "Rules"
+    return table

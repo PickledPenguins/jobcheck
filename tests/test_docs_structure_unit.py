@@ -10,7 +10,6 @@ the entry points is `test_docs_cli_unit.py`.
 
 from __future__ import annotations
 
-import ast
 import re
 import subprocess
 import sys
@@ -127,17 +126,6 @@ def test_the_rule_file_shown_is_the_shipped_one() -> None:
     rules_only = "\n".join(line for line in shipped.splitlines()
                            if not line.lstrip().startswith("#"))
     assert shown.group(1).strip() == rules_only.strip()
-
-
-def test_the_default_columns_shown_are_the_ones_tables_sets() -> None:
-    """reporting.md copies `_DEFAULT_COLUMNS` so a reader need not open the source."""
-
-    from jobcheck import tables
-
-    reporting = (ROOT / "docs" / "reporting.md").read_text(encoding="utf-8")
-    shown = re.search(r"```\n_DEFAULT_COLUMNS = (\{.*?\})\n```", reporting, re.S)
-    assert shown, "reporting.md no longer shows _DEFAULT_COLUMNS"
-    assert ast.literal_eval(shown.group(1)) == tables._DEFAULT_COLUMNS
 
 
 def test_architecture_has_a_row_for_every_module_entry_point_and_script() -> None:

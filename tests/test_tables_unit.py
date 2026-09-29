@@ -52,13 +52,9 @@ def test_list_like_cells_are_not_treated_as_null(value: object) -> None:
 
 def test_registry_table_has_the_base_columns(example_checks: None) -> None:
     assert list(registry_tables.registry_table().columns) == [
-        "code", "layer", "default", "message", "depends_on",
+        "code", "layer", "default", "message", "depends_on", "source_file",
+        "could_be_overridden_by",
     ]
-
-
-def test_registry_table_adds_source_file_when_asked_for(example_checks: None) -> None:
-    assert "source_file" in registry_tables.registry_table(add_columns=["source_file"]).columns
-    assert "source_file" not in registry_tables.registry_table().columns
 
 
 def test_registry_table_is_sorted_by_layer_then_code(example_checks: None) -> None:
@@ -104,14 +100,9 @@ def test_registry_table_of_an_empty_registry_has_columns_and_no_rows(fresh_regis
     table = registry_tables.registry_table()
     assert table.empty
     assert list(table.columns) == [
-        "code", "layer", "default", "message", "depends_on",
+        "code", "layer", "default", "message", "depends_on", "source_file",
+        "could_be_overridden_by",
     ]
-
-
-def test_could_be_overridden_by_appears_only_when_asked_for(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    assert "could_be_overridden_by" not in registry_tables.registry_table([a_rule()]).columns
-    assert "could_be_overridden_by" in registry_tables.registry_table([a_rule()], add_columns=["could_be_overridden_by"]).columns
 
 
 def test_could_be_overridden_by_names_each_rule_with_its_action_in_load_order(
@@ -119,61 +110,21 @@ def test_could_be_overridden_by_names_each_rule_with_its_action_in_load_order(
 ) -> None:
     make_check("A_CODE")
     rules = [a_rule("first", action="enable"), a_rule("second", action="disable")]
-    table = registry_tables.registry_table(rules, add_columns=["could_be_overridden_by"]).set_index("code")
+    table = registry_tables.registry_table(rules).set_index("code")
     assert table.loc["A_CODE", "could_be_overridden_by"] == "first (enable); second (disable)"
 
 
 def test_could_be_overridden_by_is_a_dash_for_an_unreferenced_code(fresh_registry: None) -> None:
     make_check("A_CODE")
     make_check("UNTOUCHED")
-    table = registry_tables.registry_table([a_rule()], add_columns=["could_be_overridden_by"]).set_index("code")
+    table = registry_tables.registry_table([a_rule()]).set_index("code")
     assert table.loc["UNTOUCHED", "could_be_overridden_by"] == "-"
 
 
-def test_print_registry_without_rules_still_renders_that_column(fresh_registry: None) -> None:
+def test_the_registry_without_rules_still_renders_that_column(fresh_registry: None) -> None:
     make_check("A_CODE")
-    table = registry_tables.registry_table(add_columns=["could_be_overridden_by"]).set_index("code")
+    table = registry_tables.registry_table().set_index("code")
     assert table.loc["A_CODE", "could_be_overridden_by"] == "-"
-
-
-# --- registry_table, the columns that read the rules ------------------------
-
-
-def test_effective_state_states_the_default_when_no_rule_references_the_code(
-    fresh_registry: None,
-) -> None:
-    make_check("ON_CODE")
-    make_check("OFF_CODE", default_enabled=False)
-    table = registry_tables.registry_table(
-        [], add_columns=["effective_state"]).set_index("code")
-    assert table.loc["ON_CODE", "effective_state"] == "DEFAULT (ON)"
-    assert table.loc["OFF_CODE", "effective_state"] == "DEFAULT (OFF)"
-
-
-def test_effective_state_refuses_to_guess_when_a_rule_references_the_code(
-    fresh_registry: None,
-) -> None:
-    make_check("A_CODE", default_enabled=False)
-    table = registry_tables.registry_table(
-        [a_rule()], add_columns=["effective_state"]).set_index("code")
-    assert table.loc["A_CODE", "effective_state"] == (
-        "depends on row (default OFF unless a rule above matches)"
-    )
-
-
-def test_effective_state_appears_only_when_asked_for(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    assert "effective_state" not in registry_tables.registry_table([a_rule()]).columns
-
-
-def test_both_rule_columns_can_be_asked_for_at_once(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    table = registry_tables.registry_table(
-        [a_rule()], add_columns=["could_be_overridden_by", "effective_state"])
-    assert list(table.columns) == [
-        "code", "layer", "default", "message", "depends_on",
-        "could_be_overridden_by", "effective_state",
-    ]
 
 
 # --- rules_table ---------------------------------------------------
@@ -209,37 +160,19 @@ def test_criteria_render_compactly(fresh_registry: None) -> None:
     )
 
 
-def test_rules_table_adds_source_file_when_asked_for(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    table = registry_tables.rules_table([a_rule(source_file="here.yaml")], add_columns=["source_file"])
-    assert list(table["source_file"]) == ["here.yaml"]
-
-
-# --- add_columns, the one argument every table takes ----------------------
+# --- what the tables carry -------------------------------------------------
 
 
 def test_the_registry_table_carries_the_source_file_it_was_asked_for(
     example_checks: None,
 ) -> None:
-    table = registry_tables.registry_table(add_columns=["source_file"]).set_index("code")
+    table = registry_tables.registry_table().set_index("code")
     assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
-
-
-def test_the_registry_table_carries_the_source_file_beside_the_rule_columns(
-    example_checks: None,
-) -> None:
-    table = registry_tables.registry_table(
-        [], add_columns=["source_file", "effective_state"]
-    ).set_index("code")
-    assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
-    assert table.loc["AGE_NEGATIVE", "effective_state"] == "DEFAULT (ON)"
 
 
 def test_the_rules_table_carries_the_source_file_it_was_asked_for(fresh_registry: None) -> None:
     make_check("A_CODE")
-    table = registry_tables.rules_table(
-        [a_rule(source_file="here.yaml")], add_columns=["source_file"]
-    )
+    table = registry_tables.rules_table([a_rule(source_file="here.yaml")])
     assert list(table["source_file"]) == ["here.yaml"]
 
 
@@ -251,71 +184,6 @@ def test_the_rules_table_carries_the_message_that_says_why_a_rule_exists(
     make_check("A_CODE")
     table = registry_tables.rules_table([a_rule()])
     assert list(table["message"]) == ["why the rule exists"]
-
-
-@pytest.mark.parametrize(
-    "call, subject",
-    [
-        pytest.param(lambda: registry_tables.registry_table(add_columns=["nope"]),
-                     "the registry table", id="registry-table"),
-        pytest.param(lambda: registry_tables.rules_table([], add_columns=["nope"]),
-                     "the rules table", id="rules-table"),
-    ],
-)
-def test_an_unknown_extra_column_names_the_table_and_what_is_on_offer(
-    example_checks: None, call: object, subject: str
-) -> None:
-    with pytest.raises(ValueError) as raised:
-        call()  # type: ignore[operator]
-    assert f"cannot be used for {subject}" in str(raised.value)
-    assert "source_file" in str(raised.value)
-
-
-def test_a_column_asked_for_twice_is_refused(example_checks: None) -> None:
-    with pytest.raises(ValueError, match=r"add_columns \['source_file'\] cannot be used"):
-        registry_tables.registry_table(add_columns=["source_file", "source_file"])
-
-
-# --- which columns the check tables show ------------------------------------
-
-
-def test_every_default_column_is_one_its_table_builds(example_checks: None) -> None:
-    """A typo made editing the defaults fails here rather than as a pandas
-    KeyError in somebody's run."""
-
-    from jobcheck import report
-
-    built = {
-        "Report": list(report._REPORT_COLUMNS),
-        "Registry": registry_tables._REGISTRY_COLUMNS,
-        "Rules": registry_tables._RULES_COLUMNS,
-        "Row explanation": ["layer", "code", "outcome", "status", "detail"],
-        "Summary": list(report.summarize_outcomes([]).columns),
-    }
-    assert set(tables._DEFAULT_COLUMNS) == set(built)
-    for title, shown in tables._DEFAULT_COLUMNS.items():
-        assert set(shown) <= set(built[title]), title
-        assert len(shown) == len(set(shown)), title
-
-
-def test_editing_the_registry_defaults_keeps_the_sort(
-    example_checks: None, monkeypatch: Any
-) -> None:
-    """The table is sorted by layer and code before it is narrowed, so defaults
-    that leave either out still list the fundamental checks first."""
-
-    monkeypatch.setitem(tables._DEFAULT_COLUMNS, "Registry", ["layer", "message"])
-    table = registry_tables.registry_table()
-    assert list(table.columns) == ["layer", "message"]
-    assert list(table["layer"]) == sorted(table["layer"])
-
-
-def test_a_column_the_defaults_hide_can_be_added_back(
-    example_checks: None, monkeypatch: Any
-) -> None:
-    monkeypatch.setitem(tables._DEFAULT_COLUMNS, "Registry", ["code"])
-    assert list(registry_tables.registry_table(add_columns=["message"]).columns) == [
-        "code", "message"]
 
 
 def test_the_rules_table_is_data_and_prints_nothing(
@@ -331,11 +199,5 @@ def test_the_rules_table_is_data_and_prints_nothing(
     table = registry_tables.rules_table(reg.load_rules([str(path)]))
     assert capsys.readouterr().out == ""
     assert list(table["name"]) == ["off_everywhere"]
-    assert list(table.columns) == ["name", "action", "codes_hit_count", "match", "message"]
-
-
-def test_the_rules_table_adds_a_hidden_column(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    table = registry_tables.rules_table([a_rule(source_file="here.yaml")],
-                                        add_columns=["source_file"])
-    assert list(table.columns) == [*tables._DEFAULT_COLUMNS["Rules"], "source_file"]
+    assert list(table.columns) == ["name", "action", "codes_hit_count", "codes", "match", "message",
+                                   "source_file"]

@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from types import MappingProxyType
 from typing import Any, Mapping
 
 import pandas as pd
@@ -85,28 +84,22 @@ class Verdict:
         # pandas hands back np.bool_ from a comparison, which counts as a bool.
         if pd.api.types.is_bool(self.status):
             object.__setattr__(self, "status", Status.PASS if self.status else Status.INVALID)
-        # pandas hands back numpy scalars, so accept anything pandas calls an integer.
-        if not pd.api.types.is_integer(self.status):
-            raise TypeError(
-                f"Verdict status must be a Status value or a bool, got {self.status!r}.")
-        if int(self.status) not in [int(member) for member in Status]:
+        try:
+            status = Status(self.status)
+        except ValueError:
             raise ValueError(
                 f"Unknown status {self.status!r}. Use one of: "
                 + ", ".join(f"Status.{member.name}" for member in Status)
                 + "."
-            )
-        if int(self.status) == Status.ERROR:
+            ) from None
+        if status is Status.ERROR:
             raise ValueError(
                 "Status.ERROR is the engine's, not a check's: it marks a check that raised. "
                 "Raise the exception, or return a failure kind that describes the data."
             )
         if not isinstance(self.comments, Mapping):
             raise TypeError(f"Verdict comments must be a mapping, got {self.comments!r}.")
-        for key in self.comments:
-            if not isinstance(key, str):
-                raise TypeError(f"Verdict comment keys must be strings, got {key!r}.")
-        object.__setattr__(self, "status", int(self.status))
-        object.__setattr__(self, "comments", MappingProxyType(dict(self.comments)))
+        object.__setattr__(self, "status", int(status))
 
     def __bool__(self) -> bool:
         return int(self.status) == Status.PASS
@@ -119,7 +112,7 @@ class Verdict:
 
 
 OK = Verdict()
-"""The result of a check that is happy with the row. Shared, and immutable."""
+"""The result of a check that is happy with the row, shared by every check."""
 
 
 def _normalize_verdict(returned: Any, check_code: str) -> Verdict:

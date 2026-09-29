@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
 
     load_checks([args.bundle])
-    print(table_text(registry_table(add_columns=["source_file"])))
+    print(table_text(registry_table()))
 
 
 if __name__ == "__main__":

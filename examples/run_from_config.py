@@ -15,7 +15,7 @@ dictating it.
     data: data/customers.csv       # read as text, as `main.py --data` reads it
     tables:                        # printed in this order; a table may repeat
       - table: registry
-        add_columns: [could_be_overridden_by]
+        drop_columns: [source_file]
       - table: report
         key_column: id
 
@@ -64,8 +64,8 @@ RUN_KEYS = ("setup", "data", "tables")
 #: documentation of each one is the documentation of the key -- except
 #: `drop_columns`, which this script applies to the built table with pandas.
 TABLE_OPTIONS: dict[str, tuple[str, ...]] = {
-    "registry": ("add_columns", "drop_columns"),
-    "rules": ("add_columns", "drop_columns"),
+    "registry": ("drop_columns",),
+    "rules": ("drop_columns",),
     "report": ("key_column", "add_columns", "drop_columns", "include", "format"),
     "summary": (),
 }
@@ -203,8 +203,7 @@ def print_tables(tables: list[dict[str, Any]], rules: list[Rule], df: Any,
     """Print each table the run file names, in its order, a blank line between."""
 
     printers: dict[str, Callable[[dict[str, Any], list[str]], object]] = {
-        # Given the rules so `could_be_overridden_by` and `effective_state` can be
-        # asked for; without either the argument prints the same table.
+        # Given the rules, which is what fills `could_be_overridden_by`.
         "registry": lambda options, drop: print(table_text(
             registry_table(rules=rules, **options).drop(columns=drop))),
         "rules": lambda options, drop: print_rules_and_warnings(rules, options, drop),

@@ -77,8 +77,8 @@ Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
 | [`build_report`](#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | `frame_outcomes`, `df` | `key_column=None`, `add_columns=None`, `include="failures"` | DataFrame `Report` | The long-format report: one line per outcome per data row. `key_column` labels rows (default: the index); `add_columns` copies frame columns in; `include` is `"failures"`, `"blocked"` or `"all"`. |
 | [`row_explanation`](#row_explanationrow_outcomes-includeall---dataframe) | `row_outcomes` | `include="all"` | DataFrame `Row explanation` | One line per check on one data row: `layer`, `code`, `outcome`, `status`, `detail`. |
 | [`summarize_outcomes`](#summarize_outcomesframe_outcomes---dataframe) | `frame_outcomes` | – | DataFrame `Summary` | Per-check counts across all rows: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`. Takes complete lists (not `validate_row`'s), a generator included. |
-| [`registry_table`](#registry_tablerulesnone-add_columnsnone---dataframe) | – | `rules=None`, `add_columns=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `message`, `depends_on`. On request: `source_file`, and from `rules`, `could_be_overridden_by` and `effective_state`. |
-| [`rules_table`](#rules_tablerules-add_columnsnone---dataframe) | `rules` | `add_columns=None` | DataFrame `Rules` | One line per rule: `name`, `action`, `codes_hit_count`, `match`, `message`. On request: `codes`, `source_file`. |
+| [`registry_table`](#registry_tablerulesnone---dataframe) | – | `rules=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `message`, `depends_on`, `source_file`, and from `rules`, `could_be_overridden_by`. |
+| [`rules_table`](#rules_tablerules---dataframe) | `rules` | – | DataFrame `Rules` | One line per rule: `name`, `action`, `codes_hit_count`, `codes`, `match`, `message`, `source_file`. |
 | [`render_comments`](#render_commentscomments---str) | `comments` | – | `str` | A check's comments as `key=value; key=value`, sorted by key; empty for no comments. |
 
 **Types and constants**
@@ -117,12 +117,9 @@ What a check returns. Frozen dataclass: `status: int = Status.PASS`,
   resolved before anything reads the value as an integer, since `True == 1 ==
   MISSING` would otherwise invert the meaning. A check wanting `MISSING` or
   `MALFORMED` names it.<sup>[3](writing-checks.md#what-to-return)</sup>
-- Comments are copied and frozen at construction, so a shared result cannot be
-  mutated through the dict a caller passed in.
-- Construction validates: a value outside `Status`, `Status.ERROR` (the engine's, not
-  a check's), a non-integer non-bool status, a non-mapping `comments`, or a
-  non-string comment key all raise.<sup>[4](#error-messages)</sup>
-- `OK` is the shared, immutable passing result.
+- Construction validates: a value outside `Status` (a string included), `Status.ERROR`
+  (the engine's, not a check's), or a non-mapping `comments` raises.<sup>[4](#error-messages)</sup>
+- `OK` is the shared passing result.
 
 ### `CheckOutcome`
 
@@ -241,9 +238,9 @@ rather than recursing. A file that raises is not rolled back: the error propagat
 the checks registered before it stay, and the failing file is not recorded as
 loaded. Loading again in the same process starts with `clear_registry()`.
 
-One thread loads at a time: `load_checks` and `clear_registry` hold one reentrant
-lock, so a second thread waits for the first to finish, and a bundle's nested call
-still works.
+Load from one thread. The registry and `sys.dont_write_bytecode` are process-wide,
+and `load_checks` and `clear_registry` take no lock; validating from many threads
+once loading is done is fine, since validation reads the registry and never changes it.
 
 Importing the members instead — `sys.path.insert` and `import check_age` — also
 registers them, but they are then ordinary modules: two bundles holding a
@@ -291,7 +288,7 @@ Load the check files first: a rule naming an unregistered code is an error. See
 [configuration.md](configuration.md).
 
 Which codes a rule touches is `rule.codes`, and as a column,
-`rules_table(rules, add_columns=["codes"])`.
+`rules_table(rules)["codes"]`.
 
 ## Loading both at once
 
@@ -431,9 +428,8 @@ they appear.<sup>[14](reporting.md#cost)</sup>
 
 Every view is a DataFrame whose `attrs["title"]` names it — `Report`,
 `Row explanation`, `Summary`, `Registry`, `Rules` — and pandas turns any of them
-into text. The columns each shows by default are its entry in `_DEFAULT_COLUMNS` in
-`src/jobcheck/tables.py`, the one place they are set; see
-[reporting.md](reporting.md#which-columns-a-table-shows).
+into text. Each carries every column it builds, and a caller drops what it does not
+want; see [reporting.md](reporting.md#which-columns-a-table-shows).
 
 ### `build_report(frame_outcomes, df, key_column=None, add_columns=None, include="failures") -> DataFrame`
 
@@ -489,24 +485,19 @@ print(render_comments({"value": -5, "minimum": 0}))
 minimum=0; value=-5
 ```
 
-### `registry_table(rules=None, add_columns=None) -> DataFrame`
+### `registry_table(rules=None) -> DataFrame`
 
 One row per check, sorted layer, then code, titled `Registry`. Columns `code`,
-`layer`, `default`, `message`, `depends_on`. Offers `source_file`, plus the two
-columns that read `rules`: `could_be_overridden_by`, the rules that *reference* each
-code with the action each would take, and `effective_state`, which says
-`DEFAULT (ON)` when no rule references the code and "depends on row" when one does.
-Neither is "was overridden by" — whether a rule fires is a per-row question this
-table cannot answer.<sup>[17](reporting.md#working-with-the-tables)</sup>
+`layer`, `default`, `message`, `depends_on`, `source_file`, and
+`could_be_overridden_by`, the one column that reads `rules`: the rules that
+*reference* each code with the action each would take, `-` for none. It is not
+"was overridden by" — whether a rule fires is a per-row question this table cannot
+answer.<sup>[17](reporting.md#working-with-the-tables)</sup>
 
-### `rules_table(rules, add_columns=None) -> DataFrame`
+### `rules_table(rules) -> DataFrame`
 
-One row per rule, titled `Rules`: `name`, `action`, `codes_hit_count`, `match`,
-`message`. Offers `codes`, the list behind the count, and `source_file`.
-
-Both registry tables take `add_columns`, the same argument `build_report` takes for
-columns of the data: the names you want beyond the default columns, refused rather
-than ignored when the name is not on offer.
+One row per rule, titled `Rules`: `name`, `action`, `codes_hit_count`, `codes` (the
+list behind the count), `match`, `message`, `source_file`.
 
 ### `is_null(value) -> bool`
 
@@ -544,17 +535,17 @@ the call named.
 | `validate` | `context_builder '<name>' needs keyword argument(s) <names> that validate cannot supply. Give them defaults, or read them from context_args.` |
 | `validate` | `context_builder 'build' has a default on its second parameter, 'strict', which would be handed context_args. Read the value from context_args, or make it keyword-only by putting it after a *.` |
 | a check's return, as the engine reads it | `Check '<code>' returned None. A check must return OK or a Verdict; Verdict(condition) wraps a bare comparison.` |
-| `Verdict` | `Verdict status must be a Status value or a bool, got '<value>'.` |
+
 | `Verdict` | `Unknown status 7. Use one of: Status.PASS, Status.MISSING, Status.MALFORMED, Status.INVALID, Status.ERROR.` |
 | `Verdict` | `Status.ERROR is the engine's, not a check's: it marks a check that raised. Raise the exception, or return a failure kind that describes the data.` |
 | `Verdict` | `Verdict comments must be a mapping, got <value>.` |
-| `Verdict` | `Verdict comment keys must be strings, got <key>.` |
+
 | `build_report` | `outcomes cover 1 row(s) but the frame has 2: pass the same frame the outcomes were collected from.` |
 | `build_report`, `row_explanation` | `include must be one of failures, blocked, all, got '<value>'.` |
 | `build_report`, `summarize_outcomes` | `<function> needs every check's outcome on every row, but the list for row <n> holds <n> and the one before it <n>: pass validate's result, or explain_row's per row. validate_row keeps only the failures.` |
 | `build_report` | `key_column '<name>' is not in the data. Available columns: <columns>.` |
 | `build_report` | `key_column '<name>' appears 2 times in the data: df[key_column] is then a table rather than a column, and every row would be labeled with the column name. Rename or drop the duplicate columns.` |
-| any table's `add_columns` | `add_columns ['<name>'] cannot be used for <table>. Each name must be asked for once and be one of: <columns>.` |
+| `build_report`'s `add_columns` | `add_columns ['<name>'] cannot be used for the report. Each name must be asked for once and be one of: <columns>.` |
 ## Stability
 
 Pre-1.0: the API may change between versions. The parts most likely to stay fixed

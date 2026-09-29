@@ -1,8 +1,8 @@
 Loaded 1 rule(s) from 1 file(s)
 
 == Rules ==
-               name  action  codes_hit_count                       match                                                        message
-legacy_b_has_no_age disable                1 source_system~=/^LEGACY_B$/ LEGACY_B exports never carried an age; a blank one is expected
+               name  action  codes_hit_count                       match                                                        message                                                                         source_file
+legacy_b_has_no_age disable                1 source_system~=/^LEGACY_B$/ LEGACY_B exports never carried an age; a blank one is expected tests/examples/complex/excusing-a-blank-field-silences-its-checks/legacy_rules.yaml
 warning: rule 'legacy_b_has_no_age' disables AGE_PRESENT, which also stops AGE_NOT_A_NUMBER, AGE_NEGATIVE, AGE_NOT_INTEGER, AGE_TOO_HIGH on the rows it matches: a check whose prerequisite is off is skipped, and reports nothing
 
 == Registry ==

@@ -161,8 +161,8 @@ It is also the shape worth finding when it *is* a mistake, so it is reported.
 `match: all` rule overrules for every row; `python3 examples/main.py --rules-table`
 prints those warnings under the rules table, which is why the shipped file's own
 demonstration shows up there. Nothing else tells you: the registry table lists both
-rules under `could_be_overridden_by` and answers `depends on row`, which is right in
-general and unhelpful in this one case where every row gives the same answer.<sup>[5](interfaces.md#registry_tablerulesnone-add_columnsnone---dataframe)</sup> The
+rules under `could_be_overridden_by`, which is right in general and unhelpful in this
+one case where every row gives the same answer.<sup>[5](interfaces.md#registry_tablerulesnone---dataframe)</sup> The
 pattern that works is the reverse order — disable for every row, then enable for the
 rows that match — and it reports nothing.
 
@@ -328,7 +328,7 @@ messages starts with.
 | 2 | [writing-checks.md: The shape of a check](writing-checks.md#the-shape-of-a-check) | where checks are defined instead |
 | 3 | [reporting.md: Showing data](reporting.md#showing-data-alongside-the-failures) | the same rendering in the report |
 | 4 | [Warnings](#warnings) | `warn_missing_rule_columns`, for a column the data lacks |
-| 5 | [interfaces.md: registry_table](interfaces.md#registry_tablerulesnone-add_columnsnone---dataframe) | what `could_be_overridden_by` and `effective_state` say |
+| 5 | [interfaces.md: registry_table](interfaces.md#registry_tablerulesnone---dataframe) | what `could_be_overridden_by` says |
 | 6 | [writing-checks.md: Layering](writing-checks.md#layering-one-problem-one-error) | why a skipped check reports nothing |
 | 7 | [interfaces.md: warn_blocking_rules](interfaces.md#warn_blocking_rulesrules---liststr) | the function in full |
 | 8 | [interfaces.md: Loading both at once](interfaces.md#loading-both-at-once) | `load_setup` as a call |

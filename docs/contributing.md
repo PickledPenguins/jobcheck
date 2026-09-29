@@ -39,7 +39,7 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | Every Python block in `docs/` runs and prints the output shown after it, and every call shown matches the real signature | `tests/test_docs_blocks_unit.py`, `tests/test_docs_api_unit.py` |
 | The README runs and prints exactly what it shows | `tests/test_readme.py` |
 | The README stays an index (300 lines), every document is reachable from it, no dead link or anchor | `tests/test_docs_structure_unit.py` |
-| What a document copies from the code matches it: the shipped rule file, `_DEFAULT_COLUMNS`, the rule and setup keys, the module and script tables | `tests/test_docs_structure_unit.py` |
+| What a document copies from the code matches it: the shipped rule file, the rule and setup keys, the module and script tables | `tests/test_docs_structure_unit.py` |
 | Every message a user can meet — a raised error, an example script's `error:` line, a warning — is quoted in the document that owns it | `tests/test_docs_messages_unit.py` |
 | Every superscript cross-reference is a row of its document's `## References` table, and every row is cited | `tests/test_docs_references_unit.py` |
 | Every catalog case documents itself and states its level, and each level keeps its floor | `tests/test_e2e_catalogs.py` |
@@ -71,9 +71,8 @@ reason several obvious-looking shortcuts are absent:
   function takes; the detail of arguments, return shapes and errors lives in
   [interfaces.md](interfaces.md), which a test keeps in step with the code.
 - **A leading underscore means "outside the public surface", not "inside this
-  file".** `tables.py`'s `_format_cell`, `_reject_unknown_columns`, `_shown` and
-  `_DEFAULT_COLUMNS` are imported by `rules.py`, `report.py` and `registry_tables.py`
-  on purpose. What the underscore rules out is a *user* calling them: a function or
+  file".** `tables.py`'s `_format_cell` and `_reject_unknown_columns` are imported by
+  `rules.py` and `report.py` on purpose. What the underscore rules out is a *user* calling them: a function or
   class without one has to be in `__all__`, which `tests/test_api_contract.py`
   enforces for every module but `paths`, and anything exported needs a use case a
   user outside this package actually has.

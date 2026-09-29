@@ -127,8 +127,8 @@ Optional, off by default. Before the registry table, print one row per loaded ru
 name, action, how many codes it touches, what it matches, and its message. The
 registry table is one row per *code*, so a rule touching eight codes is eight lines there
 and one line here — this is the view that answers "what did this rule file actually say".
-`codes_hit_count` is a count rather than the codes themselves, so a broad rule does not
-widen the table; `rules_table(rules, add_columns=["codes"])` gives the detail.
+`main.py` drops the `codes` column and keeps `codes_hit_count`, so a broad rule does not
+widen the table; `rules_table(rules)["codes"]` gives the detail.
 
 Under the table, one `warning:` line for each code a rule touches that a later
 `match: all` rule overrules on every row -- a rule that can never apply to that code,
@@ -221,7 +221,7 @@ data: data/customers.csv       # read as text, exactly as main.py --data reads i
 tables:                        # printed in this order; a table may appear twice
   - table: rules
   - table: registry
-    add_columns: [could_be_overridden_by]
+    drop_columns: [source_file]
   - table: report
     key_column: id
     add_columns: [name]
@@ -239,8 +239,8 @@ built table with pandas (`table.drop(columns=...)`):
 
 | `table` | Options | Built with, then printed as `main.py` prints it |
 |---|---|---|
-| `registry` | `add_columns`, `drop_columns` | `registry_table`, handed the loaded rules |
-| `rules` | `add_columns`, `drop_columns` | `rules_table`, then a `warning:` line per shadowed rule and code, and per disabled code with dependents |
+| `registry` | `drop_columns` | `registry_table`, handed the loaded rules |
+| `rules` | `drop_columns` | `rules_table`, then a `warning:` line per shadowed rule and code, and per disabled code with dependents |
 | `report` | `key_column`, `add_columns`, `drop_columns`, `include`, `format` | `build_report`; `format` is `table` (default) or `csv` |
 | `summary` | none | `summarize_outcomes` |
 

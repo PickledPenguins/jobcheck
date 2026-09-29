@@ -52,10 +52,9 @@ deliberately not done" for what each would have cost.
 Bring it back with `git restore --source=3fce4b4 -- recovery`, or from the other branch with
 `git restore --source=origin/main -- recovery`; read one file out of either with
 `git show 3fce4b4:recovery/README.md`, which is its entry point.
-`scripts/read_bytecode_api.py` regenerates `recovery/recovered-api.md`, reading the
-package's bytecode straight out of `3fce4b4` with no restore; pass a directory to read a
-restored copy instead. Run it under Python 3.14 to read both generations -- 3.12 cannot
-unmarshal the newer one and says so per file.
+`recovery/recovered-api.md` holds the interface read out of that bytecode. The script
+that produced it, `scripts/read_bytecode_api.py`, was deleted on 2026-09-29; recover it
+with `git show 14163df:scripts/read_bytecode_api.py`.
 
 The bytecode is unusually informative, because a
 `.pyc` header stores the mtime **and the byte size of the source that produced it**, and
@@ -257,7 +256,7 @@ scripts/regen_catalog.py, scripts/regen_golden.py   # regenerate committed fixtu
 scripts/regen_docs.py [name]                        # the output shown in docs/, from what it prints
 scripts/make_example_data.py                        # regenerate examples/data/*.csv
 scripts/profile_examples.py                         # the profile, alone
-scripts/read_bytecode_api.py [dir]                  # the lost interface, from history or a dir
+
 ```
 
 Every mode runs from the project root whichever directory it is invoked from. Generated
