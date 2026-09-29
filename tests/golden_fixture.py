@@ -22,7 +22,6 @@ from jobcheck import (
     validate,
     load_checks,
     load_rules,
-    render,
     row_explanation,
     summarize_outcomes,
 )
@@ -56,8 +55,9 @@ def frame() -> pd.DataFrame:
     )
 
 
-def render_all() -> dict[str, str]:
-    """Every golden view, keyed by filename, produced through the public API.
+def golden_views() -> dict[str, str]:
+    """Every golden view, keyed by filename, produced through the public API and
+    written as pandas writes CSV.
 
     Clears and reloads the registry, since the golden files are defined by the
     example check files and nothing else; callers get those checks loaded, not
@@ -75,12 +75,11 @@ def render_all() -> dict[str, str]:
                              add_columns=["source_system", "record_type", "age"])
 
     return {
-        "report_table.txt": render(report) + "\n",
-        "report.csv": render(report, fmt="csv"),
-        "report_with_skipped.txt": render(with_skipped) + "\n",
-        "report_with_extra_columns.txt": render(with_data) + "\n",
-        "row_explanation.txt": render(row_explanation(outcomes[3])) + "\n",
-        "summary.txt": render(summarize_outcomes(outcomes)) + "\n",
+        "report.csv": report.to_csv(index=False),
+        "report_with_skipped.csv": with_skipped.to_csv(index=False),
+        "report_with_extra_columns.csv": with_data.to_csv(index=False),
+        "row_explanation.csv": row_explanation(outcomes[3]).to_csv(index=False),
+        "summary.csv": summarize_outcomes(outcomes).to_csv(index=False),
     }
 
 

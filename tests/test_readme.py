@@ -191,16 +191,6 @@ def test_the_stated_runtime_dependencies_are_the_real_ones() -> None:
     assert "pandas 2.1+" in text and "PyYAML" in text
 
 
-def test_the_stated_pandas_floor_is_the_one_the_code_needs() -> None:
-    """render calls DataFrame.map, which arrived in pandas 2.1; a lower floor
-    would promise a version where every CSV render raises."""
-
-    from jobcheck import tables
-
-    assert "table.map(" in Path(tables.__file__).read_text(encoding="utf-8")
-    assert "pandas>=2.1" in declared_dependencies()
-
-
 def test_the_package_installs_the_way_the_readme_says() -> None:
     """The README tells people to pip install it; pyproject.toml is what makes that
     true, and it must agree with the package that ships."""

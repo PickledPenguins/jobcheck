@@ -28,7 +28,6 @@ from jobcheck import (
     explain_row,
     load_rules,
     registry as reg,
-    render,
     validate_row,
 )
 from jobcheck.results import Verdict, _normalize_verdict
@@ -323,18 +322,6 @@ def test_a_frame_of_the_wrong_length_says_to_pass_the_same_one(fresh_registry: N
         "outcomes cover 1 row(s) but the frame has 2: "
         "pass the same frame the outcomes were collected from."
     )
-
-
-def test_an_unknown_format_names_the_two_that_work(fresh_registry: None) -> None:
-    make_check("CODE", passes=False)
-    report = build_report(validate(FRAME), df=FRAME)
-    with pytest.raises(ValueError) as raised:
-        render(report, fmt="pdf")
-    assert message_of(raised) == "fmt must be 'table' or 'csv', got 'pdf'."
-
-
-
-
 
 
 def test_a_builder_with_a_required_keyword_argument_says_how_to_fix_it(

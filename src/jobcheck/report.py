@@ -1,5 +1,5 @@
 """Turning outcomes into tables: the failure report, a row's explanation, and the
-summary. Each is a DataFrame carrying its own title; `render` makes it text.
+summary. Each is a DataFrame carrying its own title; pandas makes it text.
 
 The report is **long format** -- one line per failed check per data row -- which
 is the diagnostic unit, survives being written as CSV, and sorts and filters

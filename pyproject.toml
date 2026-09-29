@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Chris Harris" }]
 dependencies = [
-    "pandas>=2.1",   # DataFrame.map, used when rendering a CSV report
+    "pandas>=2.1",
     "PyYAML>=6.0",
 ]
 

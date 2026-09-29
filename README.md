@@ -22,7 +22,7 @@ Not in scope, deliberately:
 ## Install
 
 - Python 3.10+ (`X | None` syntax throughout).
-- pandas 2.1+ (the CSV report uses `DataFrame.map`) and PyYAML.
+- pandas 2.1+ and PyYAML.
 
 ```sh
 git clone <this repo> && cd jobcheck
@@ -56,7 +56,7 @@ def age_above_limit(row):                         # or (row, context)
 
 ```python
 import pandas as pd
-from jobcheck import build_report, load_checks, render, validate
+from jobcheck import build_report, load_checks, validate
 
 # Your checks live in your own files; this package ships none.
 load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
@@ -67,21 +67,19 @@ df = pd.DataFrame([
     {"id": 104, "age": None, "email": "c@d.com", "start_date": "2024-01-01", "end_date": "2024-02-01"},
 ])
 outcomes = validate(df)                      # add rules=... to apply rule files
-print(render(build_report(outcomes, df=df, key_column="id")))
+print(build_report(outcomes, df=df, key_column="id").to_string(index=False))
 ```
 
 ```
-== Report ==
-row | code             | status        | layer | outcome | message          | detail | comments               | is_root_cause
-----+------------------+---------------+-------+---------+------------------+--------+------------------------+--------------
-102 | AGE_NEGATIVE     | INVALID (3)   | 2     | failed  | Age is negative  |        | minimum=0; value=-5.0  | True         
-103 | EMAIL_MISSING_AT | MALFORMED (2) | 1     | failed  | Email has no '@' |        | at_signs=0; value=nope | True         
-104 | AGE_PRESENT      | MISSING (1)   | 0     | failed  | Age is missing   |        |                        | True         
+row             code        status  layer outcome          message detail               comments  is_root_cause
+102     AGE_NEGATIVE   INVALID (3)      2  failed  Age is negative         minimum=0; value=-5.0           True
+103 EMAIL_MISSING_AT MALFORMED (2)      1  failed Email has no '@'        at_signs=0; value=nope           True
+104      AGE_PRESENT   MISSING (1)      0  failed   Age is missing                                         True
 ```
 
 - One line per failure, not one per row.
 - Every table the library builds is a DataFrame that carries its own title;
-  `render(table)` draws it under that title, and `render(table, fmt="csv")` returns
+  `table.to_string(index=False)` prints it, and `table.to_csv(index=False)` returns
   CSV to write wherever you like.
 - `add_columns=[...]` adds columns from the frame next to the row key.
 
@@ -92,19 +90,17 @@ why a check did not fire, ask about the row:
 from jobcheck import explain_row, root_causes, row_explanation
 
 row_outcomes = explain_row(df.loc[2])
-print(render(row_explanation(row_outcomes, include="blocked")))
+print(row_explanation(row_outcomes, include="blocked").to_string(index=False))
 print("root cause:", ", ".join(root_causes(row_outcomes)))
 ```
 
 ```
-== Row explanation ==
-layer | code             | outcome  | status      | detail                                     
-------+------------------+----------+-------------+--------------------------------------------
-0     | AGE_PRESENT      | failed   | MISSING (1) | Age is missing                             
-1     | AGE_NOT_A_NUMBER | skipped  | PASS (0)    | prerequisite did not pass: AGE_PRESENT     
-2     | AGE_NEGATIVE     | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER
-2     | AGE_TOO_HIGH     | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER
-2     | AGE_NOT_INTEGER  | disabled | PASS (0)    | disabled by off by default                 
+ layer             code  outcome      status                                      detail
+     0      AGE_PRESENT   failed MISSING (1)                              Age is missing
+     1 AGE_NOT_A_NUMBER  skipped    PASS (0)      prerequisite did not pass: AGE_PRESENT
+     2     AGE_NEGATIVE  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
+     2     AGE_TOO_HIGH  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
+     2  AGE_NOT_INTEGER disabled    PASS (0)                  disabled by off by default
 root cause: AGE_PRESENT
 ```
 
@@ -119,21 +115,19 @@ rows it was the root cause.
 ```python
 from jobcheck import summarize_outcomes
 
-print(render(summarize_outcomes(outcomes)))
+print(summarize_outcomes(outcomes).to_string(index=False))
 ```
 
 ```
-== Summary ==
-code                 | layer | failed | root_cause_rows | errored | skipped | disabled | passed
----------------------+-------+--------+-----------------+---------+---------+----------+-------
-AGE_NEGATIVE         | 2     | 1      | 1               | 0       | 1       | 0        | 1     
-AGE_PRESENT          | 0     | 1      | 1               | 0       | 0       | 0        | 2     
-EMAIL_MISSING_AT     | 1     | 1      | 1               | 0       | 0       | 0        | 2     
-AGE_NOT_A_NUMBER     | 1     | 0      | 0               | 0       | 1       | 0        | 2     
-AGE_TOO_HIGH         | 2     | 0      | 0               | 0       | 1       | 0        | 2     
-EMAIL_DOMAIN_INVALID | 2     | 0      | 0               | 0       | 1       | 0        | 2     
-AGE_NOT_INTEGER      | 2     | 0      | 0               | 0       | 0       | 3        | 0     
-EMAIL_PRESENT        | 0     | 0      | 0               | 0       | 0       | 0        | 3     
+                code  layer  failed  root_cause_rows  errored  skipped  disabled  passed
+        AGE_NEGATIVE      2       1                1        0        1         0       1
+         AGE_PRESENT      0       1                1        0        0         0       2
+    EMAIL_MISSING_AT      1       1                1        0        0         0       2
+    AGE_NOT_A_NUMBER      1       0                0        0        1         0       2
+        AGE_TOO_HIGH      2       0                0        0        1         0       2
+EMAIL_DOMAIN_INVALID      2       0                0        0        1         0       2
+     AGE_NOT_INTEGER      2       0                0        0        0         3       0
+       EMAIL_PRESENT      0       0                0        0        0         0       3
 ```
 
 Checks are loaded by path: `load_checks(paths)` imports the named `.py` files —

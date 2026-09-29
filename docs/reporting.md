@@ -1,9 +1,10 @@
 # Reporting
 
 How to turn a validated frame into something a person can act on. Every view is
-a function that returns a DataFrame carrying its own title, and one function,
-`render`, turns any of them into text. There is no command line to learn; a
-pipeline calls these functions and decides where the output goes.
+a function that returns a DataFrame carrying its own title, and pandas turns any of
+them into text: `to_string(index=False)` for a terminal, `to_csv(index=False)` for a
+file. There is no command line to learn; a pipeline calls these functions and decides
+where the output goes.
 
 Back to the [README](../README.md). The value types are in
 [interfaces.md](interfaces.md#data-types).
@@ -16,26 +17,24 @@ and `outcomes` is that frame validated against the age and email checks under th
 rules. Each shown output is what the block prints; a test runs every one.
 
 ```python
-from jobcheck import build_report, load_checks, render, validate
+from jobcheck import build_report, load_checks, validate
 
 load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
 outcomes = validate(df, rules=rules)
 report = build_report(outcomes, df=df, key_column="id")
-print(render(report))                      # render(report, fmt="csv") for a file
+print(report.to_string(index=False))    # report.to_csv(index=False) for a file
 ```
 
 ```
-== Report ==
-row      | code                 | status        | layer | outcome | message                            | detail | comments                       | is_root_cause
----------+----------------------+---------------+-------+---------+------------------------------------+--------+--------------------------------+--------------
-2        | AGE_NEGATIVE         | INVALID (3)   | 2     | failed  | Age is negative                    |        | minimum=0; value=-5.0          | False        
-2        | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | failed  | Email has no '@'                   |        | at_signs=0; value=broken-email | True         
-3        | AGE_TOO_HIGH         | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130) |        | maximum=130; value=200.0       | True         
-3        | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | failed  | Email domain looks malformed       |        | domain=nodotdomain             | True         
-5        | AGE_PRESENT          | MISSING (1)   | 0     | failed  | Age is missing                     |        |                                | True         
-5        | EMAIL_PRESENT        | MISSING (1)   | 0     | failed  | Email is missing                   |        |                                | True         
-<no key> | AGE_PRESENT          | MISSING (1)   | 0     | failed  | Age is missing                     |        |                                | True         
-<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | failed  | Email is missing                   |        |                                | True         
+     row                 code        status  layer outcome                            message detail                       comments  is_root_cause
+       2         AGE_NEGATIVE   INVALID (3)      2  failed                    Age is negative                 minimum=0; value=-5.0          False
+       2     EMAIL_MISSING_AT MALFORMED (2)      1  failed                   Email has no '@'        at_signs=0; value=broken-email           True
+       3         AGE_TOO_HIGH   INVALID (3)      2  failed Age is implausibly high (over 130)              maximum=130; value=200.0           True
+       3 EMAIL_DOMAIN_INVALID MALFORMED (2)      2  failed       Email domain looks malformed                    domain=nodotdomain           True
+       5          AGE_PRESENT   MISSING (1)      0  failed                     Age is missing                                                 True
+       5        EMAIL_PRESENT   MISSING (1)      0  failed                   Email is missing                                                 True
+<no key>          AGE_PRESENT   MISSING (1)      0  failed                     Age is missing                                                 True
+<no key>        EMAIL_PRESENT   MISSING (1)      0  failed                   Email is missing                                                 True
 ```
 
 ## Shape: one row per failure
@@ -80,21 +79,19 @@ immediately after `row`:
 ```python
 report = build_report(outcomes, df=df, key_column="id",
                       add_columns=["source_system", "record_type", "age"])
-print(render(report[["row", "source_system", "record_type", "age", "code", "status"]]))
+print(report[["row", "source_system", "record_type", "age", "code", "status"]].to_string(index=False))
 ```
 
 ```
-== Report ==
-row      | source_system | record_type | age | code                 | status       
----------+---------------+-------------+-----+----------------------+--------------
-2        | MODERN        | STREAM      | -5  | AGE_NEGATIVE         | INVALID (3)  
-2        | MODERN        | STREAM      | -5  | EMAIL_MISSING_AT     | MALFORMED (2)
-3        | MODERN        | STREAM      | 200 | AGE_TOO_HIGH         | INVALID (3)  
-3        | MODERN        | STREAM      | 200 | EMAIL_DOMAIN_INVALID | MALFORMED (2)
-5        |               |             |     | AGE_PRESENT          | MISSING (1)  
-5        |               |             |     | EMAIL_PRESENT        | MISSING (1)  
-<no key> |               |             |     | AGE_PRESENT          | MISSING (1)  
-<no key> |               |             |     | EMAIL_PRESENT        | MISSING (1)  
+     row source_system record_type age                 code        status
+       2        MODERN      STREAM  -5         AGE_NEGATIVE   INVALID (3)
+       2        MODERN      STREAM  -5     EMAIL_MISSING_AT MALFORMED (2)
+       3        MODERN      STREAM 200         AGE_TOO_HIGH   INVALID (3)
+       3        MODERN      STREAM 200 EMAIL_DOMAIN_INVALID MALFORMED (2)
+       5                                        AGE_PRESENT   MISSING (1)
+       5                                      EMAIL_PRESENT   MISSING (1)
+<no key>                                        AGE_PRESENT   MISSING (1)
+<no key>                                      EMAIL_PRESENT   MISSING (1)
 ```
 
 They carry the context a reader needs to judge a failure without going back to
@@ -102,7 +99,7 @@ the source file -- which system sent the row, which batch it arrived in, the
 field the check was reading. The value repeats on every failure of that row, which
 is what makes the CSV pivot cleanly.
 
-Values render like the row key: a whole float loses its `.0`, and a missing value
+Values read like the row key: a whole float loses its `.0`, and a missing value
 is blank. A name that is not in the frame, named twice, or colliding with one of
 the report's own column names is refused rather than quietly dropped or
 overwriting the report's own data.
@@ -113,23 +110,21 @@ The demo frame's fifth row holds nothing but its `id`. In a fresh process, again
 shipped age checks and no rules:
 
 ```python
-from jobcheck import explain_row, load_checks, render, root_causes, row_explanation
+from jobcheck import explain_row, load_checks, root_causes, row_explanation
 
 load_checks(["examples/checks/check_age.py"])
 row_outcomes = explain_row(df.iloc[4])
-print(render(row_explanation(row_outcomes, include="blocked")))
+print(row_explanation(row_outcomes, include="blocked").to_string(index=False))
 print("root cause:", ", ".join(root_causes(row_outcomes)))
 ```
 
 ```
-== Row explanation ==
-layer | code             | outcome  | status      | detail                                     
-------+------------------+----------+-------------+--------------------------------------------
-0     | AGE_PRESENT      | failed   | MISSING (1) | Age is missing                             
-1     | AGE_NOT_A_NUMBER | skipped  | PASS (0)    | prerequisite did not pass: AGE_PRESENT     
-2     | AGE_NEGATIVE     | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER
-2     | AGE_TOO_HIGH     | skipped  | PASS (0)    | prerequisite did not pass: AGE_NOT_A_NUMBER
-2     | AGE_NOT_INTEGER  | disabled | PASS (0)    | disabled by off by default                 
+ layer             code  outcome      status                                      detail
+     0      AGE_PRESENT   failed MISSING (1)                              Age is missing
+     1 AGE_NOT_A_NUMBER  skipped    PASS (0)      prerequisite did not pass: AGE_PRESENT
+     2     AGE_NEGATIVE  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
+     2     AGE_TOO_HIGH  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
+     2  AGE_NOT_INTEGER disabled    PASS (0)                  disabled by off by default
 root cause: AGE_PRESENT
 ```
 
@@ -147,9 +142,9 @@ checks that simply passed.
 ## Diagnosing a whole file
 
 ```python
-from jobcheck import render, summarize_outcomes
+from jobcheck import summarize_outcomes
 
-print(render(summarize_outcomes(outcomes)))
+print(summarize_outcomes(outcomes).to_string(index=False))
 ```
 
 Per check: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`,
@@ -217,7 +212,7 @@ broad_rules = rules_table(rules, add_columns=["codes"]).query("codes_hit_count >
 And for output of your own that should read like the tables:
 
 ```python
-from jobcheck import Outcome, render
+from jobcheck import Outcome
 
 # One line per failure in your own log, the status spelled as the report spells it.
 for position, row_outcomes in enumerate(outcomes):
@@ -225,36 +220,31 @@ for position, row_outcomes in enumerate(outcomes):
         if o.outcome == Outcome.FAILED:
             print(f"row {position}: {o.code} {o.status_label}")
 
-# Any frame of your own, bordered like every table here, under a title you set.
+# Any frame of your own, printed like every table here, under a title you set.
 per_source = df.groupby("source_system").size().reset_index(name="rows")
 per_source.attrs["title"] = "Rows per source"
-print(render(per_source))
+print(per_source.to_string(index=False))
 ```
 
 ## Opening the CSV in a spreadsheet
 
-Comments carry values that came from the data, and a spreadsheet runs any cell
-starting with `=`, `+`, `@`, a tab or a carriage return as a formula. CSV output
-therefore prefixes such a cell with an apostrophe, which makes it display as
-text — the standard neutralizer. A negative number keeps its minus sign. Column
-*headings* are neutralized the same way: an `add_columns` name is one of the
-data's own column names, so it can carry a formula as easily as a value can.
+The tables hold the values the checks saw, unchanged, and `to_csv` writes them as
+they are. Comments and added columns carry values from the data, and a spreadsheet
+runs any cell starting with `=`, `+`, `@`, a tab or a carriage return as a formula.
+jobcheck does not escape them. A CSV of data you do not trust belongs in a viewer that
+executes nothing, such as `csvlook`, or behind an escape of your own before a
+spreadsheet opens it.
 
-Nothing is escaped in the table view, which cannot execute anything, and the
-outcomes themselves always hold the value the check actually saw. There is no
-switch for it: a report is written to be opened by a person, and a CSV that can
-execute on open is not one.
-
-`render(frame, fmt="csv")` applies the same guard to any frame -- the data, say,
-with a column flagging the rows that failed:
+The same holds for a frame of your own -- the data, say, with a column flagging the
+rows that failed:
 
 ```python
 from pathlib import Path
 
-from jobcheck import Outcome, render
+from jobcheck import Outcome
 
 failed = [any(o.outcome == Outcome.FAILED for o in row_outcomes) for row_outcomes in outcomes]
-Path("flagged.csv").write_text(render(df.assign(failed=failed), fmt="csv"))
+Path("flagged.csv").write_text(df.assign(failed=failed).to_csv(index=False))
 ```
 
 ## Which columns a table shows
@@ -289,61 +279,58 @@ debug = False                       # your run's own flag
 report = build_report(outcomes, df=df, key_column="id")
 if not debug:
     report = report.drop(columns=["comments", "detail", "layer"])
-print(render(report))
+print(report.to_string(index=False))
 ```
 ```
-== Report ==
-row      | code                 | status        | outcome | message                            | is_root_cause
----------+----------------------+---------------+---------+------------------------------------+--------------
-2        | AGE_NEGATIVE         | INVALID (3)   | failed  | Age is negative                    | False        
-2        | EMAIL_MISSING_AT     | MALFORMED (2) | failed  | Email has no '@'                   | True         
-3        | AGE_TOO_HIGH         | INVALID (3)   | failed  | Age is implausibly high (over 130) | True         
-3        | EMAIL_DOMAIN_INVALID | MALFORMED (2) | failed  | Email domain looks malformed       | True         
-5        | AGE_PRESENT          | MISSING (1)   | failed  | Age is missing                     | True         
-5        | EMAIL_PRESENT        | MISSING (1)   | failed  | Email is missing                   | True         
-<no key> | AGE_PRESENT          | MISSING (1)   | failed  | Age is missing                     | True         
-<no key> | EMAIL_PRESENT        | MISSING (1)   | failed  | Email is missing                   | True         
+     row                 code        status outcome                            message  is_root_cause
+       2         AGE_NEGATIVE   INVALID (3)  failed                    Age is negative          False
+       2     EMAIL_MISSING_AT MALFORMED (2)  failed                   Email has no '@'           True
+       3         AGE_TOO_HIGH   INVALID (3)  failed Age is implausibly high (over 130)           True
+       3 EMAIL_DOMAIN_INVALID MALFORMED (2)  failed       Email domain looks malformed           True
+       5          AGE_PRESENT   MISSING (1)  failed                     Age is missing           True
+       5        EMAIL_PRESENT   MISSING (1)  failed                   Email is missing           True
+<no key>          AGE_PRESENT   MISSING (1)  failed                     Age is missing           True
+<no key>        EMAIL_PRESENT   MISSING (1)  failed                   Email is missing           True
 ```
 
-A dropped column is gone from the CSV too, since both formats render the frame they
+A dropped column is gone from the CSV too, since both formats write the frame they
 are given.
 
 ## Every table names itself
 
-Every table carries its title in `table.attrs["title"]`, and `render` prints it as
-a heading bar, so tables printed one after another stay apart without a label from
-the caller:
-
-```
-== Rules ==
-== Registry ==
-== Report ==
-== Row explanation ==
-== Summary ==
-```
+Every table carries its title in `table.attrs["title"]` -- `Report`, `Row
+explanation`, `Summary`, `Registry` or `Rules` -- so a caller printing several can
+head each without naming it. The example entry points print it as a bar, `== Report
+==`, above the table.
 
 The title survives selecting columns, filtering rows, sorting and `head`; merging
-or concatenating with an untitled frame drops it, and the table then renders with
-no bar. Set `frame.attrs["title"]` on a frame of your own to give it one. CSV gets
-no heading at all: a line above CSV makes it unparseable.
+or concatenating with an untitled frame drops it. Set `frame.attrs["title"]` on a
+frame of your own to give it one. Keep it out of a CSV: a line above CSV makes it
+unparseable.
 
 ## Formats and files
 
 ```python
 from pathlib import Path
 
-render(report)                              # bordered text; long text columns wrapped
-render(report, fmt="csv")                   # same columns, unwrapped, formula-escaped
-Path("report.csv").write_text(render(report, fmt="csv"))
+report.to_string(index=False)                   # aligned text for a terminal
+report.to_csv(index=False)                      # the same columns as CSV
+Path("report.csv").write_text(report.to_csv(index=False))
 ```
 
-`render` returns a string, so where it goes — the terminal, a file, a log line, an
-email body — is the caller's choice. The bordered form shows every control character
-a terminal would act on as its escape — `\x1b` rather than ESC — so a cell from the
-data cannot erase lines or move the cursor over the report; the CSV keeps the data as
-it is. `fmt` is validated: anything but `table` or
-`csv` raises. An empty table renders as its title over `(empty)`, or as the CSV
-header row alone.
+Both return a string, so where it goes — the terminal, a file, a log line, an email
+body — is the caller's choice. Any other pandas writer works the same way.
+
+- **Use `to_string()`, not `print(report)`.** Printing a frame directly shows only the
+  first and last rows of a long one, so most of a report's failures would be hidden.
+- **Nothing is escaped.** A cell holding a terminal control sequence acts on the
+  terminal it is printed to, and a line break inside a cell shows as `\n` in
+  `to_string`. Pipe the CSV through `csvlook` or `cat -v` when the data is not yours.
+- **Long text is not wrapped.** A report line with a long message or comments runs
+  past the terminal's width; `to_csv` piped into `csvlook` or a spreadsheet reads
+  better for wide reports.
+- An empty table prints pandas' `Empty DataFrame` notice from `to_string`, or the
+  header row alone from `to_csv`.
 
 ## What to include
 

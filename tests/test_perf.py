@@ -21,7 +21,7 @@ import pytest
 
 from conftest import make_check
 from perf_baseline import compare
-from jobcheck import render, validate, validate_row, registry as reg
+from jobcheck import validate, validate_row, registry as reg
 from jobcheck import report as rep
 
 pytestmark = pytest.mark.perf
@@ -66,12 +66,6 @@ def test_building_a_report_has_not_got_slower(example_checks: None) -> None:
     df = frame()
     outcomes = validate(df)
     gate("build_report/4000", lambda: rep.build_report(outcomes, df=df, key_column=None))
-
-
-def test_rendering_a_report_has_not_got_slower(example_checks: None) -> None:
-    df = frame()
-    report = rep.build_report(validate(df), df=df)
-    gate("render/4000", lambda: render(report, fmt="csv"))
 
 
 def test_summarizing_has_not_got_slower(example_checks: None) -> None:

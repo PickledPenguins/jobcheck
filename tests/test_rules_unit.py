@@ -13,7 +13,7 @@ from jobcheck import registry as reg
 from jobcheck import rules
 from jobcheck import engine
 from jobcheck import registry_tables
-from jobcheck import render
+
 from jobcheck.results import Outcome
 from jobcheck.rules import _MatchCriterion
 
@@ -387,21 +387,6 @@ def test_the_codes_column_lists_every_code_a_rule_touches(one_code: None, tmp_pa
 def test_the_codes_column_appears_only_when_asked_for(one_code: None, tmp_path: Path) -> None:
     loaded = reg.load_rules([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])
     assert "codes" not in registry_tables.rules_table(loaded).columns
-
-
-def test_the_rules_table_wraps_a_long_codes_column(one_code: None, tmp_path: Path) -> None:
-    codes = [f"CODE_NUMBER_{i:02d}" for i in range(6)]
-    for code in codes:
-        make_check(code)
-    path = write(tmp_path, "r.yaml",
-                 '- name: "broad"\n  message: "why"\n  action: disable\n'
-                 f"  codes: [{', '.join(codes)}]\n  match: all\n")
-    table = registry_tables.rules_table(reg.load_rules([path]), add_columns=["codes"])
-    lines = render(table).splitlines()[1:]
-    assert all(any(code in line for line in lines) for code in codes)
-    # Six codes of 14 characters wrapped at 40 is at most two per line: the one
-    # rule is a tall row, not a wide one.
-    assert len(lines) == 2 + 3
 
 
 # --- matching and precedence ------------------------------------------------

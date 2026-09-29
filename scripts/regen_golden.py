@@ -17,11 +17,11 @@ sys.path.insert(0, str(ROOT / "examples"))
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from golden_fixture import render_all, write_golden  # noqa: E402
+from golden_fixture import golden_views, write_golden  # noqa: E402
 
 
 def main() -> int:
-    for name, text in render_all().items():
+    for name, text in golden_views().items():
         write_golden(name, text)
         print(f"tests/golden/{name}: {len(text)} bytes")
     return 0

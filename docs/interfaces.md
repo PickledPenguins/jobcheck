@@ -69,7 +69,8 @@ Each returns warning lines and raises nothing; an empty list means no problem.
 
 **Reporting**
 
-Every table is a DataFrame titled in `attrs["title"]`; `render` prints any of them.
+Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
+(`to_string(index=False)`, `to_csv(index=False)`).
 
 | Name | Required | Optional (default) | Returns | What it does |
 |---|---|---|---|---|
@@ -78,7 +79,6 @@ Every table is a DataFrame titled in `attrs["title"]`; `render` prints any of th
 | [`summarize_outcomes`](#summarize_outcomesframe_outcomes---dataframe) | `frame_outcomes` | – | DataFrame `Summary` | Per-check counts across all rows: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`. Takes complete lists (not `validate_row`'s), a generator included. |
 | [`registry_table`](#registry_tablerulesnone-add_columnsnone---dataframe) | – | `rules=None`, `add_columns=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `message`, `depends_on`. On request: `source_file`, and from `rules`, `could_be_overridden_by` and `effective_state`. |
 | [`rules_table`](#rules_tablerules-add_columnsnone---dataframe) | `rules` | `add_columns=None` | DataFrame `Rules` | One line per rule: `name`, `action`, `codes_hit_count`, `match`, `message`. On request: `codes`, `source_file`. |
-| [`render`](#rendertable-fmttable---str) | `table` | `fmt="table"` | `str` | Any of the tables above as text: bordered under its title, or `fmt="csv"` with formula-like cells escaped. |
 | [`render_comments`](#render_commentscomments---str) | `comments` | – | `str` | A check's comments as `key=value; key=value`, sorted by key; empty for no comments. |
 
 **Types and constants**
@@ -431,7 +431,7 @@ they appear.<sup>[14](reporting.md#cost)</sup>
 ## Reporting
 
 Every view is a DataFrame whose `attrs["title"]` names it — `Report`,
-`Row explanation`, `Summary`, `Registry`, `Rules` — and `render` turns any of them
+`Row explanation`, `Summary`, `Registry`, `Rules` — and pandas turns any of them
 into text. The columns each shows by default are its entry in `_DEFAULT_COLUMNS` in
 `src/jobcheck/tables.py`, the one place they are set; see
 [reporting.md](reporting.md#which-columns-a-table-shows).
@@ -509,25 +509,11 @@ Both registry tables take `add_columns`, the same argument `build_report` takes 
 columns of the data: the names you want beyond the default columns, refused rather
 than ignored when the name is not on offer.
 
-### `render(table, fmt="table") -> str`
-
-Any table as text. `"table"` draws it bordered under a `== Title ==` bar taken from
-`table.attrs["title"]` (no bar when the frame has none), with long free-text columns
-wrapped; `"csv"` returns CSV with no heading, escaping any cell or column name a
-spreadsheet would run as a formula. Anything else raises `ValueError`.<sup>[18](reporting.md#opening-the-csv-in-a-spreadsheet)</sup> An empty
-table renders as its title over `(empty)`, or the CSV header alone.
-
-Cells are read by position: a duplicated column label renders each column's own
-values, and an all-numeric frame keeps its integers as integers rather than `1.0`. A
-cell holding line breaks (`\n`, `\r\n`, `\r` or a form feed) renders as a tall cell
-rather than breaking the row, and tabs are expanded — a quoted multi-line CSV field
-reaching the row key or an `add_columns` value is the usual way one arrives.
-
 ### `is_null(value) -> bool`
 
-The null check both the engine and the renderer use — reach for it in your own
+The null check the engine and the tables use — reach for it in your own
 checks too, since `NaN` is truthy and `pd.isna` returns an array for list-like
-values. `None`, `NaN`, `NaT` and `pd.NA` are null; a list or an array never is.<sup>[19](writing-checks.md#reading-a-value-safely)</sup>
+values. `None`, `NaN`, `NaT` and `pd.NA` are null; a list or an array never is.<sup>[18](writing-checks.md#reading-a-value-safely)</sup>
 
 ## Error messages
 
@@ -570,7 +556,6 @@ the call named.
 | `build_report` | `key_column '<name>' is not in the data. Available columns: <columns>.` |
 | `build_report` | `key_column '<name>' appears 2 times in the data: df[key_column] is then a table rather than a column, and every row would be labeled with the column name. Rename or drop the duplicate columns.` |
 | any table's `add_columns` | `add_columns ['<name>'] cannot be used for <table>. Each name must be asked for once and be one of: <columns>.` |
-| `render` | `fmt must be 'table' or 'csv', got '<value>'.` |
 ## Stability
 
 Pre-1.0: the API may change between versions. The parts most likely to stay fixed
@@ -598,5 +583,4 @@ schema, since data written against them outlives the code.
 | 15 | [reporting.md: What to include](reporting.md#what-to-include) | the three levels, with output |
 | 16 | [reporting.md: Diagnosing a whole file](reporting.md#diagnosing-a-whole-file) | reading the summary |
 | 17 | [reporting.md: Working with the tables](reporting.md#working-with-the-tables) | filtering and printing the tables |
-| 18 | [reporting.md: Opening the CSV](reporting.md#opening-the-csv-in-a-spreadsheet) | what is escaped, and why |
-| 19 | [writing-checks.md: Reading a value safely](writing-checks.md#reading-a-value-safely) | `is_null` in a check |
+| 18 | [writing-checks.md: Reading a value safely](writing-checks.md#reading-a-value-safely) | `is_null` in a check |

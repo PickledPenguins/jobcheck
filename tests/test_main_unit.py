@@ -79,7 +79,7 @@ def test_a_csv_file_is_validated_instead_of_the_demo_frame(fresh_registry: None,
 
 
 def test_a_clean_file_reports_no_failures(fresh_registry: None, capsys: Any) -> None:
-    assert "== Report ==\n(empty)" in run(capsys, "--data", CLEAN)
+    assert "== Report ==\nEmpty DataFrame" in run(capsys, "--data", CLEAN)
 
 
 def test_a_missing_data_file_exits_two(fresh_registry: None, capsys: Any) -> None:
@@ -225,12 +225,13 @@ def test_write_puts_the_printed_report_in_a_file(fresh_registry: None, capsys: A
 def test_write_uses_the_report_format_rather_than_the_extension(fresh_registry: None,
                                                                 capsys: Any,
                                                                 tmp_path: Path) -> None:
-    """`--report table --write out.csv` writes the bordered table. The flag
+    """`--report table --write out.csv` writes the titled table. The flag
     chooses the format; the file name is just a name."""
 
     target = tmp_path / "report.csv"
     run(capsys, "--data", SMALL, "--write", str(target))
-    assert target.read_text(encoding="utf-8").startswith("== Report ==\nrow ")
+    assert target.read_text(encoding="utf-8").startswith("== Report ==\n")
+    assert "row,code" not in target.read_text(encoding="utf-8")
 
 
 def test_write_replaces_a_file_that_is_already_there(fresh_registry: None, capsys: Any,

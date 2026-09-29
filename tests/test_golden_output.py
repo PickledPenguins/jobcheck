@@ -3,8 +3,8 @@
 The catalog already pins what `examples/main.py` prints, but that output carries the
 registry tables and the demo preamble around it, so a change to the report shows
 up as a diff in a 9 KB file. These are tight: one view per file, produced through
-the public API from the fixed inputs in `tests/golden_fixture.py`, so a diff
-points straight at what moved.
+the public API from the fixed inputs in `tests/golden_fixture.py` and written as
+CSV, so a diff points straight at the value that moved.
 
 Regenerate with `python3 scripts/regen_golden.py` after an intended change, then
 read the diff.
@@ -16,24 +16,23 @@ from pathlib import Path
 
 import pytest
 
-from golden_fixture import CHECK_FILES, GOLDEN_DIR, ROOT, frame, read_golden, render_all
+from golden_fixture import CHECK_FILES, GOLDEN_DIR, ROOT, frame, read_golden, golden_views
 from jobcheck import (
     build_report,
     validate,
     load_checks,
     load_rules,
-    render,
 )
 
 pytestmark = pytest.mark.fast
 
-GOLDEN_FILES = ["report_table.txt", "report.csv", "report_with_skipped.txt",
-                "report_with_extra_columns.txt", "row_explanation.txt", "summary.txt"]
+GOLDEN_FILES = ["report.csv", "report_with_skipped.csv", "report_with_extra_columns.csv",
+                "row_explanation.csv", "summary.csv"]
 
 
 @pytest.mark.parametrize("name", GOLDEN_FILES)
 def test_output_matches_its_golden_file(fresh_registry: None, name: str) -> None:
-    assert render_all()[name] == read_golden(name)
+    assert golden_views()[name] == read_golden(name)
 
 
 def test_every_golden_file_is_accounted_for() -> None:
@@ -52,15 +51,15 @@ def test_the_golden_report_shows_every_outcome_the_report_can_carry(
 ) -> None:
     """The fixture earns its place only if it exercises the whole shape."""
 
-    text = read_golden("report_with_skipped.txt")
+    text = read_golden("report_with_skipped.csv")
     for fragment in ("failed", "skipped", "disabled", "MISSING (1)", "MALFORMED (2)",
                      "INVALID (3)", "<no key>", "True", "False"):
         assert fragment in text, f"the golden frame no longer produces {fragment}"
 
 
 def test_the_data_columns_golden_shows_them_next_to_the_row_key() -> None:
-    header = read_golden("report_with_extra_columns.txt").splitlines()[1]
-    assert [part.strip() for part in header.split(" | ")[:5]] == [
+    header = read_golden("report_with_extra_columns.csv").splitlines()[0]
+    assert header.split(",")[:5] == [
         "row", "source_system", "record_type", "age", "code"
     ]
 
@@ -68,8 +67,8 @@ def test_the_data_columns_golden_shows_them_next_to_the_row_key() -> None:
 def test_a_written_file_is_byte_for_byte_the_golden_csv(
     fresh_registry: None, tmp_path: Path
 ) -> None:
-    """Pins the file on disk, not just the string: the rendered CSV written the
-    way `examples/main.py --write` writes it keeps `\\n` line endings."""
+    """Pins the file on disk, not just the string: the CSV written the way
+    `examples/main.py --write` writes it keeps `\\n` line endings."""
 
     load_checks([str(ROOT / path) for path in CHECK_FILES])
     rules = load_rules([str(ROOT / "examples/rules/error_rules.yaml")])
@@ -77,11 +76,11 @@ def test_a_written_file_is_byte_for_byte_the_golden_csv(
     report = build_report(validate(df, rules=rules), df=df, key_column="id")
 
     path = tmp_path / "report.csv"
-    path.write_text(render(report, fmt="csv"), encoding="utf-8", newline="")
+    path.write_text(report.to_csv(index=False), encoding="utf-8", newline="")
     written = path.read_bytes()
 
     assert written.decode("utf-8") == read_golden("report.csv")
-    assert b"\r\n" not in written, "csv.writer's \\r\\n must not survive render"
+    assert b"\r\n" not in written, "csv.writer's \\r\\n must not reach the file"
 
 
 def test_the_golden_csv_parses_back_into_the_same_frame(fresh_registry: None) -> None:

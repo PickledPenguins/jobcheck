@@ -118,18 +118,18 @@ def test_an_adopter_gets_only_their_own_checks(tmp_path: Path) -> None:
 
 
 def test_an_adopter_can_produce_a_report(tmp_path: Path) -> None:
-    """The whole journey from outside: load, validate, render, write."""
+    """The whole journey from outside: load, validate, build the report, write."""
 
     home = adopter_package(tmp_path)
     result = run_isolated(
         "import pandas as pd\n"
         "from pathlib import Path\n"
-        "from jobcheck import build_report, validate, load_checks, render\n"
+        "from jobcheck import build_report, validate, load_checks\n"
         "load_checks(['their_checks/check_theirs.py'])\n"
         "df = pd.DataFrame([{'id': 1, 'field': 'x'}, {'id': 2, 'field': None}])\n"
         "report = build_report(validate(df), df=df, key_column='id')\n"
-        "Path('report.csv').write_text(render(report, fmt='csv'))\n"
-        "print(render(report, fmt='csv').splitlines()[1])\n",
+        "Path('report.csv').write_text(report.to_csv(index=False))\n"
+        "print(report.to_csv(index=False).splitlines()[1])\n",
         cwd=home,
         extra_path=[home],
     )

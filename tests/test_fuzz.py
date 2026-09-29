@@ -27,7 +27,6 @@ from jobcheck import (
     validate,
     load_rules,
     registry as reg,
-    render,
 )
 from jobcheck.results import Outcome
 
@@ -167,11 +166,11 @@ def test_the_engine_holds_its_invariants_on_generated_frames(example_checks: Non
                 assert cause == tied[0], f"seed {SEED} case {case}: tie broken arbitrarily"
 
 
-def test_rendering_survives_whatever_a_check_puts_in_its_comments(
+def test_the_report_survives_whatever_a_check_puts_in_its_comments(
     example_checks: None,
 ) -> None:
-    """Comments carry data, and data is hostile: the renderer must not raise, and
-    the table must stay rectangular."""
+    """Comments carry data, and data is hostile: building the report must not
+    raise, and its CSV must read back with every row."""
 
     rng = random.Random(SEED + 1)
     for case in range(100):
@@ -181,11 +180,7 @@ def test_rendering_survives_whatever_a_check_puts_in_its_comments(
         frame = random_frame(rng)
         report = build_report(validate(frame), df=frame)
 
-        text = render(report)
-        widths = {len(line) for line in text.splitlines()[1:]}
-        assert len(widths) == 1, f"seed {SEED} case {case}: table is ragged"
-
-        csv = render(report, fmt="csv")
+        csv = report.to_csv(index=False)
         reparsed = pd.read_csv(pd.io.common.StringIO(csv), dtype=str)
         assert list(reparsed.columns) == list(report.columns)
         assert len(reparsed) == len(report), f"seed {SEED} case {case}: csv lost a row"

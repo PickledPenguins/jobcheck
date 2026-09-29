@@ -1,34 +1,31 @@
 Loaded 1 rule(s) from 1 file(s)
 
 == Registry ==
-code                 | layer | default | message                                 | depends_on       | could_be_overridden_by              
----------------------+-------+---------+-----------------------------------------+------------------+-------------------------------------
-AGE_PRESENT          | 0     | ON      | Age is missing                          | -                | -                                   
-DATES_PRESENT        | 0     | ON      | Both start_date and end_date are needed | -                | -                                   
-EMAIL_PRESENT        | 0     | ON      | Email is missing                        | -                | -                                   
-ROW_ALL_NULL         | 0     | ON      | Row is entirely empty                   | -                | -                                   
-AGE_NOT_A_NUMBER     | 1     | ON      | Age is not a number                     | AGE_PRESENT      | -                                   
-DATES_OUT_OF_ORDER   | 1     | ON      | start_date is after end_date            | DATES_PRESENT    | -                                   
-EMAIL_MISSING_AT     | 1     | ON      | Email has no '@'                        | EMAIL_PRESENT    | -                                   
-AGE_NEGATIVE         | 2     | ON      | Age is negative                         | AGE_NOT_A_NUMBER | -                                   
-AGE_NOT_INTEGER      | 2     | OFF     | Age is not a whole number               | AGE_NOT_A_NUMBER | enable_legacy_integer_check_by_topic
-                     |       |         |                                         |                  | (enable)                            
-AGE_TOO_HIGH         | 2     | ON      | Age is implausibly high (over 130)      | AGE_NOT_A_NUMBER | -                                   
-EMAIL_DOMAIN_INVALID | 2     | ON      | Email domain looks malformed            | EMAIL_MISSING_AT | -                                   
+                code  layer default                                 message       depends_on                        could_be_overridden_by
+         AGE_PRESENT      0      ON                          Age is missing                -                                             -
+       DATES_PRESENT      0      ON Both start_date and end_date are needed                -                                             -
+       EMAIL_PRESENT      0      ON                        Email is missing                -                                             -
+        ROW_ALL_NULL      0      ON                   Row is entirely empty                -                                             -
+    AGE_NOT_A_NUMBER      1      ON                     Age is not a number      AGE_PRESENT                                             -
+  DATES_OUT_OF_ORDER      1      ON            start_date is after end_date    DATES_PRESENT                                             -
+    EMAIL_MISSING_AT      1      ON                        Email has no '@'    EMAIL_PRESENT                                             -
+        AGE_NEGATIVE      2      ON                         Age is negative AGE_NOT_A_NUMBER                                             -
+     AGE_NOT_INTEGER      2     OFF               Age is not a whole number AGE_NOT_A_NUMBER enable_legacy_integer_check_by_topic (enable)
+        AGE_TOO_HIGH      2      ON      Age is implausibly high (over 130) AGE_NOT_A_NUMBER                                             -
+EMAIL_DOMAIN_INVALID      2      ON            Email domain looks malformed EMAIL_MISSING_AT                                             -
 
 == Report ==
-row      | code                 | status        | layer | outcome | message                                 | detail | comments                                   | is_root_cause
----------+----------------------+---------------+-------+---------+-----------------------------------------+--------+--------------------------------------------+--------------
-2        | AGE_NEGATIVE         | INVALID (3)   | 2     | failed  | Age is negative                         |        | minimum=0; value=-5.0                      | False        
-2        | DATES_OUT_OF_ORDER   | INVALID (3)   | 1     | failed  | start_date is after end_date            |        | end_date=2024-03-01; start_date=2024-05-01 | True         
-2        | EMAIL_MISSING_AT     | MALFORMED (2) | 1     | failed  | Email has no '@'                        |        | at_signs=0; value=broken-email             | True         
-3        | AGE_TOO_HIGH         | INVALID (3)   | 2     | failed  | Age is implausibly high (over 130)      |        | maximum=130; value=200.0                   | True         
-3        | EMAIL_DOMAIN_INVALID | MALFORMED (2) | 2     | failed  | Email domain looks malformed            |        | domain=nodotdomain                         | True         
-4        | AGE_NOT_INTEGER      | INVALID (3)   | 2     | failed  | Age is not a whole number               |        | value=41.5                                 | True         
-5        | AGE_PRESENT          | MISSING (1)   | 0     | failed  | Age is missing                          |        |                                            | True         
-5        | DATES_PRESENT        | MISSING (1)   | 0     | failed  | Both start_date and end_date are needed |        | columns=start_date, end_date               | True         
-5        | EMAIL_PRESENT        | MISSING (1)   | 0     | failed  | Email is missing                        |        |                                            | True         
-<no key> | ROW_ALL_NULL         | MISSING (1)   | 0     | failed  | Row is entirely empty                   |        | columns=7                                  | True         
-<no key> | AGE_PRESENT          | MISSING (1)   | 0     | failed  | Age is missing                          |        |                                            | True         
-<no key> | DATES_PRESENT        | MISSING (1)   | 0     | failed  | Both start_date and end_date are needed |        | columns=start_date, end_date               | True         
-<no key> | EMAIL_PRESENT        | MISSING (1)   | 0     | failed  | Email is missing                        |        |                                            | True         
+     row                 code        status  layer outcome                                 message detail                                   comments  is_root_cause
+       2         AGE_NEGATIVE   INVALID (3)      2  failed                         Age is negative                             minimum=0; value=-5.0          False
+       2   DATES_OUT_OF_ORDER   INVALID (3)      1  failed            start_date is after end_date        end_date=2024-03-01; start_date=2024-05-01           True
+       2     EMAIL_MISSING_AT MALFORMED (2)      1  failed                        Email has no '@'                    at_signs=0; value=broken-email           True
+       3         AGE_TOO_HIGH   INVALID (3)      2  failed      Age is implausibly high (over 130)                          maximum=130; value=200.0           True
+       3 EMAIL_DOMAIN_INVALID MALFORMED (2)      2  failed            Email domain looks malformed                                domain=nodotdomain           True
+       4      AGE_NOT_INTEGER   INVALID (3)      2  failed               Age is not a whole number                                        value=41.5           True
+       5          AGE_PRESENT   MISSING (1)      0  failed                          Age is missing                                                             True
+       5        DATES_PRESENT   MISSING (1)      0  failed Both start_date and end_date are needed                      columns=start_date, end_date           True
+       5        EMAIL_PRESENT   MISSING (1)      0  failed                        Email is missing                                                             True
+<no key>         ROW_ALL_NULL   MISSING (1)      0  failed                   Row is entirely empty                                         columns=7           True
+<no key>          AGE_PRESENT   MISSING (1)      0  failed                          Age is missing                                                             True
+<no key>        DATES_PRESENT   MISSING (1)      0  failed Both start_date and end_date are needed                      columns=start_date, end_date           True
+<no key>        EMAIL_PRESENT   MISSING (1)      0  failed                        Email is missing                                                             True

@@ -30,8 +30,9 @@ usage: main.py [-h] [--data PATH] [--rules [PATH ...]] [--report {table,csv}]
 No positional arguments. Nothing is read from stdin. Results go to stdout; the column
 warnings, every `error:` line and uncaught exceptions go to stderr. The rule
 warnings `--rules-table` prints go to stdout, under the table they describe. Every table
-prints under its own heading — `== Registry ==` — which `jobcheck.render` takes from the
-table itself. The CSV report is the exception and has no heading, so it stays parseable.
+prints under its own heading — `== Registry ==` — taken from the table's
+`attrs["title"]`, above pandas' `to_string(index=False)`. The CSV report is the exception
+and has no heading, so it stays parseable.
 
 The check files are named in the entry point itself, as `CHECK_FILES`, and are not
 selectable from the command line: which checks a pipeline runs is a property of the
@@ -99,10 +100,11 @@ defines is an error, not a silent skip.<sup>[3](configuration.md#errors)</sup>
 
 ### `--report {table,csv}`
 
-Optional, default `table`. Format of the failure report: bordered text with the message
-and comments wrapped, or CSV with the same columns unwrapped. Both come from
-`jobcheck.render`; the flag only chooses which. A report with no failures prints
-`(empty)` under its heading, or the CSV header row alone.
+Optional, default `table`. Format of the failure report: pandas' aligned text
+(`to_string(index=False)`) under its heading, or CSV (`to_csv(index=False)`) with the
+same columns. Neither wraps long text or escapes anything in a cell. A report with no
+failures prints pandas' `Empty DataFrame` notice under its heading, or the CSV header row
+alone.
 
 ### `--explain ROW`
 
@@ -146,8 +148,8 @@ With `--rules` passed no paths, there are no rules and the table is empty.
 Optional. After printing the report, also write it to *PATH* in the `--report` format,
 creating or replacing the file, then print how many rows were written. It is the same
 report frame that was printed, so the file and the terminal cannot disagree — `--report
-csv --write out.csv` is the pairing that gets the failures into a spreadsheet, and the CSV
-is written with the leading-formula guard `jobcheck.render` applies to CSV.<sup>[6](reporting.md#opening-the-csv-in-a-spreadsheet)</sup>
+csv --write out.csv` is the pairing that gets the failures into a spreadsheet or
+`csvlook`. The CSV holds the data as it is, formula-like cells included.<sup>[6](reporting.md#opening-the-csv-in-a-spreadsheet)</sup>
 
 The directory is checked before anything is loaded or validated: `--write` into a
 directory that does not exist prints `error: cannot write <path>: no directory <dir>` to
@@ -235,7 +237,7 @@ Each entry of `tables` names one `table` and the options it takes, which are the
 functions' own argument names -- except `drop_columns`, which the script applies to the
 built table with pandas (`table.drop(columns=...)`):
 
-| `table` | Options | Built with, then printed with `render` |
+| `table` | Options | Built with, then printed as `main.py` prints it |
 |---|---|---|
 | `registry` | `add_columns`, `drop_columns` | `registry_table`, handed the loaded rules |
 | `rules` | `add_columns`, `drop_columns` | `rules_table`, then a `warning:` line per shadowed rule and code, and per disabled code with dependents |
@@ -246,8 +248,9 @@ A rule naming a column the data lacks is warned about on stderr, as `main.py` do
 
 Every problem with the run file prints `error: <run file>: <what>` to stderr and exits 2,
 with nothing on stdout. Its shape — keys, types, table names, options — is checked before
-anything is loaded. Whether a column, an `include` level or a `format` exists is the
-library's to say, so those are found once the tables are built; the tables are built before
+anything is loaded. Whether a column or an `include` level exists is the library's to
+say, and whether a `format` exists is `main.table_text`'s, so those are found once the
+tables are built; the tables are built before
 any of them prints, so a refused second table does not leave the first on the screen. The
 message names the entry by position: `table 2 (report): add_columns ['phone'] cannot be used
 for the report. ...`. A setup file the library refuses raises its own `ValueError` and exits
@@ -295,6 +298,7 @@ setup file, a check file — raises its own `ValueError` instead, listed in
 | a column option not a list | `error: run.yaml: table 1 (report): 'add_columns' must be a list of column names. Write it as a list even for one column.` |
 | a text option not text | `error: run.yaml: table 1 (report): 'key_column' must be a string, got list.` |
 | an option the library refuses | `error: run.yaml: table 2 (report): <the library's message>` |
+| an unknown `format` | `error: run.yaml: table 1 (report): fmt must be 'table' or 'csv', got 'xml'.` |
 ## Exit codes
 
 The three entry points share one table. Exit 2 is theirs, raised deliberately with an
@@ -316,4 +320,4 @@ and argparse's refusals are 2 as well.
 | 3 | [configuration.md: Errors](configuration.md#errors) | every rule file message, quoted |
 | 4 | [reporting.md: Diagnosing one row](reporting.md#diagnosing-one-row) | reading a row's explanation, with `PASS (0)` on lines that did not fail |
 | 5 | [reporting.md: Diagnosing a whole file](reporting.md#diagnosing-a-whole-file) | reading the summary's columns |
-| 6 | [reporting.md: Opening the CSV](reporting.md#opening-the-csv-in-a-spreadsheet) | what is escaped, and why |
+| 6 | [reporting.md: Opening the CSV](reporting.md#opening-the-csv-in-a-spreadsheet) | formula-like cells, and where to view untrusted data |

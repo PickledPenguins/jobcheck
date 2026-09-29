@@ -18,7 +18,8 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
 
-from jobcheck import load_checks, registry_table, render  # noqa: E402
+from jobcheck import load_checks, registry_table  # noqa: E402
+from main import table_text  # noqa: E402
 
 #: The bundle loaded when the command line names none.
 DEFAULT_BUNDLE = os.path.join(PROJECT_ROOT, "examples/checks/all_checks.py")
@@ -48,7 +49,7 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
 
     load_checks([args.bundle])
-    print(render(registry_table(add_columns=["source_file"])))
+    print(table_text(registry_table(add_columns=["source_file"])))
 
 
 if __name__ == "__main__":

@@ -5,12 +5,11 @@ from __future__ import annotations
 import re
 import time
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 import pytest
 
-from conftest import enabled_only, make_check, one_row_report
+from conftest import enabled_only, make_check
 from jobcheck import registry as reg
 from jobcheck import engine
 from jobcheck.rules import _MatchCriterion
@@ -104,72 +103,7 @@ def test_an_ndarray_cell_does_not_break_rule_matching(one_code: None) -> None:
     assert enabled_only(engine._resolve_enabled_state(row, [rule]))["A_CODE"] is True
 
 
-# --- reports opened in a spreadsheet ---------------------------------------
-
-
-@pytest.mark.parametrize(
-    "message",
-    [
-        pytest.param("=cmd|' /c calc'!A1", id="equals"),
-        pytest.param("+1+1", id="plus"),
-        pytest.param("@SUM(A1)", id="at"),
-        pytest.param("-cmd", id="minus-not-a-number"),
-        pytest.param("\tstarts-with-tab", id="tab"),
-    ],
-)
-def test_a_formula_cell_is_neutralized_in_csv(fresh_registry: None, message: str) -> None:
-    """A report is meant to be opened in a spreadsheet, and comments carry values
-    that came from the data, so a formula in a cell would execute on open."""
-
-    from jobcheck import render
-
-    csv = render(one_row_report({}, message=message), fmt="csv")
-    assert f",'{message}," in csv or f",'{message}\n" in csv or f"'{message}" in csv
-    assert f",{message}," not in csv
-
-
-def test_a_negative_number_keeps_its_minus_sign(fresh_registry: None) -> None:
-    from jobcheck.tables import _escape_for_spreadsheet
-
-    assert _escape_for_spreadsheet("-5") == "-5"
-    assert _escape_for_spreadsheet("-5.25") == "-5.25"
-    assert _escape_for_spreadsheet("-cmd") == "'-cmd"
-
-
-def test_a_formula_inside_a_comment_value_cannot_start_the_cell(
-    fresh_registry: None,
-) -> None:
-    """Comments always render as ``key=value``, so a formula taken from the data
-    lands mid-cell, where a spreadsheet reads it as text. The cell is left as it
-    is rather than being escaped for a danger it does not have."""
-
-    from jobcheck import render
-
-    csv = render(one_row_report({"value": "=1+1"}), fmt="csv")
-    assert ",value==1+1," in csv
-
-
-def test_a_formula_in_the_row_key_is_neutralized(fresh_registry: None) -> None:
-    from jobcheck import build_report, render, validate
-    from jobcheck.results import Status, Verdict
-
-    @reg.register_check(code="CELL", message="m")
-    def check(row: "pd.Series[Any]") -> Verdict:
-        return Verdict(Status.INVALID)
-
-    frame = pd.DataFrame([{"id": "=DANGER()"}])
-    report = build_report(validate(frame), df=frame, key_column="id")
-    assert render(report, fmt="csv").splitlines()[1].startswith("'=DANGER()")
-
-
-def test_the_table_view_is_left_alone(fresh_registry: None) -> None:
-    """Text output cannot execute, so the value is shown as the check saw it."""
-
-    from jobcheck import render
-
-    text = render(one_row_report({}, message="=1+1"))
-    assert "=1+1" in text
-    assert "'=1+1" not in text
+# --- comments -----------------------------------------------------------------
 
 
 def test_comments_are_never_evaluated(fresh_registry: None) -> None:

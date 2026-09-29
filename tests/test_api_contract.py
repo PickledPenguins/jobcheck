@@ -22,7 +22,7 @@ from jobcheck import engine
 from jobcheck import registry_tables
 from jobcheck import report as rep
 from jobcheck import results as res
-from jobcheck import paths, rules, tables
+from jobcheck import paths, rules
 
 pytestmark = pytest.mark.fast
 
@@ -117,7 +117,7 @@ PUBLIC_NAMES = {
     "validate", "validate_row", "explain_row", "root_causes",
     # Reports and tables.
     "build_report", "render_comments", "row_explanation",
-    "summarize_outcomes", "registry_table", "rules_table", "render", "is_null",
+    "summarize_outcomes", "registry_table", "rules_table", "is_null",
 }
 
 
@@ -201,7 +201,7 @@ def defaults(fn: Any) -> dict[str, Any]:
                      {"key_column": None, "add_columns": None,
                       "include": "failures"},
                      id="build_report"),
-        pytest.param(tables.render, {"fmt": "table"}, id="render"),
+
     ],
 )
 def test_public_defaults(fn: Any, expected: dict[str, Any]) -> None:
