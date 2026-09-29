@@ -220,6 +220,23 @@ modules, and the README plus six documents. `render` is 10 executable lines;
 `tables.py` as a whole is 93. Related: F.64 (wrap width) changes the same code. Not yet
 surveyed.
 
+**jobchain's unknown-key messages still list keys the old way** (F.69, raised on
+2026-09-28, moved here from the handoff). Since `22d2973`, jobcheck lists unknown and
+allowed keys one way everywhere: each key's `repr`, sorted as text, joined by commas
+(`paths._key_names`). jobchain's own two messages, at `jobchain/core.py:272` and
+`jobchain/pipeline.py:260`, still print Python's list of the sorted keys, brackets
+included, and sort by value, which raises `TypeError` if YAML hands over a mixed set
+such as `True` beside text keys. The two projects therefore word the same kind of
+mistake differently. Aligning jobchain means copying the helper there (jobchain does not
+import jobcheck's private names) and regenerating any expected output that quotes the
+messages. Not yet surveyed, and the owner was not asked.
+
+**The saved review reports are resolved but not cleared** (F.70, moved here from the
+handoff). The three reports of 2026-09-27 in `.agent/reviews/` (`14-13-04`, `14-40-45`
+and `15-11-05`, all `claude-opus-5-5`) have every finding fixed (`a4582e1`), decided
+(F.46, F.47, F.48) or open as an F entry here. Deleting them is `caddressreview`'s
+call, and it has not run on them since. Last checked 2026-09-28.
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
