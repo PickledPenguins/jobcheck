@@ -27,18 +27,15 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.50. Each is either loud already, or needs the owner's decision.
-F.46, F.47 and F.49 were decided on 2026-09-28 and are in the section below. F.48 was built the
+left is open below, from F.51. Each is either loud already, or needs the owner's decision.
+F.46, F.47, F.49 and F.50 were decided on 2026-09-28 and are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
 registration, for a check and for a context builder alike, naming `functools.partial` and
 a keyword-only parameter as the two ways to write it.
 
 
 
-**Wide characters misalign the bordered table** (F.50, low). Columns are padded by
-`len()`, so `名前名前` (length 4, eight columns on screen) pushes every column after it.
-Visible. Padding by display width (`unicodedata.east_asian_width`) is a few lines, but
-changes every width calculation in `_format_table`.
+
 
 **The CSV printed to a terminal keeps control characters** (F.51, low). The bordered form
 now shows them as escapes; `render(fmt="csv")` keeps the data as it is, since a CSV file
@@ -238,6 +235,15 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**Aligning the bordered table for wide characters** (F.50, low; declined by the owner
+2026-09-28 as an unreasonable corner case). `render`'s bordered form counts characters,
+not screen columns (`len()` and `ljust` in `tables.py`, and `textwrap`), so `名前名前`
+(four characters, eight columns on screen) pushes the columns after it right, and a
+combining accent pulls them left. Nothing is lost: values are intact and the CSV is
+unaffected. A fix cannot be exact without a third-party `wcwidth` (ambiguous-width
+characters differ by terminal, emoji sequences by font), and wrapping would need a
+hand-written replacement for `textwrap`.
 
 **Catching YAML's booleans in rule files** (F.49, low; declined by the owner
 2026-09-28). PyYAML reads unquoted `on`, `off`, `yes` and `no`, in any case, as
