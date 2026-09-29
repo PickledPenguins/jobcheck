@@ -223,6 +223,15 @@ removed or would remove. The pass should apply the same rule as the code review:
 test earns its place by guarding core behavior a user relies on, and what it costs to
 keep is weighed. Not yet surveyed.
 
+**A test helper's docstring still describes the per-file rollback** (F.77, low; from the
+same review). `tests/registry_state.py:8-9` says a failed load leaves the registry
+consistent "because `load_checks` rolls back per file", and `SavedRegistry`'s docstring
+(`:30`) speaks of "that file's rollback". The rollback was removed on 2026-09-25 (see
+below); `load_checks` now leaves whatever registered before a failing file. The fix is
+the two sentences; the reasoning they support (no save-and-restore in the library)
+stands without them. `future-work.md:730` repeats "rollback" inside a closed entry,
+where it is history.
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
