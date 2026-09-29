@@ -207,18 +207,23 @@ def test_missing_file_is_refused_the_way_a_missing_check_file_is(one_code: None,
         ),
         pytest.param(
             '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: []\n  match: all\n',
-            "'codes' must be a non-empty list of code strings.",
+            "'codes' must be a non-empty list of code strings, got [].",
             id="empty-codes",
         ),
         pytest.param(
             '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: A_CODE\n  match: all\n',
-            "'codes' must be a non-empty list of code strings.",
+            "'codes' must be a non-empty list of code strings, got 'A_CODE'.",
             id="codes-not-a-list",
         ),
         pytest.param(
             '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [7]\n  match: all\n',
-            "'codes' must be a non-empty list of code strings.",
+            "'codes' must be a non-empty list of code strings, got [7].",
             id="codes-not-strings",
+        ),
+        pytest.param(
+            '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [ON]\n  match: all\n',
+            "'codes' must be a non-empty list of code strings, got [True].",
+            id="codes-an-unquoted-yaml-boolean",
         ),
         pytest.param(
             '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [NO_SUCH_CODE]\n  match: all\n',
@@ -228,18 +233,29 @@ def test_missing_file_is_refused_the_way_a_missing_check_file_is(one_code: None,
         ),
         pytest.param(
             '- name: ""\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
-            "every rule needs a non-empty string 'name'.",
+            "rule 1: every rule needs a non-empty string 'name', got ''.",
             id="empty-name",
         ),
         pytest.param(
             "- action: disable\n  codes: [A_CODE]\n  match: all\n",
-            "every rule needs a non-empty string 'name'.",
+            "rule 1: every rule needs a non-empty string 'name', got None.",
             id="missing-name",
         ),
         pytest.param(
+            '- name: ok\n  message: m\n  action: disable\n  codes: [A_CODE]\n  match: all\n'
+            '- name: off\n  message: m\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
+            "rule 2: every rule needs a non-empty string 'name', got False.",
+            id="name-an-unquoted-yaml-boolean-in-the-second-rule",
+        ),
+        pytest.param(
             '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n  message: 7\n',
-            "'message' must be the text saying why the rule exists",
+            "'message' must be the text saying why the rule exists, got 7.",
             id="message-not-a-string",
+        ),
+        pytest.param(
+            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n  message: yes\n',
+            "'message' must be the text saying why the rule exists, got True.",
+            id="message-an-unquoted-yaml-boolean",
         ),
         pytest.param(
             "- just_a_string\n",

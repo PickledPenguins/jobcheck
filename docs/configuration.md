@@ -191,7 +191,9 @@ check that depends on it, and reports nothing.<sup>[7](interfaces.md#warn_blocki
 
 Everything is validated when the file loads, never when a rule first meets a row, so a
 malformed file stops the run before any data is processed. Each message names the file,
-and the rule too once the entry has a name to give.
+and the rule too once the entry has a name to give; before then, its place in the file.
+A value the file got wrong is shown as it was read: a `True` or `False` where you wrote
+text means YAML read an unquoted `yes`, `no`, `on` or `off` as a boolean, so quote it.
 
 | Problem | Message |
 |---|---|
@@ -209,9 +211,9 @@ and the rule too once the entry has a name to give.
 | misspelled key | `unknown key(s) 'codez'. Allowed: 'action', 'codes', 'match', 'message', 'name'.` |
 | `on:` unquoted, which YAML reads as a bool | `unknown key(s) True. Allowed: 'action', 'codes', 'match', 'message', 'name'.` |
 | an entry that is not a mapping | `each rule must be a mapping, got str.` |
-| no `name`, or not text | `every rule needs a non-empty string 'name'.` |
-| `codes` not a list of text | `'codes' must be a non-empty list of code strings.` |
-| no `message` | `'message' must be the text saying why the rule exists. It is printed beside the rule wherever the rules are listed.` |
+| no `name`, or not text (`name: off`, second in the file) | `rule 2: every rule needs a non-empty string 'name', got False.` |
+| `codes` not a list of text (`codes: [ON]`) | `'codes' must be a non-empty list of code strings, got [True].` |
+| no `message` | `'message' must be the text saying why the rule exists, got None. It is printed beside the rule wherever the rules are listed.` |
 | a criterion that is not a mapping | `each 'match' entry must be a mapping with 'column' and 'pattern'.` |
 | a criterion value that is not text | `'column' and 'pattern' must both be strings in {'column': 'country', 'pattern': False}.` |
 | `load_rules("rules.yaml")` | `load_rules takes a list of paths, not one string: pass ['rules.yaml']. A bare string would be read as a list of its characters.` |
