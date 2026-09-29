@@ -118,9 +118,8 @@ def test_every_file_of_one_name_gets_its_own_module(
         (tmp_path / side).mkdir()
         paths.append(write_check_file(tmp_path / side, "checks.py", side.upper()))
     reg.load_checks(paths)
-    names = sorted(name for name in reg._LOADED_MODULES if name.startswith("jobcheck_check_file_"))
+    names = [name for name in sys.modules if name.startswith("jobcheck_check_file_checks_")]
     assert len(names) == 3
-    assert all(name in sys.modules for name in names)
 
 
 def test_a_missing_path_raises_and_registers_nothing(fresh_registry: None, tmp_path: Path) -> None:
@@ -242,11 +241,10 @@ def test_the_loaded_module_is_registered_under_its_generated_name(
     assert module.__file__ == str((tmp_path / "checks.py").resolve())
 
 
-def test_clear_registry_evicts_the_module_it_registered(fresh_registry: None,
-                                                        tmp_path: Path) -> None:
-    """Otherwise a later load is a no-op -- Python caches modules -- and the
-    registry stays silently empty. Written against a mutant that recorded
-    ``None`` as the registering module's name."""
+def test_clear_registry_drops_the_check_file_modules(fresh_registry: None,
+                                                    tmp_path: Path) -> None:
+    """Each load names its modules afresh, so one left behind is only a leak:
+    a process that reloads in a loop would keep every copy."""
 
     import sys
 
@@ -256,24 +254,12 @@ def test_clear_registry_evicts_the_module_it_registered(fresh_registry: None,
     assert name not in sys.modules
 
 
-def test_a_module_that_registered_by_plain_import_is_evicted_too(
+def test_a_module_that_registered_by_plain_import_stays_imported(
     fresh_registry: None, tmp_path: Path
 ) -> None:
-    """`load_checks` records the modules it imports itself, so the line in
-    `register_check` that records `fn.__module__` is what covers every other
-    route in: a check file importing a shared module of its own, which Python
-    would otherwise keep cached and which would register nothing on the next
-    load.
-
-    The cost of that decision, and why it is pinned rather than dropped: the
-    module a check registers from is evicted whatever it is, a test module
-    included, and after eviction ``sys.modules[name]`` is None. A dataclass
-    whose annotations have to be resolved -- ``ClassVar``, ``InitVar``, or
-    anything calling ``get_type_hints`` -- then raises ``AttributeError:
-    'NoneType' object has no attribute '__dict__'`` from ``dataclasses``, which
-    looks its module up there. Define such a class at module level, or before
-    the clear.
-    """
+    """The documented limit: checks register only in the files `load_checks`
+    is given. A module registering by plain import is Python's to cache, so
+    after a clear it registers nothing until the process restarts."""
 
     import importlib.util
     import sys
@@ -288,7 +274,7 @@ def test_a_module_that_registered_by_plain_import_is_evicted_too(
         spec.loader.exec_module(module)
         assert [check.code for check in reg._CHECKS] == ["IMPORTED"]
         reg.clear_registry()
-        assert "shared_checks_by_import" not in sys.modules
+        assert "shared_checks_by_import" in sys.modules
     finally:
         sys.modules.pop("shared_checks_by_import", None)
 
@@ -318,13 +304,7 @@ def test_the_bytecode_setting_is_restored_when_a_file_raises(fresh_registry: Non
 
 def test_a_file_that_registers_nothing_can_still_be_loaded_again(fresh_registry: None,
                                                                  tmp_path: Path) -> None:
-    """The eviction has to cover the file itself, not only the checks it defines.
-
-    A check file registers its module name as a side effect of the decorator, so
-    a file with no checks in it is the only case where load_checks' own
-    bookkeeping is what makes a reload work. Written against a mutant that
-    recorded ``None`` there and passed everything else.
-    """
+    """A file with no checks, such as a bundle, is still dropped and run again."""
 
     import sys
 

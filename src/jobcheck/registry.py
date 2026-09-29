@@ -8,7 +8,6 @@ file composes `load_checks` and `load_rules` and this is the module that has bot
 
 from __future__ import annotations
 
-import functools
 import importlib.util
 import inspect
 import sys
@@ -61,11 +60,9 @@ _CHECKS: list[_Check] = []
 # Check files imported by path through load_checks(), resolved and in load
 # order.
 _LOADED_FILES: list[str] = []
-# Modules clear_registry evicts from sys.modules; Python caches a module, so
-# without eviction a later load imports nothing and the registry stays empty.
-# Filled by registration (a shared module a check file imported) and by
-# load_checks (a file registering nothing of its own, such as a bundle).
-_LOADED_MODULES: set[str] = set()
+# The prefix of the module name load_checks gives each check file it runs;
+# clear_registry drops those modules from sys.modules, and no others.
+_CHECK_FILE_PREFIX = "jobcheck_check_file_"
 # Check files mid-import, innermost last: how a nested load_checks call (a
 # bundle) knows it is nested, and how a bundle naming itself is skipped.
 _LOADING: list[str] = []
@@ -88,27 +85,6 @@ def _name_of(fn: CheckFn) -> str:
     carries `__name__`; a `functools.partial` or a callable object does not."""
 
     return getattr(fn, "__name__", type(fn).__name__)
-
-
-def _module_to_evict(fn: CheckFn) -> str | None:
-    """The module clear_registry must evict for *fn* to register again, or None.
-
-    The module the author's function lives in, which for a `functools.partial`
-    is the wrapped function's, not `functools`. Never the standard library: a
-    callable object of a library class reports the library's module, and
-    evicting it would leave every earlier importer holding a second copy. Never
-    the running script either: evicting `__main__` breaks pickling, spawned
-    workers and `import __main__` for the rest of the process.
-    """
-
-    while isinstance(fn, functools.partial):
-        fn = fn.func
-    module = getattr(fn, "__module__", None)
-    if not module or module == "__main__":
-        return None
-    if module.partition(".")[0] in sys.stdlib_module_names:
-        return None
-    return str(module)
 
 
 def _source_file_of(fn: CheckFn) -> str:
@@ -237,9 +213,6 @@ def register_check(
             where=f"{module}.{_name_of(fn)}" if module else _name_of(fn),
         )
 
-        evict = _module_to_evict(fn)
-        if evict:
-            _LOADED_MODULES.add(evict)
         check = _Check(
             code=code,
             message=message,
@@ -259,21 +232,18 @@ def clear_registry() -> None:
     """Drop every registered check and all loaded-file bookkeeping.
 
     For a process validating several runs in turn, each with its own check
-    files. The in-progress load stack is not touched: it belongs to a running
-    `load_checks` call rather than to the registry.
+    files. The next `load_checks` runs each file again; a module a check file
+    merely imports is cached by Python and does not, so checks register only in
+    the files `load_checks` is given. The in-progress load stack is not touched:
+    it belongs to a running `load_checks` call rather than to the registry.
     """
 
-    global _TOPO_ORDER, _LOAD_SEQUENCE
+    global _TOPO_ORDER
     with _LOAD_LOCK:
         _CHECKS.clear()
         _LOADED_FILES.clear()
-        _LOAD_SEQUENCE = 0
-        # Evict the check modules too: Python caches a module after its first
-        # import, so without this a later load_checks() would re-import nothing
-        # and leave the registry silently empty.
-        for name in _LOADED_MODULES:
-            sys.modules.pop(name, None)
-        _LOADED_MODULES.clear()
+        for name in [name for name in sys.modules if name.startswith(_CHECK_FILE_PREFIX)]:
+            del sys.modules[name]
         _TOPO_ORDER = None
 
 
@@ -326,17 +296,15 @@ def _load_checks(paths: list[str], base_dir: str | Path | None) -> None:
         # checks.py, and each needs its own sys.modules entry -- sharing one, the
         # second would replace the first there, so the first could no longer be
         # imported or pickled by name.
-        module_name = f"jobcheck_check_file_{Path(name).stem}_{_LOAD_SEQUENCE}"
+        module_name = f"{_CHECK_FILE_PREFIX}{Path(name).stem}_{_LOAD_SEQUENCE}"
         _LOAD_SEQUENCE += 1
         spec = importlib.util.spec_from_file_location(module_name, name)
         if spec is None or spec.loader is None:
             raise ValueError(f"Cannot import {name!r} as a Python file.")
         module = importlib.util.module_from_spec(spec)
         # Registered before execution so a check file that imports itself, or is
-        # pickled by a worker, finds the module rather than importing it twice;
-        # and recorded then too, so clear_registry evicts it even if it fails.
+        # pickled by a worker, finds the module rather than importing it twice.
         sys.modules[module_name] = module
-        _LOADED_MODULES.add(module_name)
         # No __pycache__ beside a check file: it may sit in a run's input
         # directory, and the unique module name means a .pyc is never reused.
         # The flag is process-wide for the length of the exec.

@@ -198,25 +198,17 @@ view it improved.<sup>[9](reporting.md#every-table-names-itself)</sup>
 not effect, and `effective_state` says "depends on row" instead of picking an answer. Only
 `explain_row` against a real row can decide.<sup>[10](interfaces.md#registry_tablerulesnone-add_columnsnone---dataframe)</sup>
 
-**`clear_registry` evicts the modules a load brought in.** Python caches a module
-after its first import, so clearing the list alone would make the next `load_checks` a
-silent no-op. Two routes record a module for eviction, and both are needed: registration,
-so a module pulled in by any route — a check file importing a shared one directly, for
-instance — is tracked, and a completed `load_checks` import, so a file that registered
-nothing of its own, such as a bundle, is tracked too. Two exceptions. `__main__`: a
-check defined in the running script is not evicted, since that would break pickling,
-spawned workers and `import __main__` for the rest of the process. And the standard
-library: a `functools.partial` or an `operator.methodcaller` reports `functools` or
-`operator` as its module, and evicting one would leave every earlier importer holding a
-copy that differs from the next one imported; for a partial, the wrapped function's own
-module is the one recorded. The price is that
-*whatever* other module a check registers from is evicted, a test
-module included, and `sys.modules[name]` is then `None`: a dataclass whose annotations
-have to be resolved (`ClassVar`, `InitVar`, `get_type_hints`) raises `AttributeError:
-'NoneType' object has no attribute '__dict__'` from `dataclasses` afterwards. Define such
-a class at module level, or before the clear. Dropping the registration-time record would
-remove that, and reintroduce the silent empty registry for a shared module two check files
-import.
+**`clear_registry` is a flat reset.** It empties the check list, the loaded-file list
+and the ordering cache, and drops the modules `load_checks` made for check files (named
+`jobcheck_check_file_*`) from `sys.modules`. It touches no other module.
+`load_checks` runs each file again under a new module name, so a reload registers
+afresh. A module a check file merely imports is Python's to cache: it registers its
+checks once per process, and after a clear it registers nothing. So checks register
+only in the files `load_checks` is given, and a module a check file imports holds
+helpers. This replaced a record, kept at registration, of which module to evict. That
+record guessed the module from the registered object, which for a callable object or an
+imported function named a module that registered nothing, and evicting it left earlier
+importers holding a second copy (F.53, 2026-09-29).
 
 **Checks read the row; there is no declared column.** These rules are row-scoped
 and many weigh several fields together, so a single "the" column was a fiction.

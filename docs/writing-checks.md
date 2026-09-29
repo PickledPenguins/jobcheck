@@ -183,7 +183,9 @@ import check_age, check_email     # noqa: F401
 
 Those are ordinary modules, so a second bundle holding its own `check_age.py`
 imports nothing — the name is already in `sys.modules` — and its checks are
-silently missing. Prefer the nested `load_checks`.
+silently missing. For the same reason, after `clear_registry()` a reload registers
+none of them again. Prefer the nested `load_checks`, and register checks only in the
+files it is given.
 
 `examples/checks/` is the worked example — four files outside the library, loaded
 by `examples/main.py` from the list it names in `CHECK_FILES`.

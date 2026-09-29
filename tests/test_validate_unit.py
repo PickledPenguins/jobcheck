@@ -34,9 +34,7 @@ def frame(rows: int = 3) -> pd.DataFrame:
 
 @dataclass
 class RunContext(RowContext):
-    """Defined at module level on purpose: `clear_registry` evicts whatever module
-    a check registered from, and a dataclass built after that eviction raises from
-    `dataclasses` while resolving its annotations."""
+    """A context with one option, for the tests that pass a context through."""
 
     strict: bool = False
 

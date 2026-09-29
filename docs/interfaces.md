@@ -46,7 +46,7 @@ to its full entry below. **Required** arguments are positional and have no defau
 | [`load_checks`](#load_checkspaths-liststr-base_dir-str--path--none--none---none) | `paths` | `base_dir=None` | `None` | Imports the listed `.py` files so their checks register. Nothing is discovered. Relative paths resolve against `base_dir`, else the working directory. A file already loaded is skipped. Validates the dependency graph on return. |
 | [`load_rules`](#loading-rules) | `paths` | `base_dir=None` | `list[Rule]` | Parses rule YAML files, paths resolved as `load_checks` does. List order is precedence: the last matching rule wins. Load checks first; an unknown code raises. |
 | [`load_setup`](#loading-both-at-once) | `path` | – | `list[Rule]` | Reads one YAML file naming `checks` (required) and `rules` (optional), resolved against that file's directory. Loads the checks, returns the rules. |
-| [`clear_registry`](#clear_registry---none) | – | – | `None` | Empties the registry and evicts the check modules, so the next `load_checks` registers afresh. For tests, or loading a different set in one process. |
+| [`clear_registry`](#clear_registry---none) | – | – | `None` | Empties the registry and drops the check-file modules, so the next `load_checks` registers afresh. For tests, or loading a different set in one process. |
 
 **Running checks**
 
@@ -264,11 +264,10 @@ size and that limit, rather than a bare `RecursionError` naming nothing.<sup>[9]
 
 ### `clear_registry() -> None`
 
-Empties the registry and evicts the modules that registered
-checks from `sys.modules` -- never `__main__`, and never a standard-library module,
-which is what a `functools.partial` or an `operator` callable reports; for a partial
-it is the wrapped function's module -- so a later `load_checks` re-registers rather than
-silently doing nothing. It is the whole of the registry-state API: there is no
+Empties the registry and drops the modules `load_checks` made for check files from
+`sys.modules`, and no other module. A later `load_checks` runs each file again and
+re-registers; a module a check file only imports stays cached and registers nothing
+again, so register checks in the files `load_checks` is given. It is the whole of the registry-state API: there is no
 way to save a registry and put it back, because outside a test there is no use
 for one. A caller loads its check files at start-up, or clears and loads a
 different set between runs, or runs a second entry point in a second process --
