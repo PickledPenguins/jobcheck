@@ -1,0 +1,13 @@
+row,code,status,layer,outcome,message,detail,comments,is_root_cause
+J2#1,OWNER_PRESENT,MISSING (1),0,failed,Owner is blank,,,True
+J2#2,RUN_DIR_EXISTS,MISSING (1),1,failed,Run directory does not exist,,run_dir=runs/beta2,True
+J2#3,INPUT_EXISTS,MISSING (1),2,failed,Input file is not in the run directory,,run_dir=runs/beta3,True
+J4#1,COUNT_VALID,MALFORMED (2),0,failed,Run count is not a whole number of at least 1,,v=0,True
+J5#1,BASE_PRESENT,MISSING (1),0,failed,Base run directory is blank,,,True
+
+code,layer,failed,root_cause_rows,errored,skipped,disabled,passed
+INPUT_EXISTS,2,1,1,0,4,0,5
+RUN_DIR_EXISTS,1,1,1,0,2,1,6
+BASE_PRESENT,0,1,1,0,0,0,9
+COUNT_VALID,0,1,1,0,0,0,9
+OWNER_PRESENT,0,1,1,0,0,5,4

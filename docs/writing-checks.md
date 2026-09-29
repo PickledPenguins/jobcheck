@@ -369,6 +369,83 @@ Metadata that is not tabular — flags, computed paths, pipeline state — goes 
 `RowContext`, not in extra DataFrame columns, which cause dtype churn and end up
 in exports. Take `(row, context)` in the checks that need it.
 
+## One row, many instances
+
+Sometimes one row stands for several things to check, and how many is known only from
+the data. For example, a job row names a base directory `a` and a count `v`, and each of
+`a`, `a2`, ... `a{v}` must exist and hold its input. Each directory needs its own report
+line and its own chain: the input check on `a3` depends on the directory check on `a3`
+only. Rules must also be able to turn a check off for one instance.
+
+The engine runs each check once per row. So give each instance a row of its own before
+`validate`: expand the frame, number the instances, and build a key that names the row
+and the instance.
+
+```python
+import pandas as pd
+
+
+def run_count(v):
+    """`v` when it is a whole number of at least 1, else 1."""
+    text = "" if is_null(v) else str(v).strip()
+    return int(text) if text.isdigit() and int(text) >= 1 else 1
+
+
+def expand(jobs):
+    runs = jobs.assign(instance=[list(range(1, run_count(v) + 1)) for v in jobs["v"]])
+    runs = runs.explode("instance", ignore_index=True)
+    runs["key"] = runs["id"] + "#" + runs["instance"].astype(str)
+    return runs
+
+
+jobs = pd.DataFrame({"id": ["J1", "J2"], "base": ["runs/a", "runs/b"], "v": ["3", "0"]})
+print(expand(jobs).to_string(index=False))
+```
+
+```
+id   base v instance  key
+J1 runs/a 3        1 J1#1
+J1 runs/a 3        2 J1#2
+J1 runs/a 3        3 J1#3
+J2 runs/b 0        1 J2#1
+```
+
+Everything else is the library as it stands:
+
+- **Chains are per instance.** Each instance is a row, so `depends_on` works per
+  instance, and a missing `a2` skips only `a2`'s input check. The context builder
+  derives the instance's directory from `base` and `instance`.
+- **The report names the instance.** `build_report(outcomes, df=runs, key_column="key")`
+  labels each line `J1#3`.
+- **Rules can match the instance.** `instance` and `key` are columns, so a rule can turn a
+  check off on every instance, on some of them, or on one instance of one row, such as
+  `^J3#2$` on `key`. Disabling a check disables what depends on it, per instance.<sup>[8](configuration.md#disabling-a-check-disables-what-depends-on-it)</sup>
+- **The summary counts instances.** A check's `passed` and `failed` are counted over
+  instances, not rows.
+
+Three things need care:
+
+- **A check about the whole row runs on every instance.** Its failure is repeated on each.
+  - A check on the columns that drive the expansion, such as `base` or `v`, is not a
+    problem: when they are unusable, the row expands to a single instance, so the failure
+    appears once.
+  - Any other whole-row check needs a rule that turns it off past instance 1, with
+    `pattern: "^(?!1$)"` on `instance`. That only works when no per-instance check
+    depends on it: disabling it would skip them on every later instance.
+  - A whole-row check that per-instance checks depend on belongs in a separate pass over
+    the unexpanded frame. The registry is process-wide, so that pass needs its own
+    `clear_registry` and `load_checks`.
+- **The expansion runs before the engine does.** An exception in `expand` stops the run,
+  just as one from a context builder does, so it must not raise on the data. `run_count`
+  above maps a blank, malformed or zero `v` to one instance. A check on `v` then
+  reports it as a failure on that row.
+- **`explode` turns an empty list into one row whose instance is missing.** That is
+  another reason to count at least 1.
+
+The catalog case `tests/examples/complex/one-row-many-run-directories/` is this pattern
+at full size: per-instance chains, a whole-row check turned off past instance 1, and one
+instance of one job turned off by its key.
+
 ## In a pipeline
 
 ```python
