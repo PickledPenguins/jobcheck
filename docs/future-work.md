@@ -27,23 +27,12 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.52. Each is either loud already, or needs the owner's decision.
-F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28 and are in the
-section below. F.48 was built the
+left is open below, from F.53. Each is either loud already, or needs the owner's decision.
+F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 on
+2026-09-29; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
 registration, for a check and for a context builder alike, naming `functools.partial` and
 a keyword-only parameter as the two ways to write it.
-
-
-
-
-
-**Equal-length failures-only lists still pass the summary's check** (F.52, low).
-`summarize_outcomes` and `build_report(include=...)` refuse lists that differ in length,
-which is what `validate_row`'s failures-only lists do on any ordinary frame. They cannot
-catch a single row, or a frame where every row fails the same number of checks. A
-complete check would need `validate_row` to mark its lists, or a comparison against the
-registry, which hand-built outcome lists (the tests have many) do not match.
 
 **`clear_registry` still evicts a third-party callable object's module** (F.53, low). The
 standard library and a partial's `functools` are now exempt, but a callable object of a
@@ -218,6 +207,20 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**Refusing every failures-only list in the summary** (F.52, low; declined by the owner
+2026-09-29). `summarize_outcomes` and `build_report(include="blocked"|"all")` refuse
+outcome lists that differ in length (`report._refuse_partial_row`), which catches
+`validate_row`'s failures-only lists on any ordinary frame. They cannot catch a single
+row, or a frame where every row fails the same number of checks; such a list is counted
+as complete, and the summary shows too few passes, skips and disabled checks. That needs
+input the documents already forbid, so no supported call counts wrong. Two complete
+checks were surveyed and rejected as corner-case machinery. A `list` subclass returned by
+`validate_row` and refused by type changes a public return type and loses its mark on
+`list(x)`, a slice or a concatenation, so it is still partial. A comparison against the
+registry breaks every hand-built outcome list in the tests, and refuses outcomes
+summarized after `clear_registry` or a reload, tying two functions of data to global
+state. Removing the length guard was also rejected: the common misuse would go silent.
 
 **Removing `render`, and writing tables with pandas** (F.68, raised and decided by the
 owner 2026-09-28; built). `render` in `tables.py` was about 64 of the
