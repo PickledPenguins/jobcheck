@@ -42,6 +42,8 @@ now shows them as escapes; `render(fmt="csv")` keeps the data as it is, since a 
 is data for another program. `examples/main.py --report csv` prints that CSV to stdout,
 so on a terminal an escape sequence in a cell still acts. A design question rather than a
 defect: an entry point could escape when stdout is a tty, or the library could offer it.
+Surveyed 2026-09-28 and set aside by the owner: it may be overtaken by F.68, since
+removing `render` removes the escaping it would extend.
 
 **Equal-length failures-only lists still pass the summary's check** (F.52, low).
 `summarize_outcomes` and `build_report(include=...)` refuse lists that differ in length,
@@ -225,6 +227,28 @@ handoff). The three reports of 2026-09-27 in `.agent/reviews/` (`14-13-04`, `14-
 and `15-11-05`, all `claude-opus-5-5`) have every finding fixed (`a4582e1`), decided
 (F.46, F.47, F.48) or open as an F entry here. Deleting them is `caddressreview`'s
 call, and it has not run on them since. Last checked 2026-09-28.
+
+**Every interface in `interfaces.md` gets a brief example in its own section** (F.71,
+raised by the owner on 2026-09-28). Each function or type's definition block in
+`docs/interfaces.md` should show a short piece of real code that uses it, not only the
+signature and prose. Today the document has two `python` blocks, under `load_checks` and
+`render_comments`. The other documented names -- `Status`, `Verdict`, `CheckOutcome`,
+`Outcome`, `RowContext`, `Rule`, `register_check`, `clear_registry`, `load_rules`,
+`load_setup`, `explain_row`, `validate_row`, `root_causes`, the three `warn_*`
+functions, `validate`, `build_report`, `row_explanation`, `summarize_outcomes`,
+`registry_table`, `rules_table`, `render` and `is_null` -- have none there. F.37's
+examples live in `reporting.md` and `writing-checks.md`, grouped by use. Every `python`
+block in `docs/` runs under the fast suite, so each example must execute against the
+documented world (`tests/doc_files.py`). Not yet surveyed.
+
+**Every interface is used realistically in the example scripts** (F.72, raised by the
+owner on 2026-09-28). Each name `interfaces.md` defines should appear in a script under
+`examples/`, used the way a real entry point would use it. Counted by name on
+2026-09-28, these have no use in `examples/`: `Outcome`, `RowContext`, `clear_registry`,
+`explain_row`, `validate_row` and `render_comments`. F.37 accepted a use in `docs/` or in
+jobchain as the example; this raises the bar to the examples catalog. The survey must
+say, for each missing name, which script it belongs in and why a real caller would reach
+for it there, rather than a call added only to be counted. Not yet surveyed.
 
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
