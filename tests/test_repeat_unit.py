@@ -8,6 +8,7 @@ inherited from a prerequisite -- and records the rest as `shared`.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
@@ -15,7 +16,7 @@ import pytest
 
 from conftest import make_check
 from jobcheck import (
-    OK, Outcome, Status, Verdict, build_report, register_check, registry_table,
+    OK, Outcome, RowContext, Status, Verdict, build_report, register_check, registry_table,
     summarize_outcomes, validate,
 )
 from jobcheck.rules import Rule, _MatchCriterion
@@ -67,6 +68,43 @@ def test_a_shared_outcome_carries_the_first_rows_status_and_says_where(
     assert shared.detail == "failed at position 0, the first row with id J1"
     assert not shared.failed
     assert shared.message == "" and dict(shared.comments) == {}
+    assert shared.layer == 0
+
+
+def test_a_shared_outcome_keeps_its_checks_layer(fresh_registry: None) -> None:
+    make_check("BASE")
+    make_check("ONCE", depends_on=["BASE"])
+    assert by_code(validate(copies(), repeat_key="id")[1])["ONCE"].layer == 1
+
+
+def test_a_repeated_check_runs_on_a_copy_when_its_shared_prerequisite_passed(
+    fresh_registry: None,
+) -> None:
+    calls: list[str] = []
+    make_check("NAMES")
+    make_check("DIR", depends_on=["NAMES"], calls=calls, repeat=True)
+    outcomes = validate(copies(), repeat_key="id")
+    assert calls == ["DIR"] * 4
+    assert [by_code(row)["DIR"].outcome for row in outcomes] == [Outcome.PASSED] * 4
+
+
+def test_a_repeated_check_on_a_copy_is_handed_that_copys_context(
+    fresh_registry: None,
+) -> None:
+    seen: list[Any] = []
+
+    @register_check("EACH", "m", repeat=True)
+    def each(row: "pd.Series[Any]", context: Any) -> Any:
+        seen.append(context.name)
+        return OK
+
+    @dataclass
+    class Named(RowContext):
+        name: str = ""
+
+    validate(copies(), repeat_key="id",
+             context_builder=lambda row: Named(name=row["name"]))
+    assert seen == ["a", "a2", "b", "c"]
 
 
 def test_a_dependent_of_a_repeated_check_repeats_and_follows_its_own_copy(
@@ -173,14 +211,16 @@ def test_a_repeat_key_not_in_the_data_is_refused_even_for_an_empty_frame(
 def test_a_repeat_key_naming_two_columns_is_refused(fresh_registry: None) -> None:
     make_check("A")
     df = pd.DataFrame([[1, 2]], columns=["id", "id"])
-    with pytest.raises(ValueError, match="repeat_key 'id' appears 2 times in the data"):
+    with pytest.raises(ValueError, match=r"^repeat_key 'id' appears 2 times in the data\. "
+                                         r"Rename or drop the duplicate columns\.$"):
         validate(df, repeat_key="id")
 
 
 def test_a_blank_repeat_key_value_is_refused_with_its_position(fresh_registry: None) -> None:
     make_check("A")
     df = pd.DataFrame({"id": ["J1", None]})
-    with pytest.raises(ValueError, match="repeat_key 'id' is blank at position 1"):
+    with pytest.raises(ValueError, match=r"^repeat_key 'id' is blank at position 1: every row "
+                                         r"needs a value to say which rows are its copies\.$"):
         validate(df, repeat_key="id")
 
 
@@ -189,7 +229,9 @@ def test_an_unhashable_repeat_key_value_is_refused_with_its_position(
 ) -> None:
     make_check("A")
     df = pd.DataFrame({"id": [["J1"]]})
-    with pytest.raises(TypeError, match=r"repeat_key 'id' holds \['J1'\] at position 0"):
+    with pytest.raises(TypeError, match=r"^repeat_key 'id' holds \['J1'\] at position 0, "
+                                        r"which cannot be compared as a key: use a column "
+                                        r"of text or numbers\.$"):
         validate(df, repeat_key="id")
 
 
