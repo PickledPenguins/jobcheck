@@ -97,7 +97,7 @@ def test_the_report_carries_status_layer_and_comments(two_layers: None) -> None:
     row = report.loc["102"]
     assert row["status"] == "INVALID (3)"
     assert row["layer"] == 1
-    assert row["comments"] == "actual=-5.0; minimum=0"
+    assert row["comments"] == "minimum=0; actual=-5.0"
     assert row["message"] == "Age is out of range"
 
 
@@ -310,12 +310,18 @@ def test_an_errored_check_appears_in_the_report(fresh_registry: None) -> None:
 # --- comments and titles ------------------------------------------------------
 
 
-def test_comments_render_sorted_so_output_is_stable() -> None:
-    assert rep.render_comments({"zebra": 1, "actual": 2}) == "actual=2; zebra=1"
+def test_comments_render_in_the_order_the_check_wrote_them() -> None:
+    assert rep._render_comments({"zebra": 1, "actual": 2}) == "zebra=1; actual=2"
+
+
+def test_comment_keys_of_mixed_types_render() -> None:
+    """Regression: sorting keys of mixed types raised `TypeError` in the report."""
+
+    assert rep._render_comments({1: "a", "b": 2}) == "1=a; b=2"
 
 
 def test_empty_comments_render_as_nothing() -> None:
-    assert rep.render_comments({}) == ""
+    assert rep._render_comments({}) == ""
 
 
 def test_every_table_carries_its_own_title(two_layers: None) -> None:

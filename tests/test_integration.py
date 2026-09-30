@@ -130,7 +130,7 @@ def test_a_table_report_renders_the_comments_a_reader_needs(example_checks: None
     text = "\n".join(report["comments"])
     assert "maximum=130" not in text
     assert "at_signs=0" in text
-    assert "end_date=2024-03-01; start_date=2024-05-01" in text
+    assert "start_date=2024-05-01; end_date=2024-03-01" in text
 
 
 def test_a_rule_file_written_at_runtime_is_picked_up(example_checks: None, tmp_path: Path) -> None:

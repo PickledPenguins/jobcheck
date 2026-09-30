@@ -27,9 +27,9 @@ print(report.to_string(index=False))    # report.to_csv(index=False) for a file
 
 ```
      row                 code        status  layer outcome                            message detail                       comments  is_root_cause
-       2         AGE_NEGATIVE   INVALID (3)      2  failed                    Age is negative                 minimum=0; value=-5.0          False
+       2         AGE_NEGATIVE   INVALID (3)      2  failed                    Age is negative                 value=-5.0; minimum=0          False
        2     EMAIL_MISSING_AT MALFORMED (2)      1  failed                   Email has no '@'        at_signs=0; value=broken-email           True
-       3         AGE_TOO_HIGH   INVALID (3)      2  failed Age is implausibly high (over 130)              maximum=130; value=200.0           True
+       3         AGE_TOO_HIGH   INVALID (3)      2  failed Age is implausibly high (over 130)              value=200.0; maximum=130           True
        3 EMAIL_DOMAIN_INVALID MALFORMED (2)      2  failed       Email domain looks malformed                    domain=nodotdomain           True
        5          AGE_PRESENT   MISSING (1)      0  failed                     Age is missing                                                 True
        5        EMAIL_PRESENT   MISSING (1)      0  failed                   Email is missing                                                 True
@@ -52,7 +52,7 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 | `outcome` | `failed`, `errored`, and `skipped`/`disabled`/`shared`/`passed` when asked for.<sup>[4](interfaces.md#outcome)</sup> |
 | `message` | The check's message — what a person reads first — for a check that failed or errored. Empty for one that passed, was skipped or was disabled. |
 | `detail` | Why a check gave no verdict: the rule that disabled it, the prerequisites that blocked it, the exception it raised, or, on a copy under `repeat_key`, what it did on the first copy and where. Empty for a check that passed or failed. |
-| `comments` | What the check attached, rendered `key=value; key=value`, sorted. |
+| `comments` | What the check attached, rendered `key=value; key=value`, in the order the check wrote them. |
 | `is_root_cause` | True for **every** failure at that row's shallowest failing layer. Two failures at the same depth are two root causes: neither is upstream of the other. Not always the row's first line: lines are in evaluation order, so an independent chain registered earlier prints above a shallower failure.<sup>[5](interfaces.md#root_causesrow_outcomes---liststr)</sup> |
 
 ## Identifying rows

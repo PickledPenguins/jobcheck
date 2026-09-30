@@ -14,8 +14,8 @@ row      sku               code        status  layer outcome                    
   2 WIDGET-2        QTY_PRESENT   MISSING (1)      0  failed                         Quantity is missing                                           True
   2 WIDGET-2      PRICE_PRESENT   MISSING (1)      0  failed                       Unit price is missing                                           True
   3 WIDGET-3   QTY_NOT_A_NUMBER MALFORMED (2)      1  failed                    Quantity is not a number                       value=two           True
-  4 WIDGET-4     TOTAL_MISMATCH   INVALID (3)      2  failed Line total is not quantity times unit price        actual=7.0; expected=6.0           True
-  5 WIDGET-5   QTY_NOT_POSITIVE   INVALID (3)      2  failed                Quantity is zero or negative           minimum=1; value=-1.0           True
+  4 WIDGET-4     TOTAL_MISMATCH   INVALID (3)      2  failed Line total is not quantity times unit price        expected=6.0; actual=7.0           True
+  5 WIDGET-5   QTY_NOT_POSITIVE   INVALID (3)      2  failed                Quantity is zero or negative           value=-1.0; minimum=1           True
   6 WIDGET-6 PRICE_NOT_A_NUMBER MALFORMED (2)      1  failed                  Unit price is not a number                       value=abc          False
   6 WIDGET-6      TOTAL_PRESENT   MISSING (1)      0  failed                       Line total is missing                                           True
   9  PROMO-2        QTY_PRESENT   MISSING (1)      0  failed                         Quantity is missing                                           True

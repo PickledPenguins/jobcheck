@@ -172,8 +172,8 @@ call, and it has not run on them since. Last checked 2026-09-28.
 **Every interface in `interfaces.md` gets a brief example in its own section** (F.71,
 raised by the owner on 2026-09-28). Each function or type's definition block in
 `docs/interfaces.md` should show a short piece of real code that uses it, not only the
-signature and prose. Today the document has two `python` blocks, under `load_checks` and
-`render_comments`. The other documented names -- `Status`, `Verdict`, `CheckOutcome`,
+signature and prose. Today the document has one `python` block, under `load_checks`.
+The other documented names -- `Status`, `Verdict`, `CheckOutcome`,
 `Outcome`, `RowContext`, `Rule`, `register_check`, `clear_registry`, `load_rules`,
 `load_setup`, `explain_row`, `validate_row`, `root_causes`, the three `warn_*`
 functions, `validate`, `build_report`, `row_explanation`, `summarize_outcomes`,
@@ -186,7 +186,8 @@ documented world (`tests/doc_files.py`). Not yet surveyed.
 owner on 2026-09-28). Each name `interfaces.md` defines should appear in a script under
 `examples/`, used the way a real entry point would use it. Counted by name on
 2026-09-28, these have no use in `examples/`: `Outcome`, `RowContext`, `clear_registry`,
-`explain_row`, `validate_row` and `render_comments`. F.37 accepted a use in `docs/` or in
+`explain_row` and `validate_row` (`render_comments` was made private on 2026-09-30,
+F.82). F.37 accepted a use in `docs/` or in
 jobchain as the example; this raises the bar to the examples catalog. The survey must
 say, for each missing name, which script it belongs in and why a real caller would reach
 for it there, rather than a call added only to be counted. Not yet surveyed.
@@ -266,18 +267,7 @@ the frame and the `repeat_key`; not recommended under the simplicity principle.
 - `README.md:150` indexes the section as "one row checked as many instances"; it is now
   "One row, many copies".
 
-**A comment key that is not text crashes the report late, without the check's code**
-(F.82, medium; from the native `/code-review` of 2026-09-30). `700e73f` dropped
-`Verdict`'s comment-key check (`results.py:100`). `Verdict(Status.INVALID, {1: "a", "b":
-2})` is accepted, the run finishes, and `build_report` then fails in `render_comments`
-(`report.py:66`, `sorted(comments)`) with `TypeError: '<' not supported between
-instances of 'str' and 'int'` -- no check code, far from the cause. Reproduced. That
-contradicts the principle's one obligation, an informative failure. Fix: restore the key
-check, about 2 lines, raising with the key and its value. Also from that change: every
-passing outcome shares `OK`'s one comments dict, so mutating one outcome's comments
-mutates all; nothing in `src/` or jobchain mutates them. Recommended: restore the key
-check; leave the shared dict, and say in `Verdict`'s docstring that comments are not to
-be mutated.
+
 
 **A float status is accepted** (F.83, low; same review). Without the old `is_integer`
 check, `Status(self.status)` (`results.py:88`) takes `3.0` as `INVALID`, so
@@ -306,6 +296,18 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**A comment key that is not text crashed the report late** (F.82, built by the owner's
+choice on 2026-09-30). `Verdict(Status.INVALID, {1: "a", "b": 2})` was accepted, and
+`build_report` then raised `TypeError: '<' not supported between instances of 'str' and
+'int'` from `sorted(comments)` in `render_comments`, naming no check. The recommended
+fix, restoring `Verdict`'s key-type check, was not built. Instead the sort was removed:
+comments render in the order the check wrote them, which is already the same every
+run, so a key of any type renders and there is nothing to refuse. `render_comments` was
+made private (`report._render_comments`); its one outside caller, jobchain's detail
+line, joins the comments itself. Lost: one canonical key order across checks, and the
+exported name. `OK`'s comments dict stays shared by every passing outcome; `Verdict`'s
+docstring says not to mutate comments.
 
 **The rest of the 2026-09-29 complexity review** (declined by the owner the same day).
 Built from that review: the load lock removed, every table returned whole with

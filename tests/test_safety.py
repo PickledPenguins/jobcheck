@@ -109,9 +109,9 @@ def test_an_ndarray_cell_does_not_break_rule_matching(one_code: None) -> None:
 def test_comments_are_never_evaluated(fresh_registry: None) -> None:
     """Comments are data all the way through: nothing formats or evals them."""
 
-    from jobcheck import render_comments
+    from jobcheck.report import _render_comments
 
-    rendered = render_comments({"expr": "__import__('os').system('x')"})
+    rendered = _render_comments({"expr": "__import__('os').system('x')"})
     assert rendered == "expr=__import__('os').system('x')"
 
 

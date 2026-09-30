@@ -79,7 +79,6 @@ Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
 | [`summarize_outcomes`](#summarize_outcomesframe_outcomes---dataframe) | `frame_outcomes` | – | DataFrame `Summary` | Per-check counts across all rows: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`. Takes complete lists (not `validate_row`'s), a generator included. |
 | [`registry_table`](#registry_tablerulesnone---dataframe) | – | `rules=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `repeat`, `message`, `depends_on`, `source_file`, and from `rules`, `could_be_overridden_by`. |
 | [`rules_table`](#rules_tablerules---dataframe) | `rules` | – | DataFrame `Rules` | One line per rule: `name`, `action`, `codes_hit_count`, `codes`, `match`, `message`, `source_file`. |
-| [`render_comments`](#render_commentscomments---str) | `comments` | – | `str` | A check's comments as `key=value; key=value`, sorted by key; empty for no comments. |
 
 **Types and constants**
 
@@ -491,23 +490,7 @@ per row is the streaming form — and keeps only the counts. `validate_row`'s li
 hold failures only and would count wrong, so lists that differ in length raise
 `ValueError`. Titled `Summary`.<sup>[16](reporting.md#diagnosing-a-whole-file)</sup>
 
-### `render_comments(comments) -> str`
 
-A check's comments as the report prints them: `key=value; key=value`, sorted by key
-so the same failure renders the same way every run and reports diff cleanly, each
-value through `str()`. An empty mapping gives an empty string. The report's `comments`
-column is this; a caller printing one failure — jobchain's detail line — calls it
-directly:
-
-```python
-from jobcheck import render_comments
-
-print(render_comments({"value": -5, "minimum": 0}))
-```
-
-```
-minimum=0; value=-5
-```
 
 ### `registry_table(rules=None) -> DataFrame`
 

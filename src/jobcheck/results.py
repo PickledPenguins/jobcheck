@@ -71,6 +71,9 @@ class Verdict:
 
     Truthy when the check **passed**, so `if result:` reads as "if the check was
     happy" -- unlike the raw status, where 0 is a pass and falsy.
+
+    The comments are kept as given, not copied: never mutate them afterwards.
+    `OK`'s one dict is shared by every passing outcome.
     """
 
     __test__ = False  # not a pytest check class, despite the name

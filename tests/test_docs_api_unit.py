@@ -160,7 +160,7 @@ def real_parameters(function: Any) -> list[tuple[str, object]]:
 @pytest.mark.parametrize(
     "name", sorted(name for name, value in PUBLIC.items() if inspect.isfunction(value)))
 def test_interfaces_shows_every_exported_function_s_real_signature(name: str) -> None:
-    """Regression: `render_comments`, `row_explanation` and `summarize_outcomes` had
+    """Regression: `row_explanation` and `summarize_outcomes`, among others, had
     no signature anywhere, and the name check passed on one mention in a list.
     Parameter names, order and defaults must all match."""
 

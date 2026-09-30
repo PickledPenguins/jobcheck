@@ -57,11 +57,12 @@ def _refuse_partial_row(caller: str, position: int, found: int, expected: int) -
         )
 
 
-def render_comments(comments: Mapping[str, Any]) -> str:
-    """Render a check's comments as `key=value; key=value`, sorted by key so the
-    same failure renders identically every run and reports can be diffed."""
+def _render_comments(comments: Mapping[Any, Any]) -> str:
+    """Render a check's comments as `key=value; key=value`, in the order the check
+    wrote them. Not sorted: a key of any type renders, and a dict's order is
+    already the same every run."""
 
-    return "; ".join(f"{key}={comments[key]}" for key in sorted(comments))
+    return "; ".join(f"{key}={value}" for key, value in comments.items())
 
 
 def _row_labels(df: pd.DataFrame, key_column: str | None) -> list[str]:
@@ -170,7 +171,7 @@ def build_report(
                     "outcome": outcome.outcome.value,
                     "message": outcome.message,
                     "detail": outcome.detail,
-                    "comments": render_comments(outcome.comments),
+                    "comments": _render_comments(outcome.comments),
                     "is_root_cause": outcome.code in causes,
                 }
             )
@@ -198,7 +199,7 @@ def row_explanation(row_outcomes: list[CheckOutcome], include: str = "all") -> p
                 "outcome": outcome.outcome.value,
                 "status": _render_status(outcome.status),
                 "detail": outcome.detail
-                or render_comments(outcome.comments)
+                or _render_comments(outcome.comments)
                 or outcome.message
                 or "-",
             }

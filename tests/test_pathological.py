@@ -211,12 +211,12 @@ def test_wide_row_with_many_columns(fresh_registry: None) -> None:
 # --- hostile values reaching the report ------------------------------------
 
 
-def test_a_hundred_comment_keys_render_in_sorted_order(fresh_registry: None) -> None:
-    from jobcheck import render_comments
+def test_a_hundred_comment_keys_render_in_the_order_written(fresh_registry: None) -> None:
+    from jobcheck.report import _render_comments
 
-    comments = {f"key_{index:03d}": index for index in range(100)}
-    rendered = render_comments(comments)
-    assert rendered.startswith("key_000=0; key_001=1")
+    comments = {f"key_{index:03d}": index for index in reversed(range(100))}
+    rendered = _render_comments(comments)
+    assert rendered.startswith("key_099=99; key_098=98")
     assert rendered.count(";") == 99
 
 

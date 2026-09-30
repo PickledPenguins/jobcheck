@@ -92,9 +92,9 @@ comments say the rest.<sup>[5](reporting.md#shape-one-row-per-failure)</sup>
 ### Comments
 
 The dict a check attaches is what turns "Age is out of range" into something
-actionable. It renders as `key=value; key=value`, sorted by key, in the report's
-`comments` column. Put the numbers a reader would otherwise have to go and look
-up: the value seen, the limit breached, the count that was wrong.
+actionable. It renders as `key=value; key=value`, in the order the check wrote the
+keys, in the report's `comments` column. Put the numbers a reader would otherwise have
+to go and look up: the value seen, the limit breached, the count that was wrong.
 
 Keep them small and scalar. They end up in a CSV cell, written as they are — a value
 from the data that looks like a formula stays one

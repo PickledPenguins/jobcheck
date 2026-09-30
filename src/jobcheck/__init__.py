@@ -30,7 +30,6 @@ from .registry_tables import registry_table, rules_table, warn_blocking_rules
 from .rules import Rule, warn_missing_rule_columns, warn_shadowed_rules
 from .report import (
     build_report,
-    render_comments,
     row_explanation,
     summarize_outcomes,
 )
@@ -55,7 +54,6 @@ __all__ = [
     "load_setup",
     "register_check",
     "registry_table",
-    "render_comments",
     "root_causes",
     "row_explanation",
     "rules_table",
