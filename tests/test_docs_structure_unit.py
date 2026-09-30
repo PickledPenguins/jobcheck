@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from doc_files import DOCS, README, ROOT
-from jobcheck import Outcome
+from jobcheck import Outcome, summarize_outcomes
 
 pytestmark = pytest.mark.fast
 
@@ -126,6 +126,34 @@ def test_the_rule_file_shown_is_the_shipped_one() -> None:
     rules_only = "\n".join(line for line in shipped.splitlines()
                            if not line.lstrip().startswith("#"))
     assert shown.group(1).strip() == rules_only.strip()
+
+
+def test_testing_has_a_row_for_every_test_module() -> None:
+    """Regression: `test_repeat_unit.py` shipped with no row in the per-module
+    table (F.81)."""
+
+    testing = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
+    rows = set(re.findall(r"^\| `(tests/[^`]+)` \|", testing, re.M))
+    files = {path.relative_to(ROOT).as_posix() for path in ROOT.glob("tests/test_*.py")}
+    assert sorted(files - rows) == [], "no row in docs/testing.md"
+
+
+def test_every_list_of_the_summary_columns_names_them_all() -> None:
+    """Regression: two lists left out `shared` when it was added (F.86). A list is
+    a run of backticked names joined by commas that holds `root_cause_rows`.
+    `future-work.md` is left out: it quotes old lists as history."""
+
+    counts = set(summarize_outcomes([]).columns) - {"code", "layer"}
+    run = re.compile(r"`\w+`(?:,\s+(?:and\s+)?`\w+`)+")
+    short: dict[str, list[str]] = {}
+    for path in [README, *DOCS]:
+        if path.name == "future-work.md":
+            continue
+        for match in run.finditer(path.read_text(encoding="utf-8")):
+            names = set(re.findall(r"`(\w+)`", match.group()))
+            if "root_cause_rows" in names and counts - names:
+                short[f"{path.name}: {match.group()[:40]}"] = sorted(counts - names)
+    assert short == {}
 
 
 def test_architecture_has_a_row_for_every_module_entry_point_and_script() -> None:

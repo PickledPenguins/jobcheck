@@ -117,7 +117,7 @@ without printing the registry or the report. Each line's outcome is `passed`, `f
 ### `--summary`
 
 Optional, off by default. After the report, print per-check counts (`failed`,
-`root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`, worst first);
+`root_cause_rows`, `errored`, `skipped`, `disabled`, `shared`, `passed`, worst first);
 `root_cause_rows` is how many rows bottomed out at that check. A high `skipped` count
 means a fundamental check is failing often and hiding the layer below it.<sup>[5](reporting.md#diagnosing-a-whole-file)</sup>
 

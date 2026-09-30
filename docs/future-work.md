@@ -238,9 +238,11 @@ where it is history.
 **The streaming advice drops copy handling** (F.79, medium; same review).
 `interfaces.md:445` says to call `validate_row` per row for a frame too large for
 memory, right after the `repeat_key` paragraph; neither `validate_row` nor `explain_row`
-takes `repeat_key`, so that caller runs every check on every copy with no sign. Fix: say
-so in that paragraph (a few lines of docs). A per-row sharing API would be a new feature,
-and would interact with F.73's proposed cut of `validate_row`. Recommended: the docs line.
+takes `repeat_key`, so that caller runs every check on every copy with no sign.
+`README.md:140` gives the same advice with the same gap (found by the `creadme` audit of
+2026-09-30). Fix: say so in both places (a few lines of docs). A per-row sharing API
+would be a new feature, and would interact with F.73's proposed cut of `validate_row`.
+Recommended: the docs lines.
 
 **A rule on a non-repeating check matched against a per-copy column** (F.80, medium;
 same review). Such a rule is matched on the first copy only (`interfaces.md:438`), so
@@ -249,12 +251,12 @@ and then for every copy. Documented under `validate` only, where a rule author d
 look. Fix: a paragraph in `configuration.md` beside "Precedence". A `warn_*` would need
 the frame and the `repeat_key`; not recommended under the simplicity principle.
 
-**Three small corrections from the same review** (F.81, low).
+**Two small corrections from the same review** (F.81, low). The testing.md row for
+`tests/test_repeat_unit.py` and the `shared` column in `summarize_outcomes`' docstring
+were built with F.86 on 2026-09-30.
 - `validate(df, repeat_key=["id"])` raises pandas' `TypeError: unhashable type: 'list'`
   from `repeat_key in df.columns` (`engine.py:327`), not naming `repeat_key` as the
   other refusals do. Fix: a `hash()` guard, about 4 lines, or accept pandas' message.
-- `docs/testing.md:68`'s per-module table has no row for `tests/test_repeat_unit.py`, and
-  `summarize_outcomes`' docstring (`report.py:212`) does not mention the `shared` column.
 - `README.md:150` indexes the section as "one row checked as many instances"; it is now
   "One row, many copies".
 
@@ -278,6 +280,8 @@ results substituted, and that no `shared` outcome counts as a failure. The revie
 residual risk is in these interactions, which the unit tests cover only for hand-built
 two- and three-check graphs.
 
+
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
@@ -287,6 +291,17 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**Two lists of the summary columns left out `shared`, and nothing checked them**
+(F.86 and F.87, built together on 2026-09-30; from the `creadme` audit of that day).
+The `summarize_outcomes` row of `interfaces.md`'s At a glance table and `cli.md`'s
+`--summary` listed the counts without `shared`; both now name it. Two tests in
+`test_docs_structure_unit.py` keep such drift out: every `tests/test_*.py` has a row in
+`testing.md`'s per-module table, and every comma-joined run of backticked names holding
+`root_cause_rows` names every count column `summarize_outcomes` builds (`future-work.md`
+is exempt, since it quotes old lists as history). Both failed on the old documents. Lost:
+nothing a reader sees; one more place to update when a test file or summary column is
+added.
 
 **A `shared` line showed a failure status** (F.78, built on 2026-09-30; from the
 `creview` of that day). A `shared` outcome copied the first copy's status, so a copy

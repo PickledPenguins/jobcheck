@@ -221,6 +221,8 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
     is; a row failing two chains at the same depth counts against both. An
     errored check counts only on a row with no data failure, where it is the
     one thing to read; that is how `root_cause_rows` can exceed `failed`.
+    `shared` counts the copies under `validate(repeat_key=...)` that reused the
+    first copy's result; `failed` and `passed` count only the calls made.
 
     Every row's list must be complete -- `validate`'s, or `explain_row`'s per
     row, a generator of them included. A list whose length differs from the one
