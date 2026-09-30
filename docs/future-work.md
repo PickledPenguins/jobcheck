@@ -232,6 +232,71 @@ the two sentences; the reasoning they support (no save-and-restore in the librar
 stands without them. `future-work.md:730` repeats "rollback" inside a closed entry,
 where it is history.
 
+**A `shared` line shows a failure status** (F.78, medium; from the `creview` of
+2026-09-30, `.agent/reviews/2026-09-30T11-47-22.claude-opus-5-5.md`). Under
+`validate(repeat_key=...)` a `shared` outcome copies the first copy's status
+(`engine.py:132`), so a copy reads `shared | INVALID (3)` although `.failed` is False and
+nothing counts it. `concepts.md:47` says the status means something only beside a
+failure, which is why `skipped` and `disabled` show `PASS (0)`. Fix: record `Status.PASS`;
+the detail already says `failed at position 0, the first row with id J1`. About 1 line,
+3 test assertions, the `CheckOutcome` paragraph in `interfaces.md`, and the regenerated
+writing-checks output and catalog case. Lost: reading the first copy's status straight
+off a copy's line. Recommended: build.
+
+**The streaming advice drops copy handling** (F.79, medium; same review).
+`interfaces.md:445` says to call `validate_row` per row for a frame too large for
+memory, right after the `repeat_key` paragraph; neither `validate_row` nor `explain_row`
+takes `repeat_key`, so that caller runs every check on every copy with no sign. Fix: say
+so in that paragraph (a few lines of docs). A per-row sharing API would be a new feature,
+and would interact with F.73's proposed cut of `validate_row`. Recommended: the docs line.
+
+**A rule on a non-repeating check matched against a per-copy column** (F.80, medium;
+same review). Such a rule is matched on the first copy only (`interfaces.md:438`), so
+`disable VAL_IN_RANGE where dirname ~ ^eps2$` fires only if `eps2` is the first copy,
+and then for every copy. Documented under `validate` only, where a rule author does not
+look. Fix: a paragraph in `configuration.md` beside "Precedence". A `warn_*` would need
+the frame and the `repeat_key`; not recommended under the simplicity principle.
+
+**Three small corrections from the same review** (F.81, low).
+- `validate(df, repeat_key=["id"])` raises pandas' `TypeError: unhashable type: 'list'`
+  from `repeat_key in df.columns` (`engine.py:327`), not naming `repeat_key` as the
+  other refusals do. Fix: a `hash()` guard, about 4 lines, or accept pandas' message.
+- `docs/testing.md:68`'s per-module table has no row for `tests/test_repeat_unit.py`, and
+  `summarize_outcomes`' docstring (`report.py:212`) does not mention the `shared` column.
+- `README.md:150` indexes the section as "one row checked as many instances"; it is now
+  "One row, many copies".
+
+**A comment key that is not text crashes the report late, without the check's code**
+(F.82, medium; from the native `/code-review` of 2026-09-30). `700e73f` dropped
+`Verdict`'s comment-key check (`results.py:100`). `Verdict(Status.INVALID, {1: "a", "b":
+2})` is accepted, the run finishes, and `build_report` then fails in `render_comments`
+(`report.py:66`, `sorted(comments)`) with `TypeError: '<' not supported between
+instances of 'str' and 'int'` -- no check code, far from the cause. Reproduced. That
+contradicts the principle's one obligation, an informative failure. Fix: restore the key
+check, about 2 lines, raising with the key and its value. Also from that change: every
+passing outcome shares `OK`'s one comments dict, so mutating one outcome's comments
+mutates all; nothing in `src/` or jobchain mutates them. Recommended: restore the key
+check; leave the shared dict, and say in `Verdict`'s docstring that comments are not to
+be mutated.
+
+**A float status is accepted** (F.83, low; same review). Without the old `is_integer`
+check, `Status(self.status)` (`results.py:88`) takes `3.0` as `INVALID`, so
+`Verdict(row["kind"])` on a float column is read silently rather than refused. Fix:
+refuse a non-integer, non-bool status, about 2 lines. Recommended: build, since
+accepting it is input reinterpretation.
+
+**Two missing blank lines** (F.84, low; same review). `paths.py:62`, between
+`_key_names` and `class _DuplicateKey`, and `examples/run_from_config.py:117`, between
+`key_names` and `def fail`. Style only.
+
+**A property test for copy handling** (F.85, low; recommended by the `creview` of
+2026-09-30). Over random dependency graphs, `repeat` flags and copy groupings, assert
+that each non-repeating check is called once per `repeat_key` value, that every
+repeating check's outcome on a copy matches `explain_row` on that copy with the shared
+results substituted, and that no `shared` outcome counts as a failure. The review's
+residual risk is in these interactions, which the unit tests cover only for hand-built
+two- and three-check graphs.
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
