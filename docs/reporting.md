@@ -49,9 +49,9 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 | `code` | The permanent check code.<sup>[1](writing-checks.md#codes-are-permanent)</sup> |
 | `status` | The failure kind, rendered as `INVALID (3)`; `PASS (0)` on a line that did not fail, including one that never ran.<sup>[2](concepts.md#what-a-check-says-and-what-the-engine-records)</sup> |
 | `layer` | How deep the check sits in the dependency graph; 0 is fundamental.<sup>[3](writing-checks.md#layering-one-problem-one-error)</sup> |
-| `outcome` | `failed`, `errored`, and `skipped`/`disabled`/`passed` when asked for.<sup>[4](interfaces.md#outcome)</sup> |
+| `outcome` | `failed`, `errored`, and `skipped`/`disabled`/`shared`/`passed` when asked for.<sup>[4](interfaces.md#outcome)</sup> |
 | `message` | The check's message — what a person reads first — for a check that failed or errored. Empty for one that passed, was skipped or was disabled. |
-| `detail` | Why a check gave no verdict: the rule that disabled it, the prerequisites that blocked it, or the exception it raised. Empty for a check that passed or failed. |
+| `detail` | Why a check gave no verdict: the rule that disabled it, the prerequisites that blocked it, the exception it raised, or, on a copy under `repeat_key`, what it did on the first copy and where. Empty for a check that passed or failed. |
 | `comments` | What the check attached, rendered `key=value; key=value`, sorted. |
 | `is_root_cause` | True for **every** failure at that row's shallowest failing layer. Two failures at the same depth are two root causes: neither is upstream of the other. Not always the row's first line: lines are in evaluation order, so an independent chain registered earlier prints above a shallower failure.<sup>[5](interfaces.md#root_causesrow_outcomes---liststr)</sup> |
 
@@ -147,8 +147,10 @@ from jobcheck import summarize_outcomes
 print(summarize_outcomes(outcomes).to_string(index=False))
 ```
 
-Per check: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`,
-worst first. `root_cause_rows` counts the rows the check was a root cause of; a row
+Per check: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `shared`,
+`passed`, worst first. `shared` counts the copies, under `validate(repeat_key=...)`,
+that reused the first copy's result instead of running the check, so `failed` and
+`passed` count calls, not rows. `root_cause_rows` counts the rows the check was a root cause of; a row
 failing two chains at the same depth counts against both. Data failures come first: an
 errored check is a root cause only on a row with no data failure, where it is the one
 thing to read. A broken shallow check therefore never takes the flag from a real
@@ -323,8 +325,9 @@ choice is a depth rather than a set of switches:
 - `include="failures"` (the default) — what failed or errored.
 - `include="blocked"` adds the checks a failure or a rule stopped, each naming its
   prerequisite in `detail`. Use it when the question is "why did nothing fire?".
-- `include="all"` adds the passes, turning the report into a full audit trail of
-  every check against every row.
+- `include="all"` adds the passes, and the `shared` lines of copies under
+  `repeat_key`, turning the report into a full audit trail of every check against
+  every row.
 
 `row_explanation` takes the same three levels, with `"all"` as its default.
 

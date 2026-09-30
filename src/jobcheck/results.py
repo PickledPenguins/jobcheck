@@ -56,6 +56,7 @@ class Outcome(str, Enum):
     DISABLED = "disabled"
     SKIPPED = "skipped"
     ERRORED = "errored"
+    SHARED = "shared"
 
 
 def _render_status(status: int) -> str:

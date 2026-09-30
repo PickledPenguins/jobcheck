@@ -144,6 +144,22 @@ nothing else — no package convention, no directory scan, no suite names. Two m
 that differed in what they discovered was one more thing to explain than the feature was
 worth, and a path is what a pipeline writing check files into a run directory already has.
 
+**One row checked as many copies: the caller explodes, the check says what repeats.**
+A row that stands for several things, counted only at run time, is exploded by the
+caller into copies, and `validate(repeat_key=...)` names the column that marks them. A
+check marked `repeat=True`, and everything that depends on it, runs on every copy; every
+other check runs on the first copy and is recorded `shared` on the rest. Every copy
+keeps one outcome per check, so each outcome list still describes one visible row, and
+the summary counts calls. The flag is on the check because it is a fact about the check;
+the key is on the call because which rows are copies is a fact about the frame, and it
+is never guessed from a repeated index. Cost: a sixth outcome, a summary column and a
+registry column. Rejected (2026-09-30): the engine looping over a list held in the
+context (`for_each="dirs"`), which tied a check to a context attribute by name and hid
+each copy's identity from the report and the rules; a per-group outcome list, which
+breaks the one list per row that `build_report` pairs with the frame; and repeating
+every check on every copy with rules to suppress the extras, which disabled the
+prerequisites of the checks that did repeat.
+
 **Per-row metadata lives in `RowContext`, not in DataFrame columns.** Extra columns
 holding dicts or paths cause dtype churn and leak into exports. `RowContext` is left
 bare on purpose: it is the one type an adopter is expected to fill in.<sup>[3](writing-checks.md#per-row-context)</sup>

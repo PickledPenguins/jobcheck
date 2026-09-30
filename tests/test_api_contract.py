@@ -144,7 +144,7 @@ def test_outcome_names_are_permanent() -> None:
 
     assert {member.name: member.value for member in res.Outcome} == {
         "PASSED": "passed", "FAILED": "failed", "DISABLED": "disabled",
-        "SKIPPED": "skipped", "ERRORED": "errored",
+        "SKIPPED": "skipped", "ERRORED": "errored", "SHARED": "shared",
     }
 
 
@@ -168,7 +168,7 @@ def test_report_columns_are_stable() -> None:
 
 def test_registry_table_columns_are_stable(example_checks: None) -> None:
     assert list(registry_tables.registry_table().columns) == [
-        "code", "layer", "default", "message", "depends_on", "source_file",
+        "code", "layer", "default", "repeat", "message", "depends_on", "source_file",
         "could_be_overridden_by",
     ]
 
@@ -185,7 +185,7 @@ def defaults(fn: Any) -> dict[str, Any]:
     "fn, expected",
     [
         pytest.param(reg.register_check,
-                     {"default_enabled": True, "depends_on": None},
+                     {"default_enabled": True, "depends_on": None, "repeat": False},
                      id="register_check"),
         pytest.param(reg.load_checks, {"base_dir": None}, id="load_checks"),
         pytest.param(engine.explain_row,
@@ -197,7 +197,8 @@ def defaults(fn: Any) -> dict[str, Any]:
         pytest.param(reg.load_rules, {"base_dir": None}, id="load_rules"),
         pytest.param(engine.validate,
                      {"rules": None, "context_builder": None,
-                      "on_error": "record", "context_args": None}, id="validate"),
+                      "on_error": "record", "context_args": None, "repeat_key": None},
+                     id="validate"),
         pytest.param(rep.build_report,
                      {"key_column": None, "add_columns": None,
                       "include": "failures"},
