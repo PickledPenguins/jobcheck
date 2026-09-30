@@ -22,7 +22,7 @@ EMAIL_DOMAIN_INVALID      2      ON      -            Email domain looks malform
 == Report ==
  row         code      status  layer outcome         message detail              comments  is_root_cause
 2001  AGE_PRESENT MISSING (1)      0  failed  Age is missing                                        True
-2002 AGE_NEGATIVE INVALID (3)      2  failed Age is negative        minimum=0; value=-3.0           True
+2002 AGE_NEGATIVE INVALID (3)      2  failed Age is negative        value=-3.0; minimum=0           True
 
 == Summary ==
                 code  layer  failed  root_cause_rows  errored  skipped  disabled  shared  passed

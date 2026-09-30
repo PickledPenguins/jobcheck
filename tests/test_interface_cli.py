@@ -72,7 +72,7 @@ def test_the_report_names_each_row_by_its_key_column_and_root_cause(
 ) -> None:
     failures = default_run.stdout.split("== Report")[1]
     assert ["2", "AGE_NEGATIVE"] in [line.split()[:2] for line in failures.splitlines()]
-    assert "minimum=0; value=-5.0" in failures
+    assert "value=-5.0; minimum=0" in failures
     assert "<no key>" in failures
 
 

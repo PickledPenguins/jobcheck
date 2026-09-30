@@ -34,14 +34,14 @@ def document(tmp_path: Path, code: str, shown: str) -> Path:
     return path
 
 
-PRINTS = 'from jobcheck import render_comments\n\nprint(render_comments({"b": 2, "a": 1}))\n'
+PRINTS = 'from jobcheck import Status\n\nprint(Status.INVALID.name)\n'
 
 
 def test_a_stale_output_is_rewritten_and_nothing_else_changes(
     regen: ModuleType, fresh_registry: None, tmp_path: Path, capsys: Any,
 ) -> None:
     path = document(tmp_path, PRINTS, "out of date\n")
-    expected = path.read_text(encoding="utf-8").replace("out of date\n", "a=1; b=2\n")
+    expected = path.read_text(encoding="utf-8").replace("out of date\n", "INVALID\n")
     assert regen.regenerate([path]) == 0
     assert path.read_text(encoding="utf-8") == expected
     assert capsys.readouterr().out == "doc.md:6: rewritten\n"
@@ -50,7 +50,7 @@ def test_a_stale_output_is_rewritten_and_nothing_else_changes(
 def test_an_output_that_is_already_right_is_left_alone(
     regen: ModuleType, fresh_registry: None, tmp_path: Path, capsys: Any,
 ) -> None:
-    path = document(tmp_path, PRINTS, "a=1; b=2\n")
+    path = document(tmp_path, PRINTS, "INVALID\n")
     before = path.read_text(encoding="utf-8")
     assert regen.regenerate([path]) == 0
     assert path.read_text(encoding="utf-8") == before

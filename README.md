@@ -72,7 +72,7 @@ print(build_report(outcomes, df=df, key_column="id").to_string(index=False))
 
 ```
 row             code        status  layer outcome          message detail               comments  is_root_cause
-102     AGE_NEGATIVE   INVALID (3)      2  failed  Age is negative         minimum=0; value=-5.0           True
+102     AGE_NEGATIVE   INVALID (3)      2  failed  Age is negative         value=-5.0; minimum=0           True
 103 EMAIL_MISSING_AT MALFORMED (2)      1  failed Email has no '@'        at_signs=0; value=nope           True
 104      AGE_PRESENT   MISSING (1)      0  failed   Age is missing                                         True
 ```

@@ -116,7 +116,7 @@ PUBLIC_NAMES = {
     # Running.
     "validate", "validate_row", "explain_row", "root_causes",
     # Reports and tables.
-    "build_report", "render_comments", "row_explanation",
+    "build_report", "row_explanation",
     "summarize_outcomes", "registry_table", "rules_table", "is_null",
 }
 

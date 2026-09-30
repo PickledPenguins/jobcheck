@@ -2,7 +2,7 @@
 row    carrier                     code        status  layer outcome                                  message                                                  detail                                 comments  is_root_cause
  S3                       CARRIER_KNOWN     ERROR (9)      0 errored          Carrier is not one we ship with AttributeError: 'float' object has no attribute 'upper'                                                    True
  S4                       CARRIER_KNOWN     ERROR (9)      0 errored          Carrier is not one we ship with AttributeError: 'float' object has no attribute 'upper'                                                   False
- S4            DELIVERED_BEFORE_SHIPPED   INVALID (3)      2  failed          Delivered before it was shipped                                                         delivered=2024-03-01; shipped=2024-03-09           True
+ S4            DELIVERED_BEFORE_SHIPPED   INVALID (3)      2  failed          Delivered before it was shipped                                                         shipped=2024-03-09; delivered=2024-03-01           True
  S5 Royal Mail            CARRIER_KNOWN   INVALID (3)      0  failed          Carrier is not one we ship with                                                                               carrier=Royal Mail           True
  S6      FedEx TRACKING_MATCHES_CARRIER   INVALID (3)      1  failed Tracking number does not fit the carrier                                                              expected_prefix=FX; tracking=JD0006           True
  S6      FedEx       SHIPPED_NOT_A_DATE MALFORMED (2)      1  failed       Ship date is not a YYYY-MM-DD date                                                                                 value=2024-02-30           True
