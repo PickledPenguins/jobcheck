@@ -233,16 +233,7 @@ the two sentences; the reasoning they support (no save-and-restore in the librar
 stands without them. `future-work.md:730` repeats "rollback" inside a closed entry,
 where it is history.
 
-**A `shared` line shows a failure status** (F.78, medium; from the `creview` of
-2026-09-30, `.agent/reviews/2026-09-30T11-47-22.claude-opus-5-5.md`). Under
-`validate(repeat_key=...)` a `shared` outcome copies the first copy's status
-(`engine.py:132`), so a copy reads `shared | INVALID (3)` although `.failed` is False and
-nothing counts it. `concepts.md:47` says the status means something only beside a
-failure, which is why `skipped` and `disabled` show `PASS (0)`. Fix: record `Status.PASS`;
-the detail already says `failed at position 0, the first row with id J1`. About 1 line,
-3 test assertions, the `CheckOutcome` paragraph in `interfaces.md`, and the regenerated
-writing-checks output and catalog case. Lost: reading the first copy's status straight
-off a copy's line. Recommended: build.
+
 
 **The streaming advice drops copy handling** (F.79, medium; same review).
 `interfaces.md:445` says to call `validate_row` per row for a frame too large for
@@ -296,6 +287,14 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**A `shared` line showed a failure status** (F.78, built on 2026-09-30; from the
+`creview` of that day). A `shared` outcome copied the first copy's status, so a copy
+read `shared | INVALID (3)` although `.failed` was False and nothing counted it. It now
+records `Status.PASS`, as `skipped` and `disabled` do (`concepts.md`: the status says
+something only beside a failure); `detail` still says what the first copy did and
+where. Lost: reading the first copy's status code straight off a copy's line; it is on
+the first copy's own line.
 
 **A comment key that is not text crashed the report late** (F.82, built by the owner's
 choice on 2026-09-30). `Verdict(Status.INVALID, {1: "a", "b": 2})` was accepted, and

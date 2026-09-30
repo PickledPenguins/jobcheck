@@ -124,13 +124,14 @@ def _explain(
             where, first_outcomes = first
             original = first_outcomes[check.code]
             # A dependent that repeats reads the first row's result, and words
-            # a disabled prerequisite as disabled, as it would on that row.
+            # a disabled prerequisite as disabled, as it would on that row. The
+            # status stays PASS: a copy is not a failure, and detail says where.
             passed[check.code] = original.outcome is Outcome.PASSED
             if original.outcome is Outcome.DISABLED:
                 disabled.add(check.code)
             outcomes.append(
-                CheckOutcome(check.code, Outcome.SHARED, status=original.status,
-                             layer=check.layer, detail=f"{original.outcome.value} {where}")
+                CheckOutcome(check.code, Outcome.SHARED, layer=check.layer,
+                             detail=f"{original.outcome.value} {where}")
             )
             continue
 

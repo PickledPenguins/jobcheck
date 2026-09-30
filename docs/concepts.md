@@ -43,8 +43,8 @@ Three questions, and three types that answer them:
 
 "Fine" has three names, one per question: a check returns `OK`, the engine records
 `Outcome.PASSED`, and the status is `Status.PASS`. That is why a table shows
-`passed | PASS (0)`, and why a `skipped` or `disabled` line shows `PASS (0)` as well:
-the status says something only beside a failure.<sup>[9](reporting.md#diagnosing-one-row)</sup>
+`passed | PASS (0)`, and why a `skipped`, `disabled` or `shared` line shows `PASS (0)`
+as well: the status says something only beside a failure.<sup>[9](reporting.md#diagnosing-one-row)</sup>
 
 ## Rows
 

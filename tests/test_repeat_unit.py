@@ -58,13 +58,13 @@ def test_without_repeat_key_every_check_runs_on_every_row(fresh_registry: None) 
     assert all(row[0].outcome is Outcome.PASSED for row in outcomes)
 
 
-def test_a_shared_outcome_carries_the_first_rows_status_and_says_where(
+def test_a_shared_outcome_passes_status_and_says_where(
     fresh_registry: None,
 ) -> None:
     make_check("ONCE", passes=False, status=Status.MALFORMED, comments={"v": 1})
     shared = validate(copies(), repeat_key="id")[1][0]
     assert shared.outcome is Outcome.SHARED
-    assert shared.status == Status.MALFORMED
+    assert shared.status == Status.PASS
     assert shared.detail == "failed at position 0, the first row with id J1"
     assert not shared.failed
     assert shared.message == "" and dict(shared.comments) == {}
@@ -191,11 +191,11 @@ def test_a_shared_failure_is_reported_and_counted_once(fresh_registry: None) -> 
     assert summary.loc["EACH", ["passed", "shared"]].tolist() == [4, 0]
 
 
-def test_a_check_that_raised_is_shared_as_errored_status(fresh_registry: None) -> None:
+def test_a_check_that_raised_is_shared_as_errored_in_detail(fresh_registry: None) -> None:
     make_check("ONCE", raises=RuntimeError("boom"))
     shared = validate(copies(), repeat_key="id")[1][0]
     assert shared.outcome is Outcome.SHARED
-    assert shared.status == Status.ERROR
+    assert shared.status == Status.PASS
     assert shared.detail == "errored at position 0, the first row with id J1"
 
 
