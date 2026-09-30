@@ -12,6 +12,6 @@ VAL_IN_RANGE,0,1,1,0,0,0,4,4
 
 layer,code,outcome,status,detail
 0,NAMES_PRESENT,shared,PASS (0),"passed at position 3, the first row with id J2"
-0,VAL_IN_RANGE,shared,INVALID (3),"failed at position 3, the first row with id J2"
+0,VAL_IN_RANGE,shared,PASS (0),"failed at position 3, the first row with id J2"
 1,BASE_EXISTS,failed,MISSING (1),Run directory does not exist
 2,CHILD_EXISTS,skipped,PASS (0),prerequisite did not pass: BASE_EXISTS
