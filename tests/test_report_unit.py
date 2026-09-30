@@ -350,10 +350,10 @@ def test_the_summary_counts_every_status(two_layers: None) -> None:
     table = rep.summarize_outcomes(outcomes()).set_index("code")
     assert table.loc["AGE_PRESENT"].to_dict() == {
         "layer": 0, "failed": 1, "root_cause_rows": 1, "errored": 0, "skipped": 0,
-        "disabled": 0, "passed": 2}
+        "disabled": 0, "shared": 0, "passed": 2}
     assert table.loc["AGE_IN_RANGE"].to_dict() == {
         "layer": 1, "failed": 1, "root_cause_rows": 1, "errored": 0, "skipped": 1,
-        "disabled": 0, "passed": 1}
+        "disabled": 0, "shared": 0, "passed": 1}
 
 
 def test_the_summary_puts_the_worst_check_first(fresh_registry: None) -> None:
@@ -380,7 +380,7 @@ def test_the_summary_of_nothing_has_columns_and_no_rows(fresh_registry: None) ->
     assert table.empty
     assert list(table.columns) == [
         "code", "layer", "failed", "root_cause_rows", "errored", "skipped", "disabled",
-        "passed"
+        "shared", "passed"
     ]
 
 

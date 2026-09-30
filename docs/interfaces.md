@@ -36,7 +36,7 @@ to its full entry below. **Required** arguments are positional and have no defau
 
 | Name | Required | Optional (default) | Returns | What it does |
 |---|---|---|---|---|
-| [`register_check`](#register_checkcode-message-default_enabledtrue-depends_onnone) | `code`, `message` | `default_enabled=True`, `depends_on=None` | decorator | Registers a `(row)` or `(row, context)` function as check `code`; `message` is what a failure prints. `default_enabled=False` keeps it off until a rule enables it. `depends_on` lists codes that must pass before it runs. Bad arguments raise at import. |
+| [`register_check`](#register_checkcode-message-default_enabledtrue-depends_onnone-repeatfalse) | `code`, `message` | `default_enabled=True`, `depends_on=None`, `repeat=False` | decorator | Registers a `(row)` or `(row, context)` function as check `code`; `message` is what a failure prints. `default_enabled=False` keeps it off until a rule enables it. `depends_on` lists codes that must pass before it runs. `repeat=True` runs it, and its dependents, on every copy of a row under `validate(repeat_key=...)`. Bad arguments raise at import. |
 | [`is_null`](#is_nullvalue---bool) | `value` | – | `bool` | True for `None`, `NaN`, `NaT` and `pd.NA`; never for a list or array. The safe blank test inside a check. |
 
 **Loading checks and rules**
@@ -52,7 +52,7 @@ to its full entry below. **Required** arguments are positional and have no defau
 
 | Name | Required | Optional (default) | Returns | What it does |
 |---|---|---|---|---|
-| [`validate`](#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone---listlistcheckoutcome) | `df` | `rules=None`, `context_builder=None`, `on_error="record"`, `context_args=None` | `list[list[CheckOutcome]]` | Every check on every row of a DataFrame; one complete outcome list per row, in frame order. `context_builder` builds each row's `RowContext` from `(row)` or `(row, context_args)`. `on_error="raise"` propagates a check's exception instead of recording it as `errored`. Holds every outcome in memory. |
+| [`validate`](#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone-repeat_keynone---listlistcheckoutcome) | `df` | `rules=None`, `context_builder=None`, `on_error="record"`, `context_args=None`, `repeat_key=None` | `list[list[CheckOutcome]]` | Every check on every row of a DataFrame; one complete outcome list per row, in frame order. `context_builder` builds each row's `RowContext` from `(row)` or `(row, context_args)`. `on_error="raise"` propagates a check's exception instead of recording it as `errored`. `repeat_key` names the column marking copies of one row: a copy runs only the checks that repeat, and shares the rest. Holds every outcome in memory. |
 | [`explain_row`](#explain_rowrow-contextnone-rulesnone-on_errorrecord---listcheckoutcome) | `row` | `context=None`, `rules=None`, `on_error="record"` | `list[CheckOutcome]` | Every check's outcome on one `Series`, in evaluation order: passed, failed, disabled, skipped or errored. |
 | [`validate_row`](#validate_rowrow-contextnone-rulesnone-on_errorrecord---listcheckoutcome) | `row` | `context=None`, `rules=None`, `on_error="record"` | `list[CheckOutcome]` | The failures from `explain_row` only. The per-row form for a frame too large for `validate`. |
 | [`root_causes`](#root_causesrow_outcomes---liststr) | `row_outcomes` | – | `list[str]` | The codes to read first on one row: every failure at the shallowest failing layer, data failures ahead of errored checks. Empty for a row that passed. |
@@ -77,7 +77,7 @@ Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
 | [`build_report`](#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | `frame_outcomes`, `df` | `key_column=None`, `add_columns=None`, `include="failures"` | DataFrame `Report` | The long-format report: one line per outcome per data row. `key_column` labels rows (default: the index); `add_columns` copies frame columns in; `include` is `"failures"`, `"blocked"` or `"all"`. |
 | [`row_explanation`](#row_explanationrow_outcomes-includeall---dataframe) | `row_outcomes` | `include="all"` | DataFrame `Row explanation` | One line per check on one data row: `layer`, `code`, `outcome`, `status`, `detail`. |
 | [`summarize_outcomes`](#summarize_outcomesframe_outcomes---dataframe) | `frame_outcomes` | – | DataFrame `Summary` | Per-check counts across all rows: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `passed`. Takes complete lists (not `validate_row`'s), a generator included. |
-| [`registry_table`](#registry_tablerulesnone---dataframe) | – | `rules=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `message`, `depends_on`, `source_file`, and from `rules`, `could_be_overridden_by`. |
+| [`registry_table`](#registry_tablerulesnone---dataframe) | – | `rules=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `repeat`, `message`, `depends_on`, `source_file`, and from `rules`, `could_be_overridden_by`. |
 | [`rules_table`](#rules_tablerules---dataframe) | `rules` | – | DataFrame `Rules` | One line per rule: `name`, `action`, `codes_hit_count`, `codes`, `match`, `message`, `source_file`. |
 | [`render_comments`](#render_commentscomments---str) | `comments` | – | `str` | A check's comments as `key=value; key=value`, sorted by key; empty for no comments. |
 
@@ -89,7 +89,7 @@ Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
 | `OK` | – | The shared passing `Verdict`. |
 | [`Status`](#status) | `PASS` 0, `MISSING` 1, `MALFORMED` 2, `INVALID` 3, `ERROR` 9 | `IntEnum` of failure kinds. `ERROR` is the engine's, for a check that raised; a check never returns it. |
 | [`CheckOutcome`](#checkoutcome) | `code`, `outcome`, `status`, `layer`, `message`, `detail`, `comments` | What the engine recorded for one check on one row. `.failed` covers failed and errored; `detail` says why a check did not run or what it raised. |
-| [`Outcome`](#outcome) | `PASSED`, `FAILED`, `DISABLED`, `SKIPPED`, `ERRORED` | `str` enum of what happened to a check on a row. |
+| [`Outcome`](#outcome) | `PASSED`, `FAILED`, `DISABLED`, `SKIPPED`, `ERRORED`, `SHARED` | `str` enum of what happened to a check on a row. |
 | [`RowContext`](#rowcontext) | none; subclass to add | Per-row state the frame does not carry, handed to `(row, context)` checks. Built by `validate`'s `context_builder`. |
 | [`Rule`](#rule) | `name`, `action`, `codes`, `criteria`, `match_all`, `message`, `source_file` | One loaded rule, as `load_rules` returns it. |
 | `__version__` | – | The package version string; pre-1.0. |
@@ -128,13 +128,17 @@ What the engine recorded for one check on one row: `code` (the check code),
 `Status` value), `layer`, `message`, `detail`, `comments`.
 
 `.failed` is True for `failed` and `errored`; `.status_label` renders as
-`INVALID (3)`. `detail` explains the three non-evaluating outcomes: which rule
-disabled it, which prerequisites blocked it, or what it raised.<sup>[1](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
+`INVALID (3)`. `detail` explains the four non-evaluating outcomes: which rule
+disabled it, which prerequisites blocked it, what it raised, or, for `shared`, what it
+did on the first copy and where that copy is. A `shared` outcome carries that copy's
+status, and no message or comments.<sup>[1](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
 
 ### `Outcome`
 
 What happened to a check on a row: `Outcome.PASSED`, `FAILED`, `DISABLED`, `SKIPPED`,
-`ERRORED`, whose values are `passed`, `failed`, `disabled`, `skipped`, `errored`. A
+`ERRORED`, `SHARED`, whose values are `passed`, `failed`, `disabled`, `skipped`,
+`errored`, `shared`. `SHARED` marks a copy of a row reusing the first copy's result for
+a check that does not repeat. A
 `str` as well, so `outcome.outcome == "failed"` holds, and a misspelled member is an
 `AttributeError`. `CheckOutcome` accepts the plain string and refuses one that is
 not an outcome. Write `.value` where the text is wanted: formatting a member prints
@@ -143,12 +147,13 @@ not an outcome. Write `.value` where the text is wanted: formatting a member pri
 ### The registry
 
 Each registered check has a `code`, `message`, `fn`, `source_file`,
-`default_enabled`, `depends_on` and `layer`, created by the decorator. What a check
+`default_enabled`, `depends_on`, `repeat`, `layer` and whether it repeats, created by
+the decorator and computed with the evaluation order. What a check
 is *for* is its `message`, printed wherever it fails and shown in the registry
 table; there is no second description field to keep in step with it.
 
 The registry itself is internal (`registry._CHECKS`). Read it through
-`registry_table`, which gives every check's code, layer, default, message and
+`registry_table`, which gives every check's code, layer, default, repeat, message and
 `depends_on` as a frame, and `source_file` on request. `source_file` is `<unknown>` for
 a check registered as a `functools.partial` or a callable object, which carry no source
 file of their own. Nothing that mutates the list directly drops the cached evaluation
@@ -178,14 +183,18 @@ compiled `regex`; its type is internal, because nothing but the rule parser buil
 
 ## Registering checks
 
-### `register_check(code, message, default_enabled=True, depends_on=None)`
+### `register_check(code, message, default_enabled=True, depends_on=None, repeat=False)`
 
 Decorator. The function takes `(row)` or `(row, context)` and returns `OK` or a
 `Verdict` — `Verdict(condition)` wraps a bare comparison.
 
+`repeat=True` matters only under `validate(repeat_key=...)`: the check runs on every
+copy of a row, not only the first, and so does every check that depends on it, directly
+or through another. The rest run once per `repeat_key` value.
+
 Raises at import for a duplicate code, an empty code or message, a non-list
 `depends_on` (a bare string would otherwise register one prerequisite per
-character), a non-bool `default_enabled`,
+character), a non-bool `default_enabled` or `repeat`,
 or a signature the engine cannot call -- including a required keyword-only
 argument, and a second positional parameter with a default other than `None`, which
 would be handed the context (`def age_below(row, limit=130)`; write `*, limit=130` or
@@ -394,7 +403,7 @@ the dependency graph, so load the checks first; like the other two, it warns rat
 than raises, and `python3 examples/main.py --rules-table` prints it under the rules
 table.<sup>[13](configuration.md#disabling-a-check-disables-what-depends-on-it)</sup>
 
-### `validate(df, rules=None, context_builder=None, on_error="record", context_args=None) -> list[list[CheckOutcome]]`
+### `validate(df, rules=None, context_builder=None, on_error="record", context_args=None, repeat_key=None) -> list[list[CheckOutcome]]`
 
 Every check against every row: one `explain_row` call per row, and one list of
 outcomes per row, in frame order. That is the shape `build_report` and
@@ -419,6 +428,19 @@ shape raises `ValueError` naming what it takes, before any row is read.
 An `on_error` that is neither `"record"` nor `"raise"` raises `ValueError` before
 any row is read, an empty frame included; anything but a `DataFrame` raises
 `TypeError` naming `validate_row` and `explain_row` as the per-row calls.<sup>[4](#error-messages)</sup>
+
+`repeat_key` names a column whose repeated values mark copies of one row, as
+`DataFrame.explode` makes them. The first row with each value, in frame order, runs
+every check. A later copy runs only the checks that repeat
+([`register_check`](#register_checkcode-message-default_enabledtrue-depends_onnone-repeatfalse));
+every other check is not called, and is recorded `shared`, with the first copy's status
+and a `detail` such as `failed at position 0, the first row with id J1`. A repeated
+check reads a shared prerequisite's result from the first copy. A shared check's rules
+are matched on the first copy only; a repeated check's on each copy. A key that is not
+exactly one column raises `ValueError` before any row is read; a blank value raises
+`ValueError`, and a value that cannot be a dictionary key raises `TypeError`, each
+naming the position.<sup>[4](#error-messages)</sup> See
+[writing-checks.md](writing-checks.md#one-row-many-copies).
 
 It keeps one outcome per check per row, so for a frame where that will not fit in
 memory, call `validate_row(row)` per row instead and write the failures out as
@@ -458,8 +480,10 @@ the default here; `"blocked"` drops the checks that simply passed. Titled
 ### `summarize_outcomes(frame_outcomes) -> DataFrame`
 
 Per check, across every row: `code`, `layer`, `failed`, `root_cause_rows`, `errored`,
-`skipped`, `disabled`, `passed`, sorted by `failed`, `errored` and `skipped`, most
-first, then by code. `root_cause_rows` counts the rows whose root causes include the
+`skipped`, `disabled`, `shared`, `passed`, sorted by `failed`, `errored` and `skipped`,
+most first, then by code. `shared` counts the copies that reused the first copy's
+result, so `failed` and `passed` count only the calls made. `root_cause_rows` counts
+the rows whose root causes include the
 check — an errored check among them on the rows with no data failure, so it can
 exceed `failed`. Takes `validate`'s result or any iterable of complete per-row lists,
 a generator included — `explain_row(row)`
@@ -488,7 +512,8 @@ minimum=0; value=-5
 ### `registry_table(rules=None) -> DataFrame`
 
 One row per check, sorted layer, then code, titled `Registry`. Columns `code`,
-`layer`, `default`, `message`, `depends_on`, `source_file`, and
+`layer`, `default`, `repeat` (`declared`, `inherited` from a prerequisite, or `-`),
+`message`, `depends_on`, `source_file`, and
 `could_be_overridden_by`, the one column that reads `rules`: the rules that
 *reference* each code with the action each would take, `-` for none. It is not
 "was overridden by" — whether a rule fires is a per-row question this table cannot
@@ -519,6 +544,7 @@ the call named.
 | `register_check` | `Duplicate check code '<code>' (registering <module>.<function>). Codes are permanent identifiers and must be unique.` |
 | `register_check` | `Check '<code>': depends_on must be a list of check codes, got '<text>'. A bare string is a list of its characters, which is never what you meant.` |
 | `register_check` | `Check '<code>': default_enabled must be True or False, got <value>.` |
+| `register_check` | `Check '<code>': repeat must be True or False, got <value>.` |
 | `register_check` | `Check '<code>': <function>(<parameters>) must take (row) or (row, context), not 3 positional argument(s).` |
 | `register_check` | `Check '<code>': <function>(<parameters>) needs keyword argument(s) <names> that the engine cannot supply. Give them defaults, or read them from the row or the context.` |
 | `register_check` | `Check '<code>': age_below(row, limit=130) has a default on its second parameter, 'limit', which would be handed the row's context. Bind the value with functools.partial, or make it keyword-only by putting it after a *.` |
@@ -531,6 +557,10 @@ the call named.
 | `explain_row`, `validate_row` | `A row must be a pandas Series -- one row of a DataFrame -- got <type>; for a whole frame, call validate.` |
 | `explain_row`, `validate_row` | `Row has duplicate column labels <labels>: a check reading one of them would be handed a Series instead of a value. Rename or drop the duplicate columns before validating.` |
 | `validate` | `validate takes a DataFrame, got <type>; for one row, call validate_row or explain_row.` |
+| `validate` | `repeat_key '<name>' is not in the data. Available columns: <columns>.` |
+| `validate` | `repeat_key '<name>' appears 2 times in the data. Rename or drop the duplicate columns.` |
+| `validate` | `repeat_key '<name>' is blank at position <n>: every row needs a value to say which rows are its copies.` |
+| `validate` | `repeat_key '<name>' holds <value> at position <n>, which cannot be compared as a key: use a column of text or numbers.` |
 | `validate` | `context_builder '<name>' must take (row) or (row, context_args), not 3 positional argument(s).` |
 | `validate` | `context_builder '<name>' needs keyword argument(s) <names> that validate cannot supply. Give them defaults, or read them from context_args.` |
 | `validate` | `context_builder 'build' has a default on its second parameter, 'strict', which would be handed context_args. Read the value from context_args, or make it keyword-only by putting it after a *.` |

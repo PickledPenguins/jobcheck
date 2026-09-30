@@ -47,6 +47,11 @@ class _Check:
     source_file: str
     default_enabled: bool = True
     depends_on: list[str] = field(default_factory=list)
+    repeat: bool = False
+    """Declared: run on every copy of a row, not only the first. See `repeats`."""
+    repeats: bool = False
+    """Whether this check runs on every copy: declared with `repeat`, or inherited
+    from a prerequisite that repeats. Computed by :func:`_validate_registry`."""
     layer: int = 0
     """How deep in the dependency graph this check sits: 0 with no prerequisites,
     otherwise one more than its deepest prerequisite. Computed by
@@ -151,7 +156,7 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
 
 
 def _reject_bad_registration(
-    code: Any, message: Any, default_enabled: Any, prerequisites: Any, where: str
+    code: Any, message: Any, default_enabled: Any, prerequisites: Any, repeat: Any, where: str
 ) -> None:
     """Everything a `register_check` call can get wrong, in one place.
 
@@ -179,6 +184,8 @@ def _reject_bad_registration(
     if not isinstance(default_enabled, bool):
         raise ValueError(
             f"Check {code!r}: default_enabled must be True or False, got {default_enabled!r}.")
+    if not isinstance(repeat, bool):
+        raise ValueError(f"Check {code!r}: repeat must be True or False, got {repeat!r}.")
 
 
 def register_check(
@@ -186,9 +193,14 @@ def register_check(
     message: str,
     default_enabled: bool = True,
     depends_on: list[str] | None = None,
+    repeat: bool = False,
 ) -> Callable[[CheckFn], CheckFn]:
     """Register one validation function: a function in a `check_*.py` file, and
     no central list to edit.
+
+    `repeat=True` runs the check, and every check that depends on it, on each
+    copy of a row when `validate` is given a `repeat_key`; the other checks run
+    on the first copy only.
 
     Everything that can be wrong fails at import, where the author is looking at
     the file with the mistake in it.
@@ -203,7 +215,7 @@ def register_check(
         # downstream would then complain about a check called 'C'.
         prerequisites = [] if depends_on is None else depends_on
         _reject_bad_registration(
-            code, message, default_enabled, prerequisites,
+            code, message, default_enabled, prerequisites, repeat,
             where=f"{module}.{_name_of(fn)}" if module else _name_of(fn),
         )
 
@@ -214,6 +226,7 @@ def register_check(
             source_file=_source_file_of(fn),
             default_enabled=default_enabled,
             depends_on=list(dict.fromkeys(prerequisites)),
+            repeat=repeat,
         )
         _CHECKS.append(check)
         _TOPO_ORDER = None
@@ -346,8 +359,9 @@ def _topological_order() -> list[_Check]:
 
 
 def _validate_registry() -> None:
-    """Check every `depends_on` edge, compute each check's layer, and cache the
-    evaluation order so neither is recomputed inside the per-row loop.
+    """Check every `depends_on` edge, compute each check's layer and whether it
+    repeats, and cache the evaluation order so none of it is recomputed inside
+    the per-row loop.
 
     An unregistered prerequisite raises, including one that lives in a file
     this entry point did not load. The message names `clear_registry` because
@@ -386,6 +400,7 @@ def _validate_registry() -> None:
             0 if not check.depends_on
             else 1 + max(by_code[code].layer for code in check.depends_on)
         )
+        check.repeats = check.repeat or any(by_code[code].repeats for code in check.depends_on)
     _TOPO_ORDER = order
 
 

@@ -356,7 +356,7 @@ the common case and a lambda is the corner case. A builder taking `(row)` alone
 still works and is never handed the arguments. A builder is held to the same shape rule
 as a check, and settled once before any row: other arities, and a keyword-only parameter
 without a default, are refused with a `ValueError` naming the builder, even for an empty
-frame.<sup>[11](interfaces.md#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone---listlistcheckoutcome)</sup>
+frame.<sup>[11](interfaces.md#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone-repeat_keynone---listlistcheckoutcome)</sup>
 
 Without a `context_builder` every row is handed the same empty `RowContext`, and so
 is every row of `validate_row` and `explain_row` called without one: a check taking
@@ -369,82 +369,109 @@ Metadata that is not tabular — flags, computed paths, pipeline state — goes 
 `RowContext`, not in extra DataFrame columns, which cause dtype churn and end up
 in exports. Take `(row, context)` in the checks that need it.
 
-## One row, many instances
+## One row, many copies
 
 Sometimes one row stands for several things to check, and how many is known only from
-the data. For example, a job row names a base directory `a` and a count `v`, and each of
-`a`, `a2`, ... `a{v}` must exist and hold its input. Each directory needs its own report
-line and its own chain: the input check on `a3` depends on the directory check on `a3`
-only. Rules must also be able to turn a check off for one instance.
+the data. For example, a job's `basedirname` lists its run directories, `alpha,alpha,beta`,
+and each of `alpha`, `alpha2` and `beta` must exist and hold a child directory. Other
+checks on the row, such as a bound on `val`, are about the job and need to run once.
 
-The engine runs each check once per row. So give each instance a row of its own before
-`validate`: expand the frame, number the instances, and build a key that names the row
-and the instance.
+Explode the list so each directory gets a row of its own, with every other column
+copied, and pass `validate` the column that says which rows are copies of one job. Mark
+the check at the top of the per-directory chain `repeat=True`:
 
 ```python
+from pathlib import Path
+
 import pandas as pd
 
 
-def run_count(v):
-    """`v` when it is a whole number of at least 1, else 1."""
-    text = "" if is_null(v) else str(v).strip()
-    return int(text) if text.isdigit() and int(text) >= 1 else 1
+@register_check("VAL_IN_RANGE", "val is outside 0 to 10")
+def val_in_range(row):
+    return OK if 0 <= float(row["val"]) <= 10 else Verdict(Status.INVALID, {"val": row["val"]})
+
+
+@register_check("BASE_EXISTS", "Run directory does not exist", repeat=True)
+def base_exists(row):
+    return OK if Path("runs", row["dirname"]).is_dir() else Verdict(Status.MISSING)
+
+
+@register_check("CHILD_EXISTS", "Child directory does not exist", depends_on=["BASE_EXISTS"])
+def child_exists(row):
+    return OK if Path("runs", row["dirname"], row["basedirname"]).is_dir() else Verdict(Status.MISSING)
 
 
 def expand(jobs):
-    runs = jobs.assign(instance=[list(range(1, run_count(v) + 1)) for v in jobs["v"]])
-    runs = runs.explode("instance", ignore_index=True)
-    runs["key"] = runs["id"] + "#" + runs["instance"].astype(str)
+    """One row per listed name; `dirname` numbers the second and later uses of a name."""
+    runs = jobs.assign(basedirname=jobs["basedirname"].str.split(","))
+    runs = runs.explode("basedirname", ignore_index=True)
+    use = runs.groupby(["id", "basedirname"], dropna=False).cumcount() + 1
+    runs["dirname"] = runs["basedirname"] + use.map(lambda n: "" if n == 1 else str(n))
     return runs
 
 
-jobs = pd.DataFrame({"id": ["J1", "J2"], "base": ["runs/a", "runs/b"], "v": ["3", "0"]})
-print(expand(jobs).to_string(index=False))
+for made in ("alpha/alpha", "beta/beta"):
+    Path("runs", made).mkdir(parents=True)
+jobs = pd.DataFrame({"id": ["J1", "J2"], "basedirname": ["alpha,alpha,beta", "beta"],
+                     "val": ["50", "5"]})
+runs = expand(jobs)
+outcomes = validate(runs, repeat_key="id")
+report = build_report(outcomes, df=runs, key_column="id", add_columns=["dirname"],
+                      include="all")
+print(report[["row", "dirname", "code", "outcome", "detail"]].to_string(index=False))
 ```
 
 ```
-id   base v instance  key
-J1 runs/a 3        1 J1#1
-J1 runs/a 3        2 J1#2
-J1 runs/a 3        3 J1#3
-J2 runs/b 0        1 J2#1
+row dirname         code outcome                                         detail
+ J1   alpha VAL_IN_RANGE  failed                                               
+ J1   alpha  BASE_EXISTS  passed                                               
+ J1   alpha CHILD_EXISTS  passed                                               
+ J1  alpha2 VAL_IN_RANGE  shared failed at position 0, the first row with id J1
+ J1  alpha2  BASE_EXISTS  failed                                               
+ J1  alpha2 CHILD_EXISTS skipped         prerequisite did not pass: BASE_EXISTS
+ J1    beta VAL_IN_RANGE  shared failed at position 0, the first row with id J1
+ J1    beta  BASE_EXISTS  passed                                               
+ J1    beta CHILD_EXISTS  passed                                               
+ J2    beta VAL_IN_RANGE  passed                                               
+ J2    beta  BASE_EXISTS  passed                                               
+ J2    beta CHILD_EXISTS  passed                                               
 ```
 
-Everything else is the library as it stands:
+- **A check marked `repeat=True` runs on every copy,** and so does every check that
+  depends on it: CHILD_EXISTS repeats because BASE_EXISTS does, so `alpha2`'s child is
+  checked only if `alpha2` exists.
+- **Every other check runs on the first copy only.** On a later copy it is not called,
+  and is recorded `shared`: its `detail` says what it did and where. VAL_IN_RANGE fails
+  once for J1, not three times.
+- **Each copy still gets one outcome per check,** so every list `validate` returns
+  describes one row of the frame you passed, and `row_explanation` of a copy shows
+  everything: what ran there, and what it shares.
+- **Counts are of calls.** The summary's `failed` and `passed` count only the checks that
+  ran; its `shared` column counts the copies that reused a result.
+- **A repeated check can depend on one that is not.** It reads the first copy's result,
+  so a presence check on `basedirname` that fails once skips BASE_EXISTS on every copy.
+- **Rules:** a repeated check is switched on or off per copy, so a rule matching
+  `dirname` can turn off one directory of one job. A shared check is settled on the first
+  copy.
 
-- **Chains are per instance.** Each instance is a row, so `depends_on` works per
-  instance, and a missing `a2` skips only `a2`'s input check. The context builder
-  derives the instance's directory from `base` and `instance`.
-- **The report names the instance.** `build_report(outcomes, df=runs, key_column="key")`
-  labels each line `J1#3`.
-- **Rules can match the instance.** `instance` and `key` are columns, so a rule can turn a
-  check off on every instance, on some of them, or on one instance of one row, such as
-  `^J3#2$` on `key`. Disabling a check disables what depends on it, per instance.<sup>[8](configuration.md#disabling-a-check-disables-what-depends-on-it)</sup>
-- **The summary counts instances.** A check's `passed` and `failed` are counted over
-  instances, not rows.
+What makes this readable later is keeping the copy's identity in a column: `dirname`
+above. The report shows it beside each line with `add_columns`, and rules can match it.
+Anything held only in a context is invisible in both.
 
 Three things need care:
 
-- **A check about the whole row runs on every instance.** Its failure is repeated on each.
-  - A check on the columns that drive the expansion, such as `base` or `v`, is not a
-    problem: when they are unusable, the row expands to a single instance, so the failure
-    appears once.
-  - Any other whole-row check needs a rule that turns it off past instance 1, with
-    `pattern: "^(?!1$)"` on `instance`. That only works when no per-instance check
-    depends on it: disabling it would skip them on every later instance.
-  - A whole-row check that per-instance checks depend on belongs in a separate pass over
-    the unexpanded frame. The registry is process-wide, so that pass needs its own
-    `clear_registry` and `load_checks`.
+- **Copies are the rows sharing a `repeat_key` value,** whether adjacent or not; the
+  first in frame order is the one that runs everything. A key column that repeats for
+  another reason, such as two frames joined with `concat`, would share results between
+  unrelated rows, which is why `repeat_key` is never guessed.
 - **The expansion runs before the engine does.** An exception in `expand` stops the run,
-  just as one from a context builder does, so it must not raise on the data. `run_count`
-  above maps a blank, malformed or zero `v` to one instance. A check on `v` then
-  reports it as a failure on that row.
-- **`explode` turns an empty list into one row whose instance is missing.** That is
-  another reason to count at least 1.
+  so it must not raise on the data. A blank `basedirname` splits to nothing, and
+  `explode` turns that into one row with the name missing, which `dropna=False` keeps
+  numbered; a presence check on `basedirname` then reports it.
+- **Without `repeat_key`,** `repeat` changes nothing: every check runs on every row.
 
-The catalog case `tests/examples/complex/one-row-many-run-directories/` is this pattern
-at full size: per-instance chains, a whole-row check turned off past instance 1, and one
-instance of one job turned off by its key.
+The catalog case `tests/examples/complex/exploded-rows-repeat-only-the-path-checks/` is
+this pattern at full size, with a rule turning off one copy.<sup>[11](interfaces.md#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone-repeat_keynone---listlistcheckoutcome)</sup>
 
 ## In a pipeline
 
@@ -522,6 +549,6 @@ the data lacks, which `warn_missing_rule_columns` reports.<sup>[13](configuratio
 | 8 | [configuration.md: Disabling a check](configuration.md#disabling-a-check-disables-what-depends-on-it) | the same rule, from the rule file's side |
 | 9 | [interfaces.md: root_causes](interfaces.md#root_causesrow_outcomes---liststr) | the rule in full, errored checks included |
 | 10 | [reporting.md: Diagnosing a whole file](reporting.md#diagnosing-a-whole-file) | the summary's `errored` column |
-| 11 | [interfaces.md: validate](interfaces.md#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone---listlistcheckoutcome) | `context_builder` and `context_args` in full |
+| 11 | [interfaces.md: validate](interfaces.md#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone-repeat_keynone---listlistcheckoutcome) | `context_builder` and `context_args` in full |
 | 12 | [configuration.md: Precedence](configuration.md#precedence-last-rule-wins) | last rule wins, and what sets the order |
 | 13 | [configuration.md: Warnings](configuration.md#warnings) | the warning lines, quoted |

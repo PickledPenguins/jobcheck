@@ -245,7 +245,7 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
             causes[cause] = causes.get(cause, 0) + 1
 
     columns = ["code", "layer", "failed", "root_cause_rows", "errored", "skipped",
-               "disabled", "passed"]
+               "disabled", "shared", "passed"]
     rows = [
         {
             "code": code,
@@ -255,6 +255,7 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
             "errored": entry[Outcome.ERRORED],
             "skipped": entry[Outcome.SKIPPED],
             "disabled": entry[Outcome.DISABLED],
+            "shared": entry[Outcome.SHARED],
             "passed": entry[Outcome.PASSED],
         }
         for code, entry in counts.items()

@@ -16,8 +16,8 @@ import pandas as pd
 from .registry import _CHECKS, _get_topo_order
 from .rules import Rule
 
-_REGISTRY_COLUMNS = ["code", "layer", "default", "message", "depends_on", "source_file",
-                     "could_be_overridden_by"]
+_REGISTRY_COLUMNS = ["code", "layer", "default", "repeat", "message", "depends_on",
+                     "source_file", "could_be_overridden_by"]
 _RULES_COLUMNS = ["name", "action", "codes_hit_count", "codes", "match", "message",
                   "source_file"]
 
@@ -60,6 +60,8 @@ def registry_table(rules: list[Rule] | None = None) -> pd.DataFrame:
             "code": check.code,
             "layer": check.layer,
             "default": state,
+            "repeat": ("declared" if check.repeat
+                       else "inherited" if check.repeats else "-"),
             "message": check.message,
             "depends_on": "; ".join(check.depends_on) if check.depends_on else "-",
             "source_file": check.source_file,

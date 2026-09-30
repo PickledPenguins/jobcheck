@@ -52,7 +52,7 @@ def test_list_like_cells_are_not_treated_as_null(value: object) -> None:
 
 def test_registry_table_has_the_base_columns(example_checks: None) -> None:
     assert list(registry_tables.registry_table().columns) == [
-        "code", "layer", "default", "message", "depends_on", "source_file",
+        "code", "layer", "default", "repeat", "message", "depends_on", "source_file",
         "could_be_overridden_by",
     ]
 
@@ -100,7 +100,7 @@ def test_registry_table_of_an_empty_registry_has_columns_and_no_rows(fresh_regis
     table = registry_tables.registry_table()
     assert table.empty
     assert list(table.columns) == [
-        "code", "layer", "default", "message", "depends_on", "source_file",
+        "code", "layer", "default", "repeat", "message", "depends_on", "source_file",
         "could_be_overridden_by",
     ]
 

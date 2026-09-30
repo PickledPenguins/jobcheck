@@ -21,6 +21,7 @@ from .results import (
     _normalize_verdict,
 )
 from .rules import Rule, _rule_matches
+from .tables import _format_cell, is_null
 
 #: A builder takes `(row)` or `(row, context_args)`, the way a check takes
 #: `(row)` or `(row, context)`, and returns the row's context.
@@ -78,6 +79,23 @@ def explain_row(
     `(row, context)` is handed the same type whichever entry point ran it.
     """
 
+    return _explain(row, context, rules, on_error, first=None)
+
+
+# A copy's view of its first row: where that row was, and its outcomes by code.
+_FirstRow = tuple[str, dict[str, CheckOutcome]]
+
+
+def _explain(
+    row: "pd.Series[Any]",
+    context: RowContext | None,
+    rules: list[Rule] | None,
+    on_error: str,
+    first: _FirstRow | None,
+) -> list[CheckOutcome]:
+    """`explain_row`'s algorithm. With *first*, the row is a copy: a check that
+    does not repeat is not run, and records the first row's result as `shared`."""
+
     if on_error not in ("record", "raise"):
         raise ValueError(f"on_error must be 'record' or 'raise', got {on_error!r}.")
     # Checked first: a dict or list would fail further down naming `.index`, not the row.
@@ -102,6 +120,20 @@ def explain_row(
     outcomes: list[CheckOutcome] = []
 
     for check in _get_topo_order():
+        if first is not None and not check.repeats:
+            where, first_outcomes = first
+            original = first_outcomes[check.code]
+            # A dependent that repeats reads the first row's result, and words
+            # a disabled prerequisite as disabled, as it would on that row.
+            passed[check.code] = original.outcome is Outcome.PASSED
+            if original.outcome is Outcome.DISABLED:
+                disabled.add(check.code)
+            outcomes.append(
+                CheckOutcome(check.code, Outcome.SHARED, status=original.status,
+                             layer=check.layer, detail=f"{original.outcome.value} {where}")
+            )
+            continue
+
         enabled, reason = enabled_by_code[check.code]
         if not enabled:
             passed[check.code] = False
@@ -238,6 +270,7 @@ def validate(
     context_builder: ContextBuilder | None = None,
     on_error: str = "record",
     context_args: Any = None,
+    repeat_key: Any = None,
 ) -> list[list[CheckOutcome]]:
     """Run every check against every row: one list of outcomes per row, in frame
     order.
@@ -249,6 +282,10 @@ def validate(
     `context_builder` takes `(row)` or `(row, context_args)` and is called once
     per row. `context_args` is whatever every row's context is built from -- the
     parsed command line, a configuration -- passed through untouched.
+
+    `repeat_key` names the column that marks copies of one row, as `explode`
+    makes them. The first row with each value runs every check; a later one runs
+    only the checks that repeat, and records the others as `shared`.
     """
 
     # Checked here too: an empty frame never reaches explain_row.
@@ -259,12 +296,57 @@ def validate(
             f"validate takes a DataFrame, got {type(df).__name__}; for one row, call "
             "validate_row or explain_row.")
 
+    if repeat_key is not None:
+        _check_repeat_key(df, repeat_key)
+
     # Read once per row: a generator would apply to the first row only.
     rules = list(rules or [])
     build = None if context_builder is None else _context_caller(context_builder)
+    firsts: dict[Any, _FirstRow] = {}
     frame_outcomes = []
-    for _, row in df.iterrows():
+    for position, (_, row) in enumerate(df.iterrows()):
         context = None if build is None else build(row, context_args)
-        frame_outcomes.append(
-            explain_row(row, context=context, rules=rules, on_error=on_error))
+        if repeat_key is None:
+            frame_outcomes.append(_explain(row, context, rules, on_error, first=None))
+            continue
+        value = _repeat_value(row, repeat_key, position)
+        first = firsts.get(value)
+        row_outcomes = _explain(row, context, rules, on_error, first)
+        if first is None:
+            firsts[value] = (
+                f"at position {position}, the first row with {repeat_key} {_format_cell(value)}",
+                {outcome.code: outcome for outcome in row_outcomes},
+            )
+        frame_outcomes.append(row_outcomes)
     return frame_outcomes
+
+
+def _check_repeat_key(df: pd.DataFrame, repeat_key: Any) -> None:
+    """Refuse a `repeat_key` that is not exactly one column of *df*."""
+
+    if repeat_key not in df.columns:
+        raise ValueError(
+            f"repeat_key {repeat_key!r} is not in the data. Available columns: "
+            f"{', '.join(str(c) for c in df.columns)}.")
+    repeated = list(df.columns).count(repeat_key)
+    if repeated > 1:
+        raise ValueError(
+            f"repeat_key {repeat_key!r} appears {repeated} times in the data. "
+            "Rename or drop the duplicate columns.")
+
+
+def _repeat_value(row: "pd.Series[Any]", repeat_key: Any, position: int) -> Any:
+    """The row's `repeat_key` value, refused when it cannot say whose copy the row is."""
+
+    value = row[repeat_key]
+    if is_null(value):
+        raise ValueError(
+            f"repeat_key {repeat_key!r} is blank at position {position}: every row "
+            "needs a value to say which rows are its copies.")
+    try:
+        hash(value)
+    except TypeError:
+        raise TypeError(
+            f"repeat_key {repeat_key!r} holds {value!r} at position {position}, which "
+            "cannot be compared as a key: use a column of text or numbers.") from None
+    return value

@@ -70,6 +70,7 @@ def make_check(
     status: int = res.Status.INVALID,
     comments: dict[str, Any] | None = None,
     raises: BaseException | None = None,
+    repeat: bool = False,
 ) -> None:
     """Register a throwaway check with a fixed outcome.
 
@@ -82,6 +83,7 @@ def make_check(
         message=f"{code} failed",
         default_enabled=default_enabled,
         depends_on=depends_on,
+        repeat=repeat,
     )
     def _check(row: "pd.Series[Any]") -> res.Verdict:
         if calls is not None:

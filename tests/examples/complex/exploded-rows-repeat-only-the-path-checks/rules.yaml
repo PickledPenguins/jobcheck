@@ -1,0 +1,11 @@
+# One copy of one job, switched off by its directory name. BASE_EXISTS repeats,
+# so the rule is matched on each copy and reaches only this one; CHILD_EXISTS
+# depends on it, so it is skipped on this copy too.
+- name: "eps2_not_set_up"
+  message: "J5's second run directory has not been set up yet"
+  action: disable
+  codes:
+    - BASE_EXISTS
+  match:
+    - column: dirname
+      pattern: "^eps2$"

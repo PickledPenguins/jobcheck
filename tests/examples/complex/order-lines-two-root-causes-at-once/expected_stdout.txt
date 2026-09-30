@@ -1,13 +1,13 @@
 == Registry ==
-              code  layer default                                     message                                               depends_on               could_be_overridden_by
-     PRICE_PRESENT      0      ON                       Unit price is missing                                                        -                                    -
-       QTY_PRESENT      0      ON                         Quantity is missing                                                        -                                    -
-     TOTAL_PRESENT      0      ON                       Line total is missing                                                        -                                    -
-PRICE_NOT_A_NUMBER      1      ON                  Unit price is not a number                                            PRICE_PRESENT                                    -
-  QTY_NOT_A_NUMBER      1      ON                    Quantity is not a number                                              QTY_PRESENT                                    -
-TOTAL_NOT_A_NUMBER      1      ON                  Line total is not a number                                            TOTAL_PRESENT                                    -
-  QTY_NOT_POSITIVE      2      ON                Quantity is zero or negative                                         QTY_NOT_A_NUMBER                                    -
-    TOTAL_MISMATCH      2      ON Line total is not quantity times unit price QTY_NOT_A_NUMBER; PRICE_NOT_A_NUMBER; TOTAL_NOT_A_NUMBER promo_lines_are_discounted (disable)
+              code  layer default repeat                                     message                                               depends_on               could_be_overridden_by
+     PRICE_PRESENT      0      ON      -                       Unit price is missing                                                        -                                    -
+       QTY_PRESENT      0      ON      -                         Quantity is missing                                                        -                                    -
+     TOTAL_PRESENT      0      ON      -                       Line total is missing                                                        -                                    -
+PRICE_NOT_A_NUMBER      1      ON      -                  Unit price is not a number                                            PRICE_PRESENT                                    -
+  QTY_NOT_A_NUMBER      1      ON      -                    Quantity is not a number                                              QTY_PRESENT                                    -
+TOTAL_NOT_A_NUMBER      1      ON      -                  Line total is not a number                                            TOTAL_PRESENT                                    -
+  QTY_NOT_POSITIVE      2      ON      -                Quantity is zero or negative                                         QTY_NOT_A_NUMBER                                    -
+    TOTAL_MISMATCH      2      ON      - Line total is not quantity times unit price QTY_NOT_A_NUMBER; PRICE_NOT_A_NUMBER; TOTAL_NOT_A_NUMBER promo_lines_are_discounted (disable)
 
 == Report ==
 row      sku               code        status  layer outcome                                     message detail                 comments  is_root_cause
@@ -21,12 +21,12 @@ row      sku               code        status  layer outcome                    
   9  PROMO-2        QTY_PRESENT   MISSING (1)      0  failed                         Quantity is missing                                           True
 
 == Summary ==
-              code  layer  failed  root_cause_rows  errored  skipped  disabled  passed
-       QTY_PRESENT      0       2                2        0        0         0       7
-  QTY_NOT_POSITIVE      2       1                1        0        3         0       5
-    TOTAL_MISMATCH      2       1                1        0        3         2       3
-  QTY_NOT_A_NUMBER      1       1                1        0        2         0       6
-PRICE_NOT_A_NUMBER      1       1                0        0        1         0       7
-     PRICE_PRESENT      0       1                1        0        0         0       8
-     TOTAL_PRESENT      0       1                1        0        0         0       8
-TOTAL_NOT_A_NUMBER      1       0                0        0        1         0       8
+              code  layer  failed  root_cause_rows  errored  skipped  disabled  shared  passed
+       QTY_PRESENT      0       2                2        0        0         0       0       7
+  QTY_NOT_POSITIVE      2       1                1        0        3         0       0       5
+    TOTAL_MISMATCH      2       1                1        0        3         2       0       3
+  QTY_NOT_A_NUMBER      1       1                1        0        2         0       0       6
+PRICE_NOT_A_NUMBER      1       1                0        0        1         0       0       7
+     PRICE_PRESENT      0       1                1        0        0         0       0       8
+     TOTAL_PRESENT      0       1                1        0        0         0       0       8
+TOTAL_NOT_A_NUMBER      1       0                0        0        1         0       0       8
