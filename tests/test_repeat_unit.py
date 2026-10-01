@@ -147,27 +147,63 @@ def test_a_repeated_check_reads_a_shared_prerequisite_from_the_first_copy(
     assert by_code(outcomes[2])["NAMES"].outcome is Outcome.SHARED
 
 
-def test_a_prerequisite_disabled_on_the_first_copy_reads_as_disabled_on_the_others(
+def disable_on(name: str, codes: list[str]) -> Rule:
+    """A rule disabling *codes* on the copy whose `name` is *name*."""
+
+    pattern = f"^{name}$"
+    return Rule(name=f"skip_{name}", action="disable", codes=codes,
+                criteria=[_MatchCriterion("name", pattern, re.compile(pattern))],
+                match_all=False, message="why the rule exists")
+
+
+def test_a_check_disabled_on_every_copy_reads_as_disabled_on_each(
     fresh_registry: None,
 ) -> None:
     make_check("NAMES", default_enabled=False)
     make_check("DIR", depends_on=["NAMES"], repeat=True)
     copy = by_code(validate(copies(), repeat_key="id")[1])
-    assert copy["NAMES"].detail == "disabled at position 0, the first row with id J1"
+    assert copy["NAMES"].detail == "disabled by off by default"
     assert copy["DIR"].detail == "prerequisite disabled: NAMES"
 
 
-def test_rules_are_matched_per_copy_for_a_repeated_check_only(fresh_registry: None) -> None:
+def test_a_rule_disables_a_shared_check_on_the_copy_it_matches(fresh_registry: None) -> None:
     make_check("ONCE")
     make_check("EACH", repeat=True)
-    rule = Rule(name="skip_a2", action="disable", codes=["ONCE", "EACH"],
-                criteria=[_MatchCriterion("name", "^a2$", re.compile("^a2$"))],
-                match_all=False, message="why the rule exists")
-    copy = by_code(validate(copies(), rules=[rule], repeat_key="id")[1])
-    assert copy["EACH"].outcome is Outcome.DISABLED
-    # ONCE is settled on J1's first copy, which the rule does not match.
-    assert copy["ONCE"].outcome is Outcome.SHARED
-    assert copy["ONCE"].detail.startswith("passed ")
+    outcomes = validate(copies(), rules=[disable_on("a2", ["ONCE", "EACH"])], repeat_key="id")
+    assert [by_code(row)["ONCE"].outcome for row in outcomes[:3]] == [
+        Outcome.PASSED, Outcome.DISABLED, Outcome.SHARED]
+    assert by_code(outcomes[1])["ONCE"].detail == "disabled by rule 'skip_a2'"
+    assert by_code(outcomes[1])["EACH"].outcome is Outcome.DISABLED
+
+
+def test_a_shared_check_disabled_on_the_first_copy_runs_on_the_next(
+    fresh_registry: None,
+) -> None:
+    calls: list[str] = []
+    make_check("ONCE", calls=calls)
+    outcomes = validate(copies(), rules=[disable_on("a", ["ONCE"])], repeat_key="id")
+    assert calls == ["ONCE", "ONCE"]   # J1's second copy, then J2
+    assert [by_code(row)["ONCE"].outcome for row in outcomes[:3]] == [
+        Outcome.DISABLED, Outcome.PASSED, Outcome.SHARED]
+    assert by_code(outcomes[2])["ONCE"].detail == (
+        "passed at position 1, the first row with id J1 to enable it")
+
+
+def test_a_dependent_is_settled_with_the_prerequisite_a_rule_disabled(
+    fresh_registry: None,
+) -> None:
+    """Skipped below a disabled check is not a result: the dependent runs on the
+    copy that enables the chain, and is skipped on a copy that disables it."""
+
+    calls: list[str] = []
+    make_check("TOP")
+    make_check("BELOW", depends_on=["TOP"], calls=calls)
+    outcomes = validate(copies(), rules=[disable_on("a", ["TOP"]), disable_on("b", ["TOP"])],
+                        repeat_key="id")
+    assert calls == ["BELOW", "BELOW"]   # J1's second copy, then J2
+    assert [by_code(row)["BELOW"].outcome for row in outcomes[:3]] == [
+        Outcome.SKIPPED, Outcome.PASSED, Outcome.SKIPPED]
+    assert by_code(outcomes[2])["BELOW"].detail == "prerequisite disabled: TOP"
 
 
 def test_copies_need_not_be_adjacent(fresh_registry: None) -> None:

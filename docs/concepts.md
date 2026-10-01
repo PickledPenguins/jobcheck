@@ -34,7 +34,7 @@ Three questions, and three types that answer them:
 - **outcome** — what happened to the *check* on one row, as an `Outcome`: `passed`,
   `failed`, `errored` (it raised), `disabled` (a rule or its default switched it off),
   `skipped` (a prerequisite did not pass) or `shared` (the row is a copy, and the check
-  ran on the first copy instead). The engine records one `CheckOutcome` per
+  ran on an earlier copy instead). The engine records one `CheckOutcome` per
   check per row: code, outcome, status, layer, message, detail and comments.<sup>[7](interfaces.md#checkoutcome)</sup>
 - **comments** — the evidence a check attaches to its verdict, a mapping the report
   prints as `key=value; key=value`.<sup>[8](writing-checks.md#comments)</sup>

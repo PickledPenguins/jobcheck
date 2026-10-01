@@ -449,9 +449,10 @@ J2  beta    VAL_IN_RANGE   passed
   ran; its `shared` column counts the copies that reused a result.
 - **A repeated check can depend on one that is not.** It reads the first copy's result,
   so a presence check on `basedirname` that fails once skips BASE_EXISTS on every copy.
-- **Rules:** a repeated check is switched on or off per copy, so a rule matching
-  `dirname` can turn off one directory of one job. A shared check is settled on the first
-  copy.
+- **Rules:** every check is switched on or off per copy, so a rule matching `dirname`
+  can turn off one directory of one job. A copy the rule disables records `disabled`,
+  even for a check that does not repeat. If the rule disables such a check on the first
+  copy, the next copy that enables it runs it, and the copies after share that result.
 
 What makes this readable later is keeping the copy's identity in a column: `dirname`
 above. The report shows it beside each line with `add_columns`, and rules can match it.
