@@ -146,7 +146,8 @@ worth, and a path is what a pipeline writing check files into a run directory al
 A row that stands for several things, counted only at run time, is exploded by the
 caller into copies, and `validate(repeat_key=...)` names the column that marks them. A
 check marked `repeat=True`, and everything that depends on it, runs on every copy; every
-other check runs on the first copy and is recorded `shared` on the rest. Every copy
+other check runs on the first copy whose rules enable it and is recorded `shared` on the
+copies after it, or `disabled` where a rule switches it off. Every copy
 keeps one outcome per check, so each outcome list still describes one visible row, and
 the summary counts calls. The flag is on the check because it is a fact about the check;
 the key is on the call because which rows are copies is a fact about the frame, and it

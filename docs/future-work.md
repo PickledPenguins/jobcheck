@@ -221,12 +221,7 @@ where it is history.
 
 
 
-**A rule on a non-repeating check matched against a per-copy column** (F.80, medium;
-same review). Such a rule is matched on the first copy only (`interfaces.md:438`), so
-`disable VAL_IN_RANGE where dirname ~ ^eps2$` fires only if `eps2` is the first copy,
-and then for every copy. Documented under `validate` only, where a rule author does not
-look. Fix: a paragraph in `configuration.md` beside "Precedence". A `warn_*` would need
-the frame and the `repeat_key`; not recommended under the simplicity principle.
+
 
 **Two small corrections from the same review** (F.81, low). The testing.md row for
 `tests/test_repeat_unit.py` and the `shared` column in `summarize_outcomes`' docstring

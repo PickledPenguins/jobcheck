@@ -201,7 +201,7 @@ def register_check(
 
     `repeat=True` runs the check, and every check that depends on it, on each
     copy of a row when `validate` is given a `repeat_key`; the other checks run
-    on the first copy only.
+    on the first copy whose rules enable them, and are shared by the rest.
 
     Everything that can be wrong fails at import, where the author is looking at
     the file with the mistake in it.

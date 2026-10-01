@@ -128,14 +128,14 @@ What the engine recorded for one check on one row: `code` (the check code),
 `.failed` is True for `failed` and `errored`; `.status_label` renders as
 `INVALID (3)`. `detail` explains the four non-evaluating outcomes: which rule
 disabled it, which prerequisites blocked it, what it raised, or, for `shared`, what it
-did on the first copy and where that copy is. A `shared` outcome's status is `PASS`, as
+did on the copy that ran it and where that copy is. A `shared` outcome's status is `PASS`, as
 for `skipped` and `disabled`, and it has no message or comments.<sup>[1](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
 
 ### `Outcome`
 
 What happened to a check on a row: `Outcome.PASSED`, `FAILED`, `DISABLED`, `SKIPPED`,
 `ERRORED`, `SHARED`, whose values are `passed`, `failed`, `disabled`, `skipped`,
-`errored`, `shared`. `SHARED` marks a copy of a row reusing the first copy's result for
+`errored`, `shared`. `SHARED` marks a copy of a row reusing an earlier copy's result for
 a check that does not repeat. A
 `str` as well, so `outcome.outcome == "failed"` holds, and a misspelled member is an
 `AttributeError`. `CheckOutcome` accepts the plain string and refuses one that is
@@ -405,8 +405,12 @@ every check. A later copy runs only the checks that repeat
 ([`register_check`](#register_checkcode-message-default_enabledtrue-depends_onnone-repeatfalse));
 every other check is not called, and is recorded `shared`, with status `PASS` and a
 `detail` such as `failed at position 0, the first row with id J1`. A repeated
-check reads a shared prerequisite's result from the first copy. A shared check's rules
-are matched on the first copy only; a repeated check's on each copy. A key that is not
+check reads a shared prerequisite's result from the first copy. Rules are matched on
+each copy. A copy where a rule disables a check records `disabled`, and its dependents
+`skipped`, whether or not the check repeats. A check that does not repeat runs on the
+first copy whose rules leave it and its prerequisites enabled; the copies after that one
+share its result, with a `detail` ending `the first row with id J1 to enable it` when
+that copy is not the first. A key that is not
 exactly one column raises `ValueError` before any row is read; a blank value raises
 `ValueError`, and a value that cannot be a dictionary key raises `TypeError`, each
 naming the position.<sup>[4](#error-messages)</sup> See

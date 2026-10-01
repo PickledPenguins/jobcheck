@@ -57,8 +57,9 @@ def _resolve_enabled_state(
     return enabled_by_code
 
 
-# A copy's view of its first row: where that row was, and its outcomes by code.
-_FirstRow = tuple[str, dict[str, CheckOutcome]]
+# What the copies of one row have settled so far: for each check that does not
+# repeat, the outcome to share and where it came from.
+_Settled = dict[str, tuple[str, CheckOutcome]]
 
 
 def _explain(
@@ -66,7 +67,7 @@ def _explain(
     context: RowContext | None = None,
     rules: list[Rule] | None = None,
     on_error: str = "record",
-    first: _FirstRow | None = None,
+    settled: _Settled | None = None,
 ) -> list[CheckOutcome]:
     """Run the checks against one row and report what *every* check did.
 
@@ -80,9 +81,10 @@ def _explain(
     so it must not unlock a dependent.
 
     A `context` of `None` becomes an empty `RowContext`, the type a check taking
-    `(row, context)` is always handed. With *first*, the row is a copy: a check
-    that does not repeat is not run, and records the first row's result as
-    `shared`.
+    `(row, context)` is always handed. With *settled*, the row is a copy: a
+    check that does not repeat, and that an earlier copy settled, is not run,
+    and records that copy's result as `shared` -- unless a rule disables it on
+    this copy, which wins.
     """
 
     if row.index.has_duplicates:
@@ -99,25 +101,24 @@ def _explain(
     enabled_by_code = _resolve_enabled_state(row, rules or [])
     passed: dict[str, bool] = {}
     disabled: set[str] = set()
+    # Disabled on this row, or below a check that is: never shared, never settled.
+    off_here: set[str] = set()
     outcomes: list[CheckOutcome] = []
 
     for check in _get_topo_order():
-        if first is not None and not check.repeats:
-            where, first_outcomes = first
-            original = first_outcomes[check.code]
-            # A dependent that repeats reads the first row's result, and words
-            # a disabled prerequisite as disabled, as it would on that row. The
-            # status stays PASS: a copy is not a failure, and detail says where.
+        enabled, reason = enabled_by_code[check.code]
+        if not enabled or any(code in off_here for code in check.depends_on):
+            off_here.add(check.code)
+        elif settled is not None and not check.repeats and check.code in settled:
+            where, original = settled[check.code]
+            # A dependent that repeats reads the settled result. The status
+            # stays PASS: a copy is not a failure, and detail says where.
             passed[check.code] = original.outcome is Outcome.PASSED
-            if original.outcome is Outcome.DISABLED:
-                disabled.add(check.code)
             outcomes.append(
                 CheckOutcome(check.code, Outcome.SHARED, layer=check.layer,
                              detail=f"{original.outcome.value} {where}")
             )
             continue
-
-        enabled, reason = enabled_by_code[check.code]
         if not enabled:
             passed[check.code] = False
             disabled.add(check.code)
@@ -226,7 +227,9 @@ def validate(
 
     `repeat_key` names the column that marks copies of one row, as `explode`
     makes them. The first row with each value runs every check; a later one runs
-    only the checks that repeat, and records the others as `shared`.
+    only the checks that repeat, and records the others as `shared`. Rules are
+    matched on every copy: a copy that disables a check records `disabled`, and
+    a check disabled on the first copy runs on the first copy that enables it.
     """
 
     if on_error not in ("record", "raise"):
@@ -242,23 +245,40 @@ def validate(
     # Read once per row: a generator would apply to the first row only.
     rules = list(rules or [])
     build = None if context_builder is None else _context_caller(context_builder)
-    firsts: dict[Any, _FirstRow] = {}
+    settled_by_value: dict[Any, _Settled] = {}
     frame_outcomes = []
     for position, (_, row) in enumerate(df.iterrows()):
         context = None if build is None else build(row, context_args)
         if repeat_key is None:
-            frame_outcomes.append(_explain(row, context, rules, on_error, first=None))
+            frame_outcomes.append(_explain(row, context, rules, on_error))
             continue
         value = _repeat_value(row, repeat_key, position)
-        first = firsts.get(value)
-        row_outcomes = _explain(row, context, rules, on_error, first)
-        if first is None:
-            firsts[value] = (
-                f"at position {position}, the first row with {repeat_key} {_format_cell(value)}",
-                {outcome.code: outcome for outcome in row_outcomes},
-            )
+        settled = settled_by_value.get(value)
+        row_outcomes = _explain(row, context, rules, on_error, settled)
+        where = f"at position {position}, the first row with {repeat_key} {_format_cell(value)}"
+        if settled is not None:
+            where += " to enable it"
+        settled_by_value[value] = _settle(row_outcomes, settled or {}, where)
         frame_outcomes.append(row_outcomes)
     return frame_outcomes
+
+
+def _settle(row_outcomes: list[CheckOutcome], settled: _Settled, where: str) -> _Settled:
+    """Add to *settled* what this copy settled: each check that does not repeat
+    and had no result yet, unless it, or a check it depends on, was disabled
+    here. A later copy whose rules enable that chain runs it instead.
+    """
+
+    by_code = {check.code: check for check in _CHECKS}
+    unsettled: set[str] = set()
+    for outcome in row_outcomes:   # in evaluation order: prerequisites first
+        check = by_code[outcome.code]
+        if (outcome.outcome is Outcome.DISABLED
+                or any(code in unsettled for code in check.depends_on)):
+            unsettled.add(check.code)
+        elif not check.repeats and check.code not in settled:
+            settled[check.code] = (where, outcome)
+    return settled
 
 
 def _check_repeat_key(df: pd.DataFrame, repeat_key: Any) -> None:
