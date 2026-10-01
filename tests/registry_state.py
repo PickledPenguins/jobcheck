@@ -5,9 +5,9 @@ The library does not offer this and deliberately does not: outside a test there
 is no use for it. A production caller loads its check files once at start-up, or
 clears the registry and loads a different set between runs, or -- the shape
 `architecture.md` recommends -- runs a second entry point in a second process. A
-failed load already leaves the registry consistent without any help from here,
-because `load_checks` rolls back per file. So this lives with the suite that
-needs it rather than in a package a user installs.
+failed load leaves whatever registered before it, and the caller starts again with
+`clear_registry()`. So this lives with the suite that needs it rather than in a
+package a user installs.
 
 What it buys the suite is nesting: an inner scope that loads check files and
 must hand back exactly what it found, which `clear_registry` alone cannot do
@@ -26,9 +26,10 @@ class SavedRegistry:
 
     The in-progress load stack (`registry._LOADING`) is not copied. It belongs
     to the `load_checks` call that is running rather than to the registry: a
-    frame put back from a load that has since finished would take the blame for
-    the next file's checks, and that file's rollback would then drop checks
-    belonging to somebody else. Capturing from inside a load is unsupported.
+    frame put back from a load that has since finished would make `load_checks`
+    skip that file as already being loaded, and, with the stack never empty,
+    never validate the dependency graph. Capturing from inside a load is
+    unsupported.
     """
 
     __slots__ = ("checks", "loaded_files", "topo_order")
