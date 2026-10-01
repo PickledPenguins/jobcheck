@@ -218,12 +218,6 @@ the two sentences; the reasoning they support (no save-and-restore in the librar
 stands without them. `future-work.md:730` repeats "rollback" inside a closed entry,
 where it is history.
 
-**A float status is accepted** (F.83, low; same review). Without the old `is_integer`
-check, `Status(self.status)` (`results.py:88`) takes `3.0` as `INVALID`, so
-`Verdict(row["kind"])` on a float column is read silently rather than refused. Fix:
-refuse a non-integer, non-bool status, about 2 lines. Recommended: build, since
-accepting it is input reinterpretation.
-
 **Two missing blank lines** (F.84, low; same review). `paths.py:62`, between
 `_key_names` and `class _DuplicateKey`, and `examples/run_from_config.py:117`, between
 `key_names` and `def fail`. Style only.
@@ -247,6 +241,10 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**A float status is not refused** (F.83, cut on 2026-10-01). `Verdict(3.0)` is read as
+`INVALID`, because `Status` is an `IntEnum`. A status is expected to be an `int` (or a
+bool); the owner judged a float a misuse not worth a type check in `Verdict`.
 
 **A list `repeat_key` keeps pandas' message** (F.81, cut on 2026-10-01). `validate(df,
 repeat_key=["id"])` raises pandas' `TypeError: unhashable type: 'list'` from
