@@ -76,7 +76,7 @@ def test_a_written_file_is_byte_for_byte_the_golden_csv(
     report = build_report(validate(df, rules=rules), df=df, key_column="id")
 
     path = tmp_path / "report.csv"
-    path.write_text(report.to_csv(index=False), encoding="utf-8", newline="")
+    path.write_text(report.to_csv(), encoding="utf-8", newline="")
     written = path.read_bytes()
 
     assert written.decode("utf-8") == read_golden("report.csv")
@@ -91,6 +91,7 @@ def test_the_golden_csv_parses_back_into_the_same_frame(fresh_registry: None) ->
     df = frame()
     report = build_report(validate(df, rules=rules), df=df, key_column="id")
 
+    report = report.reset_index()
     reparsed = pd.read_csv(pd.io.common.StringIO(read_golden("report.csv")), dtype=str)
     assert list(reparsed.columns) == list(report.columns)
     assert list(reparsed["code"]) == list(report["code"])

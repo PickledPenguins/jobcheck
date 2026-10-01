@@ -106,10 +106,11 @@ def test_an_adopter_gets_only_their_own_checks(tmp_path: Path) -> None:
     home = adopter_package(tmp_path)
     result = run_isolated(
         "import pandas as pd\n"
-        "from jobcheck import load_checks, registry_table, validate_row\n"
+        "from jobcheck import load_checks, registry_table, validate\n"
         "load_checks(['their_checks/check_theirs.py'])\n"
         "print(sorted(registry_table()['code']))\n"
-        "print([o.code for o in validate_row(pd.Series({'field': None}))])\n",
+        "[row] = validate(pd.DataFrame({'field': [None]}))\n"
+        "print([o.code for o in row if o.failed])\n",
         cwd=home,
         extra_path=[home],
     )
@@ -128,8 +129,8 @@ def test_an_adopter_can_produce_a_report(tmp_path: Path) -> None:
         "load_checks(['their_checks/check_theirs.py'])\n"
         "df = pd.DataFrame([{'id': 1, 'field': 'x'}, {'id': 2, 'field': None}])\n"
         "report = build_report(validate(df), df=df, key_column='id')\n"
-        "Path('report.csv').write_text(report.to_csv(index=False))\n"
-        "print(report.to_csv(index=False).splitlines()[1])\n",
+        "report.to_csv('report.csv')\n"
+        "print(report.to_csv().splitlines()[1])\n",
         cwd=home,
         extra_path=[home],
     )

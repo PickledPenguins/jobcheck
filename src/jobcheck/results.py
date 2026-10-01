@@ -9,7 +9,7 @@ by a rule (`DISABLED`), or never ran because a prerequisite did not pass (`SKIPP
 missing, malformed, invalid -- and is `Status.PASS` for everything that did not
 fail, which is why a report shows `passed | PASS (0)` in one row and why the
 column is only informative beside a failure. `layer` says how deep the check sits
-in the dependency graph, and only orders things: `root_causes` reports the
+in the dependency graph, and only orders things: a root cause is a failure at the
 shallowest failing layer.
 
 Three names for "fine", one per question: a check returns `OK`, the engine

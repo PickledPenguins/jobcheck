@@ -220,8 +220,8 @@ Rules of thumb:
 
 `layer` is computed, never declared: 0 with no prerequisites, otherwise one more
 than the deepest one. The registry table sorts on it, so fundamental checks read
-first, and `root_causes` reads it: a row's root causes are its failures at the
-shallowest layer.<sup>[9](interfaces.md#root_causesrow_outcomes---liststr)</sup>
+first, and the root causes read it: a row's root causes are its failures at the
+shallowest layer.<sup>[9](interfaces.md#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe)</sup>
 
 Everything structural fails at load: an unknown prerequisite code, a prerequisite
 in a check file that was not loaded, a cycle (direct or transitive), a duplicate
@@ -252,9 +252,8 @@ registry_table()   # a misspelled depends_on raises here, naming both codes
 An exception inside a check becomes a `Status.ERROR` outcome carrying the
 exception text, the row carries on, and dependents treat it as "did not pass".
 Errors are counted separately from failures in the summary, so a broken check can
-never be mistaken for bad data. Pass `on_error="raise"` to `explain_row`,
-`validate_row` or `validate` for a run that should stop at the first
-broken check instead.<sup>[10](reporting.md#diagnosing-a-whole-file)</sup>
+never be mistaken for bad data. Pass `on_error="raise"` to `validate` for a run
+that should stop at the first broken check instead.<sup>[10](reporting.md#diagnosing-a-whole-file)</sup>
 
 A check reading a column that is not in the frame raises `KeyError`, which lands
 as one of these `ERROR` outcomes naming the column.
@@ -358,9 +357,8 @@ as a check, and settled once before any row: other arities, and a keyword-only p
 without a default, are refused with a `ValueError` naming the builder, even for an empty
 frame.<sup>[11](interfaces.md#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone-repeat_keynone---listlistcheckoutcome)</sup>
 
-Without a `context_builder` every row is handed the same empty `RowContext`, and so
-is every row of `validate_row` and `explain_row` called without one: a check taking
-`(row, context)` never sees `None`. That shared base object takes no attributes, so a
+Without a `context_builder` every row is handed the same empty `RowContext`: a check
+taking `(row, context)` never sees `None`. That shared base object takes no attributes, so a
 check caching a parsed value on it gets an `AttributeError`, recorded as `errored`,
 rather than handing the first row's value to every later row. Caching per row needs a
 builder that returns a fresh subclass instance for each row.
@@ -418,23 +416,24 @@ runs = expand(jobs)
 outcomes = validate(runs, repeat_key="id")
 report = build_report(outcomes, df=runs, key_column="id", add_columns=["dirname"],
                       include="all")
-print(report[["row", "dirname", "code", "outcome", "detail"]].to_string(index=False))
+print(report[["outcome", "detail"]].to_string())
 ```
 
 ```
-row dirname         code outcome                                         detail
- J1   alpha VAL_IN_RANGE  failed                                               
- J1   alpha  BASE_EXISTS  passed                                               
- J1   alpha CHILD_EXISTS  passed                                               
- J1  alpha2 VAL_IN_RANGE  shared failed at position 0, the first row with id J1
- J1  alpha2  BASE_EXISTS  failed                                               
- J1  alpha2 CHILD_EXISTS skipped         prerequisite did not pass: BASE_EXISTS
- J1    beta VAL_IN_RANGE  shared failed at position 0, the first row with id J1
- J1    beta  BASE_EXISTS  passed                                               
- J1    beta CHILD_EXISTS  passed                                               
- J2    beta VAL_IN_RANGE  passed                                               
- J2    beta  BASE_EXISTS  passed                                               
- J2    beta CHILD_EXISTS  passed                                               
+                          outcome                                          detail
+row dirname code                                                                 
+J1  alpha   VAL_IN_RANGE   failed                                                
+            BASE_EXISTS    passed                                                
+            CHILD_EXISTS   passed                                                
+    alpha2  VAL_IN_RANGE   shared  failed at position 0, the first row with id J1
+            BASE_EXISTS    failed                                                
+            CHILD_EXISTS  skipped          prerequisite did not pass: BASE_EXISTS
+    beta    VAL_IN_RANGE   shared  failed at position 0, the first row with id J1
+            BASE_EXISTS    passed                                                
+            CHILD_EXISTS   passed                                                
+J2  beta    VAL_IN_RANGE   passed                                                
+            BASE_EXISTS    passed                                                
+            CHILD_EXISTS   passed                                                
 ```
 
 - **A check marked `repeat=True` runs on every copy,** and so does every check that
@@ -444,7 +443,7 @@ row dirname         code outcome                                         detail
   and is recorded `shared`: its `detail` says what it did and where. VAL_IN_RANGE fails
   once for J1, not three times.
 - **Each copy still gets one outcome per check,** so every list `validate` returns
-  describes one row of the frame you passed, and `row_explanation` of a copy shows
+  describes one row of the frame you passed, and `explain_row` of a copy shows
   everything: what ran there, and what it shares.
 - **Counts are of calls.** The summary's `failed` and `passed` count only the checks that
   ran; its `shared` column counts the copies that reused a result.
@@ -476,12 +475,9 @@ this pattern at full size, with a rule turning off one copy.<sup>[11](interfaces
 ## In a pipeline
 
 ```python
-from pathlib import Path
-
-import pandas as pd
 from jobcheck import (
     build_report, warn_missing_rule_columns, load_checks,
-    load_rules, root_causes, validate, validate_row,
+    load_rules, validate,
 )
 
 load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
@@ -494,18 +490,14 @@ for warning in warn_missing_rule_columns(df, rules):
 
 # Full report, when you want to look at the failures:
 outcomes = validate(df, rules=rules)
-Path("report.csv").write_text(build_report(outcomes, df=df, key_column="id").to_csv(index=False))
+build_report(outcomes, df=df, key_column="id").to_csv("report.csv")
 
-# Or just the failures per row, when you only need to gate:
-df["errors"] = df.apply(
-    lambda row: validate_row(row, rules=rules), axis=1
-)
-df["root_cause"] = df["errors"].apply(lambda results: "; ".join(root_causes(results)))
-clean = df[df["errors"].str.len() == 0]
+# Or a flag per row, when you only need to gate:
+df["failed"] = [any(o.failed for o in row_outcomes) for row_outcomes in outcomes]
+clean = df[~df["failed"]]
 ```
 
-Load the check files and the rules **once**, outside the `apply`. The `errors` column holds
-outcome objects, so project it to text before writing the frame anywhere.
+Load the check files and the rules **once**, before `validate`.
 
 ## Troubleshooting
 
@@ -547,7 +539,7 @@ the data lacks, which `warn_missing_rule_columns` reports.<sup>[13](configuratio
 | 6 | [configuration.md: Errors](configuration.md#errors) | the message for a path that is not there |
 | 7 | [reporting.md: Diagnosing one row](reporting.md#diagnosing-one-row) | seeing which checks a row skipped, and why |
 | 8 | [configuration.md: Disabling a check](configuration.md#disabling-a-check-disables-what-depends-on-it) | the same rule, from the rule file's side |
-| 9 | [interfaces.md: root_causes](interfaces.md#root_causesrow_outcomes---liststr) | the rule in full, errored checks included |
+| 9 | [interfaces.md: Root causes](interfaces.md#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | the rule in full, errored checks included |
 | 10 | [reporting.md: Diagnosing a whole file](reporting.md#diagnosing-a-whole-file) | the summary's `errored` column |
 | 11 | [interfaces.md: validate](interfaces.md#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone-repeat_keynone---listlistcheckoutcome) | `context_builder` and `context_args` in full |
 | 12 | [configuration.md: Precedence](configuration.md#precedence-last-rule-wins) | last rule wins, and what sets the order |

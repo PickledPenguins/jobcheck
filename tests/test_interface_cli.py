@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import os
 from typing import Any
 
@@ -79,11 +80,14 @@ def test_the_report_names_each_row_by_its_key_column_and_root_cause(
 def test_cascading_checks_are_absent_from_the_report(default_run: CommandResult) -> None:
     """Row 5 has no age at all: only AGE_PRESENT is reported for it."""
 
-    failures = default_run.stdout.split("== Report")[1]
-    rows = [line.split() for line in failures.splitlines()]
-    assert [words[1] for words in rows if words[:1] == ["5"]] == [
-        "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"
-    ]
+    failures = default_run.stdout.split("== Report")[1].splitlines()
+    # The row label is printed on its first line only; the rest hang below it.
+    start = next(i for i, line in enumerate(failures) if line.startswith("5 "))
+    block = [failures[start]] + list(
+        itertools.takewhile(lambda line: line.startswith(" "), failures[start + 1:]))
+
+    assert [line.split()[1] if line is block[0] else line.split()[0]
+            for line in block] == ["AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"]
 
 
 def test_the_csv_report_format_is_selectable() -> None:

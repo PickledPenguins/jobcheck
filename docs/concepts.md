@@ -52,7 +52,8 @@ as well: the status says something only beside a failure.<sup>[9](reporting.md#d
   first. A deeper failure is never downstream of one — a check runs only once its
   prerequisites passed, so every failure is the root of its own chain — it is simply read
   after. Two failures at the same depth are two root causes. Data failures come first: a
-  check that raised counts only on a row with no data failure. `root_causes` returns them.<sup>[10](interfaces.md#root_causesrow_outcomes---liststr)</sup>
+  check that raised counts only on a row with no data failure. `build_report(...,
+  include="root_causes")` keeps only them.<sup>[10](interfaces.md#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe)</sup>
 - **context** — per-row state that is not a column: a `RowContext` subclass, built for
   each row by the `context_builder` handed to `validate`. A check asks for it by taking
   `(row, context)`.<sup>[11](writing-checks.md#per-row-context)</sup>
@@ -76,8 +77,8 @@ as well: the status says something only beside a failure.<sup>[9](reporting.md#d
 - **table** — every view the library builds (the report, a row's explanation, the
   summary, the registry and rules tables) is a DataFrame carrying its title in
   `attrs["title"]`.<sup>[13](reporting.md#every-table-names-itself)</sup>
-- **text** — pandas turns any table into text: `to_string(index=False)` for a terminal,
-  `to_csv(index=False)` for a file. Nothing is wrapped or escaped.<sup>[14](reporting.md#formats-and-files)</sup>
+- **text** — pandas turns any table into text: `to_string()` for a terminal, `to_csv()`
+  for a file. Nothing is wrapped or escaped.<sup>[14](reporting.md#writing-the-tables-to-files)</sup>
 
 ## References
 
@@ -92,8 +93,8 @@ as well: the status says something only beside a failure.<sup>[9](reporting.md#d
 | 7 | [interfaces.md: CheckOutcome](interfaces.md#checkoutcome) | the recorded fields, and `Outcome`'s members |
 | 8 | [writing-checks.md: Comments](writing-checks.md#comments) | what to put in them |
 | 9 | [reporting.md: Diagnosing one row](reporting.md#diagnosing-one-row) | a row's explanation, where these lines appear |
-| 10 | [interfaces.md: root_causes](interfaces.md#root_causesrow_outcomes---liststr) | the rule in full, errored checks included |
+| 10 | [interfaces.md: Root causes](interfaces.md#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | the rule in full, errored checks included |
 | 11 | [writing-checks.md: Per-row context](writing-checks.md#per-row-context) | writing a context and its builder |
 | 12 | [configuration.md: Setup files](configuration.md#setup-files-naming-the-checks-and-the-rules-at-once) | the two keys, and where their paths resolve |
 | 13 | [reporting.md: Every table names itself](reporting.md#every-table-names-itself) | titles, and giving your own frame one |
-| 14 | [reporting.md: Formats and files](reporting.md#formats-and-files) | the pandas writers, and what they do not do |
+| 14 | [reporting.md: Writing the tables to files](reporting.md#writing-the-tables-to-files) | a CSV recipe per table, and what the writers do not do |

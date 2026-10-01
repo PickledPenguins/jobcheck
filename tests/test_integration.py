@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from conftest import first_cause
+from conftest import failures, first_cause
 
 from jobcheck import (
     RowContext,
@@ -16,7 +16,6 @@ from jobcheck import (
     validate,
     load_checks,
     load_rules,
-    validate_row,
 )
 from jobcheck import registry as reg
 
@@ -46,7 +45,7 @@ def codes(df: pd.DataFrame) -> list[list[str]]:
 def validated(rules: list[reg.Rule]) -> pd.DataFrame:
     df = DEMO.copy()
     df["errors"] = df.apply(
-        lambda row: validate_row(row, context=RowContext(), rules=rules), axis=1
+        lambda row: failures(row, context=RowContext(), rules=rules), axis=1
     )
     return df
 
@@ -114,9 +113,9 @@ def test_a_written_report_reads_back_as_a_frame(example_checks: None, tmp_path: 
     outcomes = validate(DEMO, rules=load_rules(["examples/rules/error_rules.yaml"]))
     report = build_report(outcomes, df=DEMO, key_column="id")
     path = tmp_path / "report.csv"
-    path.write_text(report.to_csv(index=False), encoding="utf-8")
+    path.write_text(report.to_csv(), encoding="utf-8")
     written = pd.read_csv(path)
-    assert list(written.columns) == list(report.columns)
+    assert list(written.columns) == list(report.reset_index().columns)
     assert list(written["row"]) == [3, 3, 3]
     assert list(written["code"]) == ["AGE_NEGATIVE", "DATES_OUT_OF_ORDER", "EMAIL_MISSING_AT"]
     # Lines keep evaluation order; the flag marks every failure at the shallowest
@@ -166,7 +165,7 @@ def test_a_check_file_written_at_runtime_is_loaded_by_path(fresh_registry: None,
         encoding="utf-8",
     )
     load_checks([str(added)])
-    results = validate_row(pd.Series({"age": 99}))
+    results = failures(pd.Series({"age": 99}))
 
     assert [r.code for r in results] == ["ADDED_AT_RUNTIME"]
     assert reg._LOADED_FILES == [str(added.resolve())]
@@ -185,7 +184,8 @@ def test_a_written_report_round_trips_through_a_spreadsheet_reader(
     outcomes = validate(DEMO)
     report = build_report(outcomes, df=DEMO, key_column="id")
     path = tmp_path / "report.csv"
-    path.write_text(report.to_csv(index=False), encoding="utf-8")
+    path.write_text(report.to_csv(), encoding="utf-8")
+    report = report.reset_index()
 
     reopened = pd.read_csv(path, dtype=str)
     assert list(reopened.columns) == list(report.columns)
@@ -194,23 +194,22 @@ def test_a_written_report_round_trips_through_a_spreadsheet_reader(
     assert set(reopened["is_root_cause"]) <= {"True", "False"}
 
 
-def test_explaining_a_row_agrees_with_the_report(example_checks: None) -> None:
-    """The two views are the same data: the report's first line for a row is the
-    row's root cause, and the explanation says the same."""
+def test_the_root_cause_views_agree(example_checks: None) -> None:
+    """The views are the same data: the report's `is_root_cause` flags, its
+    `root_causes` level and a row's explanation name the same checks."""
 
-    from jobcheck import explain_row, root_causes
+    from jobcheck import explain_row
 
     outcomes = validate(DEMO)
-    report = build_report(outcomes, df=DEMO, key_column="id")
+    report = build_report(outcomes, df=DEMO)
+    roots = build_report(outcomes, df=DEMO, include="root_causes")
+    assert list(roots.index) == list(report[report["is_root_cause"]].index)
     for position, row_outcomes in enumerate(outcomes):
-        causes = root_causes(row_outcomes)
-        if not causes:
-            continue
-        lines = report[report["row"] == str(DEMO.iloc[position]["id"])]
-        flagged = lines[lines["is_root_cause"]]
-        # Every root cause is flagged, and nothing else is.
-        assert sorted(flagged["code"]) == sorted(causes)
-        assert first_cause(explain_row(DEMO.iloc[position])) is not None
+        causes = [code for row, code in roots.index if row == str(DEMO.index[position])]
+        explanation = explain_row(outcomes, position)
+        failed = explanation[explanation["outcome"].isin(["failed", "errored"])]
+        assert set(causes) <= set(failed["code"])
+        assert (first_cause(row_outcomes) is None) == (causes == [])
 
 
 def test_a_rule_file_changes_the_same_report(example_checks: None) -> None:
@@ -222,4 +221,4 @@ def test_a_rule_file_changes_the_same_report(example_checks: None) -> None:
         df=DEMO, key_column="id",
     )
     assert len(suppressed) <= len(unrestricted)
-    assert "AGE_NOT_INTEGER" not in list(suppressed["code"])
+    assert "AGE_NOT_INTEGER" not in suppressed.index.get_level_values("code")

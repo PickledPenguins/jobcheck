@@ -19,8 +19,7 @@ import pytest
 import jobcheck as validation
 from jobcheck import registry as reg
 from jobcheck import engine
-from jobcheck import registry_tables
-from jobcheck import report as rep
+from jobcheck import views
 from jobcheck import results as res
 from jobcheck import paths, rules
 
@@ -30,7 +29,7 @@ pytestmark = pytest.mark.fast
 # path raises, not a function to call.
 INTERNAL_MODULES = [paths]
 # Every other module, found rather than listed: a hand-kept list missed engine
-# and registry_tables, so a public function added to either could go unexported
+# and the table module, so a public function added to either could go unexported
 # without this noticing.
 MODULES = [
     importlib.import_module(f"jobcheck.{info.name}")
@@ -114,9 +113,9 @@ PUBLIC_NAMES = {
     # What a check returns and what the engine records.
     "Verdict", "OK", "Status", "CheckOutcome", "Outcome", "RowContext",
     # Running.
-    "validate", "validate_row", "explain_row", "root_causes",
-    # Reports and tables.
-    "build_report", "row_explanation",
+    "validate",
+    # Views of the outcomes and of the configuration.
+    "build_report", "explain_row",
     "summarize_outcomes", "registry_table", "rules_table", "is_null",
 }
 
@@ -160,14 +159,23 @@ def test_a_misspelled_outcome_is_refused() -> None:
 def test_report_columns_are_stable() -> None:
     """Anything reading the CSV depends on these names and this order."""
 
-    assert rep._REPORT_COLUMNS == (
+    assert views._REPORT_COLUMNS == (
         "row", "code", "status", "layer", "outcome", "message", "detail", "comments",
         "is_root_cause",
     )
 
 
+def test_the_report_is_indexed_by_row_then_added_columns_then_code() -> None:
+    import pandas as pd
+
+    report = views.build_report([[]], pd.DataFrame({"id": [1], "age": [2]}),
+                                add_columns=["age"])
+    assert list(report.index.names) == ["row", "age", "code"]
+    assert list(report.columns) == list(views._REPORT_COLUMNS[2:])
+
+
 def test_registry_table_columns_are_stable(example_checks: None) -> None:
-    assert list(registry_tables.registry_table().columns) == [
+    assert list(views.registry_table().columns) == [
         "code", "layer", "default", "repeat", "message", "depends_on", "source_file",
         "could_be_overridden_by",
     ]
@@ -188,18 +196,12 @@ def defaults(fn: Any) -> dict[str, Any]:
                      {"default_enabled": True, "depends_on": None, "repeat": False},
                      id="register_check"),
         pytest.param(reg.load_checks, {"base_dir": None}, id="load_checks"),
-        pytest.param(engine.explain_row,
-                     {"context": None, "rules": None, "on_error": "record"},
-                     id="explain_row"),
-        pytest.param(engine.validate_row,
-                     {"context": None, "rules": None, "on_error": "record"},
-                     id="validate_row"),
         pytest.param(reg.load_rules, {"base_dir": None}, id="load_rules"),
         pytest.param(engine.validate,
                      {"rules": None, "context_builder": None,
                       "on_error": "record", "context_args": None, "repeat_key": None},
                      id="validate"),
-        pytest.param(rep.build_report,
+        pytest.param(views.build_report,
                      {"key_column": None, "add_columns": None,
                       "include": "failures"},
                      id="build_report"),
@@ -217,22 +219,14 @@ def test_load_checks_names_files_explicitly() -> None:
         reg.load_checks()  # type: ignore[call-arg]
 
 
-def test_validate_row_returns_outcomes_not_a_separate_result_type(fresh_registry: None) -> None:
+def test_validate_returns_outcomes_not_a_separate_result_type(fresh_registry: None) -> None:
+    import pandas as pd
     from conftest import make_check
 
     make_check("FAILS", passes=False)
-    results = engine.validate_row(_row())
+    [results] = engine.validate(pd.DataFrame([_row()]))
     assert all(isinstance(result, res.CheckOutcome) for result in results)
     assert (results[0].code, results[0].message) == ("FAILS", "FAILS failed")
-
-
-def test_root_cause_accepts_either_functions_output(fresh_registry: None) -> None:
-    from conftest import first_cause, make_check
-
-    make_check("FAILS", passes=False)
-    row = _row()
-    assert first_cause(engine.validate_row(row)) == "FAILS"
-    assert first_cause(engine.explain_row(row)) == "FAILS"
 
 
 def test_pass_is_a_shared_singleton() -> None:

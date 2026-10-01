@@ -21,8 +21,8 @@ import pytest
 
 from conftest import make_check
 from perf_baseline import compare
-from jobcheck import validate, validate_row, registry as reg
-from jobcheck import report as rep
+from jobcheck import validate, registry as reg
+from jobcheck import views
 
 pytestmark = pytest.mark.perf
 
@@ -57,20 +57,15 @@ def test_validating_a_frame_has_not_got_slower(example_checks: None) -> None:
     gate("validate/4000", lambda: validate(df))
 
 
-def test_row_by_row_has_not_got_slower(example_checks: None) -> None:
-    df = frame()
-    gate("validate_row/4000", lambda: [validate_row(row) for _, row in df.iterrows()])
-
-
 def test_building_a_report_has_not_got_slower(example_checks: None) -> None:
     df = frame()
     outcomes = validate(df)
-    gate("build_report/4000", lambda: rep.build_report(outcomes, df=df, key_column=None))
+    gate("build_report/4000", lambda: views.build_report(outcomes, df=df, key_column=None))
 
 
 def test_summarizing_has_not_got_slower(example_checks: None) -> None:
     outcomes = validate(frame())
-    gate("summarize_outcomes/4000", lambda: rep.summarize_outcomes(outcomes))
+    gate("summarize_outcomes/4000", lambda: views.summarize_outcomes(outcomes))
 
 
 def test_resolving_many_rules_has_not_got_slower(fresh_registry: None, tmp_path: Path) -> None:

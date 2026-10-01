@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from conftest import enabled_only, make_check
+from conftest import enabled_only, failures, make_check
 from jobcheck import registry as reg
 from jobcheck import engine
 from jobcheck.results import Status
@@ -93,7 +93,7 @@ def test_a_thousand_rules_load_and_the_last_wins(fresh_registry: None, tmp_path:
 def test_empty_row_reports_the_presence_checks_and_nothing_below_them(
     example_checks: None,
 ) -> None:
-    assert [r.code for r in engine.validate_row(pd.Series(dtype=object))] == [
+    assert [r.code for r in failures(pd.Series(dtype=object))] == [
         "ROW_ALL_NULL", "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"
     ]
 
@@ -102,7 +102,7 @@ def test_row_with_unexpected_columns_only_reports_what_is_missing(
     example_checks: None,
 ) -> None:
     row = pd.Series({"totally": "unrelated"})
-    assert [r.code for r in engine.validate_row(row)] == [
+    assert [r.code for r in failures(row)] == [
         "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"
     ]
 
@@ -114,7 +114,7 @@ def test_duplicate_column_labels_are_rejected_not_silently_passed(fresh_registry
     make_check("A_CODE")
     row = pd.Series([1, 2], index=["age", "age"])
     with pytest.raises(ValueError) as excinfo:
-        engine.validate_row(row)
+        failures(row)
     assert "duplicate column labels ['age']" in str(excinfo.value)
 
 
@@ -122,7 +122,7 @@ def test_duplicate_labels_are_rejected_before_any_check_runs(fresh_registry: Non
     calls: list[str] = []
     make_check("A_CODE", calls=calls)
     with pytest.raises(ValueError):
-        engine.validate_row(pd.Series([1, 2], index=["age", "age"]))
+        failures(pd.Series([1, 2], index=["age", "age"]))
     assert calls == []
 
 
@@ -144,7 +144,7 @@ def test_a_check_that_raises_is_recorded_as_an_error_not_a_pass(fresh_registry: 
     def check(row: "pd.Series[Any]") -> bool:
         raise RuntimeError("check is broken")
 
-    outcome = engine.validate_row(pd.Series({"age": 1}))[0]
+    outcome = failures(pd.Series({"age": 1}))[0]
     assert outcome.outcome == "errored"
     assert outcome.status == Status.ERROR
     assert outcome.detail == "RuntimeError: check is broken"
@@ -156,7 +156,7 @@ def test_a_raising_check_can_be_made_fatal(fresh_registry: None) -> None:
         raise RuntimeError("check is broken")
 
     with pytest.raises(RuntimeError, match="check is broken"):
-        engine.validate_row(pd.Series({"age": 1}), on_error="raise")
+        failures(pd.Series({"age": 1}), on_error="raise")
 
 
 def test_a_check_reading_a_column_that_is_absent_errors_naming_it(fresh_registry: None) -> None:
@@ -166,7 +166,7 @@ def test_a_check_reading_a_column_that_is_absent_errors_naming_it(fresh_registry
     def check(row: "pd.Series[Any]") -> bool:
         return row["agee"] > 0
 
-    outcome = engine.validate_row(pd.Series({"age": 1}))[0]
+    outcome = failures(pd.Series({"age": 1}))[0]
     assert outcome.outcome == "errored"
     assert "agee" in outcome.detail
 
@@ -181,7 +181,7 @@ def test_a_check_returning_nothing_raises_even_when_errors_are_recorded(
         pass
 
     with pytest.raises(TypeError, match=r"Check 'FORGOT' returned None"):
-        engine.validate_row(pd.Series({"age": 1}))
+        failures(pd.Series({"age": 1}))
 
 
 def test_a_deep_dependency_chain_evaluates_in_order(fresh_registry: None) -> None:
@@ -189,7 +189,7 @@ def test_a_deep_dependency_chain_evaluates_in_order(fresh_registry: None) -> Non
     make_check("LINK_000", passes=True, calls=calls)
     for i in range(1, 200):
         make_check(f"LINK_{i:03d}", passes=True, depends_on=[f"LINK_{i - 1:03d}"], calls=calls)
-    assert engine.validate_row(pd.Series({"age": 1})) == []
+    assert failures(pd.Series({"age": 1})) == []
     assert calls == [f"LINK_{i:03d}" for i in range(200)]
 
 
@@ -198,21 +198,21 @@ def test_a_deep_chain_skips_everything_below_a_failure(fresh_registry: None) -> 
     make_check("LINK_000", passes=False, calls=calls)
     for i in range(1, 200):
         make_check(f"LINK_{i:03d}", passes=True, depends_on=[f"LINK_{i - 1:03d}"], calls=calls)
-    assert [r.code for r in engine.validate_row(pd.Series({"age": 1}))] == ["LINK_000"]
+    assert [r.code for r in failures(pd.Series({"age": 1}))] == ["LINK_000"]
     assert calls == ["LINK_000"]
 
 
 def test_wide_row_with_many_columns(fresh_registry: None) -> None:
     make_check("A_CODE")
     row = pd.Series({f"col_{i:04d}": i for i in range(1000)})
-    assert engine.validate_row(row) == []
+    assert failures(row) == []
 
 
 # --- hostile values reaching the report ------------------------------------
 
 
 def test_a_hundred_comment_keys_render_in_the_order_written(fresh_registry: None) -> None:
-    from jobcheck.report import _render_comments
+    from jobcheck.views import _render_comments
 
     comments = {f"key_{index:03d}": index for index in reversed(range(100))}
     rendered = _render_comments(comments)

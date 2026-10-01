@@ -190,11 +190,10 @@ def test_a_file_can_be_loaded_again_after_clear_registry(fresh_registry: None, t
 def test_path_loaded_checks_run(fresh_registry: None, tmp_path: Path) -> None:
     import pandas as pd
 
-    from jobcheck import validate_row
+    from conftest import failures
 
     reg.load_checks([write_check_file(tmp_path, "checks.py", "RUNS")])
-    failures = validate_row(pd.Series({"value": 2}))
-    assert [f.code for f in failures] == ["RUNS"]
+    assert [f.code for f in failures(pd.Series({"value": 2}))] == ["RUNS"]
 
 
 def test_no_bytecode_is_left_beside_a_loaded_file(fresh_registry: None, tmp_path: Path) -> None:

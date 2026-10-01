@@ -82,18 +82,12 @@ would leave the cached evaluation order contradicting the graph (noted 2026-09-2
 bundle that catches its own member's exception and loads it again in the same process
 would hit "Duplicate check code" (noted 2026-09-22).
 
-**`explain_row` versus `row_explanation`: two confusing names, and two meanings of
-`detail`** (F.63, raised by the owner on 2026-09-28, to come back to). `explain_row`
-returns the outcomes for one row; `row_explanation` turns outcomes into a table. The
-names are close enough that it is hard to remember which does which. The `detail`
-column also means two things. In the report it is only why a check gave no verdict,
-with `message` and `comments` in their own columns. In the row explanation it is the
-first non-empty of detail, rendered comments, message, then `-`
-(`src/jobcheck/report.py:205`). There is a related trap: calling `explain_row(row)`
-without the `context` and `rules` that `validate` was given re-runs the checks with an
-empty `RowContext`, so a check that reads context raises. The explanation then shows
-`errored` where the report shows a verdict. Explaining from `validate`'s own result,
-`row_explanation(outcomes[i])`, avoids it. Not yet surveyed.
+**Two meanings of `detail`** (F.63, raised by the owner on 2026-09-28, to come back to).
+In the report `detail` is only why a check gave no verdict, with `message` and
+`comments` in their own columns. In the row explanation it is the first non-empty of
+detail, rendered comments, message, then `-` (`src/jobcheck/views.py`, `explain_row`).
+The entry's other half, the two confusing names `explain_row` and `row_explanation` and
+the re-run trap, closed with F.73 on 2026-10-01. Not yet surveyed.
 
 **A check that raises should report its exception type and message** (F.65, raised by
 the owner on 2026-09-28). With `on_error="record"`, the owner found the exception
@@ -147,7 +141,7 @@ or by default.
 - Size: about 10 source lines in `engine.py` for the `detail` form, or about 25 across
   `results.py`, `engine.py` and `report.py` for the field; docs in `reporting.md` and
   `interfaces.md`; about 3 tests.
-- Blast radius: `build_report`, `row_explanation`, the CSV columns, and the shown output
+- Blast radius: `build_report`, `explain_row`, the CSV columns, and the shown output
   of the doc examples, which the doc-example test would catch.
 - Priority: medium. Nothing fails, but "ran because of a rule" is only approximate.
 - Recommended: the separate `rule` field. Not yet decided.
@@ -192,15 +186,6 @@ jobchain as the example; this raises the bar to the examples catalog. The survey
 say, for each missing name, which script it belongs in and why a real caller would reach
 for it there, rather than a call added only to be counted. Not yet surveyed.
 
-**`validate_row`, the outcome-list length guard and `include`** (F.73, medium; from the
-owner's complexity review, 2026-09-29). `validate_row` (`engine.py:158`) is
-`explain_row` filtered to failures; `_refuse_partial_row` (`report.py:41`) exists only
-because its lists look like complete ones (F.52); and the include levels, `_included` and
-`build_report(include=)` (`report.py:26-38`) have no caller outside the tests. Cutting
-all three is about -30 lines, 3 exported names and 3 documented errors. Lost: the named
-per-row call (a streaming caller filters `explain_row` by `.failed`), and a report that
-lists skipped and disabled checks (filter `row_explanation`, or the report's `outcome`
-column). Recommended: cut.
 
 **A recursive topological sort, and its own recursion-limit message** (F.74, low-medium;
 same review). `registry._topological_order` (23 lines) walks recursively, so
@@ -210,8 +195,8 @@ cycle itself (`CycleError.args[1]`): about -20 lines. Lost: only the current cyc
 message's exact format, which would be rebuilt from the cycle `graphlib` names.
 Recommended: build.
 
-**`on_error="raise"`** (F.75, low; same review). A few lines in `explain_row`,
-`validate_row` and `validate`, used only by tests. It is the one way to get a traceback
+**`on_error="raise"`** (F.75, low; same review). A few lines in `engine._explain` and
+`validate`, used only by tests. It is the one way to get a traceback
 from a check that raises, since a recorded error keeps only `Type: message`; F.65 asks
 how a raising check's exception should be shown, so decide the two together.
 Recommended at the review: keep.
@@ -235,14 +220,6 @@ where it is history.
 
 
 
-**The streaming advice drops copy handling** (F.79, medium; same review).
-`interfaces.md:445` says to call `validate_row` per row for a frame too large for
-memory, right after the `repeat_key` paragraph; neither `validate_row` nor `explain_row`
-takes `repeat_key`, so that caller runs every check on every copy with no sign.
-`README.md:140` gives the same advice with the same gap (found by the `creadme` audit of
-2026-09-30). Fix: say so in both places (a few lines of docs). A per-row sharing API
-would be a new feature, and would interact with F.73's proposed cut of `validate_row`.
-Recommended: the docs lines.
 
 **A rule on a non-repeating check matched against a per-copy column** (F.80, medium;
 same review). Such a rule is matched on the first copy only (`interfaces.md:438`), so
@@ -291,6 +268,33 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**`validate` keeps everything, and every view filters it** (F.73, F.79 and half of
+F.63, decided and built on 2026-10-01; from the owner's complexity review of
+2026-09-29). `validate` returns every check's outcome on every row, and the views in
+`src/jobcheck/views.py` (which absorbed `report.py` and `registry_tables.py`) pick what
+to show:
+- Cut: `validate_row`, the failures-only per-row call; the public `root_causes`, now
+  `build_report(include="root_causes")`, a fourth level below `"failures"`; the
+  outcome-list length guard (F.52), which existed only for `validate_row`'s lists;
+  `row_explanation`. The per-row algorithm is the private `engine._explain`.
+- `explain_row(frame_outcomes, position)` is now the row-explanation view: it reads
+  `validate`'s result and runs nothing, so explaining a row can no longer re-run its
+  checks without the context or rules `validate` had (F.63's trap), and the close pair
+  of names is gone. A position outside the outcomes raises `ValueError`.
+- The report is indexed by `row`, the `add_columns`, then `code`: `to_string()` hangs a
+  row's lines under its labels, `to_csv()` writes every label on every line, so the
+  golden CSVs came out byte-identical. `reporting.md` gives a CSV recipe per table.
+- `include` was kept, and extended, because the owner wanted every view reachable
+  from the one result.
+- `warn_blocking_rules` moved to `registry.py`, beside the dependency graph it reads.
+- F.79 is gone with `validate_row`: the large-frame advice is now chunked `validate`,
+  which says to keep a row's copies in one chunk.
+Lost: a per-row call that holds only one row's failures (a large frame is validated in
+chunks instead); `root_causes` as a list of codes for one row (read the report's index);
+`explain_row(row)` on a row never validated (validate `row.to_frame().T`); and the
+terminal shows two rows with the same key as one block. jobchain's `checks.py` takes
+its root causes from `build_report(include="root_causes")`.
 
 **Two lists of the summary columns left out `shared`, and nothing checked them**
 (F.86 and F.87, built together on 2026-09-30; from the `creadme` audit of that day).
@@ -356,7 +360,8 @@ The load sequence no longer resets on a clear, so a module name is never reused,
 dataclass trap after eviction is gone with it.
 
 **Refusing every failures-only list in the summary** (F.52, low; declined by the owner
-2026-09-29). `summarize_outcomes` and `build_report(include="blocked"|"all")` refuse
+2026-09-29; moot since 2026-10-01, when F.73 cut `validate_row` and the length guard
+with it). `summarize_outcomes` and `build_report(include="blocked"|"all")` refuse
 outcome lists that differ in length (`report._refuse_partial_row`), which catches
 `validate_row`'s failures-only lists on any ordinary frame. They cannot catch a single
 row, or a frame where every row fails the same number of checks; such a list is counted

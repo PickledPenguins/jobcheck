@@ -24,11 +24,10 @@ import pytest
 from conftest import make_check
 from jobcheck import (
     build_report,
-    validate,
     explain_row,
+    validate,
     load_rules,
     registry as reg,
-    validate_row,
 )
 from jobcheck.results import Verdict, _normalize_verdict
 from jobcheck.results import OK
@@ -212,7 +211,7 @@ def test_duplicate_column_labels_say_what_a_check_would_receive(fresh_registry: 
     make_check("CODE")
     row = pd.Series([1, 2], index=["age", "age"])
     with pytest.raises(ValueError) as raised:
-        explain_row(row)
+        validate(row.to_frame().T)
     assert message_of(raised) == (
         "Row has duplicate column labels ['age']: a check reading one of them would "
         "be handed a Series instead of a value. Rename or drop the duplicate columns "
@@ -223,7 +222,7 @@ def test_duplicate_column_labels_say_what_a_check_would_receive(fresh_registry: 
 def test_an_unknown_on_error_names_the_two_that_work(fresh_registry: None) -> None:
     make_check("CODE")
     with pytest.raises(ValueError) as raised:
-        validate_row(pd.Series({"age": 1}), on_error="explode")
+        validate(FRAME, on_error="explode")
     assert message_of(raised) == "on_error must be 'record' or 'raise', got 'explode'."
 
 
@@ -242,23 +241,20 @@ def test_a_result_with_an_unknown_status_names_the_registered_ones(fresh_registr
     assert message_of(raised).startswith("Unknown status 99.")
 
 
-def test_a_frame_that_is_not_a_frame_points_at_the_per_row_calls(fresh_registry: None) -> None:
+def test_a_frame_that_is_not_a_frame_says_how_to_make_one(fresh_registry: None) -> None:
     make_check("CODE")
     with pytest.raises(TypeError) as raised:
         validate(FRAME.iloc[0])  # type: ignore[arg-type]
     assert message_of(raised) == (
-        "validate takes a DataFrame, got Series; for one row, call "
-        "validate_row or explain_row."
+        "validate takes a DataFrame, got Series; for one row, pass row.to_frame().T."
     )
 
 
-def test_a_row_that_is_not_a_series_names_what_it_got(fresh_registry: None) -> None:
-    make_check("CODE")
-    with pytest.raises(TypeError) as raised:
-        explain_row({"age": 30})  # type: ignore[arg-type]
+def test_a_position_that_is_not_a_row_says_how_many_there_are() -> None:
+    with pytest.raises(ValueError) as raised:
+        explain_row([[], []], 2)
     assert message_of(raised) == (
-        "A row must be a pandas Series -- one row of a DataFrame -- got dict; "
-        "for a whole frame, call validate."
+        "position 2 is not a row: outcomes cover 2 row(s), numbered from 0."
     )
 
 

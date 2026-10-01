@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from conftest import enabled_only, make_check
+from conftest import enabled_only, failures, make_check
 from jobcheck import registry as reg
 from jobcheck import engine
 from jobcheck.rules import _MatchCriterion
@@ -58,7 +58,7 @@ def test_loading_rules_writes_nothing_to_disk(one_code: None, tmp_path: Path) ->
 def test_validation_never_mutates_the_dataframe_it_reads(example_checks: None) -> None:
     df = pd.DataFrame([{"age": -1, "email": "a@b.com"}])
     snapshot = df.copy(deep=True)
-    df.apply(lambda row: engine.validate_row(row), axis=1)
+    df.apply(lambda row: failures(row), axis=1)
     assert df.equals(snapshot)
 
 
@@ -109,7 +109,7 @@ def test_an_ndarray_cell_does_not_break_rule_matching(one_code: None) -> None:
 def test_comments_are_never_evaluated(fresh_registry: None) -> None:
     """Comments are data all the way through: nothing formats or evals them."""
 
-    from jobcheck.report import _render_comments
+    from jobcheck.views import _render_comments
 
     rendered = _render_comments({"expr": "__import__('os').system('x')"})
     assert rendered == "expr=__import__('os').system('x')"

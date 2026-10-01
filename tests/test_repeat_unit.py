@@ -185,7 +185,7 @@ def test_a_shared_failure_is_reported_and_counted_once(fresh_registry: None) -> 
     df = copies()
     outcomes = validate(df, repeat_key="id")
     report = build_report(outcomes, df=df, key_column="id")
-    assert report["code"].tolist() == ["ONCE", "ONCE"]   # J1 once, J2 once
+    assert report.index.get_level_values("code").tolist() == ["ONCE", "ONCE"]   # J1 once, J2 once
     summary = summarize_outcomes(outcomes).set_index("code")
     assert summary.loc["ONCE", ["failed", "shared", "root_cause_rows"]].tolist() == [2, 2, 2]
     assert summary.loc["EACH", ["passed", "shared"]].tolist() == [4, 0]

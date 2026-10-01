@@ -10,7 +10,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import EXAMPLE_CHECK_FILES, make_check
+from conftest import EXAMPLE_CHECK_FILES, failures, make_check
 from registry_state import SavedRegistry
 from jobcheck import registry as reg
 from jobcheck import engine
@@ -70,7 +70,7 @@ def test_a_partial_registers_and_is_named_by_its_own_kind(fresh_registry: None) 
     registered = reg._CHECKS[0]
     assert registered.code == "AGE_ABOVE"
     assert registered.source_file == "<unknown>"
-    assert engine.validate_row(pd.Series({"age": 200}))[0].code == "AGE_ABOVE"
+    assert failures(pd.Series({"age": 200}))[0].code == "AGE_ABOVE"
 
 
 def test_the_two_fixes_for_a_defaulted_second_parameter_both_register(
@@ -91,7 +91,7 @@ def test_the_two_fixes_for_a_defaulted_second_parameter_both_register(
     reg.register_check(code="PARTIAL", message="m")(functools.partial(below, limit=130))
     reg.register_check(code="KEYWORD", message="m")(below_keyword)
     reg.register_check(code="CONTEXT", message="m")(reads_context)
-    failed = [outcome.code for outcome in engine.validate_row(pd.Series({"age": 200}))]
+    failed = [outcome.code for outcome in failures(pd.Series({"age": 200}))]
     assert failed == ["PARTIAL", "KEYWORD"]
 
 
@@ -147,7 +147,7 @@ def test_a_check_defined_by_exec_registers(fresh_registry: None) -> None:
     registered = reg._CHECKS[0]
     assert registered.code == "EXECED"
     assert registered.source_file == "<unknown>"
-    assert engine.validate_row(pd.Series({"age": 1})) == []
+    assert failures(pd.Series({"age": 1})) == []
 
 
 def test_a_duplicate_code_from_exec_still_names_the_function(fresh_registry: None) -> None:
@@ -399,7 +399,7 @@ def test_putting_the_registry_back_restores_checks_that_still_run(
 
     saved.restore()
     assert [c.code for c in reg._CHECKS] == ["OUTER"]
-    outcomes = engine.explain_row(pd.Series({"a": 1}))
+    outcomes = engine._explain(pd.Series({"a": 1}))
     assert [o.code for o in outcomes] == ["OUTER"]
 
 

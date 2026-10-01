@@ -65,8 +65,7 @@ def test_a_check_never_runs_unless_every_prerequisite_passed(
     for code, depends_on, passes in graph:
         make_check(code, passes=passes, depends_on=depends_on, calls=calls)
 
-    engine.validate_row(pd.Series({"age": 1}))
-    outcomes = engine.explain_row(pd.Series({"age": 1}))
+    outcomes = engine._explain(pd.Series({"age": 1}))
     by_code = {outcome.code: outcome for outcome in outcomes}
 
     for code, depends_on, _passes in graph:
@@ -87,7 +86,7 @@ def test_root_cause_is_always_the_shallowest_failure(
     for code, depends_on, passes in graph:
         make_check(code, passes=passes, depends_on=depends_on)
 
-    outcomes = engine.explain_row(pd.Series({"age": 1}))
+    outcomes = engine._explain(pd.Series({"age": 1}))
     failures = [outcome for outcome in outcomes if outcome.failed]
     cause = first_cause(outcomes)
 

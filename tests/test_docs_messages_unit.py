@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import ast
 import re
-from pathlib import Path
 from typing import Iterator, NamedTuple
 
 import pytest
@@ -30,8 +29,7 @@ OWNERS = {
     "src/jobcheck/engine.py": "interfaces.md",
     "src/jobcheck/paths.py": "configuration.md",
     "src/jobcheck/registry.py": "interfaces.md",
-    "src/jobcheck/registry_tables.py": "configuration.md",
-    "src/jobcheck/report.py": "interfaces.md",
+    "src/jobcheck/views.py": "interfaces.md",
     "src/jobcheck/results.py": "interfaces.md",
     "src/jobcheck/rules.py": "configuration.md",
     "src/jobcheck/tables.py": "interfaces.md",
@@ -44,6 +42,7 @@ OWNERS = {
 FUNCTION_OWNERS = {
     ("src/jobcheck/registry.py", "_setup_paths"): "configuration.md",
     ("src/jobcheck/registry.py", "load_setup"): "configuration.md",
+    ("src/jobcheck/registry.py", "warn_blocking_rules"): "configuration.md",
 }
 
 #: A literal piece shorter than this is a joint ("rule ", ": ", " in "), not text a

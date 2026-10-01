@@ -19,10 +19,10 @@ import pandas as pd
 from jobcheck import (
     build_report,
     clear_registry,
+    explain_row,
     validate,
     load_checks,
     load_rules,
-    row_explanation,
     summarize_outcomes,
 )
 
@@ -75,10 +75,10 @@ def golden_views() -> dict[str, str]:
                              add_columns=["source_system", "record_type", "age"])
 
     return {
-        "report.csv": report.to_csv(index=False),
-        "report_with_skipped.csv": with_skipped.to_csv(index=False),
-        "report_with_extra_columns.csv": with_data.to_csv(index=False),
-        "row_explanation.csv": row_explanation(outcomes[3]).to_csv(index=False),
+        "report.csv": report.to_csv(),
+        "report_with_skipped.csv": with_skipped.to_csv(),
+        "report_with_extra_columns.csv": with_data.to_csv(),
+        "row_explanation.csv": explain_row(outcomes, 3).to_csv(index=False),
         "summary.csv": summarize_outcomes(outcomes).to_csv(index=False),
     }
 

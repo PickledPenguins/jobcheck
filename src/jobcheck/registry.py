@@ -3,7 +3,8 @@
 Everything about the *set* of checks -- registration, file loading, dependency
 validation, ordering and layers -- and nothing about running them, which is
 `engine.py`. `load_setup` and its two-key schema live here too, because the setup
-file composes `load_checks` and `load_rules` and this is the module that has both.
+file composes `load_checks` and `load_rules` and this is the module that has both;
+so does `warn_blocking_rules`, the one rule warning that reads the dependencies.
 """
 
 from __future__ import annotations
@@ -421,6 +422,57 @@ def load_rules(paths: list[str],
     *base_dir* anchors relative paths exactly as it does in `load_checks`."""
 
     return rules._load_rule_files(paths, {check.code for check in _CHECKS}, base_dir)
+
+
+def warn_blocking_rules(rules: list[Rule]) -> list[str]:
+    """Warn about disable rules that switch off more than they name.
+
+    A check runs only once its prerequisites passed, so disabling one skips
+    everything that depends on it, directly or not, on every row the rule
+    matches -- and a skipped check reports nothing. One line per rule and
+    disabled code, naming the dependents the rule does not itself disable:
+    listing them in the rule says the silence is meant, and ends the warning.
+    Needs the registry, which is why it lives here rather than beside
+    `warn_shadowed_rules` in `rules.py`.
+    """
+
+    order = _get_topo_order()
+    dependents: dict[str, list[str]] = {check.code: [] for check in order}
+    for check in order:
+        for prerequisite in check.depends_on:
+            dependents[prerequisite].append(check.code)
+    rank = {check.code: (check.layer, check.code) for check in order}
+
+    def below(code: str) -> set[str]:
+        """Every check depending on *code*, directly or through others."""
+
+        found: set[str] = set()
+        waiting = list(dependents.get(code, []))
+        while waiting:
+            dependent = waiting.pop()
+            if dependent not in found:
+                found.add(dependent)
+                waiting.extend(dependents[dependent])
+        return found
+
+    warnings: list[str] = []
+    for rule in list(rules):
+        if rule.action != "disable":
+            continue
+        reach = {code: below(code) for code in rule.codes}
+        for code in rule.codes:
+            # A code below another one the rule disables is silent either way;
+            # naming it again would repeat that code's warning.
+            if any(code in reach[other] for other in rule.codes if other != code):
+                continue
+            blocked = sorted(reach[code] - set(rule.codes), key=rank.__getitem__)
+            if blocked:
+                warnings.append(
+                    f"rule {rule.name!r} disables {code}, which also stops "
+                    f"{', '.join(blocked)} on the rows it matches: a check whose "
+                    "prerequisite is off is skipped, and reports nothing"
+                )
+    return warnings
 
 
 #: The only two keys a setup file holds. Named so the rejection can list them,
