@@ -218,22 +218,6 @@ the two sentences; the reasoning they support (no save-and-restore in the librar
 stands without them. `future-work.md:730` repeats "rollback" inside a closed entry,
 where it is history.
 
-
-
-
-
-
-**Two small corrections from the same review** (F.81, low). The testing.md row for
-`tests/test_repeat_unit.py` and the `shared` column in `summarize_outcomes`' docstring
-were built with F.86 on 2026-09-30.
-- `validate(df, repeat_key=["id"])` raises pandas' `TypeError: unhashable type: 'list'`
-  from `repeat_key in df.columns` (`engine.py:327`), not naming `repeat_key` as the
-  other refusals do. Fix: a `hash()` guard, about 4 lines, or accept pandas' message.
-- `README.md:150` indexes the section as "one row checked as many instances"; it is now
-  "One row, many copies".
-
-
-
 **A float status is accepted** (F.83, low; same review). Without the old `is_integer`
 check, `Status(self.status)` (`results.py:88`) takes `3.0` as `INVALID`, so
 `Verdict(row["kind"])` on a float column is read silently rather than refused. Fix:
@@ -263,6 +247,12 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+**A list `repeat_key` keeps pandas' message** (F.81, cut on 2026-10-01). `validate(df,
+repeat_key=["id"])` raises pandas' `TypeError: unhashable type: 'list'` from
+`repeat_key not in df.columns` (`engine.py:287`) rather than a message naming
+`repeat_key`. The run stops either way; the owner judged a guard not worth adding. The
+other half of F.81, the README's index line, was fixed.
 
 **`validate` keeps everything, and every view filters it** (F.73, F.79 and half of
 F.63, decided and built on 2026-10-01; from the owner's complexity review of
