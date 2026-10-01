@@ -218,16 +218,6 @@ the two sentences; the reasoning they support (no save-and-restore in the librar
 stands without them. `future-work.md:730` repeats "rollback" inside a closed entry,
 where it is history.
 
-**A property test for copy handling** (F.85, low; recommended by the `creview` of
-2026-09-30). Over random dependency graphs, `repeat` flags and copy groupings, assert
-that each non-repeating check is called once per `repeat_key` value, that every
-repeating check's outcome on a copy matches `explain_row` on that copy with the shared
-results substituted, and that no `shared` outcome counts as a failure. The review's
-residual risk is in these interactions, which the unit tests cover only for hand-built
-two- and three-check graphs.
-
-
-
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
