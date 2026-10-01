@@ -148,7 +148,7 @@ that, validate it in chunks and append each chunk's report to one file; see
 - [docs/concepts.md](docs/concepts.md) — the words the other documents use — check,
   code, verdict, status, outcome, layer, root cause, rule — each defined once. Read first.
 - [docs/writing-checks.md](docs/writing-checks.md) — the check function, statuses,
-  comments, how checks depend on each other, and one row checked as many instances.
+  comments, how checks depend on each other, and one row, many copies.
 - [docs/reporting.md](docs/reporting.md) — the report, explanations, summaries,
   and writing each to a CSV file.
 - [docs/configuration.md](docs/configuration.md) — rules: switching
