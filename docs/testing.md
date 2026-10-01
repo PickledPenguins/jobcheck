@@ -16,8 +16,8 @@ pip install -e ".[dev]"
 | Command | Runs | Time |
 |---|---|---|
 | `./tests/run-tests.sh fast` | 832 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 269 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1101 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh long` | 276 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 1108 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -110,7 +110,7 @@ Long:
 | `tests/test_load.py` | 20,000 rows within a time ceiling, correctness at volume, 500 checks × 200 rows, 500 rules × 200 rows, and a guard that the topological sort never runs inside the row loop. |
 | `tests/test_packaging.py` | What an adopter gets: the package ships no tests of its own, `py.typed` is there, every module imports on its own, and a scratch adopter package outside this repository loads its check file and writes a report. |
 | `tests/test_fuzz.py` | Generated input from a fixed seed: 300 rule files, 300 frames, 100 hostile comment payloads. |
-| `tests/test_properties.py` | The same invariants explored by Hypothesis, which shrinks a failure to the smallest reproducing case. |
+| `tests/test_properties.py` | The same invariants explored by Hypothesis, which shrinks a failure to the smallest reproducing case; and, over random graphs, `repeat` flags, copy groupings and per-copy rules, copies under `repeat_key`: a check that does not repeat is called at most once per key and settled on the first copy enabling its chain, a `shared` outcome passes and names an earlier copy that did it, a check is `disabled` exactly where a rule disables it, and when every check repeats, `repeat_key` changes nothing. |
 
 Own gates:
 
