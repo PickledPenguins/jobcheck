@@ -120,6 +120,8 @@ def key_names(keys: Any) -> str:
     use the same form."""
 
     return ", ".join(repr(key) for key in sorted(keys, key=str))
+
+
 def fail(run_file: str, message: str) -> NoReturn:
     """Every problem with the run file, one line on stderr and exit 2."""
 

@@ -121,6 +121,8 @@ def exit_code_section() -> str:
 
     text = CLI.read_text(encoding="utf-8")
     return text.split("\n## Exit codes\n", 1)[1].split("\n## ", 1)[0]
+
+
 def test_every_exit_code_an_entry_point_can_return_is_documented() -> None:
     """The exit codes are the contract a scheduled job is written against, and all
     three entry points share one table; a code added without a row is invisible."""

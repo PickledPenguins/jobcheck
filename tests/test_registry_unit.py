@@ -179,9 +179,6 @@ def test_clear_registry_empties_the_checks_and_the_loaded_files(example_checks: 
     assert reg._LOADED_FILES == []
 
 
-
-
-
 def test_clear_registry_then_load_checks_re_registers(fresh_registry: None) -> None:
     """Regression: clearing left the modules in sys.modules, so the re-import was a
     no-op and the registry stayed silently empty."""

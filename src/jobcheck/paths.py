@@ -60,6 +60,8 @@ def _key_names(keys: Iterable[Any]) -> str:
     `1:` -- shows as `True` or `1`, not as the text it looked like in the file."""
 
     return ", ".join(repr(key) for key in sorted(keys, key=str))
+
+
 class _DuplicateKey(Exception):
     """A mapping named one key twice; `_read_yaml` adds the file to the message."""
 

@@ -345,9 +345,6 @@ def test_duplicate_rule_name_across_files_names_both_files(one_code: None, tmp_p
     assert f"defined in {first} and again in {second}" in message
 
 
-
-
-
 def test_loading_no_files_returns_nothing(one_code: None) -> None:
     assert reg.load_rules([]) == []
 
@@ -381,9 +378,6 @@ def test_the_codes_column_lists_every_code_a_rule_touches(one_code: None, tmp_pa
     table = views.rules_table(reg.load_rules([path]))
     assert table.loc[0, "codes"] == "A_CODE, B_CODE"
     assert table.loc[0, "codes_hit_count"] == 2
-
-
-
 
 
 # --- matching and precedence ------------------------------------------------

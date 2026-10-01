@@ -218,10 +218,6 @@ the two sentences; the reasoning they support (no save-and-restore in the librar
 stands without them. `future-work.md:730` repeats "rollback" inside a closed entry,
 where it is history.
 
-**Two missing blank lines** (F.84, low; same review). `paths.py:62`, between
-`_key_names` and `class _DuplicateKey`, and `examples/run_from_config.py:117`, between
-`key_names` and `def fail`. Style only.
-
 **A property test for copy handling** (F.85, low; recommended by the `creview` of
 2026-09-30). Over random dependency graphs, `repeat` flags and copy groupings, assert
 that each non-repeating check is called once per `repeat_key` value, that every
