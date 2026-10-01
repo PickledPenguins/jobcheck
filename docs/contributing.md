@@ -10,9 +10,8 @@ Changing this project itself: where a change goes, and what enforces what.
 |---|---|
 | A new check for row data | Your own package, not this one. This library ships no checks — see [writing-checks.md](writing-checks.md). |
 | What checks exist: registration, file loading, the dependency graph | `src/jobcheck/registry.py` |
-| What happens to a row, and to a whole frame: on/off state, evaluation order, outcomes, root causes | `src/jobcheck/engine.py` |
-| How the registry and the rules are displayed | `src/jobcheck/registry_tables.py` |
-| The report, a row's explanation, the summary: what each view holds | `src/jobcheck/report.py` |
+| What happens to a row, and to a whole frame: on/off state, evaluation order, outcomes | `src/jobcheck/engine.py` |
+| Every view: the report and its root causes, a row's explanation, the summary, the registry and rules tables | `src/jobcheck/views.py` |
 | The rule-file format and its parser | `src/jobcheck/rules.py` — it never reaches into the registry; the codes that exist are handed to it |
 | What a check may return, and the status vocabulary | `src/jobcheck/results.py` |
 | The columns every table shows by default, table titles, null handling | `src/jobcheck/tables.py` |
@@ -72,7 +71,7 @@ reason several obvious-looking shortcuts are absent:
   [interfaces.md](interfaces.md), which a test keeps in step with the code.
 - **A leading underscore means "outside the public surface", not "inside this
   file".** `tables.py`'s `_format_cell` and `_reject_unknown_columns` are imported by
-  `rules.py` and `report.py` on purpose. What the underscore rules out is a *user* calling them: a function or
+  `rules.py` and `views.py` on purpose. What the underscore rules out is a *user* calling them: a function or
   class without one has to be in `__all__`, which `tests/test_api_contract.py`
   enforces for every module but `paths`, and anything exported needs a use case a
   user outside this package actually has.

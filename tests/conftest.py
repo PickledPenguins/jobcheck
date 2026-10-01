@@ -19,6 +19,7 @@ import pytest
 from jobcheck import engine
 from jobcheck import registry as reg
 from jobcheck import results as res
+from jobcheck.views import _root_causes
 from registry_state import SavedRegistry
 
 #: The clone this suite runs against. `src`, `examples` and the root itself are
@@ -129,8 +130,15 @@ def first_cause(row_outcomes: list[Any]) -> str | None:
     take the first, which is what this says in one place rather than thirty.
     """
 
-    causes = engine.root_causes(row_outcomes)
+    causes = _root_causes(row_outcomes)
     return causes[0] if causes else None
+
+
+def failures(row: pd.Series, **kwargs: Any) -> list[res.CheckOutcome]:
+    """One row's failed and errored outcomes, the checks that did not run left
+    out: what most tests of the per-row algorithm assert on."""
+
+    return [outcome for outcome in engine._explain(row, **kwargs) if outcome.failed]
 
 
 def enabled_only(state: dict[str, Any]) -> dict[str, bool]:

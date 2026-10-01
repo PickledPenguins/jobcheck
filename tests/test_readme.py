@@ -20,9 +20,8 @@ from typing import Any
 
 import pytest
 
-from conftest import EXAMPLE_CHECK_FILES
+from conftest import EXAMPLE_CHECK_FILES, failures
 from jobcheck import registry as reg
-from jobcheck import engine
 
 pytestmark = pytest.mark.fast
 
@@ -134,7 +133,7 @@ def test_the_writing_a_check_block_registers_a_working_check(fresh_registry: Non
     # that defines it is loaded.
     reg.load_checks(EXAMPLE_CHECK_FILES)
     row = pd.Series({"age": 200, "email": "a@b.com", "start_date": None, "end_date": None})
-    assert "AGE_ABOVE_LIMIT" in [outcome.code for outcome in engine.validate_row(row)]
+    assert "AGE_ABOVE_LIMIT" in [outcome.code for outcome in failures(row)]
 
 
 def test_the_example_code_does_not_collide_with_the_shipped_checks(
@@ -224,7 +223,7 @@ def test_the_report_is_one_line_per_failure_as_claimed(fresh_registry: None) -> 
 
     from jobcheck import build_report, validate, load_checks
 
-    assert "One line per failure, not one per row." in readme_text()
+    assert "One line per failure, not one per row;" in readme_text()
     load_checks([path for path in EXAMPLE_CHECK_FILES
                  if path.endswith(("check_age.py", "check_dates.py"))])
     frame = pd.DataFrame([{"age": -5, "start_date": "2024-05-01", "end_date": "2024-03-01"}])

@@ -26,8 +26,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from conftest import first_cause, PROJECT_ROOT
-from jobcheck import validate, validate_row
+from conftest import failures, first_cause, PROJECT_ROOT
+from jobcheck import validate
 
 pytestmark = pytest.mark.long
 
@@ -51,10 +51,10 @@ def frame(rows: int) -> pd.DataFrame:
 def test_threads_validating_rows_agree_with_one_thread(example_checks: None) -> None:
     df = frame(ROWS)
     rows = [row for _, row in df.iterrows()]
-    expected = [[outcome.code for outcome in validate_row(row)] for row in rows]
+    expected = [[outcome.code for outcome in failures(row)] for row in rows]
 
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        concurrent = list(pool.map(lambda row: [o.code for o in validate_row(row)], rows))
+        concurrent = list(pool.map(lambda row: [o.code for o in failures(row)], rows))
 
     assert concurrent == expected
 
@@ -62,10 +62,10 @@ def test_threads_validating_rows_agree_with_one_thread(example_checks: None) -> 
 def test_threads_do_not_disturb_each_others_root_causes(example_checks: None) -> None:
     df = frame(ROWS)
     rows = [row for _, row in df.iterrows()]
-    expected = [first_cause(validate_row(row)) for row in rows]
+    expected = [first_cause(failures(row)) for row in rows]
 
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        concurrent = list(pool.map(lambda row: first_cause(validate_row(row)), rows))
+        concurrent = list(pool.map(lambda row: first_cause(failures(row)), rows))
 
     assert concurrent == expected
     # Not all None: a check that only proves two empty lists are equal proves

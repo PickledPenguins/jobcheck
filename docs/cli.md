@@ -31,7 +31,9 @@ No positional arguments. Nothing is read from stdin. Results go to stdout; the c
 warnings, every `error:` line and uncaught exceptions go to stderr. The rule
 warnings `--rules-table` prints go to stdout, under the table they describe. Every table
 prints under its own heading — `== Registry ==` — taken from the table's
-`attrs["title"]`, above pandas' `to_string(index=False)`. The CSV report is the exception
+`attrs["title"]`, above pandas' `to_string()`, which shows the report's index (`row`,
+any added columns, `code`) with each row's lines hanging under it and leaves out the
+other tables' plain one. The CSV report is the exception
 and has no heading, so it stays parseable.
 
 The check files are named in the entry point itself, as `CHECK_FILES`, and are not
@@ -101,8 +103,8 @@ defines is an error, not a silent skip.<sup>[3](configuration.md#errors)</sup>
 ### `--report {table,csv}`
 
 Optional, default `table`. Format of the failure report: pandas' aligned text
-(`to_string(index=False)`) under its heading, or CSV (`to_csv(index=False)`) with the
-same columns. Neither wraps long text or escapes anything in a cell. A report with no
+(`to_string()`) under its heading, or CSV (`to_csv()`) with `row` and `code` on every
+line. Neither wraps long text or escapes anything in a cell. A report with no
 failures prints pandas' `Empty DataFrame` notice under its heading, or the CSV header row
 alone.
 

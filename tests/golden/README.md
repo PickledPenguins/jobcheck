@@ -1,7 +1,7 @@
 # Golden files
 
 The exact tables the report library builds, written as pandas writes CSV
-(`to_csv(index=False)`) and compared byte for byte by `tests/test_golden_output.py`.
+(`to_csv()`, the report keeping its `row`, added-column and `code` index) and compared byte for byte by `tests/test_golden_output.py`.
 One view per file, so a diff points at the value that moved rather than at a wall of
 unrelated output.
 
@@ -10,7 +10,7 @@ unrelated output.
 | `report.csv` | The failure report: column order, quoting, the `<no key>` label, the trailing newline. Also compared against the bytes a written file holds. |
 | `report_with_extra_columns.csv` | `add_columns=[...]`: frame columns placed between `row` and `code`, and how their values read. |
 | `report_with_skipped.csv` | `include="blocked"`, so every outcome the report can carry appears: failed, skipped, disabled, each status, both root-cause values. |
-| `row_explanation.csv` | `row_explanation` on the all-null row. |
+| `row_explanation.csv` | `explain_row` on the all-null row. |
 | `summary.csv` | `summarize_outcomes`: per-check counts and the root-cause column. |
 
 All five come from the fixed frame and rule file in `tests/golden_fixture.py` —

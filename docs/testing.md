@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 842 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 273 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1115 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 830 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 269 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 1099 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -55,7 +55,7 @@ There is no CI. The pre-commit hook and the release gates below are what run the
 Each gate has been checked by breaking the thing it guards and watching it fail — the
 coverage floor by deleting a test, the perf gate by lowering a stored baseline (a 4x
 regression reported `6.15s against a limit of 2.06s`), the memory ceiling by holding the
-outcomes the streaming path is supposed to release.
+outcomes the per-row loop is supposed to release.
 
 ## What each file covers
 
@@ -69,7 +69,7 @@ Fast:
 | `tests/test_repeat_unit.py` | Copies of a row under `validate(repeat_key=...)`: a check that does not repeat runs on the first copy only and is recorded `shared` on the rest, with status `PASS` and a `detail` saying where; `repeat=True` and its dependents run on every copy, each with its own context and rules, reading a shared prerequisite's result from the first copy; copies need not be adjacent; a shared failure is reported and counted once; every refused `repeat_key` and `repeat` value. |
 | `tests/test_rules_unit.py` | Every rule-file rejection (19 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
 | `tests/test_results_unit.py` | The fixed status vocabulary, `Verdict` truthiness and validation, and normalizing whatever a check returned. |
-| `tests/test_validate_row_unit.py` | The per-row algorithm: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `warn_missing_rule_columns`, root cause, layers, and the shipped checks at their boundaries. |
+| `tests/test_explain_unit.py` | The per-row algorithm, `_explain`: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `warn_missing_rule_columns`, root cause, layers, and the shipped checks at their boundaries. |
 | `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys and added data columns, `include` levels, titles, explanations and summaries. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_run_from_config_unit.py` | The run-file entry point in this process: the shipped run's tables in order, paths resolved against the run file, repeated tables, every rejection of a malformed run file word for word, and that a table the library refuses prints none of the run. |
@@ -116,8 +116,8 @@ Own gates:
 
 | File | Covers |
 |---|---|
-| `tests/test_perf.py` | Five timings against this machine's recorded baseline, plus rule resolution over 50 rules. |
-| `tests/test_memory.py` | Peak memory for per-row validation, the report path, and the streaming path. |
+| `tests/test_perf.py` | Four timings against this machine's recorded baseline, plus rule resolution over 50 rules. |
+| `tests/test_memory.py` | Peak memory for the per-row algorithm over many rows, and for `validate` plus the report on a large frame. |
 
 ## The example catalog
 
@@ -339,7 +339,7 @@ date parsing in example code, which left the gate nearly blind to the engine):
 | Measurement | Median | Spread |
 |---|---|---|
 | `validate/4000` | 1.340s | 16% |
-| `validate_row/4000` | 1.245s | 20% |
+
 | `build_report/4000` | 0.070s | 98% |
 | `summarize_outcomes/4000` | 0.024s | 19% |
 | `validate/1000-rows-50-rules` | 0.501s | 35% |

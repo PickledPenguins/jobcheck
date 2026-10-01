@@ -1,8 +1,8 @@
 """What happens to one row: which checks run, in what order, and why.
 
 The registry says what checks *exist*; this module says what they *did*.
-`explain_row` is the one algorithm -- everything else here is a view over its
-result, because a second implementation could disagree with it.
+`_explain` is the one algorithm, run once per row by `validate`; what to show of
+its result is `views.py`'s business.
 """
 
 from __future__ import annotations
@@ -57,52 +57,34 @@ def _resolve_enabled_state(
     return enabled_by_code
 
 
-def explain_row(
-    row: "pd.Series[Any]",
-    context: RowContext | None = None,
-    rules: list[Rule] | None = None,
-    on_error: str = "record",
-) -> list[CheckOutcome]:
-    """Run the checks against one row and report what *every* check did.
-
-    The root-cause tool, and the single implementation of the per-row algorithm.
-    Outcomes come back in evaluation order: a check runs only once every check it
-    depends on has passed. The first failure is not necessarily the shallowest --
-    an independent chain registered earlier can fail deeper -- so ask
-    `root_causes` which to read first.
-
-    "Did not pass" covers a prerequisite that was *disabled* or *errored* as well
-    as one that failed -- a check that never ran confirmed nothing about the row,
-    so it must not unlock a dependent.
-
-    A `context` of `None` becomes an empty `RowContext`, so a check taking
-    `(row, context)` is handed the same type whichever entry point ran it.
-    """
-
-    return _explain(row, context, rules, on_error, first=None)
-
-
 # A copy's view of its first row: where that row was, and its outcomes by code.
 _FirstRow = tuple[str, dict[str, CheckOutcome]]
 
 
 def _explain(
     row: "pd.Series[Any]",
-    context: RowContext | None,
-    rules: list[Rule] | None,
-    on_error: str,
-    first: _FirstRow | None,
+    context: RowContext | None = None,
+    rules: list[Rule] | None = None,
+    on_error: str = "record",
+    first: _FirstRow | None = None,
 ) -> list[CheckOutcome]:
-    """`explain_row`'s algorithm. With *first*, the row is a copy: a check that
-    does not repeat is not run, and records the first row's result as `shared`."""
+    """Run the checks against one row and report what *every* check did.
 
-    if on_error not in ("record", "raise"):
-        raise ValueError(f"on_error must be 'record' or 'raise', got {on_error!r}.")
-    # Checked first: a dict or list would fail further down naming `.index`, not the row.
-    if not isinstance(row, pd.Series):
-        raise TypeError(
-            f"A row must be a pandas Series -- one row of a DataFrame -- got "
-            f"{type(row).__name__}; for a whole frame, call validate.")
+    The single implementation of the per-row algorithm. Outcomes come back in
+    evaluation order: a check runs only once every check it depends on has
+    passed. The first failure is not necessarily the shallowest -- an
+    independent chain registered earlier can fail deeper.
+
+    "Did not pass" covers a prerequisite that was *disabled* or *errored* as well
+    as one that failed -- a check that never ran confirmed nothing about the row,
+    so it must not unlock a dependent.
+
+    A `context` of `None` becomes an empty `RowContext`, the type a check taking
+    `(row, context)` is always handed. With *first*, the row is a copy: a check
+    that does not repeat is not run, and records the first row's result as
+    `shared`.
+    """
+
     if row.index.has_duplicates:
         duplicated = sorted({str(label) for label in row.index[row.index.duplicated()]})
         raise ValueError(
@@ -188,47 +170,6 @@ def _explain(
     return outcomes
 
 
-def validate_row(
-    row: "pd.Series[Any]",
-    context: RowContext | None = None,
-    rules: list[Rule] | None = None,
-    on_error: str = "record",
-) -> list[CheckOutcome]:
-    """Run every enabled check against one row and return only the failures.
-
-    Dropping the checks that did not run is what keeps one broken field from
-    producing a page of cascading errors; `explain_row` shows them.
-    """
-
-    return [
-        outcome
-        for outcome in explain_row(row, context=context, rules=rules, on_error=on_error)
-        if outcome.failed
-    ]
-
-
-def root_causes(row_outcomes: list[CheckOutcome]) -> list[str]:
-    """Every failure at the shallowest failing layer, in evaluation order.
-
-    Every one, not the first: two failures in the same layer are two causes.
-    Deeper failures are left out. They are never downstream of these -- a check
-    runs only once its prerequisites passed, so each failure is the root of its
-    own chain -- they are the ones to read after.
-
-    Data failures come first: an `errored` check counts only on a row with no
-    `failed` one, so a broken check never takes the flag from a real failure,
-    and a row whose only problem is a broken check is still flagged.
-    """
-
-    failures = [outcome for outcome in row_outcomes if outcome.outcome is Outcome.FAILED]
-    if not failures:
-        failures = [outcome for outcome in row_outcomes if outcome.failed]
-    if not failures:
-        return []
-    shallowest = min(outcome.layer for outcome in failures)
-    return [outcome.code for outcome in failures if outcome.layer == shallowest]
-
-
 def _context_caller(
     builder: ContextBuilder,
 ) -> Callable[["pd.Series[Any]", Any], RowContext | None]:
@@ -276,9 +217,8 @@ def validate(
     """Run every check against every row: one list of outcomes per row, in frame
     order.
 
-    Keeps the checks that did not run too, since the explanation and summary
-    views are built from them -- one outcome per check per row. For a frame large
-    enough that those objects matter, call `validate_row` per row instead.
+    Keeps every check's outcome on every row, the ones that did not run too:
+    the views in `views.py` pick what to show from it.
 
     `context_builder` takes `(row)` or `(row, context_args)` and is called once
     per row. `context_args` is whatever every row's context is built from -- the
@@ -289,13 +229,12 @@ def validate(
     only the checks that repeat, and records the others as `shared`.
     """
 
-    # Checked here too: an empty frame never reaches explain_row.
     if on_error not in ("record", "raise"):
         raise ValueError(f"on_error must be 'record' or 'raise', got {on_error!r}.")
     if not isinstance(df, pd.DataFrame):
         raise TypeError(
-            f"validate takes a DataFrame, got {type(df).__name__}; for one row, call "
-            "validate_row or explain_row.")
+            f"validate takes a DataFrame, got {type(df).__name__}; for one row, pass "
+            "row.to_frame().T.")
 
     if repeat_key is not None:
         _check_repeat_key(df, repeat_key)

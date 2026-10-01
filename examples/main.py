@@ -21,14 +21,13 @@ import pandas as pd
 
 from jobcheck import (
     build_report,
+    explain_row,
     warn_blocking_rules,
     warn_missing_rule_columns,
     warn_shadowed_rules,
     load_checks,
     load_rules,
     registry_table,
-    root_causes,
-    row_explanation,
     rules_table,
     summarize_outcomes,
     validate,
@@ -111,12 +110,15 @@ def table_text(table: pd.DataFrame, fmt: str = "table") -> str:
 
     `to_string`, never `str(table)`: printing a frame directly shows only the first
     and last rows of a long one, which would hide most of a report's failures.
+    The report's index -- row, code -- is printed; the other tables' row numbers
+    are not.
     """
 
+    index = not isinstance(table.index, pd.RangeIndex)
     if fmt == "csv":
-        return table.to_csv(index=False)
+        return table.to_csv(index=index)
     if fmt == "table":
-        return f"== {table.attrs['title']} ==\n{table.to_string(index=False, na_rep='')}"
+        return f"== {table.attrs['title']} ==\n{table.to_string(index=index, na_rep='')}"
     # Reached from a run file's `format:`; argparse already limits --report.
     raise ValueError(f"fmt must be 'table' or 'csv', got {fmt!r}.")
 
@@ -180,8 +182,10 @@ def main(argv: list[str] | None = None) -> None:
             print(f"error: --explain {args.explain} is outside the frame's {len(df)} row(s)",
                   file=sys.stderr)
             raise SystemExit(2)
-        print(table_text(row_explanation(outcomes[args.explain])))
-        print("root cause:", ", ".join(root_causes(outcomes[args.explain])) or "none")
+        print(table_text(explain_row(outcomes, args.explain)))
+        row = slice(args.explain, args.explain + 1)
+        causes = build_report(outcomes[row], df[row], include="root_causes")
+        print("root cause:", ", ".join(causes.index.get_level_values("code")) or "none")
         return
 
     if args.rules_table:

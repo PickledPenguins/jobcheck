@@ -12,7 +12,7 @@ from conftest import PROJECT_ROOT, enabled_only, make_check
 from jobcheck import registry as reg
 from jobcheck import rules
 from jobcheck import engine
-from jobcheck import registry_tables
+from jobcheck import views
 
 from jobcheck.results import Outcome
 from jobcheck.rules import _MatchCriterion
@@ -378,7 +378,7 @@ def test_the_codes_column_lists_every_code_a_rule_touches(one_code: None, tmp_pa
     path = write(
         tmp_path, "r.yaml", '- name: "two"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE, B_CODE]\n  match: all\n'
     )
-    table = registry_tables.rules_table(reg.load_rules([path]))
+    table = views.rules_table(reg.load_rules([path]))
     assert table.loc[0, "codes"] == "A_CODE, B_CODE"
     assert table.loc[0, "codes_hit_count"] == 2
 
@@ -743,7 +743,7 @@ def test_a_disable_rule_on_a_prerequisite_names_every_check_it_silences(
     """The rule says AGE_PRESENT; on its rows AGE_NUMBER and AGE_NEGATIVE never
     run either, and report nothing -- the dependents, deepest last."""
 
-    assert registry_tables.warn_blocking_rules([disabling("AGE_PRESENT")]) == [
+    assert reg.warn_blocking_rules([disabling("AGE_PRESENT")]) == [
         "rule 'excuse' disables AGE_PRESENT, which also stops AGE_NUMBER, AGE_NEGATIVE "
         "on the rows it matches: a check whose prerequisite is off is skipped, and "
         "reports nothing"
@@ -754,7 +754,7 @@ def test_naming_the_dependents_in_the_rule_says_the_silence_is_meant(
     age_chain: None,
 ) -> None:
     whole_chain = disabling("AGE_PRESENT", "AGE_NUMBER", "AGE_NEGATIVE")
-    assert registry_tables.warn_blocking_rules([whole_chain]) == []
+    assert reg.warn_blocking_rules([whole_chain]) == []
 
 
 def test_a_chain_partly_named_is_reported_once_from_its_top(age_chain: None) -> None:
@@ -762,7 +762,7 @@ def test_a_chain_partly_named_is_reported_once_from_its_top(age_chain: None) -> 
     for AGE_PRESENT."""
 
     # The lower code listed first: skipping it must not end the rule's other codes.
-    assert registry_tables.warn_blocking_rules(
+    assert reg.warn_blocking_rules(
         [disabling("AGE_NUMBER", "AGE_PRESENT")]) == [
         "rule 'excuse' disables AGE_PRESENT, which also stops AGE_NEGATIVE on the rows "
         "it matches: a check whose prerequisite is off is skipped, and reports nothing"
@@ -770,14 +770,14 @@ def test_a_chain_partly_named_is_reported_once_from_its_top(age_chain: None) -> 
 
 
 def test_enable_rules_and_leaf_checks_block_nothing(age_chain: None) -> None:
-    assert registry_tables.warn_blocking_rules([
+    assert reg.warn_blocking_rules([
         disabling("AGE_PRESENT", action="enable"),
         disabling("AGE_NEGATIVE", "EMAIL_PRESENT", name="leaves"),
     ]) == []
 
 
 def test_an_enable_rule_first_does_not_end_the_search(age_chain: None) -> None:
-    assert len(registry_tables.warn_blocking_rules([
+    assert len(reg.warn_blocking_rules([
         disabling("AGE_PRESENT", action="enable", name="first"),
         disabling("AGE_NUMBER", name="second"),
     ])) == 1
@@ -788,12 +788,12 @@ def test_a_rule_naming_a_code_no_longer_registered_warns_about_nothing(
 ) -> None:
     """Rules loaded, then the registry cleared and a different set loaded."""
 
-    assert registry_tables.warn_blocking_rules([disabling("GONE_CODE")]) == []
+    assert reg.warn_blocking_rules([disabling("GONE_CODE")]) == []
 
 
 def test_the_blocking_warning_takes_a_generator(age_chain: None) -> None:
     rules_given = [disabling("AGE_NUMBER")]
-    assert len(registry_tables.warn_blocking_rules(
+    assert len(reg.warn_blocking_rules(
         rule for rule in rules_given)) == 1  # type: ignore[arg-type]
 
 
@@ -802,7 +802,7 @@ def test_the_shipped_rules_silence_nothing_they_do_not_name(example_checks: None
     check depending on it -- the way to say a chain's silence is meant."""
 
     loaded = reg.load_rules([str(Path(PROJECT_ROOT) / "examples/rules/error_rules.yaml")])
-    assert registry_tables.warn_blocking_rules(loaded) == []
+    assert reg.warn_blocking_rules(loaded) == []
 
 
 def test_a_check_reached_by_two_paths_is_named_once(fresh_registry: None) -> None:
@@ -812,7 +812,7 @@ def test_a_check_reached_by_two_paths_is_named_once(fresh_registry: None) -> Non
     make_check("QTY", depends_on=["LINE"])
     make_check("PRICE", depends_on=["LINE"])
     make_check("TOTAL", depends_on=["QTY", "PRICE"])
-    assert registry_tables.warn_blocking_rules([disabling("LINE")]) == [
+    assert reg.warn_blocking_rules([disabling("LINE")]) == [
         "rule 'excuse' disables LINE, which also stops PRICE, QTY, TOTAL on the rows it "
         "matches: a check whose prerequisite is off is skipped, and reports nothing"
     ]

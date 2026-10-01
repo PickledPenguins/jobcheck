@@ -67,45 +67,47 @@ df = pd.DataFrame([
     {"id": 104, "age": None, "email": "c@d.com", "start_date": "2024-01-01", "end_date": "2024-02-01"},
 ])
 outcomes = validate(df)                      # add rules=... to apply rule files
-print(build_report(outcomes, df=df, key_column="id").to_string(index=False))
+print(build_report(outcomes, df=df, key_column="id").to_string())
 ```
 
 ```
-row             code        status  layer outcome          message detail               comments  is_root_cause
-102     AGE_NEGATIVE   INVALID (3)      2  failed  Age is negative         value=-5.0; minimum=0           True
-103 EMAIL_MISSING_AT MALFORMED (2)      1  failed Email has no '@'        at_signs=0; value=nope           True
-104      AGE_PRESENT   MISSING (1)      0  failed   Age is missing                                         True
+                             status  layer outcome           message detail                comments  is_root_cause
+row code                                                                                                          
+102 AGE_NEGATIVE        INVALID (3)      2  failed   Age is negative          value=-5.0; minimum=0           True
+103 EMAIL_MISSING_AT  MALFORMED (2)      1  failed  Email has no '@'         at_signs=0; value=nope           True
+104 AGE_PRESENT         MISSING (1)      0  failed    Age is missing                                          True
 ```
 
-- One line per failure, not one per row.
+- One line per failure, not one per row; a row's failures hang under its key.
 - Every table the library builds is a DataFrame that carries its own title;
-  `table.to_string(index=False)` prints it, and `table.to_csv(index=False)` returns
-  CSV to write wherever you like.
+  `table.to_string()` prints it, and `table.to_csv("file.csv")` writes it, the
+  report's `row` and `code` on every line. The other tables take `index=False`.
 - `add_columns=[...]` adds columns from the frame next to the row key.
+- `include="root_causes"` keeps only what to read first on each row.
 
 Row 104 reports only `AGE_PRESENT` — the four age checks below it never ran. To see
 why a check did not fire, ask about the row:
 
 ```python
-from jobcheck import explain_row, root_causes, row_explanation
+from jobcheck import explain_row
 
-row_outcomes = explain_row(df.loc[2])
-print(row_explanation(row_outcomes, include="blocked").to_string(index=False))
-print("root cause:", ", ".join(root_causes(row_outcomes)))
+print(explain_row(outcomes, 2).to_string(index=False))
 ```
 
 ```
- layer             code  outcome      status                                      detail
-     0      AGE_PRESENT   failed MISSING (1)                              Age is missing
-     1 AGE_NOT_A_NUMBER  skipped    PASS (0)      prerequisite did not pass: AGE_PRESENT
-     2     AGE_NEGATIVE  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
-     2     AGE_TOO_HIGH  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
-     2  AGE_NOT_INTEGER disabled    PASS (0)                  disabled by off by default
-root cause: AGE_PRESENT
+ layer                 code  outcome      status                                      detail
+     0          AGE_PRESENT   failed MISSING (1)                              Age is missing
+     1     AGE_NOT_A_NUMBER  skipped    PASS (0)      prerequisite did not pass: AGE_PRESENT
+     2         AGE_NEGATIVE  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
+     2         AGE_TOO_HIGH  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
+     2      AGE_NOT_INTEGER disabled    PASS (0)                  disabled by off by default
+     0        EMAIL_PRESENT   passed    PASS (0)                                           -
+     1     EMAIL_MISSING_AT   passed    PASS (0)                                           -
+     2 EMAIL_DOMAIN_INVALID   passed    PASS (0)                                           -
 ```
 
-`include="blocked"` drops the checks that passed; the default `"all"` shows every one,
-which is the full audit view.
+`explain_row` reads what `validate` kept for the row at that position and runs
+nothing again; it shows every check, passes included.
 
 ## Counting what happened
 
@@ -137,10 +139,9 @@ order given, so the last matching rule wins. A relative path is resolved against
 the working directory, or against a `base_dir` the call names — the directory an
 entry point lives in, or the one a configuration file was read from.
 
-For a frame too large to keep every outcome, call `validate_row(row)` per row
-instead: it returns that row's failures and retains nothing for the rest. Those
-lists feed `build_report`, but not the summary, which counts passes and skips
-too; stream `explain_row(row)` per row for that.
+`validate` keeps every check's outcome on every row. For a frame too large for
+that, validate it in chunks and append each chunk's report to one file; see
+[docs/reporting.md](docs/reporting.md#cost).
 
 ## Documentation
 
@@ -149,7 +150,7 @@ too; stream `explain_row(row)` per row for that.
 - [docs/writing-checks.md](docs/writing-checks.md) — the check function, statuses,
   comments, how checks depend on each other, and one row checked as many instances.
 - [docs/reporting.md](docs/reporting.md) — the report, explanations, summaries,
-  formats and files.
+  and writing each to a CSV file.
 - [docs/configuration.md](docs/configuration.md) — rules: switching
   checks on or off for specific rows.
 - [docs/interfaces.md](docs/interfaces.md) — the Python API: every exported name,

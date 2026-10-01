@@ -21,8 +21,8 @@ import pandas as pd
 import pytest
 
 from conftest import make_check
-from jobcheck import validate, validate_row, registry as reg
-from jobcheck import report as rep
+from jobcheck import engine, validate, registry as reg
+from jobcheck import views
 
 pytestmark = pytest.mark.long
 
@@ -138,46 +138,13 @@ def test_building_a_report_scales_with_the_failures_not_the_rows(
     clean_outcomes = validate(clean)
     messy_outcomes = validate(messy)
 
-    quick = fastest(lambda: rep.build_report(clean_outcomes, df=clean))
-    slow = fastest(lambda: rep.build_report(messy_outcomes, df=messy))
+    quick = fastest(lambda: views.build_report(clean_outcomes, df=clean))
+    slow = fastest(lambda: views.build_report(messy_outcomes, df=messy))
 
-    assert len(rep.build_report(clean_outcomes, df=clean)) == 0
-    assert len(rep.build_report(messy_outcomes, df=messy)) > 4_000
+    assert len(views.build_report(clean_outcomes, df=clean)) == 0
+    assert len(views.build_report(messy_outcomes, df=messy)) > 4_000
     ratio = slow / quick
     assert ratio > 2, f"a frame with no failures cost 1/{ratio:.1f} of a failing one"
-
-
-def test_row_by_row_holds_less_than_collecting_on_the_same_frame(
-    example_checks: None,
-) -> None:
-    """validate_row's whole reason to exist, measured rather than asserted in a docstring.
-
-    validate keeps one outcome per check per row; validate_row keeps one
-    row's worth at a time. On 6,000 rows the difference is the thing that decides
-    whether a large frame can be reported on at all.
-    """
-
-    df = frame(6_000)
-
-    tracemalloc.start()
-    collected = validate(df)
-    collected_peak = tracemalloc.get_traced_memory()[1]
-    tracemalloc.stop()
-    assert len(collected) == 6_000
-    del collected
-
-    tracemalloc.start()
-    failures = 0
-    for _, row in df.iterrows():
-        failures += len(validate_row(row))
-    streamed_peak = tracemalloc.get_traced_memory()[1]
-    tracemalloc.stop()
-
-    assert failures > 0
-    assert streamed_peak * 4 < collected_peak, (
-        f"streaming peaked at {streamed_peak / 1e6:.1f} MB against "
-        f"{collected_peak / 1e6:.1f} MB collected"
-    )
 
 
 def test_row_by_row_memory_does_not_grow_with_the_frame(example_checks: None) -> None:
@@ -186,7 +153,7 @@ def test_row_by_row_memory_does_not_grow_with_the_frame(example_checks: None) ->
     def peak_for(df: pd.DataFrame) -> int:
         tracemalloc.start()
         for _, row in df.iterrows():
-            validate_row(row)
+            engine._explain(row)
         peak = tracemalloc.get_traced_memory()[1]
         tracemalloc.stop()
         return peak

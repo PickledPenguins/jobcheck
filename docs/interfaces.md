@@ -19,7 +19,7 @@ required reading:
 `register_check`, `OK`, `Verdict`, `Status` for a check file;
 `load_checks`, `load_rules`, `validate` and `build_report` for the pipeline
 that runs them. Add `RowContext` when a check needs per-row state the frame does
-not carry, and `validate_row` for a frame too large to keep every outcome.
+not carry.
 
 Everything below that is the tooling surface: printing, explaining, counting,
 inspecting the registry, and the pieces a wrapper around this library reaches
@@ -53,9 +53,7 @@ to its full entry below. **Required** arguments are positional and have no defau
 | Name | Required | Optional (default) | Returns | What it does |
 |---|---|---|---|---|
 | [`validate`](#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone-repeat_keynone---listlistcheckoutcome) | `df` | `rules=None`, `context_builder=None`, `on_error="record"`, `context_args=None`, `repeat_key=None` | `list[list[CheckOutcome]]` | Every check on every row of a DataFrame; one complete outcome list per row, in frame order. `context_builder` builds each row's `RowContext` from `(row)` or `(row, context_args)`. `on_error="raise"` propagates a check's exception instead of recording it as `errored`. `repeat_key` names the column marking copies of one row: a copy runs only the checks that repeat, and shares the rest. Holds every outcome in memory. |
-| [`explain_row`](#explain_rowrow-contextnone-rulesnone-on_errorrecord---listcheckoutcome) | `row` | `context=None`, `rules=None`, `on_error="record"` | `list[CheckOutcome]` | Every check's outcome on one `Series`, in evaluation order: passed, failed, disabled, skipped or errored. |
-| [`validate_row`](#validate_rowrow-contextnone-rulesnone-on_errorrecord---listcheckoutcome) | `row` | `context=None`, `rules=None`, `on_error="record"` | `list[CheckOutcome]` | The failures from `explain_row` only. The per-row form for a frame too large for `validate`. |
-| [`root_causes`](#root_causesrow_outcomes---liststr) | `row_outcomes` | – | `list[str]` | The codes to read first on one row: every failure at the shallowest failing layer, data failures ahead of errored checks. Empty for a row that passed. |
+
 
 **Checking rule files**
 
@@ -70,13 +68,14 @@ Each returns warning lines and raises nothing; an empty list means no problem.
 **Reporting**
 
 Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
-(`to_string(index=False)`, `to_csv(index=False)`).
+(`to_string()`, `to_csv()`). The report is indexed by `row`, the added columns and
+`code`, and keeps that index; the others drop their plain one with `index=False`.
 
 | Name | Required | Optional (default) | Returns | What it does |
 |---|---|---|---|---|
-| [`build_report`](#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | `frame_outcomes`, `df` | `key_column=None`, `add_columns=None`, `include="failures"` | DataFrame `Report` | The long-format report: one line per outcome per data row. `key_column` labels rows (default: the index); `add_columns` copies frame columns in; `include` is `"failures"`, `"blocked"` or `"all"`. |
-| [`row_explanation`](#row_explanationrow_outcomes-includeall---dataframe) | `row_outcomes` | `include="all"` | DataFrame `Row explanation` | One line per check on one data row: `layer`, `code`, `outcome`, `status`, `detail`. |
-| [`summarize_outcomes`](#summarize_outcomesframe_outcomes---dataframe) | `frame_outcomes` | – | DataFrame `Summary` | Per-check counts across all rows: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `shared`, `passed`. Takes complete lists (not `validate_row`'s), a generator included. |
+| [`build_report`](#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | `frame_outcomes`, `df` | `key_column=None`, `add_columns=None`, `include="failures"` | DataFrame `Report` | The long-format report: one line per outcome per data row, indexed by `row`, the `add_columns`, then `code`. `key_column` labels rows (default: the index); `add_columns` copies frame columns in; `include` is `"root_causes"`, `"failures"`, `"blocked"` or `"all"`. |
+| [`explain_row`](#explain_rowframe_outcomes-position---dataframe) | `frame_outcomes`, `position` | – | DataFrame `Row explanation` | Every check on the data row at `position`, in evaluation order: `layer`, `code`, `outcome`, `status`, `detail`. Runs nothing. |
+| [`summarize_outcomes`](#summarize_outcomesframe_outcomes---dataframe) | `frame_outcomes` | – | DataFrame `Summary` | Per-check counts across all rows: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `shared`, `passed`. Takes `validate`'s result, or any iterable of its rows. |
 | [`registry_table`](#registry_tablerulesnone---dataframe) | – | `rules=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `repeat`, `message`, `depends_on`, `source_file`, and from `rules`, `could_be_overridden_by`. |
 | [`rules_table`](#rules_tablerules---dataframe) | `rules` | – | DataFrame `Rules` | One line per rule: `name`, `action`, `codes_hit_count`, `codes`, `match`, `message`, `source_file`. |
 
@@ -332,41 +331,6 @@ worked example.
 
 ## Running checks
 
-### `explain_row(row, context=None, rules=None, on_error="record") -> list[CheckOutcome]`
-
-What every check did on one row, in evaluation order. The single implementation of
-the per-row algorithm.
-
-`on_error="record"` turns an exception inside a check into a `Status.ERROR`
-outcome and continues; `"raise"` propagates it. A check returning something that is
-not a result always raises — that is an authoring bug, not a data problem.
-
-Raises `TypeError` when `row` is not a `pandas.Series`, and `ValueError` when it
-has duplicate column labels — both before running anything.
-
-A `context` of `None` — the default — becomes an empty `RowContext`, so a check
-taking `(row, context)` is handed the same type here, in `validate_row` and in
-`validate`.
-
-### `validate_row(row, context=None, rules=None, on_error="record") -> list[CheckOutcome]`
-
-The failing outcomes from `explain_row`, in evaluation order. Does not mutate `row`
-or `context`. For the one to read first, ask `root_causes`.
-
-### `root_causes(row_outcomes) -> list[str]`
-
-`root_causes` returns **every** failure at the shallowest failing layer, in
-evaluation order: two chains failing at the same depth are two root causes, and
-naming only the first evaluated would let registration order decide what a
-person reads as the cause. Deeper failures are left out as the ones to read next,
-not as downstream of these: a check only runs once its prerequisites passed, so
-every failure is the root of its own chain. Data failures come first: an
-`errored` outcome counts only on a row with no `failed` one, so a broken check
-never takes the flag from a real failure, and a row whose only problem is a broken
-check is still flagged. Empty for a row that passed.
-
-A caller wanting a single label per row (a tally, a column in a frame) takes the
-first. Accepts either `validate_row` or `explain_row` output.
 
 ### `warn_missing_rule_columns(df, rules) -> list[str]`
 
@@ -404,9 +368,15 @@ table.<sup>[13](configuration.md#disabling-a-check-disables-what-depends-on-it)<
 
 ### `validate(df, rules=None, context_builder=None, on_error="record", context_args=None, repeat_key=None) -> list[list[CheckOutcome]]`
 
-Every check against every row: one `explain_row` call per row, and one list of
-outcomes per row, in frame order. That is the shape `build_report` and
-`summarize_outcomes` take.
+Every check against every row: one list of outcomes per row, in frame order, each
+holding what *every* check did -- passed, failed, disabled, skipped, errored or
+shared -- in evaluation order. Nothing is filtered: the views below pick what to
+show, so every one of them is built from this one result.
+
+`on_error="record"` turns an exception inside a check into a `Status.ERROR`
+outcome and continues; `"raise"` propagates it. A check returning something that is
+not a result always raises — that is an authoring bug, not a data problem. Does not
+mutate the frame.
 
 `context_builder` is called once per row and returns the `RowContext` handed to
 every check; hand back one shared object when a check needs the whole frame.
@@ -426,7 +396,8 @@ shape raises `ValueError` naming what it takes, before any row is read.
 
 An `on_error` that is neither `"record"` nor `"raise"` raises `ValueError` before
 any row is read, an empty frame included; anything but a `DataFrame` raises
-`TypeError` naming `validate_row` and `explain_row` as the per-row calls.<sup>[4](#error-messages)</sup>
+`TypeError`, and for one row says to pass `row.to_frame().T`. A frame with duplicate
+column labels raises `ValueError` on its first row, before any check runs.<sup>[4](#error-messages)</sup>
 
 `repeat_key` names a column whose repeated values mark copies of one row, as
 `DataFrame.explode` makes them. The first row with each value, in frame order, runs
@@ -441,16 +412,16 @@ exactly one column raises `ValueError` before any row is read; a blank value rai
 naming the position.<sup>[4](#error-messages)</sup> See
 [writing-checks.md](writing-checks.md#one-row-many-copies).
 
-It keeps one outcome per check per row, so for a frame where that will not fit in
-memory, call `validate_row(row)` per row instead and write the failures out as
-they appear.<sup>[14](reporting.md#cost)</sup>
+It keeps one outcome per check per row; for a frame where that will not fit in
+memory, validate it in chunks and write each chunk's report out.<sup>[14](reporting.md#cost)</sup>
 
 ## Reporting
 
 Every view is a DataFrame whose `attrs["title"]` names it — `Report`,
 `Row explanation`, `Summary`, `Registry`, `Rules` — and pandas turns any of them
 into text. Each carries every column it builds, and a caller drops what it does not
-want; see [reporting.md](reporting.md#which-columns-a-table-shows).
+want; see [reporting.md](reporting.md#which-columns-a-table-shows). Writing each to a
+CSV file is in [reporting.md](reporting.md#writing-the-tables-to-files).
 
 ### `build_report(frame_outcomes, df, key_column=None, add_columns=None, include="failures") -> DataFrame`
 
@@ -460,21 +431,39 @@ have one row per list in `frame_outcomes` — otherwise `ValueError`
 (`outcomes cover 1 row(s) but the frame has 2: ...`). `key_column` names the single
 column that identifies a row — one that is not in the frame, or is in it more than
 once, raises `ValueError`; without it the frame's index labels the rows.
-`add_columns` copies frame columns into the report just after `row`; a name not in
-the frame, named twice, or colliding with one of the report's own columns raises
-`ValueError`. `include` is `"failures"`, `"blocked"` or `"all"`, and anything else
-raises `ValueError`. `"failures"` takes `validate_row`'s failures-only lists too;
-the other two need every outcome, and refuse lists that differ in length.<sup>[15](reporting.md#what-to-include)</sup> Titled `Report`. The columns are in
+`add_columns` copies frame columns into the report; a name not in the frame, named
+twice, or colliding with one of the report's own columns raises `ValueError`.
+
+The report is indexed by `row`, then the `add_columns` in the order given, then
+`code`. `to_string()` prints a row's labels once and hangs its lines beneath them;
+`to_csv()` writes every label on every line; `reset_index()` makes them plain
+columns. Two data rows with the same label print as one block, so a `key_column`
+that is not unique reads as one row in the terminal.
+
+`include` is `"root_causes"`, `"failures"`, `"blocked"` or `"all"`, each holding the
+one before it, and anything else raises `ValueError`.<sup>[15](reporting.md#what-to-include)</sup>
+Titled `Report`. The columns are in
 [reporting.md](reporting.md#shape-one-row-per-failure).
 
-### `row_explanation(row_outcomes, include="all") -> DataFrame`
+**Root causes.** `is_root_cause`, `include="root_causes"` and the summary's
+`root_cause_rows` all read one rule: a row's root causes are **every** failure at
+its shallowest failing layer, in evaluation order. Two chains failing at the same
+depth are two root causes; naming only the first evaluated would let registration
+order decide what a person reads as the cause. Deeper failures are left out as the
+ones to read next, not as downstream of these: a check only runs once its
+prerequisites passed, so every failure is the root of its own chain. Data failures
+come first: an `errored` outcome counts only on a row with no `failed` one, so a
+broken check never takes the flag from a real failure, and a row whose only problem
+is a broken check is still flagged. A row that passed has none.
 
-One row per check on one data row, in evaluation order — `explain_row`'s result, or
-one row's list from `validate`: `layer`, `code`, `outcome`, `status`, `detail`.
-`detail` says why a check gave no verdict, and otherwise holds its rendered comments,
-else its message, else `-`. `include` takes the report's three levels, with `"all"`
-the default here; `"blocked"` drops the checks that simply passed. Titled
-`Row explanation`.
+### `explain_row(frame_outcomes, position) -> DataFrame`
+
+One line per check on the data row at `position` (0 for the first) of `validate`'s
+result, in evaluation order: `layer`, `code`, `outcome`, `status`, `detail`. Every
+check is shown, passes included; it reads the outcomes and runs nothing. `detail`
+says why a check gave no verdict, and otherwise holds its rendered comments, else
+its message, else `-`. A `position` outside the outcomes raises `ValueError`.
+Titled `Row explanation`.<sup>[5](reporting.md#diagnosing-one-row)</sup>
 
 ### `summarize_outcomes(frame_outcomes) -> DataFrame`
 
@@ -484,11 +473,8 @@ most first, then by code. `shared` counts the copies that reused the first copy'
 result, so `failed` and `passed` count only the calls made. `root_cause_rows` counts
 the rows whose root causes include the
 check — an errored check among them on the rows with no data failure, so it can
-exceed `failed`. Takes `validate`'s result or any iterable of complete per-row lists,
-a generator included — `explain_row(row)`
-per row is the streaming form — and keeps only the counts. `validate_row`'s lists
-hold failures only and would count wrong, so lists that differ in length raise
-`ValueError`. Titled `Summary`.<sup>[16](reporting.md#diagnosing-a-whole-file)</sup>
+exceed `failed`. Takes `validate`'s result, or any iterable of its rows, and keeps
+only the counts. Titled `Summary`.<sup>[16](reporting.md#diagnosing-a-whole-file)</sup>
 
 
 
@@ -536,10 +522,9 @@ the call named.
 | `load_checks`, and the first run after a registration | `Check '<code>' depends on '<prerequisite>', which is not registered. Either the code is a typo, or it lives in a check file that was not loaded (currently loaded: <files>). Loading the missing file works; correcting an already-loaded one does not, because load_checks skips a path it has already read -- call clear_registry() first.` |
 | the same | `Dependency cycle among checks: A -> B -> A` |
 | the same | `Dependency chain too deep to resolve among <n> checks: the ordering walk is recursive and gives out near Python's recursion limit of <limit> (widest declared depends_on: <n>). Shorten the chain, or register prerequisites before the checks that depend on them.` |
-| `explain_row`, `validate_row`, `validate` | `on_error must be 'record' or 'raise', got '<value>'.` |
-| `explain_row`, `validate_row` | `A row must be a pandas Series -- one row of a DataFrame -- got <type>; for a whole frame, call validate.` |
-| `explain_row`, `validate_row` | `Row has duplicate column labels <labels>: a check reading one of them would be handed a Series instead of a value. Rename or drop the duplicate columns before validating.` |
-| `validate` | `validate takes a DataFrame, got <type>; for one row, call validate_row or explain_row.` |
+| `validate` | `on_error must be 'record' or 'raise', got '<value>'.` |
+| `validate` | `Row has duplicate column labels <labels>: a check reading one of them would be handed a Series instead of a value. Rename or drop the duplicate columns before validating.` |
+| `validate` | `validate takes a DataFrame, got <type>; for one row, pass row.to_frame().T.` |
 | `validate` | `repeat_key '<name>' is not in the data. Available columns: <columns>.` |
 | `validate` | `repeat_key '<name>' appears 2 times in the data. Rename or drop the duplicate columns.` |
 | `validate` | `repeat_key '<name>' is blank at position <n>: every row needs a value to say which rows are its copies.` |
@@ -554,11 +539,11 @@ the call named.
 | `Verdict` | `Verdict comments must be a mapping, got <value>.` |
 
 | `build_report` | `outcomes cover 1 row(s) but the frame has 2: pass the same frame the outcomes were collected from.` |
-| `build_report`, `row_explanation` | `include must be one of failures, blocked, all, got '<value>'.` |
-| `build_report`, `summarize_outcomes` | `<function> needs every check's outcome on every row, but the list for row <n> holds <n> and the one before it <n>: pass validate's result, or explain_row's per row. validate_row keeps only the failures.` |
+| `build_report` | `include must be one of root_causes, failures, blocked, all, got '<value>'.` |
 | `build_report` | `key_column '<name>' is not in the data. Available columns: <columns>.` |
 | `build_report` | `key_column '<name>' appears 2 times in the data: df[key_column] is then a table rather than a column, and every row would be labeled with the column name. Rename or drop the duplicate columns.` |
 | `build_report`'s `add_columns` | `add_columns ['<name>'] cannot be used for the report. Each name must be asked for once and be one of: <columns>.` |
+| `explain_row` | `position 3 is not a row: outcomes cover 3 row(s), numbered from 0.` |
 ## Stability
 
 Pre-1.0: the API may change between versions. The parts most likely to stay fixed
@@ -582,8 +567,8 @@ schema, since data written against them outlives the code.
 | 11 | [configuration.md: Setup files](configuration.md#setup-files-naming-the-checks-and-the-rules-at-once) | the setup messages, quoted |
 | 12 | [configuration.md: Warnings](configuration.md#warnings) | the three warning lines, quoted |
 | 13 | [configuration.md: Disabling a check](configuration.md#disabling-a-check-disables-what-depends-on-it) | why a disabled prerequisite silences its dependents |
-| 14 | [reporting.md: Cost](reporting.md#cost) | what the report path holds in memory |
-| 15 | [reporting.md: What to include](reporting.md#what-to-include) | the three levels, with output |
+| 14 | [reporting.md: Cost](reporting.md#cost) | what `validate` holds in memory, and validating in chunks |
+| 15 | [reporting.md: What to include](reporting.md#what-to-include) | the four levels |
 | 16 | [reporting.md: Diagnosing a whole file](reporting.md#diagnosing-a-whole-file) | reading the summary |
 | 17 | [reporting.md: Working with the tables](reporting.md#working-with-the-tables) | filtering and printing the tables |
 | 18 | [writing-checks.md: Reading a value safely](writing-checks.md#reading-a-value-safely) | `is_null` in a check |

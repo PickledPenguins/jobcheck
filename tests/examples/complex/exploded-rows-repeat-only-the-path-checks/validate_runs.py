@@ -18,7 +18,7 @@ sys.path.insert(0, str(HERE.parents[3] / "src"))
 import pandas as pd  # noqa: E402
 
 from jobcheck import (  # noqa: E402
-    build_report, load_checks, load_rules, row_explanation, summarize_outcomes, validate,
+    build_report, explain_row, load_checks, load_rules, summarize_outcomes, validate,
 )
 
 
@@ -39,10 +39,10 @@ def main() -> None:
     runs = expand(pd.read_csv(HERE / "jobs.csv", dtype=str))
     outcomes = validate(runs, rules=rules, repeat_key="id")
     print(build_report(outcomes, df=runs, key_column="id", add_columns=["dirname"])
-          .to_csv(index=False))
+          .to_csv())
     print(summarize_outcomes(outcomes).to_csv(index=False))
     # J2's second copy: what ran there, and what it shares with J2's first row.
-    print(row_explanation(outcomes[4]).to_csv(index=False), end="")
+    print(explain_row(outcomes, 4).to_csv(index=False), end="")
 
 
 if __name__ == "__main__":

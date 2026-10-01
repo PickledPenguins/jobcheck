@@ -54,7 +54,7 @@ def main() -> None:
     )
     outcomes = validate(jobs, context_builder=build_context, context_args=shared)
     report = build_report(outcomes, df=jobs, key_column="id", add_columns=["run_dir"])
-    print(report.to_csv(index=False))
+    print(report.to_csv())
     print(summarize_outcomes(outcomes).to_csv(index=False), end="")
 
 

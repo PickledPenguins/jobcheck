@@ -10,7 +10,7 @@ import pytest
 
 from conftest import make_check
 from jobcheck import registry as reg
-from jobcheck import registry_tables
+from jobcheck import views
 from jobcheck import tables
 from jobcheck.rules import _MatchCriterion
 
@@ -51,14 +51,14 @@ def test_list_like_cells_are_not_treated_as_null(value: object) -> None:
 
 
 def test_registry_table_has_the_base_columns(example_checks: None) -> None:
-    assert list(registry_tables.registry_table().columns) == [
+    assert list(views.registry_table().columns) == [
         "code", "layer", "default", "repeat", "message", "depends_on", "source_file",
         "could_be_overridden_by",
     ]
 
 
 def test_registry_table_is_sorted_by_layer_then_code(example_checks: None) -> None:
-    table = registry_tables.registry_table()
+    table = views.registry_table()
     assert list(table["code"]) == [
         "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT", "ROW_ALL_NULL",
         "AGE_NOT_A_NUMBER", "DATES_OUT_OF_ORDER", "EMAIL_MISSING_AT",
@@ -75,12 +75,12 @@ def test_registry_table_computes_layers_for_checks_registered_directly(
 
     make_check("BASE")
     make_check("DEPENDENT", depends_on=["BASE"])
-    table = registry_tables.registry_table()
+    table = views.registry_table()
     assert table[["code", "layer"]].values.tolist() == [["BASE", 0], ["DEPENDENT", 1]]
 
 
 def test_registry_table_renders_the_default_as_on_or_off(example_checks: None) -> None:
-    table = registry_tables.registry_table().set_index("code")
+    table = views.registry_table().set_index("code")
     assert table.loc["AGE_NEGATIVE", "default"] == "ON"
     assert table.loc["AGE_NOT_INTEGER", "default"] == "OFF"
 
@@ -91,13 +91,13 @@ def test_registry_table_joins_dependencies_and_dashes_when_there_are_none(
     make_check("ROOT")
     make_check("OTHER")
     make_check("LEAF", depends_on=["ROOT", "OTHER"])
-    table = registry_tables.registry_table().set_index("code")
+    table = views.registry_table().set_index("code")
     assert table.loc["LEAF", "depends_on"] == "ROOT; OTHER"
     assert table.loc["ROOT", "depends_on"] == "-"
 
 
 def test_registry_table_of_an_empty_registry_has_columns_and_no_rows(fresh_registry: None) -> None:
-    table = registry_tables.registry_table()
+    table = views.registry_table()
     assert table.empty
     assert list(table.columns) == [
         "code", "layer", "default", "repeat", "message", "depends_on", "source_file",
@@ -110,20 +110,20 @@ def test_could_be_overridden_by_names_each_rule_with_its_action_in_load_order(
 ) -> None:
     make_check("A_CODE")
     rules = [a_rule("first", action="enable"), a_rule("second", action="disable")]
-    table = registry_tables.registry_table(rules).set_index("code")
+    table = views.registry_table(rules).set_index("code")
     assert table.loc["A_CODE", "could_be_overridden_by"] == "first (enable); second (disable)"
 
 
 def test_could_be_overridden_by_is_a_dash_for_an_unreferenced_code(fresh_registry: None) -> None:
     make_check("A_CODE")
     make_check("UNTOUCHED")
-    table = registry_tables.registry_table([a_rule()]).set_index("code")
+    table = views.registry_table([a_rule()]).set_index("code")
     assert table.loc["UNTOUCHED", "could_be_overridden_by"] == "-"
 
 
 def test_the_registry_without_rules_still_renders_that_column(fresh_registry: None) -> None:
     make_check("A_CODE")
-    table = registry_tables.registry_table().set_index("code")
+    table = views.registry_table().set_index("code")
     assert table.loc["A_CODE", "could_be_overridden_by"] == "-"
 
 
@@ -133,7 +133,7 @@ def test_the_registry_without_rules_still_renders_that_column(fresh_registry: No
 def test_rules_table_is_one_row_per_rule(fresh_registry: None) -> None:
     make_check("A_CODE")
     make_check("B_CODE")
-    table = registry_tables.rules_table([a_rule("one", codes=["A_CODE", "B_CODE"]),
+    table = views.rules_table([a_rule("one", codes=["A_CODE", "B_CODE"]),
                                          a_rule("two", action="enable")])
     assert list(table["name"]) == ["one", "two"]
     assert list(table["action"]) == ["disable", "enable"]
@@ -142,7 +142,7 @@ def test_rules_table_is_one_row_per_rule(fresh_registry: None) -> None:
 
 def test_match_all_renders_as_all(fresh_registry: None) -> None:
     make_check("A_CODE")
-    assert registry_tables.rules_table([a_rule()])["match"][0] == "all"
+    assert views.rules_table([a_rule()])["match"][0] == "all"
 
 
 def test_criteria_render_compactly(fresh_registry: None) -> None:
@@ -155,7 +155,7 @@ def test_criteria_render_compactly(fresh_registry: None) -> None:
                   _MatchCriterion("record_type", "^BATCH$", _re.compile("^BATCH$"))],
         match_all=False, message="why the rule exists",
     )
-    assert registry_tables.rules_table([rule])["match"][0] == (
+    assert views.rules_table([rule])["match"][0] == (
         "source_system~=/^LEGACY_/; record_type~=/^BATCH$/"
     )
 
@@ -166,13 +166,13 @@ def test_criteria_render_compactly(fresh_registry: None) -> None:
 def test_the_registry_table_carries_the_source_file_it_was_asked_for(
     example_checks: None,
 ) -> None:
-    table = registry_tables.registry_table().set_index("code")
+    table = views.registry_table().set_index("code")
     assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
 
 
 def test_the_rules_table_carries_the_source_file_it_was_asked_for(fresh_registry: None) -> None:
     make_check("A_CODE")
-    table = registry_tables.rules_table([a_rule(source_file="here.yaml")])
+    table = views.rules_table([a_rule(source_file="here.yaml")])
     assert list(table["source_file"]) == ["here.yaml"]
 
 
@@ -182,7 +182,7 @@ def test_the_rules_table_carries_the_message_that_says_why_a_rule_exists(
     """A rule nobody can justify is a rule nobody dares delete."""
 
     make_check("A_CODE")
-    table = registry_tables.rules_table([a_rule()])
+    table = views.rules_table([a_rule()])
     assert list(table["message"]) == ["why the rule exists"]
 
 
@@ -196,7 +196,7 @@ def test_the_rules_table_is_data_and_prints_nothing(
         "  codes: [A_CODE]\n  match: all\n",
         encoding="utf-8",
     )
-    table = registry_tables.rules_table(reg.load_rules([str(path)]))
+    table = views.rules_table(reg.load_rules([str(path)]))
     assert capsys.readouterr().out == ""
     assert list(table["name"]) == ["off_everywhere"]
     assert list(table.columns) == ["name", "action", "codes_hit_count", "codes", "match", "message",

@@ -3,8 +3,8 @@ a bad `add_columns` name is refused.
 
 The tables are plain DataFrames carrying every column they build, titled in
 `attrs["title"]`; choosing columns and turning a table into text is the caller's,
-with pandas (`drop(columns=...)`, `to_string(index=False)`, `to_csv(index=False)`).
-`is_null` is the public part. The underscored helpers are shared with `report.py`
+with pandas (`drop(columns=...)`, `to_string()`, `to_csv()`).
+`is_null` is the public part. The underscored helpers are shared with `views.py`
 and `rules.py` and are not for callers.
 """
 

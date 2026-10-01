@@ -19,18 +19,15 @@ from .registry import (
     load_setup,
     load_rules,
     register_check,
+    warn_blocking_rules,
 )
-from .engine import (
-    explain_row,
-    root_causes,
-    validate,
-    validate_row,
-)
-from .registry_tables import registry_table, rules_table, warn_blocking_rules
+from .engine import validate
 from .rules import Rule, warn_missing_rule_columns, warn_shadowed_rules
-from .report import (
+from .views import (
     build_report,
-    row_explanation,
+    explain_row,
+    registry_table,
+    rules_table,
     summarize_outcomes,
 )
 from .results import OK, CheckOutcome, Outcome, Status, Verdict
@@ -54,12 +51,9 @@ __all__ = [
     "load_setup",
     "register_check",
     "registry_table",
-    "root_causes",
-    "row_explanation",
     "rules_table",
     "summarize_outcomes",
     "validate",
-    "validate_row",
     "__version__",
     "warn_blocking_rules",
     "warn_missing_rule_columns",

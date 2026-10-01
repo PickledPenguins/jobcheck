@@ -9,7 +9,7 @@ caller reads the registry through `registry_table`, because nothing that mutates
 list directly drops the cached evaluation order the row loop walks. Checks are ordinary functions
 that register themselves into it when their module is imported; which modules get
 imported is the loading mechanism. Everything else reads that list: rule files are
-validated against it, the tables list it, and `explain_row` walks it once per row in a
+validated against it, the tables list it, and `validate` walks it once per row in a
 precomputed order.
 
 ```
@@ -21,7 +21,7 @@ entry point
   |
   +-- load_rules(...)   -> parse YAML -> validate each rule against _CHECKS -> [Rule]
   |
-  +-- validate(df)          -> explain_row per row
+  +-- validate(df)          -> _explain per row, every outcome kept
   |       resolve state (defaults, then matching rules, last wins)
   |       walk the cached topological order
   |       disabled / blocked  -> CheckOutcome, fn never called
@@ -69,9 +69,8 @@ return values and what each does, one line apiece -- see
 | File | Responsibility |
 |---|---|
 | `src/jobcheck/registry.py` | The registry: registration, file import, dependency validation, ordering and layers. What checks *exist*. `load_setup` lives here too, being the one place that composes both loaders. |
-| `src/jobcheck/engine.py` | What happens to one row: per-row on/off state from the rules, evaluation in dependency order, the outcomes, and the root causes. |
-| `src/jobcheck/registry_tables.py` | The registry and the rules as tables: what is registered, which rules could touch each code, what each rule covers. |
-| `src/jobcheck/report.py` | The views of outcomes: the long-format failure report, one row's explanation, and the per-check summary, each a titled DataFrame. |
+| `src/jobcheck/engine.py` | What happens to one row: per-row on/off state from the rules, evaluation in dependency order, every outcome kept. |
+| `src/jobcheck/views.py` | Every view, each a titled DataFrame built from data already collected: the long-format report and its root causes, one row's explanation, the per-check summary, and the registry and rules tables. |
 | `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `Verdict`, `CheckOutcome`. |
 | `src/jobcheck/rules.py` | The rule file format and its parser. Knows nothing about the registry. |
 | `src/jobcheck/tables.py` | How a cell reads as text, null handling, and the `add_columns` refusal, shared by every view. |
@@ -102,8 +101,7 @@ context, results, tables, paths    import nothing from the package
 rules                              <- paths, tables
 registry                           <- context, paths, rules
 engine                             <- context, registry, results, rules
-report                             <- engine, results, tables
-registry_tables                    <- registry, rules, tables
+views                              <- registry, results, rules, tables
 __init__                           <- all of the above, to re-export them
 ```
 
@@ -202,7 +200,7 @@ processed, rather than throwing part-way through a long pipeline.<sup>[8](config
 
 **Every view is a titled DataFrame, and pandas writes it.** A function that builds a
 table returns it with its title in `attrs["title"]`, and the caller turns it into text
-with pandas: `to_string(index=False)` for a terminal, `to_csv(index=False)` for a file.
+with pandas: `to_string()` for a terminal, `to_csv()` for a file.
 So there is no print, render or write variant per table, and a table is data a caller
 can filter before it is text. Cost: pandas neither wraps long text nor escapes a cell,
 so a wide report runs past the terminal and a formula-like value reaches a CSV as it
@@ -211,7 +209,7 @@ escaping writer of about 64 lines that duplicated pandas and `csvlook` for the o
 view it improved.<sup>[9](reporting.md#every-table-names-itself)</sup>
 
 **Tables state what they cannot know.** `could_be_overridden_by` is named for *reference*,
-not effect: only `explain_row` against a real row can decide.<sup>[10](interfaces.md#registry_tablerulesnone---dataframe)</sup>
+not effect: only `validate` against a real row can decide.<sup>[10](interfaces.md#registry_tablerulesnone---dataframe)</sup>
 
 **`clear_registry` is a flat reset.** It empties the check list, the loaded-file list
 and the ordering cache, and drops the modules `load_checks` made for check files (named
@@ -245,12 +243,16 @@ construction. A fixed set can be grouped and counted across every check in a
 summary, which per-check enums could not; what varies between projects is the
 codes, not the kinds.<sup>[12](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
 
-**`explain_row` is the algorithm; `validate_row` filters it.** Root-cause
-reporting needs to know why a check did *not* run, which means recording disabled,
-skipped and errored outcomes. Two implementations -- a fast one that drops that
-and a slow one that keeps it -- would eventually disagree about exactly the case
-someone is trying to understand. The cost is an object per check per row, which is
-why the report path is documented as the expensive one.
+**`validate` keeps everything; the views filter.** Root-cause reporting needs to know
+why a check did *not* run, which means recording disabled, skipped and errored
+outcomes. One algorithm runs once per row and keeps every outcome, and every view
+-- the report at each `include` level, a row's explanation, the summary -- picks
+what to show from that one result, so no two of them can disagree about a row, and
+explaining a row never runs its checks a second time. Rejected (F.73, 2026-10-01):
+`validate_row`, a per-row call keeping only the failures, and a public
+`root_causes`; the first was a second entry point to the same algorithm whose lists
+the summary could not count, the second is now `include="root_causes"`. The cost is
+an object per check per row; a frame too large for that is validated in chunks.
 
 **A raising check is recorded, not fatal.** One broken check should not kill a long
 batch, and an `errored` outcome is counted separately from `failed` so it cannot
@@ -278,7 +280,7 @@ someone else's.
 
 **One module per question, and the questions are few.** `registry.py` answers what
 checks exist, `engine.py` what happened to a row, `rules.py` what a rule file means,
-`report.py` and `registry_tables.py` how to show it, `results.py` and `tables.py` the
+`views.py` how to show it, `results.py` and `tables.py` the
 values and the rendering they share. Each imports only what sits below it, and the
 import graph is one-directional, so the rule format can be read and changed without
 touching the engine. `context.py` is separate because it is the adopter's hook, and the
@@ -316,8 +318,8 @@ development-only.
 - A check reading a column the frame lacks raises `KeyError`, which lands as an `ERROR`
   outcome per row rather than being caught once before the run; nothing declares which
   columns a check reads, so nothing can check them up front.
-- Collecting outcomes keeps an object per check per row, so the report path costs memory
-  proportional to checks x rows; `validate_row` retains only one row's failures at a time.<sup>[14](reporting.md#cost)</sup>
+- `validate` keeps an object per check per row, so it costs memory proportional to
+  checks x rows; a larger frame is validated in chunks, one report appended per chunk.<sup>[14](reporting.md#cost)</sup>
 
 ## References
 
@@ -336,4 +338,4 @@ development-only.
 | 11 | [writing-checks.md: What to return](writing-checks.md#what-to-return) | every form a check may return |
 | 12 | [concepts.md: What a check says](concepts.md#what-a-check-says-and-what-the-engine-records) | status against outcome: why the kinds hold no "failed" |
 | 13 | [writing-checks.md: When a check raises](writing-checks.md#when-a-check-raises) | what an errored check records |
-| 14 | [reporting.md: Cost](reporting.md#cost) | choosing between the report path and `validate_row` |
+| 14 | [reporting.md: Cost](reporting.md#cost) | validating a large frame in chunks |
