@@ -31,7 +31,6 @@ def frame(rows: int = 3) -> pd.DataFrame:
     return pd.DataFrame([{"id": index, "value": index} for index in range(rows)])
 
 
-
 @dataclass
 class RunContext(RowContext):
     """A context with one option, for the tests that pass a context through."""

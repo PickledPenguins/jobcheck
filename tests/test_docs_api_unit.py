@@ -241,7 +241,6 @@ def test_at_a_glance_shows_each_function_s_real_arguments(name: str) -> None:
         f"the signature is {inspect.signature(PUBLIC[name])}")
 
 
-
 def _main() -> Any:
     """The demo entry point, imported the way the catalog runs it."""
 
@@ -315,7 +314,6 @@ def test_every_check_code_a_document_shows_is_a_real_one(
     assert unknown == [], f"{name}: no such check code: {unknown}"
 
 
-
 def test_the_public_name_check_allows_a_builtin_and_refuses_an_invention(tmp_path: Path) -> None:
     """The rule the check applies, asserted directly rather than through a document.
 
@@ -325,7 +323,6 @@ def test_the_public_name_check_allows_a_builtin_and_refuses_an_invention(tmp_pat
 
     assert called_names("call `exec()` and `zip()` and `validate()` here") == []
     assert called_names("call `frobnicate()` here") == ["frobnicate"]
-
 
 
 def test_no_document_says_a_bare_bool_or_status_is_converted() -> None:

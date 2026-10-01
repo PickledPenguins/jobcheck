@@ -29,8 +29,6 @@ from jobcheck import engine
 pytestmark = pytest.mark.long
 
 
-
-
 @st.composite
 def dependency_graphs(draw: st.DrawFn) -> list[tuple[str, list[str], bool]]:
     """A registry: each check's code, its prerequisites, and whether it passes.

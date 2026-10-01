@@ -41,9 +41,6 @@ def test_loads_a_file_by_path(fresh_registry: None, tmp_path: Path) -> None:
     assert [t.code for t in reg._CHECKS] == ["BY_PATH"]
 
 
-
-
-
 def test_base_dir_anchors_the_relative_paths_of_one_call(fresh_registry: None,
                                                          tmp_path: Path,
                                                          monkeypatch: Any) -> None:

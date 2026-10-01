@@ -172,7 +172,6 @@ def test_architecture_has_a_row_for_every_module_entry_point_and_script() -> Non
     assert sorted(row for row in rows if not (ROOT / row).exists()) == [], "row for a missing file"
 
 
-
 def collected(marker: str) -> int:
     """How many tests pytest collects for one marker, asked of pytest itself.
 
@@ -240,7 +239,6 @@ def test_the_documented_catalog_counts_are_the_real_ones() -> None:
     total = re.search(r"the (\d+)-case example and failure catalogs", readme)
     assert total, "the README index no longer states a case total"
     assert int(total.group(1)) == len(cases) + len(failures)
-
 
 
 MAX_LINE_WIDTH = 100

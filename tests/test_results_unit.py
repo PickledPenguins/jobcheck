@@ -61,9 +61,6 @@ def test_non_mapping_comments_are_rejected() -> None:
         Verdict(Status.INVALID, ["actual", 7])  # type: ignore[arg-type]
 
 
-
-
-
 # --- the fixed status vocabulary --------------------------------------------
 
 
