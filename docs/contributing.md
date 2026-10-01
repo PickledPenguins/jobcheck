@@ -126,6 +126,8 @@ python3 scripts/make_example_data.py      # examples/data/*.csv
 python3 scripts/regen_catalog.py [name]   # tests/examples, tests/failures expectations
 python3 scripts/regen_golden.py           # tests/golden
 python3 scripts/regen_docs.py [name]      # the output shown after each Python block in docs/
+doc-examples --session --write --cwd . --path src --skip AGE_ABOVE_LIMIT README.md
+                                          # the README session's shown output (skills bin/)
 ```
 
 Each regenerator rewrites files the suite compares byte for byte. Read the diff before
