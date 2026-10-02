@@ -159,7 +159,7 @@ def test_a_duplicate_code_from_exec_still_names_the_function(fresh_registry: Non
         "    return OK\n"
     )
     exec(source, namespace)
-    with pytest.raises(ValueError, match=r"Duplicate check code 'EXECED' \(registering check\)"):
+    with pytest.raises(ValueError, match=r"Duplicate check code 'EXECED' \(registering check;"):
         exec(source, namespace)
 
 
@@ -231,7 +231,7 @@ def test_direct_cycle_raises_naming_the_path(fresh_registry: None) -> None:
     make_check("CYCLE_B", depends_on=["CYCLE_A"])
     with pytest.raises(ValueError) as excinfo:
         reg._validate_registry()
-    assert str(excinfo.value) == "Dependency cycle among checks: CYCLE_A -> CYCLE_B -> CYCLE_A"
+    assert str(excinfo.value) == "Dependency cycle among checks: CYCLE_A -> CYCLE_B -> CYCLE_A. " + reg._RELOAD_HINT
 
 
 def test_transitive_cycle_raises_naming_the_whole_chain(fresh_registry: None) -> None:
@@ -240,14 +240,14 @@ def test_transitive_cycle_raises_naming_the_whole_chain(fresh_registry: None) ->
     make_check("C_C", depends_on=["C_A"])
     with pytest.raises(ValueError) as excinfo:
         reg._validate_registry()
-    assert str(excinfo.value) == "Dependency cycle among checks: C_A -> C_B -> C_C -> C_A"
+    assert str(excinfo.value) == "Dependency cycle among checks: C_A -> C_B -> C_C -> C_A. " + reg._RELOAD_HINT
 
 
 def test_self_dependency_is_reported_as_a_cycle(fresh_registry: None) -> None:
     make_check("SELF", depends_on=["SELF"])
     with pytest.raises(ValueError) as excinfo:
         reg._validate_registry()
-    assert str(excinfo.value) == "Dependency cycle among checks: SELF -> SELF"
+    assert str(excinfo.value) == "Dependency cycle among checks: SELF -> SELF. " + reg._RELOAD_HINT
 
 
 def test_a_chain_too_deep_to_walk_names_the_registry_rather_than_the_recursion(
@@ -267,7 +267,8 @@ def test_a_chain_too_deep_to_walk_names_the_registry_rather_than_the_recursion(
         f"Dependency chain too deep to resolve among {depth} checks: the ordering walk "
         f"is recursive and gives out near Python's recursion limit of "
         f"{sys.getrecursionlimit()} (widest declared depends_on: 1). Shorten the chain, "
-        "or register prerequisites before the checks that depend on them."
+        "or register prerequisites before the checks that depend on them. "
+        + reg._RELOAD_HINT
     )
 
 
@@ -318,7 +319,7 @@ def test_a_duplicate_code_names_the_module_the_second_check_lives_in(
     )
     with pytest.raises(ValueError) as excinfo:
         reg.load_checks([str(path)])
-    assert re.search(r"\(registering jobcheck_check_file_second_\d+\.rule\)", str(excinfo.value))
+    assert re.search(r"\(registering jobcheck_check_file_second_\d+\.rule;", str(excinfo.value))
 
 
 def test_an_empty_string_prerequisite_is_refused(fresh_registry: None) -> None:

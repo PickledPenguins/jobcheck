@@ -515,9 +515,13 @@ is what the message says.
 
 **`Dependency cycle among checks: A -> B -> A`.** Two checks require each other —
 often a presence check given a `depends_on` naming something that waits for it.
+Fixing the file and loading it again in the same session does not clear it: the file
+is skipped as already loaded, so call `clear_registry()` first.
 
-**`Duplicate check code 'X'`.** Two checks share a code. Codes are permanent, so
-rename the new one.
+**`Duplicate check code 'X'`.** Two checks share a code; the message names the file
+the first one came from. Codes are permanent, so rename the new one. When both are the
+same file, an earlier load of it failed part-way and left its checks registered: call
+`clear_registry()` before loading it again.
 
 **`Check 'X' returned None.`** The function fell off the end without returning.
 
