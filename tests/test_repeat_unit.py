@@ -235,6 +235,12 @@ def test_a_check_that_raised_is_shared_as_errored_in_detail(fresh_registry: None
     assert shared.detail == "errored at position 0, the first row with id J1"
 
 
+def test_on_error_raise_propagates_under_repeat_key(fresh_registry: None) -> None:
+    make_check("ONCE", raises=RuntimeError("boom"))
+    with pytest.raises(RuntimeError, match="boom"):
+        validate(copies(), repeat_key="id", on_error="raise")
+
+
 def test_a_repeat_key_not_in_the_data_is_refused_even_for_an_empty_frame(
     fresh_registry: None,
 ) -> None:
