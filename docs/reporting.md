@@ -28,7 +28,7 @@ print(report.to_string())    # report.to_csv("report.csv") for a file
 
 ```
                                       status  layer outcome                             message detail                        comments  is_root_cause
-row      code                                                                                                                                        
+id       code                                                                                                                                        
 2        AGE_NEGATIVE            INVALID (3)      2  failed                     Age is negative                  value=-5.0; minimum=0          False
          EMAIL_MISSING_AT      MALFORMED (2)      1  failed                    Email has no '@'         at_signs=0; value=broken-email           True
 3        AGE_TOO_HIGH            INVALID (3)      2  failed  Age is implausibly high (over 130)               value=200.0; maximum=130           True
@@ -47,7 +47,7 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 
 | Column | What it carries |
 |---|---|
-| `row` | The key of the data row: the `key_column` value, or the frame's index. The index's first level. |
+| `id`, or `row` | The key of the data row: the `key_column` value, headed by that column's name, or the frame's index, headed `row`. The index's first level. A `key_column` named like one of the report's own columns is refused. |
 | `code` | The permanent check code.<sup>[1](writing-checks.md#codes-are-permanent)</sup> The index's last level. |
 | `status` | The failure kind, rendered as `INVALID (3)`; `PASS (0)` on a line that did not fail, including one that never ran.<sup>[2](concepts.md#what-a-check-says-and-what-the-engine-records)</sup> |
 | `layer` | How deep the check sits in the dependency graph; 0 is fundamental.<sup>[3](writing-checks.md#layering-one-problem-one-error)</sup> |
@@ -57,10 +57,10 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 | `comments` | What the check attached, rendered `key=value; key=value`, in the order the check wrote them. |
 | `is_root_cause` | True for **every** failure at that row's shallowest failing layer. Two failures at the same depth are two root causes: neither is upstream of the other. Not always the row's first line: lines are in evaluation order, so an independent chain registered earlier prints above a shallower failure.<sup>[5](interfaces.md#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe)</sup> |
 
-The report is indexed by `row`, then any [added columns](#showing-data-alongside-the-failures),
+The report is indexed by the row key, then any [added columns](#showing-data-alongside-the-failures),
 then `code`. `to_string()` prints a row's labels once and hangs its lines beneath
 them; `to_csv()` writes every label on every line, so the file still reads back flat;
-`report.reset_index()` turns them into plain columns, to filter on `row` like any
+`report.reset_index()` turns them into plain columns, to filter on `id` like any
 other. The trap: two data rows with the same label print as one block, so a
 `key_column` that is not unique, or two rows both `<no key>`, read as one row in
 the terminal. The CSV, and `is_root_cause`, keep them apart.
@@ -84,7 +84,8 @@ report would be labeled with the column's *name* instead of the row's key.
 ## Showing data alongside the failures
 
 `add_columns` copies fields from the frame into the report's index, in the order
-given, between `row` and `code`:
+given, between the row key and `code`. The key column itself is refused there: it
+already heads the report under its own name.
 
 ```python
 report = build_report(outcomes, df=df, key_column="id",
@@ -94,7 +95,7 @@ print(report[["status"]].to_string())
 
 ```
                                                                     status
-row      source_system record_type age code                               
+id       source_system record_type age code                               
 2        MODERN        STREAM      -5  AGE_NEGATIVE            INVALID (3)
                                        EMAIL_MISSING_AT      MALFORMED (2)
 3        MODERN        STREAM      200 AGE_TOO_HIGH            INVALID (3)
@@ -189,7 +190,7 @@ causes = summary.loc[summary["root_cause_rows"] > 0, ["code", "root_cause_rows"]
 story = explain_row(outcomes, 4)
 not_passed = story[story["outcome"] != "passed"]                # what blocked row 4
 flat = build_report(outcomes, df=df, key_column="id").reset_index()
-failing_rows = flat["row"].unique().tolist()
+failing_rows = flat["id"].unique().tolist()
 ```
 
 `Outcome` is what `outcome.outcome` is compared against, so a question the
@@ -262,7 +263,7 @@ Path("flagged.csv").write_text(df.assign(failed=failed).to_csv(index=False))
 ## Which columns a table shows
 
 Every table carries every column it builds; the library chooses none. The report's
-index is `row`, the `add_columns`, then `code`, and its columns `status`, `layer`,
+index is the row key, the `add_columns`, then `code`, and its columns `status`, `layer`,
 `outcome`, `message`, `detail`, `comments` and `is_root_cause`. The registry table carries `source_file` and
 `could_be_overridden_by`, and the rules table both `codes` and its count.
 
@@ -277,7 +278,7 @@ print(report.to_string())
 ```
 ```
                                       status outcome                             message  is_root_cause
-row      code                                                                                          
+id       code                                                                                          
 2        AGE_NEGATIVE            INVALID (3)  failed                     Age is negative          False
          EMAIL_MISSING_AT      MALFORMED (2)  failed                    Email has no '@'           True
 3        AGE_TOO_HIGH            INVALID (3)  failed  Age is implausibly high (over 130)           True
@@ -305,7 +306,7 @@ unparseable.
 
 ## Writing the tables to files
 
-Every table writes itself with `to_csv`. The report keeps its index, so `row`, the
+Every table writes itself with `to_csv`. The report keeps its index, so the row key, the
 added columns and `code` lead every line; the other tables have a plain 0, 1, 2
 index that `index=False` leaves out.
 

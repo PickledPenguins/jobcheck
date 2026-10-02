@@ -16,7 +16,7 @@ EMAIL_DOMAIN_INVALID      2      ON      -            Email domain looks malform
 
 == Report ==
                                       status  layer outcome                                  message detail                                    comments  is_root_cause
-row      code                                                                                                                                                         
+id       code                                                                                                                                                         
 2        AGE_NEGATIVE            INVALID (3)      2  failed                          Age is negative                              value=-5.0; minimum=0          False
          DATES_OUT_OF_ORDER      INVALID (3)      1  failed             start_date is after end_date         start_date=2024-05-01; end_date=2024-03-01           True
          EMAIL_MISSING_AT      MALFORMED (2)      1  failed                         Email has no '@'                     at_signs=0; value=broken-email           True

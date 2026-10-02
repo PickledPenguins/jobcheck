@@ -14,7 +14,7 @@ Loaded 1 rule(s) from 1 file(s)
         AGE_TOO_HIGH      2      ON      -      Age is implausibly high (over 130) AGE_NOT_A_NUMBER                                                          -
 EMAIL_DOMAIN_INVALID      2      ON      -            Email domain looks malformed EMAIL_MISSING_AT                                                          -
 
-row,code,status,layer,outcome,message,detail,comments,is_root_cause
+id,code,status,layer,outcome,message,detail,comments,is_root_cause
 5000,AGE_PRESENT,MISSING (1),0,failed,Age is missing,,,True
 5003,AGE_NEGATIVE,INVALID (3),2,failed,Age is negative,,value=-9.0; minimum=0,True
 5007,AGE_TOO_HIGH,INVALID (3),2,failed,Age is implausibly high (over 130),,value=587.0; maximum=130,True

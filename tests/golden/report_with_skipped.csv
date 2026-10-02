@@ -1,4 +1,4 @@
-row,code,status,layer,outcome,message,detail,comments,is_root_cause
+id,code,status,layer,outcome,message,detail,comments,is_root_cause
 101,AGE_NOT_INTEGER,PASS (0),2,disabled,,disabled by rule 'disable_age_integer_check_globally',,False
 102,AGE_NEGATIVE,INVALID (3),2,failed,Age is negative,,value=-5.0; minimum=0,False
 102,AGE_NOT_INTEGER,PASS (0),2,disabled,,disabled by rule 'disable_age_integer_check_globally',,False

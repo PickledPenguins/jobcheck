@@ -185,7 +185,7 @@ def test_rules_with_no_paths_loads_none(fresh_registry: None, capsys: Any) -> No
 
 def test_the_csv_report_format_is_comma_separated(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys, "--data", SMALL, "--report", "csv")
-    assert "row,code,status,layer,outcome,message,detail,comments,is_root_cause" in out
+    assert "id,code,status,layer,outcome,message,detail,comments,is_root_cause" in out
 
 
 def test_the_rules_table_prints_one_row_per_rule_not_per_code(fresh_registry: None,
@@ -218,7 +218,7 @@ def test_write_puts_the_printed_report_in_a_file(fresh_registry: None, capsys: A
     out = run(capsys, "--data", SMALL, "--report", "csv", "--write", str(target))
     written = target.read_text(encoding="utf-8")
     assert written.startswith(
-        "row,code,status,layer,outcome,message,detail,comments,is_root_cause")
+        "id,code,status,layer,outcome,message,detail,comments,is_root_cause")
     assert f"Wrote {written.count(chr(10)) - 1} report row(s) to {target}" in out
 
 
@@ -231,7 +231,7 @@ def test_write_uses_the_report_format_rather_than_the_extension(fresh_registry: 
     target = tmp_path / "report.csv"
     run(capsys, "--data", SMALL, "--write", str(target))
     assert target.read_text(encoding="utf-8").startswith("== Report ==\n")
-    assert "row,code" not in target.read_text(encoding="utf-8")
+    assert "id,code" not in target.read_text(encoding="utf-8")
 
 
 def test_write_replaces_a_file_that_is_already_there(fresh_registry: None, capsys: Any,

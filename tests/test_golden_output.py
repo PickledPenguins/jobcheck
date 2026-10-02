@@ -60,7 +60,7 @@ def test_the_golden_report_shows_every_outcome_the_report_can_carry(
 def test_the_data_columns_golden_shows_them_next_to_the_row_key() -> None:
     header = read_golden("report_with_extra_columns.csv").splitlines()[0]
     assert header.split(",")[:5] == [
-        "row", "source_system", "record_type", "age", "code"
+        "id", "source_system", "record_type", "age", "code"
     ]
 
 
