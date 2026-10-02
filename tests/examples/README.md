@@ -36,5 +36,10 @@ after a bare `--`, which is required even when there are none. `--entry` names a
 other than `examples/main.py`: `examples/run_from_config.py`, `examples/bundle_main.py`,
 or a script in the case directory.
 
+A `.py` file in a case directory needs a basename no other file under `tests/` uses,
+`../failures/` included. Case directories are not packages, so mypy checks each such file
+as a top-level module named after its basename, and two of the same name fail the fast
+suite with `Duplicate module named ...`, naming both paths.
+
 Regenerate after an intended change with `python3 scripts/regen_catalog.py`,
 then read the diff — a blind regeneration defeats the catalog.
