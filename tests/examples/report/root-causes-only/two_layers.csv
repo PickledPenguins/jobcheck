@@ -1,0 +1,3 @@
+id,name,age,email,start_date,end_date,source_system,record_type,region
+2001,Two Faults,-5,nope,2024-01-05,2024-06-30,MODERN,STREAM,EU
+2002,One Fault,40,nope,2024-01-05,2024-06-30,MODERN,STREAM,EU

@@ -163,7 +163,7 @@ that, validate it in chunks and append each chunk's report to one file; see
 - [docs/architecture.md](docs/architecture.md) — module responsibilities, design
   decisions, and how to extend.
 - [docs/testing.md](docs/testing.md) — the suites, the gates, coverage, mutation,
-  the performance baseline, and the 77-case example and failure catalogs.
+  the performance baseline, and the 78-case example and failure catalogs.
 - [docs/contributing.md](docs/contributing.md) — where a change goes, and which
   check enforces which rule.
 - [docs/future-work.md](docs/future-work.md) — known gaps, and what was

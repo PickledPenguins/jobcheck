@@ -24,7 +24,8 @@ output is one line, `Loaded N rule(s) from M file(s)`, and a blank line.
 
 ```
 usage: main.py [-h] [--data PATH] [--rules [PATH ...]] [--report {table,csv}]
-               [--explain ROW] [--summary] [--rules-table] [--write PATH]
+               [--include {root_causes,failures,blocked,all}] [--explain ROW]
+               [--summary] [--rules-table] [--write PATH]
 ```
 
 No positional arguments. Nothing is read from stdin. Results go to stdout; the column
@@ -108,20 +109,28 @@ line. Neither wraps long text or escapes anything in a cell. A report with no
 failures prints pandas' `Empty DataFrame` notice under its heading, or the CSV header row
 alone.
 
+### `--include {root_causes,failures,blocked,all}`
+
+Optional, default `failures`. Which lines the report keeps, as `build_report`'s
+`include` takes them: `root_causes` keeps each row's root causes alone, the lines to
+read first; `failures` every `failed` and `errored` line; `blocked` adds the checks
+those blocked or a rule disabled, with the reason in `detail`; `all` adds the passed
+and shared lines too, every check on every row. `--write` writes the same lines.<sup>[4](reporting.md#what-to-include)</sup>
+
 ### `--explain ROW`
 
 Optional. Print what every check did on one row, by position (`0` is the first), then exit
 without printing the registry or the report. Each line's outcome is `passed`, `failed`,
 `errored` with the exception, `disabled` with the rule or default that switched it off, or
 `skipped` with its blocking prerequisites, and the last line is the row's root cause
-(`none` for a clean row). A position outside the frame exits 2.<sup>[4](reporting.md#diagnosing-one-row)</sup>
+(`none` for a clean row). A position outside the frame exits 2.<sup>[5](reporting.md#diagnosing-one-row)</sup>
 
 ### `--summary`
 
 Optional, off by default. After the report, print per-check counts (`failed`,
 `root_cause_rows`, `errored`, `skipped`, `disabled`, `shared`, `passed`, worst first);
 `root_cause_rows` is how many rows bottomed out at that check. A high `skipped` count
-means a fundamental check is failing often and hiding the layer below it.<sup>[5](reporting.md#diagnosing-a-whole-file)</sup>
+means a fundamental check is failing often and hiding the layer below it.<sup>[6](reporting.md#diagnosing-a-whole-file)</sup>
 
 ### `--rules-table`
 
@@ -151,7 +160,7 @@ Optional. After printing the report, also write it to *PATH* in the `--report` f
 creating or replacing the file, then print how many rows were written. It is the same
 report frame that was printed, so the file and the terminal cannot disagree — `--report
 csv --write out.csv` is the pairing that gets the failures into a spreadsheet or
-`csvlook`. The CSV holds the data as it is, formula-like cells included.<sup>[6](reporting.md#opening-the-csv-in-a-spreadsheet)</sup>
+`csvlook`. The CSV holds the data as it is, formula-like cells included.<sup>[7](reporting.md#opening-the-csv-in-a-spreadsheet)</sup>
 
 The directory is checked before anything is loaded or validated: `--write` into a
 directory that does not exist prints `error: cannot write <path>: no directory <dir>` to
@@ -324,6 +333,7 @@ refusals are 2 as well.
 | 1 | [writing-checks.md: Which checks an entry point loads](writing-checks.md#which-checks-an-entry-point-loads) | naming check files, and where paths resolve |
 | 2 | [configuration.md: Precedence](configuration.md#precedence-last-rule-wins) | last rule wins, within a file and across files |
 | 3 | [configuration.md: Errors](configuration.md#errors) | every rule file message, quoted |
-| 4 | [reporting.md: Diagnosing one row](reporting.md#diagnosing-one-row) | reading a row's explanation, with `PASS (0)` on lines that did not fail |
-| 5 | [reporting.md: Diagnosing a whole file](reporting.md#diagnosing-a-whole-file) | reading the summary's columns |
-| 6 | [reporting.md: Opening the CSV](reporting.md#opening-the-csv-in-a-spreadsheet) | formula-like cells, and where to view untrusted data |
+| 4 | [reporting.md: What to include](reporting.md#what-to-include) | the four `include` levels, and what each keeps |
+| 5 | [reporting.md: Diagnosing one row](reporting.md#diagnosing-one-row) | reading a row's explanation, with `PASS (0)` on lines that did not fail |
+| 6 | [reporting.md: Diagnosing a whole file](reporting.md#diagnosing-a-whole-file) | reading the summary's columns |
+| 7 | [reporting.md: Opening the CSV](reporting.md#opening-the-csv-in-a-spreadsheet) | formula-like cells, and where to view untrusted data |
