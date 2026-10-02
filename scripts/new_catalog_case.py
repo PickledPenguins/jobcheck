@@ -8,6 +8,13 @@
         --why 'The everyday run: point the tool at a file and read the failures.' \
         -- --data examples/data/customers.csv
 
+The entry point's arguments follow the bare `--`, which is required even when
+there are none. `--entry` runs another script instead of `examples/main.py`:
+
+    scripts/new_catalog_case.py examples complex/my-case --level complex \
+        --entry tests/examples/complex/my-case/run_it.py \
+        --title ... --input ... --expected ... --why ... --
+
 Writes `tests/<kind>/<path>/cmd` and `README.md`, then runs the case through the
 real entry point to record `expected_stdout.txt` (or `expected_stderr.txt` for a
 failure case) and `exit_code`, exactly as `regen_catalog.py` would.
