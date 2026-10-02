@@ -15,14 +15,14 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 845 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 856 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 279 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1124 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1135 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
 | `./tests/run-tests.sh profile` | the example profile alone | 3s |
-| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 96.6%) | 300s |
+| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 97.1%) | 300s |
 | `./tests/run-tests.sh types` | mypy alone | 8s |
 
 Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
@@ -44,7 +44,7 @@ There is no CI. The pre-commit hook and the release gates below are what run the
 
 - **Pre-commit** — `./tests/run-tests.sh fast`, installed by `./scripts/install-hooks.sh` into
   `.git/hooks/pre-commit`. Bypass with git's own `--no-verify`; there is no custom flag.
-  Verified to block: breaking the table renderer and committing stops at the hook.
+  Verified to block: breaking the code a fast test covers and committing stops at the hook.
 - **Pre-release** — `./tests/run-tests.sh all`, `./tests/run-tests.sh cov`, `./tests/run-tests.sh memory`,
   `./tests/run-tests.sh perf` and `./tests/run-tests.sh mutation`. Coverage below 95% fails
   through `coverage report --fail-under`; a memory ceiling or a timing baseline exceeded
@@ -220,6 +220,10 @@ read `mutmut results` in between as the suite's score.
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
 
+Measured on 2026-10-02 at commit `d7d248c`, on a clean tree: **1,431 mutants, 1,389
+killed, 42 survived, 0 timeouts — 97.1%.** The records below are older; the module names
+in them (`report`, `registry_tables`) are the ones since merged into `views`.
+
 Measured on 2026-09-28, with the silent fixes of the 2026-09-27 reviews and their tests:
 **1,525 mutants, 1,473 killed, 52 survived, 0 timeouts — 96.6%**, in about five minutes.
 Survivors by module: `engine` 13, `tables` 10, `paths` 9, `report` 9, `registry` 9,
@@ -324,7 +328,7 @@ its regression test.
 
 ## Performance and profiling
 
-`./tests/run-tests.sh perf` compares five timings against `.build/perf-baseline.json`,
+`./tests/run-tests.sh perf` compares four timings against `.build/perf-baseline.json`,
 which is
 **gitignored**: a baseline from another machine gates nothing. The first run on a clone
 records it and says so; later runs fail when a median moves past the machine's own
@@ -333,13 +337,12 @@ measured noise (twice the observed spread, floored at 35% and capped at 150%).
 Measured on 2026-09-21, Python 3.12.14, pandas 3.0.5,
 Linux 6.12 x86_64, 4,000-row
 frame, after the example date checks stopped calling the scalar `pandas.to_datetime`
-(on 2026-09-10 `validate/4000` was 6.250s and `validate_row/4000` 6.174s — 87% of it
+(on 2026-09-10 `validate/4000` was 6.250s and `validate_row/4000`, a gate since removed with that function, 6.174s — 87% of it
 date parsing in example code, which left the gate nearly blind to the engine):
 
 | Measurement | Median | Spread |
 |---|---|---|
 | `validate/4000` | 1.340s | 16% |
-
 | `build_report/4000` | 0.070s | 98% |
 | `summarize_outcomes/4000` | 0.024s | 19% |
 | `validate/1000-rows-50-rules` | 0.501s | 35% |
@@ -351,7 +354,7 @@ functions by cumulative time. It is a description, not a gate — the assertions
 imports and argument parsing per case are outside the measurement.
 
 Where the time goes (2026-09-26, 2.0s in all): `validate` 88% of the total and
-`explain_row` 68%, and inside it the example check files' own functions —
+its per-row evaluation (then `explain_row`, now `engine._explain`) 68%, and inside it the example check files' own functions —
 `row_not_all_null` alone is 24%, `dates_present` 5%. Until 2026-09-21 the date checks
 called the scalar `pandas.to_datetime` per cell, which costs about 300 times
 `pandas.Timestamp` on the same string and was 87% of a run; the example now uses

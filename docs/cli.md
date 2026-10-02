@@ -312,6 +312,7 @@ listed in [configuration.md](configuration.md#errors) and
 | a text option not text | `error: run.yaml: table 1 (report): 'key_column' must be a string, got list.` |
 | an option the library refuses | `error: run.yaml: table 2 (report): <the library's message>` |
 | an unknown `format` | `error: run.yaml: table 1 (report): fmt must be 'table' or 'csv', got 'xml'.` |
+
 ## Exit codes
 
 The three entry points share one table. Exits 2 and 3 are theirs: 2 is raised

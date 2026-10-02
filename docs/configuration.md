@@ -7,7 +7,7 @@ last section here covers it. There are no environment variables and nothing is r
 fixed location: every path comes from the entry point, on the command line or in code.
 
 A relative path is resolved against the working directory, or against the `base_dir` the
-call names — an entry point passes the directory its own files sit in, a wrapper passes
+call names — an entry point passes a directory found from its own location, a wrapper passes
 the directory of the configuration the paths were read from. Nothing is searched for: a
 path that is not a file is an error naming the absolute path that was tried.<sup>[1](#errors)</sup>
 

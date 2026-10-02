@@ -54,8 +54,9 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 The bar is a junior developer reading this for the first time, and it is the
 reason several obvious-looking shortcuts are absent:
 
-- **No lambdas.** A named function says what it is for. The package holds two, in
-  `engine._context_caller`; a new one is a review comment.
+- **No lambdas.** A named function says what it is for. The package holds three: two in
+  `engine._context_caller` and a no-op fallback in `engine.validate`; a new one is a
+  review comment.
 - **No dense one-liners.** A comprehension with two conditions, or one indexing
   into a nested structure, gets unpacked into a named value or a plain loop.
 - **Lines stay under 100 characters** in `src/`, `examples/` and `scripts/`, and a
@@ -71,7 +72,7 @@ reason several obvious-looking shortcuts are absent:
   [interfaces.md](interfaces.md), which a test keeps in step with the code.
 - **A leading underscore means "outside the public surface", not "inside this
   file".** `tables.py`'s `_format_cell` and `_reject_unknown_columns` are imported by
-  `rules.py` and `views.py` on purpose. What the underscore rules out is a *user* calling them: a function or
+  `engine.py`, `rules.py` and `views.py` on purpose. What the underscore rules out is a *user* calling them: a function or
   class without one has to be in `__all__`, which `tests/test_api_contract.py`
   enforces for every module, and anything exported needs a use case a user outside
   this package actually has.
@@ -108,6 +109,7 @@ sentence ("see [reporting.md](reporting.md)").
 A message the code can show a user is quoted, not paraphrased: the table in the owning
 document (`interfaces.md`, `configuration.md` or `cli.md`) holds its text, with `<...>`
 for the values that vary, because a user holding the message searches for its words.
+
 ## Adding to the suite
 
 Read [testing.md](testing.md) for what each file covers and which suite it belongs to.

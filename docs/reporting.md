@@ -52,7 +52,7 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 | `status` | The failure kind, rendered as `INVALID (3)`; `PASS (0)` on a line that did not fail, including one that never ran.<sup>[2](concepts.md#what-a-check-says-and-what-the-engine-records)</sup> |
 | `layer` | How deep the check sits in the dependency graph; 0 is fundamental.<sup>[3](writing-checks.md#layering-one-problem-one-error)</sup> |
 | `outcome` | `failed`, `errored`, and `skipped`/`disabled`/`shared`/`passed` when asked for.<sup>[4](interfaces.md#outcome)</sup> |
-| `message` | The check's message — what a person reads first — for a check that failed. `check raised; see detail` for one that errored: the check's own message would be a verdict on data it never finished reading. Empty for one that passed, was skipped or was disabled. |
+| `message` | The check's message — what a person reads first — for a check that failed. `check raised; see detail` for one that errored: the check's own message would be a verdict on data it never finished reading. Empty for one that passed, was skipped, was disabled or was shared. |
 | `detail` | Why a check gave no verdict: the rule that disabled it, the prerequisites that blocked it, the exception it raised, or, on a copy under `repeat_key`, what it did on the first copy and where. Empty for a check that passed or failed. |
 | `comments` | What the check attached, rendered `key=value; key=value`, in the order the check wrote them. |
 | `is_root_cause` | True for **every** failure at that row's shallowest failing layer. Two failures at the same depth are two root causes: neither is upstream of the other. Not always the row's first line: lines are in evaluation order, so an independent chain registered earlier prints above a shallower failure.<sup>[5](interfaces.md#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe)</sup> |
@@ -382,7 +382,7 @@ by `code`.
 | 1 | [writing-checks.md: Codes are permanent](writing-checks.md#codes-are-permanent) | what a reused code would break |
 | 2 | [concepts.md: What a check says](concepts.md#what-a-check-says-and-what-the-engine-records) | status against outcome, and why a line that never ran shows `PASS (0)` |
 | 3 | [writing-checks.md: Layering](writing-checks.md#layering-one-problem-one-error) | how layers come from `depends_on` |
-| 4 | [interfaces.md: Outcome](interfaces.md#outcome) | the five outcomes as values |
+| 4 | [interfaces.md: Outcome](interfaces.md#outcome) | the six outcomes as values |
 | 5 | [interfaces.md: Root causes](interfaces.md#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | the rule in full, errored checks included |
 | 6 | [interfaces.md: Error messages](interfaces.md#error-messages) | the report's refusals, quoted |
 | 7 | [configuration.md: Precedence](configuration.md#precedence-last-rule-wins) | which rule decides for a row |
