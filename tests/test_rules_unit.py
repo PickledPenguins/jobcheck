@@ -48,8 +48,8 @@ def test_a_rule_file_is_read_as_utf8_under_an_ascii_locale(
     # reads ASCII, and a rule message in any other script would not decode.
     # The locale is fixed at start-up, so the test stands in an open() with that
     # default; a subprocess would not see mutmut's mutants.
-    def ascii_by_default(file: Path, encoding: str = "ascii") -> Any:
-        return builtins.open(file, encoding=encoding)
+    def ascii_by_default(file: Path, encoding: str | None = None) -> Any:
+        return builtins.open(file, encoding=encoding or "ascii")
 
     monkeypatch.setattr(paths, "open", ascii_by_default, raising=False)
     path = write(tmp_path, "rules.yaml", GLOBAL_DISABLE.replace("why the rule exists", "café"))
