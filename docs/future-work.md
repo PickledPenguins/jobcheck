@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.60. Each is either loud already, or needs the owner's decision.
+left is open below, from F.61. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -43,11 +43,6 @@ files as YAML text. Probing the shapes it now generates found a file not saved a
 raising the codec's own error, naming no file -- and, for a run file, a traceback with exit 1. Both now say
 `<file>: not UTF-8 text: ...` (exit 2 for the run file).
 
-**The declared floors, Python 3.10 and pandas 2.1, have never been run** (F.60). No such
-interpreter exists here, and installing one needs the owner's permission. One difference
-is already known: formatting an `Outcome` member (see its docstring). The pandas floor's
-only stated reason, `DataFrame.map` in the CSV formula guard, went with `render`
-(F.68, 2026-09-28); the floor was kept at 2.1 rather than lowered untested.
 
 **The native `/code-review` pass** (F.61) was not run in any of the 2026-09-27 reviews.
 
@@ -289,6 +284,9 @@ building F.59). `[` repeated 5,000 times makes PyYAML raise `RecursionError`, wh
 neither `ValueError` nor `yaml.YAMLError`. No hand-written rule file nests that deep, and
 under the project's rule of simple code that fails informatively, Python's own error is
 enough; the text fuzz keeps its nesting shallow for that reason.
+
+**Running the declared floors, Python 3.10 and pandas 2.1** (F.60, declined by the owner
+2026-10-02). Never run; the owner does not want it pursued. Not to be raised again.
 
 **A float status is not refused** (F.83, cut on 2026-10-01). `Verdict(3.0)` is read as
 `INVALID`, because `Status` is an `IntEnum`. A status is expected to be an `int` (or a
