@@ -39,7 +39,6 @@ __all__ = [
     "Outcome",
     "RowContext",
     "Rule",
-
     "Status",
     "Verdict",
     "build_report",

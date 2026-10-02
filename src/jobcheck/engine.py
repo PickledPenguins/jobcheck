@@ -263,14 +263,24 @@ def validate(
     build = None if context_builder is None else _context_caller(context_builder)
     settled_by_value: dict[Any, _Settled] = {}
     frame_outcomes = []
-    for position, (_, row) in enumerate(df.iterrows()):
-        context = None if build is None else build(row, context_args)
-        if repeat_key is None:
-            frame_outcomes.append(_explain(row, context, rules, on_error))
-            continue
-        value = _repeat_value(row, repeat_key, position)
-        settled = settled_by_value.get(value)
-        row_outcomes, off_here = _explain_with_off_here(row, context, rules, on_error, settled)
+    for position, (label, row) in enumerate(df.iterrows()):
+        value = None if repeat_key is None else _repeat_value(row, repeat_key, position)
+        try:
+            context = None if build is None else build(row, context_args)
+            if repeat_key is None:
+                frame_outcomes.append(_explain(row, context, rules, on_error))
+                continue
+            settled = settled_by_value.get(value)
+            row_outcomes, off_here = _explain_with_off_here(row, context, rules, on_error,
+                                                            settled)
+        except Exception as exc:
+            # Whatever escapes -- the builder, on_error="raise", a check returning
+            # something that is not a Verdict -- keeps its type, and gains the row.
+            # add_note is Python 3.11+; on 3.10 the stand-in drops the note.
+            add_note = getattr(exc, "add_note", lambda note: None)
+            add_note(f"validate: raised on the row at position {position} "
+                     f"(index label {label!r}).")
+            raise
         where = f"at position {position}, the first row with {repeat_key} {_format_cell(value)}"
         if settled is not None:
             where += " to enable it"
