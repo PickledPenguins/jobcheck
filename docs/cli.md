@@ -185,8 +185,8 @@ python3 examples/bundle_main.py --help
 ### `PATH`
 
 Optional, default the shipped `examples/checks/all_checks.py`. The bundle to load. A path
-that is not a file exits 1 with the loader's own message, which names what it looked for;
-a command line argparse rejects — a surplus argument, an unknown flag — exits 2.
+that is not a file exits 2 with the loader's own message on an `error:` line, which names
+what it looked for; a command line argparse rejects — a surplus argument, an unknown flag — exits 2.
 
 ### `-h`, `--help`
 
@@ -255,8 +255,8 @@ say, and whether a `format` exists is `main.table_text`'s, so those are found on
 tables are built; the tables are built before
 any of them prints, so a refused second table does not leave the first on the screen. The
 message names the entry by position: `table 2 (report): add_columns ['phone'] cannot be used
-for the report. ...`. A setup file the library refuses raises its own `ValueError` and exits
-1, as it would from any caller; a data file that cannot be read exits 2 as `--data` does.
+for the report. ...`. A setup file the library refuses exits 2 with the library's own message
+after the run file's name; a data file that cannot be read exits 2 as `--data` does.
 
 ### `PATH`
 
@@ -269,9 +269,11 @@ Prints usage and exits 0.
 ## Error messages
 
 Every `error:` line the example scripts print, each followed by exit 2. `<...>` stands
-for a value from your command or file. A mistake the library refuses — a rule file, a
-setup file, a check file — raises its own `ValueError` instead, listed in
-[configuration.md](configuration.md#errors) and [interfaces.md](interfaces.md#error-messages).
+for a value from your command or file. A mistake the library refuses in a rule file, a
+setup file or a check file is printed as `error: <the library's message>` (under
+`run_from_config.py`, `error: <run file>: <the library's message>`); those messages are
+listed in [configuration.md](configuration.md#errors) and
+[interfaces.md](interfaces.md#error-messages).
 
 `examples/main.py`:
 
@@ -303,15 +305,17 @@ setup file, a check file — raises its own `ValueError` instead, listed in
 | an unknown `format` | `error: run.yaml: table 1 (report): fmt must be 'table' or 'csv', got 'xml'.` |
 ## Exit codes
 
-The three entry points share one table. Exit 2 is theirs, raised deliberately with an
-`error:` line for a mistake in what they were asked to do; 0 and 1 are the interpreter's,
-and argparse's refusals are 2 as well.
+The three entry points share one table. Exits 2 and 3 are theirs: 2 is raised
+deliberately with an `error:` line for a mistake in what they were asked to do, and 3
+after the output when a check raised. 0 and 1 are the interpreter's, and argparse's
+refusals are 2 as well.
 
 | Code | Meaning |
 |---|---|
-| 0 | Ran to completion. Rows failing validation still exit 0 — failures are data, printed per row, not a process error. |
-| 1 | An uncaught exception, with traceback. In practice a load-time `ValueError`: a bad rule file or setup file, a dependency problem, or a check or rule path that is not a file. |
-| 2 | argparse rejected the command line (unknown flag, missing value, a surplus argument); `--explain` named a row outside the frame; `--data` or a run file's `data` named a path that is missing, a directory, empty, unreadable, not UTF-8 or not CSV; `--data` named a file with no `id` column; `--write` named a path that could not be opened; or a run file was missing, not YAML, malformed, or asked a table for something the library refused. |
+| 0 | Ran to completion, and no check raised. Rows failing validation still exit 0 — failures are data, printed per row, not a process error. |
+| 1 | An uncaught exception, with traceback: a check file that does not import (a `SyntaxError`, an `ImportError`), or a fault in the entry point itself. |
+| 2 | A check, rule or setup file could not be loaded: missing, not YAML, malformed, a rule naming an unknown code, a dependency cycle -- the loader's message on one `error:` line, prefixed by the run file under `run_from_config.py`. argparse rejected the command line (unknown flag, missing value, a surplus argument); `--explain` named a row outside the frame; `--data` or a run file's `data` named a path that is missing, a directory, empty, unreadable, not UTF-8 or not CSV; `--data` named a file with no `id` column; `--write` named a path that could not be opened; or a run file was missing, not YAML, malformed, or asked a table for something the library refused. |
+| 3 | A check raised on at least one row (`main.py`, `run_from_config.py`). Every table is printed first, with the errored lines in the report; then `warning: <n> check run(s) raised; see the errored lines` on stderr. Under `--explain`, only the explained row counts. |
 
 ## References
 

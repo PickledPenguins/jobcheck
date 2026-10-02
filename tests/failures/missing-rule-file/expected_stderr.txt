@@ -1,1 +1,1 @@
-ValueError: No rule file at 'no_such_file.yaml': nothing at <project>/no_such_file.yaml, where a relative path is resolved against the working directory. load_rules() names files explicitly; nothing is discovered.
+error: No rule file at 'no_such_file.yaml': nothing at <project>/no_such_file.yaml, where a relative path is resolved against the working directory. load_rules() names files explicitly; nothing is discovered.

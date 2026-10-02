@@ -215,16 +215,19 @@ def test_an_option_the_library_refuses_prints_none_of_the_run(
     assert err.startswith(f"error: {run_file}: table 2 ({name}): {message}")
 
 
-def test_a_setup_file_the_library_refuses_raises_its_own_error(
-    fresh_registry: None, tmp_path: Path
+def test_a_setup_file_the_library_refuses_exits_two_with_its_own_message(
+    fresh_registry: None, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The setup file is `load_setup`'s to judge, and its message is the one a
-    reader of `docs/configuration.md` has seen, so it is not rewrapped."""
+    reader of `docs/configuration.md` has seen, so it is passed on unchanged,
+    after the run file's name, on one line rather than as a traceback."""
 
     run_file = write_run(tmp_path, "setup: absent.yaml\ndata: data.csv\n"
                                    "tables: [{table: summary}]\n")
-    with pytest.raises(ValueError, match="No setup file at"):
+    with pytest.raises(SystemExit) as exited:
         run_from_config.main([run_file])
+    assert exited.value.code == 2
+    assert capsys.readouterr().err.startswith(f"error: {run_file}: No setup file at")
 
 
 def test_help_answers_and_a_second_argument_is_an_error(capsys: Any) -> None:

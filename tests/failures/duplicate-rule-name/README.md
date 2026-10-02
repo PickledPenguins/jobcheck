@@ -3,4 +3,4 @@
 One mistake, one message.
 
 Input:    two files each defining a rule called `r`
-Expected: exit 1 naming both files
+Expected: exit 2 naming both files

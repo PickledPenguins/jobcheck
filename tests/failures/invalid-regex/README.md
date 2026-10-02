@@ -3,4 +3,4 @@
 One mistake, one message.
 
 Input:    an unbalanced bracket
-Expected: exit 1 naming the pattern and the column
+Expected: exit 2 naming the pattern and the column

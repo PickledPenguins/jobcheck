@@ -143,9 +143,11 @@ def test_rules_with_no_paths_applies_none() -> None:
     assert result.stdout.startswith("Loaded 0 rule(s) from 0 file(s)")
 
 
-def test_missing_rule_file_exits_one() -> None:
+def test_missing_rule_file_exits_two_with_one_line() -> None:
     result = run_cli("examples/main.py", "--rules", "no_such_file.yaml")
-    assert result.returncode == 1
+    assert result.returncode == 2
+    assert result.stderr.startswith("error: No rule file at")
+    assert "Traceback" not in result.stderr
     assert "No rule file at 'no_such_file.yaml'" in result.stderr
     assert "load_rules() names files explicitly" in result.stderr
 
@@ -161,7 +163,7 @@ def test_results_go_to_stdout_and_nothing_to_stderr(default_run: CommandResult) 
 
 def test_errors_go_to_stderr_and_leave_stdout_clean() -> None:
     result = run_cli("examples/main.py", "--rules", "no_such_file.yaml")
-    assert "Traceback" in result.stderr
+    assert result.stderr.startswith("error: ")
     assert "== Registry" not in result.stdout
 
 

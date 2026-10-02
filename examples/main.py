@@ -18,8 +18,11 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
 
 import pandas as pd
+import yaml
 
 from jobcheck import (
+    CheckOutcome,
+    Outcome,
     build_report,
     explain_row,
     warn_blocking_rules,
@@ -123,6 +126,23 @@ def table_text(table: pd.DataFrame, fmt: str = "table") -> str:
     raise ValueError(f"fmt must be 'table' or 'csv', got {fmt!r}.")
 
 
+def exit_if_a_check_raised(outcomes: list[list[CheckOutcome]]) -> None:
+    """After the output: warn on stderr and exit 3 when any check raised.
+
+    `validate` records an exception as an `errored` outcome and carries on, which
+    is right for the library; a pipeline reading only the exit status would
+    otherwise take a broken check for a clean run. 3, because 2 is a usage error
+    and 1 an uncaught exception: a pipeline can tell a broken check from both.
+    """
+
+    raised = sum(outcome.outcome is Outcome.ERRORED
+                 for row_outcomes in outcomes for outcome in row_outcomes)
+    if raised:
+        print(f"warning: {raised} check run(s) raised; see the errored lines",
+              file=sys.stderr)
+        raise SystemExit(3)
+
+
 def demo_frame() -> pd.DataFrame:
     """A small DataFrame exercising every example check."""
 
@@ -160,8 +180,14 @@ def main(argv: list[str] | None = None) -> None:
                   file=sys.stderr)
             raise SystemExit(2)
 
-    load_checks(CHECK_FILES, base_dir=PROJECT_ROOT)
-    rules = load_rules(args.rules)
+    # A typo in a rule file is the likeliest mistake of the people editing them:
+    # one line naming it, not a traceback.
+    try:
+        load_checks(CHECK_FILES, base_dir=PROJECT_ROOT)
+        rules = load_rules(args.rules)
+    except (ValueError, OSError, yaml.YAMLError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
     print(f"Loaded {len(rules)} rule(s) from {len(args.rules)} file(s)\n")
 
     df = load_frame(args.data)
@@ -186,6 +212,7 @@ def main(argv: list[str] | None = None) -> None:
         row = slice(args.explain, args.explain + 1)
         causes = build_report(outcomes[row], df[row], include="root_causes")
         print("root cause:", ", ".join(causes.index.get_level_values("code")) or "none")
+        exit_if_a_check_raised(outcomes[row])
         return
 
     if args.rules_table:
@@ -223,6 +250,8 @@ def main(argv: list[str] | None = None) -> None:
     if args.summary:
         print()
         print(table_text(summarize_outcomes(outcomes)))
+
+    exit_if_a_check_raised(outcomes)
 
 
 if __name__ == "__main__":

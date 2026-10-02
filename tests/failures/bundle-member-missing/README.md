@@ -9,4 +9,4 @@ its check, the bundle itself is not recorded as loaded, and fixing the name and
 running again loads it.
 
 Input:    `tests/failures/bundle-member-missing/bundle_with_missing_member.py`, whose second member does not exist
-Expected: exit 1 with a `ValueError` naming the missing member's resolved path
+Expected: exit 2 with an `error:` line naming the missing member's resolved path
