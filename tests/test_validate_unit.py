@@ -243,12 +243,60 @@ def test_a_builder_that_raises_propagates_unchanged_under_record(
 ) -> None:
     """The documented contract (owner's decision, 2026-09-28): on_error covers the
     checks, not the builder, so a builder must not raise on the data. Pinned so a
-    change to it is a decision rather than an accident."""
+    change to it is a decision rather than an accident. Unchanged means the
+    type and message; a note naming the row is added where Python has notes."""
 
     make_check("CODE")
 
     def build_context(row: Any) -> RowContext:
         raise TypeError("blank cell")
 
-    with pytest.raises(TypeError, match="^blank cell$"):
+    with pytest.raises(TypeError) as raised:
         validate(frame(2), context_builder=build_context)
+    assert str(raised.value) == "blank cell"
+
+
+def _notes(exc: BaseException) -> list[str]:
+    return list(getattr(exc, "__notes__", []))
+
+
+@pytest.mark.skipif(not hasattr(Exception, "add_note"), reason="add_note is Python 3.11+")
+def test_an_exception_escaping_validate_names_the_row_and_keeps_its_type(
+    fresh_registry: None,
+) -> None:
+    """On a large frame, the row is what the reader needs to find; the type is
+    what a caller's except clause matches, so it must not change."""
+
+    @register_check("ROW_ONE", "row one is bad")
+    def row_one(row: Any) -> Verdict:
+        if row["id"] == 1:
+            raise ZeroDivisionError("division by zero")
+        return OK
+
+    df = frame(3).set_axis(["a", "b", "c"])
+    with pytest.raises(ZeroDivisionError) as raised:
+        validate(df, on_error="raise")
+    assert str(raised.value) == "division by zero"
+    assert _notes(raised.value) == [
+        "validate: raised on the row at position 1 (index label 'b')."]
+
+
+@pytest.mark.skipif(not hasattr(Exception, "add_note"), reason="add_note is Python 3.11+")
+def test_a_raising_builder_and_a_bad_return_name_the_row_too(fresh_registry: None) -> None:
+    def build_context(row: Any) -> RowContext:
+        raise KeyError("ctx")
+
+    make_check("CODE")
+    with pytest.raises(KeyError) as raised:
+        validate(frame(2), context_builder=build_context)
+    assert _notes(raised.value) == [
+        "validate: raised on the row at position 0 (index label 0)."]
+
+    @register_check("NONE", "returns nothing")
+    def returns_none(row: Any) -> Any:
+        return None
+
+    with pytest.raises(TypeError, match="returned None") as raised_type:
+        validate(frame(2))
+    assert _notes(raised_type.value) == [
+        "validate: raised on the row at position 0 (index label 0)."]

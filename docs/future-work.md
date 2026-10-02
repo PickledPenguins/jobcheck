@@ -415,7 +415,9 @@ presence check it gives the best report of the four -- one `MISSING` failure, no
 `test_a_builder_that_raises_propagates_unchanged_under_record` pins it, and the
 job-manifest catalog case shows the pattern (rows J7 and J8). Reopen if builders written
 by people other than the pipeline's own authors become common, where the trap would bite
-someone who never read the contract.
+someone who never read the contract. On 2026-10-02 the row was named after all, without
+the cost that ruled it out: `validate` adds a note (`BaseException.add_note`, Python
+3.11+) to whatever escapes a row, so the type and message stay as raised.
 
 **Building rules in Python** (F.38, raised by the `src/` review of 2026-09-25, declined by the
 owner the same day). `Rule` is exported, but a hand-built one needs the private

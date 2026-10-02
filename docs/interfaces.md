@@ -384,7 +384,8 @@ Without one, and for a builder that returns `None`, every row is handed the same
 empty `RowContext`.
 
 The builder is not covered by `on_error`: an exception it raises propagates out of
-`validate` unchanged, and no row's outcomes are returned. It must not raise on the
+`validate` with its type and message unchanged, and no row's outcomes are returned. It
+must not raise on the
 data — map a blank cell to `None` and let a presence check report it; see
 [writing-checks.md](writing-checks.md#per-row-context).
 
@@ -398,6 +399,11 @@ An `on_error` that is neither `"record"` nor `"raise"` raises `ValueError` befor
 any row is read, an empty frame included; anything but a `DataFrame` raises
 `TypeError`, and for one row says to pass `row.to_frame().T`. A frame with duplicate
 column labels raises `ValueError` on its first row, before any check runs.<sup>[4](#error-messages)</sup>
+
+An exception that escapes while a row is checked -- the builder's, a check's under
+`"raise"`, or the `TypeError` for a check that returned no result -- keeps its type and
+message and, on Python 3.11 and later, gains a note naming the row, which the traceback
+prints below the message: `validate: raised on the row at position 1 (index label 'b').`
 
 `repeat_key` names a column whose repeated values mark copies of one row, as
 `DataFrame.explode` makes them. The first row with each value, in frame order, runs
