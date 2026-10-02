@@ -650,6 +650,13 @@ def test_a_key_given_twice_in_a_setup_file_is_refused(
         "YAML would keep only the last; remove one.")
 
 
+def test_a_setup_file_that_is_not_utf8_names_itself(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    path = tmp_path / "setup.yaml"
+    path.write_bytes(b"checks: [caf\xe9.py]\n")
+    with pytest.raises(ValueError, match=r"setup\.yaml: not UTF-8 text: 'utf-8' codec"):
+        reg.load_setup(str(path))
 def test_a_setup_file_that_is_not_a_mapping_says_so(
     fresh_registry: None, tmp_path: Path
 ) -> None:

@@ -142,6 +142,8 @@ def read_run_file(run_file: str) -> dict[str, Any]:
             document = yaml.load(handle, Loader=StrictLoader)
     except OSError as exc:
         fail(run_file, f"cannot read it: {exc.strerror}")
+    except UnicodeDecodeError as exc:
+        fail(run_file, f"not UTF-8 text: {exc}. Save the file as UTF-8.")
     except yaml.YAMLError as exc:
         # PyYAML's message runs over several lines; one keeps it one error.
         fail(run_file, f"not valid YAML: {' '.join(str(exc).split())}")

@@ -164,6 +164,16 @@ def test_a_missing_run_file_names_itself(capsys: Any, tmp_path: Path) -> None:
     assert err == f"error: {run_file}: cannot read it: No such file or directory\n"
 
 
+def test_a_run_file_that_is_not_utf8_is_one_error_line(capsys: Any, tmp_path: Path) -> None:
+    """Regression: a Latin-1 run file escaped as a traceback and exit 1, where every
+    other unreadable run file is one `error:` line and exit 2 (F.59)."""
+
+    run_file = tmp_path / "run.yaml"
+    run_file.write_bytes(b"setup: caf\xe9.yaml\n")
+    err = refused(capsys, str(run_file))
+    assert err == (
+        f"error: {run_file}: not UTF-8 text: 'utf-8' codec can't decode byte 0xe9 in "
+        "position 10: invalid continuation byte. Save the file as UTF-8.\n")
 def test_a_key_given_twice_is_refused_rather_than_the_last_winning(
     capsys: Any, tmp_path: Path
 ) -> None:
