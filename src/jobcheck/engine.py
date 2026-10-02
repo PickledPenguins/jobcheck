@@ -166,7 +166,9 @@ def _explain_with_off_here(
             outcomes.append(
                 CheckOutcome(
                     check.code, Outcome.ERRORED, status=Status.ERROR, layer=check.layer,
-                    message=check.message,
+                    # Not check.message: that is a verdict on data the check never
+                    # finished reading.
+                    message="check raised; see detail",
                     detail=f"{type(exc).__name__}: {exc}",
                 )
             )
