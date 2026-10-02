@@ -213,6 +213,7 @@ text means YAML read an unquoted `yes`, `no`, `on` or `off` as a boolean, so quo
 | criterion missing a key | `'match' entry {'column': 'email'} needs both 'column' and 'pattern'.` |
 | criterion with another key | `'match' entry {'column': 'email', 'pattern': 'x', 'negate': True} has unknown key(s) 'negate'. A criterion holds only 'column' and 'pattern'.` |
 | a key given twice | `key 'codes' appears twice in one mapping, on lines 4 and 5. YAML would keep only the last; remove one.` |
+| a file not saved as UTF-8 | `not UTF-8 text: 'utf-8' codec can't decode byte 0xe9 in position 11: invalid continuation byte. Save the file as UTF-8.` |
 | bad regex | `invalid regex '([unclosed' for column 'email': unterminated character set at position 1` |
 | bad action | `'action' must be exactly 'enable' or 'disable', got 'turn_on'.` |
 | unknown code | `unknown code 'NO_SUCH_CODE'. Load the check file that defines it before loading rules, or fix the code.` |

@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.59. Each is either loud already, or needs the owner's decision.
+left is open below, from F.60. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -38,12 +38,10 @@ no longer exempts `paths` from the rule that a public function is exported. F.58
 F.70 were done on 2026-10-02: a `creadme` audit of `docs/` found 14 drifts the doc tests could
 not see, all corrected, three of them tables split by a blank line, which
 `test_docs_structure_unit.py` now refuses; `caddressreview` then cleared every resolved
-report from `.agent/reviews/`.
-
-**A property test for the rule parser over generated YAML text** (F.59).
-`tests/test_fuzz.py` generates structures and dumps them with `yaml.safe_dump`, which
-never writes a repeated key, an unquoted boolean or an unknown criterion key: text is the
-only input that holds them.
+report from `.agent/reviews/`. F.59 was built the same day: `test_fuzz.py` also writes rule
+files as YAML text. Probing the shapes it now generates found a file not saved as UTF-8
+raising the codec's own error, naming no file -- and, for a run file, a traceback with exit 1. Both now say
+`<file>: not UTF-8 text: ...` (exit 2 for the run file).
 
 **The declared floors, Python 3.10 and pandas 2.1, have never been run** (F.60). No such
 interpreter exists here, and installing one needs the owner's permission. One difference
@@ -285,6 +283,12 @@ label and `explain_row` by position. The README now shows the bridge,
 `build_report(..., include="all").loc[key]` with the key as text, which already explains
 a row by its key;
 a second way into the same view is not worth the API. Decide again with F.63.
+
+**A rule file nested thousands of levels deep** (F.97, declined 2026-10-02, found while
+building F.59). `[` repeated 5,000 times makes PyYAML raise `RecursionError`, which is
+neither `ValueError` nor `yaml.YAMLError`. No hand-written rule file nests that deep, and
+under the project's rule of simple code that fails informatively, Python's own error is
+enough; the text fuzz keeps its nesting shallow for that reason.
 
 **A float status is not refused** (F.83, cut on 2026-10-01). `Verdict(3.0)` is read as
 `INVALID`, because `Status` is an `IntEnum`. A status is expected to be an `int` (or a

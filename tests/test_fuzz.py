@@ -123,6 +123,90 @@ def test_the_rule_parser_either_loads_or_raises_valueerror(
     assert rejected, f"seed {SEED}: the generator stopped producing invalid rules"
 
 
+#: Each key's value as a person types it: valid YAML text, then what
+#: `yaml.safe_dump` never writes -- unquoted YAML 1.1 booleans and nulls, a date,
+#: tags, an alias, quoting, and text that is not YAML at all.
+VALID_TEXT: dict[str, list[str]] = {
+    "action": ["enable", "disable"],
+    "codes": ["[A_CODE]", "[A_CODE, B_CODE]", "\n    - A_CODE"],
+    "match": ["all", "[{column: age, pattern: '^1$'}]",
+              "\n    - column: age\n      pattern: x"],
+    "message": ["why", '"kept: for the audit"'],
+}
+TYPED_TEXT = [
+    "yes", "off", "No", "~", "null", "", "2024-01-01", "1e3", "0x1F", "'all'", '"A_CODE"',
+    "!!binary aGk=", "!!set {A_CODE: null}", "!!python/object:os.system {}", "!!str 7",
+    "*undefined", "[A_CODE", "{column: age", "@at", "%percent", "`tick",
+    "\n    - column: age\n      pattern: x\n      pattern: y",
+    "\n    - column: age\n      pattern: x\n      negate: true",
+    "\n\t- A_CODE",
+]
+
+
+def random_rule_text(rng: random.Random, index: int) -> str:
+    """One rule as YAML text: each key valid three times in four, else one of
+    `TYPED_TEXT`; sometimes a key given twice, a key nobody defined, or the
+    name left to YAML's typing. Nesting stays shallow: a deep one only
+    reaches PyYAML's recursion limit, which is not this parser's to handle."""
+
+    name = f"rule_{index}" if rng.random() < 0.9 else rng.choice(TYPED_TEXT)
+    lines = [f"- name: {name}"]
+    for key, valid in VALID_TEXT.items():
+        if rng.random() < 0.05:
+            continue
+        value = rng.choice(valid) if rng.random() < 0.75 else rng.choice(TYPED_TEXT)
+        lines.append(f"  {key}: {value}")
+    if rng.random() < 0.05:
+        lines.append(f"  action: {rng.choice(VALID_TEXT['action'])}")
+    if rng.random() < 0.05:
+        lines.append(f"  {random_name(rng) or 'extra'}: 1")
+    return "\n".join(lines) + "\n"
+
+
+def test_the_rule_parser_over_yaml_text_loads_or_says_which_file(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    """The documented contract for a rule file: it loads, or it raises
+    `ValueError` or `yaml.YAMLError` naming the file. Written as text, since only
+    text holds a repeated key, an unquoted `off`, a tag, or bytes that are not
+    UTF-8 -- the last is how a load error that named no file came to light."""
+
+    rng = random.Random(SEED)
+    make_check("A_CODE")
+    make_check("B_CODE")
+    accepted_rules = 0
+    refused: dict[str, int] = {"ValueError": 0, "YAMLError": 0}
+
+    for case in range(CASES):
+        path = tmp_path / f"rules_{case}.yaml"
+        text = "".join(random_rule_text(rng, index) for index in range(rng.randint(0, 3)))
+        data = text.encode("utf-8")
+        if data and rng.random() < 0.03:
+            # One byte that cannot start a UTF-8 character, as a Latin-1 editor leaves.
+            at = rng.randrange(len(data))
+            data = data[:at] + b"\xe9" + data[at + 1:]
+        path.write_bytes(data)
+        try:
+            loaded = load_rules([str(path)])
+        except (ValueError, yaml.YAMLError) as exc:
+            kind = "ValueError" if isinstance(exc, ValueError) else "YAMLError"
+            refused[kind] += 1
+            assert str(path) in str(exc), (
+                f"seed {SEED} case {case}: {kind} omits the file: {exc}\n{text}")
+            continue
+        accepted_rules += len(loaded)
+        for rule in loaded:
+            assert rule.action in ("enable", "disable")
+            assert rule.codes and all(isinstance(code, str) for code in rule.codes)
+            assert rule.match_all or rule.criteria
+            assert isinstance(rule.message, str) and rule.message
+
+    # Floors far below what the seed produces, so a generator that stops
+    # reaching either side is noticed.
+    assert accepted_rules >= 20, f"seed {SEED}: only {accepted_rules} rules were accepted"
+    assert all(refused.values()), f"seed {SEED}: a kind of refusal never happened: {refused}"
+
+
 def random_frame(rng: random.Random) -> pd.DataFrame:
     columns = ["age", "email", "start_date", "end_date"]
     rows = [

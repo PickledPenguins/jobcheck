@@ -95,14 +95,19 @@ class _StrictLoader(yaml.SafeLoader):
 
 
 def _read_yaml(file: Path, shown: str) -> Any:
-    """The YAML document in *file*. A repeated key raises `ValueError`, starting
-    with *shown*: the path as the caller should see it."""
+    """The YAML document in *file*. A repeated key, or bytes that are not UTF-8,
+    raise `ValueError`, starting with *shown*: the path as the caller should see it."""
 
     with open(file, encoding="utf-8") as handle:
-        loader = _StrictLoader(handle)
         try:
-            return loader.get_single_data()
+            # The loader reads the first bytes as it is built, so a decode error
+            # can come from either line.
+            loader = _StrictLoader(handle)
+            try:
+                return loader.get_single_data()
+            finally:
+                loader.dispose()
         except _DuplicateKey as exc:
             raise ValueError(f"{shown}: {exc}") from None
-        finally:
-            loader.dispose()
+        except UnicodeDecodeError as exc:
+            raise ValueError(f"{shown}: not UTF-8 text: {exc}. Save the file as UTF-8.") from None

@@ -300,6 +300,7 @@ listed in [configuration.md](configuration.md#errors) and
 |---|---|
 | the file is not there | `error: run.yaml: cannot read it: No such file or directory` |
 | not YAML, or a key given twice | `error: run.yaml: not valid YAML: key 'setup' appears twice in one mapping, on lines 1 and 2; YAML would keep only the last ...` |
+| not saved as UTF-8 | `error: run.yaml: not UTF-8 text: 'utf-8' codec can't decode byte 0xe9 in position 10: invalid continuation byte. Save the file as UTF-8.` |
 | not a mapping | `error: run.yaml: a run file is a mapping of 'data', 'setup', 'tables', got list.` |
 | an unknown key | `error: run.yaml: unknown key(s) 'extra'. A run file holds 'data', 'setup', 'tables'.` |
 | a key missing | `error: run.yaml: 'data' is required.` |
@@ -324,7 +325,7 @@ refusals are 2 as well.
 |---|---|
 | 0 | Ran to completion, and no check raised. Rows failing validation still exit 0 — failures are data, printed per row, not a process error. |
 | 1 | An uncaught exception, with traceback: a check file that does not import (a `SyntaxError`, an `ImportError`), or a fault in the entry point itself. |
-| 2 | A check, rule or setup file could not be loaded: missing, not YAML, malformed, a rule naming an unknown code, a dependency cycle -- the loader's message on one `error:` line, prefixed by the run file under `run_from_config.py`. argparse rejected the command line (unknown flag, missing value, a surplus argument); `--explain` named a row outside the frame; `--data` or a run file's `data` named a path that is missing, a directory, empty, unreadable, not UTF-8 or not CSV; `--data` named a file with no `id` column; `--write` named a path that could not be opened; or a run file was missing, not YAML, malformed, or asked a table for something the library refused. |
+| 2 | A check, rule or setup file could not be loaded: missing, not UTF-8, not YAML, malformed, a rule naming an unknown code, a dependency cycle -- the loader's message on one `error:` line, prefixed by the run file under `run_from_config.py`. argparse rejected the command line (unknown flag, missing value, a surplus argument); `--explain` named a row outside the frame; `--data` or a run file's `data` named a path that is missing, a directory, empty, unreadable, not UTF-8 or not CSV; `--data` named a file with no `id` column; `--write` named a path that could not be opened; or a run file was missing, not UTF-8, not YAML, malformed, or asked a table for something the library refused. |
 | 3 | A check raised on at least one row (`main.py`, `run_from_config.py`). Every table is printed first, with the errored lines in the report; then `warning: <n> check run(s) raised; see the errored lines` on stderr. Under `--explain`, only the explained row counts. |
 
 ## References
