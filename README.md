@@ -100,7 +100,7 @@ print(explain_row(outcomes, 2).to_string(index=False))
      1     AGE_NOT_A_NUMBER  skipped    PASS (0)      prerequisite did not pass: AGE_PRESENT
      2         AGE_NEGATIVE  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
      2         AGE_TOO_HIGH  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
-     2      AGE_NOT_INTEGER disabled    PASS (0)                  disabled by off by default
+     2      AGE_NOT_INTEGER disabled    PASS (0)                         disabled by default
      0        EMAIL_PRESENT   passed    PASS (0)                                           -
      1     EMAIL_MISSING_AT   passed    PASS (0)                                           -
      2 EMAIL_DOMAIN_INVALID   passed    PASS (0)                                           -

@@ -210,7 +210,7 @@ def test_every_registered_check_has_an_outcome_registered_check(fresh_registry: 
 
 def test_a_check_off_by_default_says_so(fresh_registry: None) -> None:
     make_check("OFF", default_enabled=False)
-    assert detail(engine._explain(ROW), "OFF") == "disabled by off by default"
+    assert detail(engine._explain(ROW), "OFF") == "disabled by default"
 
 
 def test_a_check_disabled_by_a_rule_names_the_rule(fresh_registry: None) -> None:

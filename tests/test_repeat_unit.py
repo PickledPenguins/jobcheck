@@ -162,7 +162,7 @@ def test_a_check_disabled_on_every_copy_reads_as_disabled_on_each(
     make_check("NAMES", default_enabled=False)
     make_check("DIR", depends_on=["NAMES"], repeat=True)
     copy = by_code(validate(copies(), repeat_key="id")[1])
-    assert copy["NAMES"].detail == "disabled by off by default"
+    assert copy["NAMES"].detail == "disabled by default"
     assert copy["DIR"].detail == "prerequisite disabled: NAMES"
 
 

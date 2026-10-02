@@ -137,7 +137,7 @@ print("root cause:", ", ".join(causes.index.get_level_values("code")))
      1 AGE_NOT_A_NUMBER  skipped    PASS (0)      prerequisite did not pass: AGE_PRESENT
      2     AGE_NEGATIVE  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
      2     AGE_TOO_HIGH  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
-     2  AGE_NOT_INTEGER disabled    PASS (0)                  disabled by off by default
+     2  AGE_NOT_INTEGER disabled    PASS (0)                         disabled by default
 root cause: AGE_PRESENT
 ```
 
