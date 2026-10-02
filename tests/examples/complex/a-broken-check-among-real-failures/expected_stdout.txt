@@ -13,7 +13,7 @@ S7             CARRIER_KNOWN                 ERROR (9)      0  errored          
 == Summary ==
                     code  layer  failed  root_cause_rows  errored  skipped  disabled  shared  passed
            CARRIER_KNOWN      0       1                2        3        0         0       0       3
+         SHIPPED_PRESENT      0       1                1        0        0         0       0       6
+      SHIPPED_NOT_A_DATE      1       1                1        0        1         0       0       5
 TRACKING_MATCHES_CARRIER      1       1                1        0        4         0       0       2
 DELIVERED_BEFORE_SHIPPED      2       1                1        0        2         0       0       4
-      SHIPPED_NOT_A_DATE      1       1                1        0        1         0       0       5
-         SHIPPED_PRESENT      0       1                1        0        0         0       0       6

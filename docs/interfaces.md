@@ -479,8 +479,9 @@ Titled `Row explanation`.<sup>[5](reporting.md#diagnosing-one-row)</sup>
 ### `summarize_outcomes(frame_outcomes) -> DataFrame`
 
 Per check, across every row: `code`, `layer`, `failed`, `root_cause_rows`, `errored`,
-`skipped`, `disabled`, `shared`, `passed`, sorted by `failed`, `errored` and `skipped`,
-most first, then by code. `shared` counts the copies that reused the first copy's
+`skipped`, `disabled`, `shared`, `passed`, sorted by `failed` and then
+`root_cause_rows`, most first, then by `layer` and code, so among checks that failed
+equally often the root cause comes first. `shared` counts the copies that reused the first copy's
 result, so `failed` and `passed` count only the calls made. `root_cause_rows` counts
 the rows whose root causes include the
 check — an errored check among them on the rows with no data failure, so it can

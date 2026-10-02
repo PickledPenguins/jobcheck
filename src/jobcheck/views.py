@@ -229,7 +229,8 @@ def explain_row(frame_outcomes: list[list[CheckOutcome]], position: int) -> pd.D
 
 
 def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataFrame:
-    """Count what happened to each check across many rows, worst first.
+    """Count what happened to each check across many rows, worst first: by
+    `failed`, then `root_cause_rows`, then shallowest layer, then code.
 
     `skipped` is the column that matters when tuning layered checks -- a high
     count means a fundamental check is failing often and hiding what is below it.
@@ -273,8 +274,9 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
     ]
     table = pd.DataFrame(rows, columns=columns)
     if rows:
-        table = (table.sort_values(["failed", "errored", "skipped", "code"],
-                                   ascending=[False, False, False, True])
+        # Ties on failures put the root cause, the check to read first, on top.
+        table = (table.sort_values(["failed", "root_cause_rows", "layer", "code"],
+                                   ascending=[False, False, True, True])
                  .reset_index(drop=True))
     table.attrs["title"] = "Summary"
     return table
