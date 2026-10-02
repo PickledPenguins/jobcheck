@@ -67,7 +67,6 @@ def _explain(
     context: RowContext | None = None,
     rules: list[Rule] | None = None,
     on_error: str = "record",
-    settled: _Settled | None = None,
 ) -> list[CheckOutcome]:
     """Run the checks against one row and report what *every* check did.
 
@@ -81,10 +80,27 @@ def _explain(
     so it must not unlock a dependent.
 
     A `context` of `None` becomes an empty `RowContext`, the type a check taking
-    `(row, context)` is always handed. With *settled*, the row is a copy: a
-    check that does not repeat, and that an earlier copy settled, is not run,
-    and records that copy's result as `shared` -- unless a rule disables it on
-    this copy, which wins.
+    `(row, context)` is always handed.
+    """
+
+    outcomes, _ = _explain_with_off_here(row, context, rules, on_error, None)
+    return outcomes
+
+
+def _explain_with_off_here(
+    row: "pd.Series[Any]",
+    context: RowContext | None,
+    rules: list[Rule] | None,
+    on_error: str,
+    settled: _Settled | None,
+) -> tuple[list[CheckOutcome], set[str]]:
+    """`_explain` for a row under `repeat_key`, which also returns the codes that
+    were off on the row: disabled here, or below a check that is. `_settle` needs
+    that set and must not work it out a second time.
+
+    With *settled*, the row is a copy: a check that does not repeat, and that an
+    earlier copy settled, is not run, and records that copy's result as `shared`
+    -- unless a rule disables it on this copy, which wins.
     """
 
     if row.index.has_duplicates:
@@ -168,7 +184,7 @@ def _explain(
                 comments=result.comments,
             )
         )
-    return outcomes
+    return outcomes, off_here
 
 
 def _context_caller(
@@ -254,30 +270,29 @@ def validate(
             continue
         value = _repeat_value(row, repeat_key, position)
         settled = settled_by_value.get(value)
-        row_outcomes = _explain(row, context, rules, on_error, settled)
+        row_outcomes, off_here = _explain_with_off_here(row, context, rules, on_error, settled)
         where = f"at position {position}, the first row with {repeat_key} {_format_cell(value)}"
         if settled is not None:
             where += " to enable it"
-        settled_by_value[value] = _settle(row_outcomes, settled or {}, where)
+        settled_by_value[value] = _settle(row_outcomes, off_here, settled or {}, where)
         frame_outcomes.append(row_outcomes)
     return frame_outcomes
 
 
-def _settle(row_outcomes: list[CheckOutcome], settled: _Settled, where: str) -> _Settled:
+def _settle(
+    row_outcomes: list[CheckOutcome], off_here: set[str], settled: _Settled, where: str
+) -> _Settled:
     """Add to *settled* what this copy settled: each check that does not repeat
-    and had no result yet, unless it, or a check it depends on, was disabled
-    here. A later copy whose rules enable that chain runs it instead.
+    and had no result yet, unless it was off here (*off_here*, from
+    `_explain_with_off_here`). A later copy whose rules enable that chain runs
+    it instead.
     """
 
-    by_code = {check.code: check for check in _CHECKS}
-    unsettled: set[str] = set()
-    for outcome in row_outcomes:   # in evaluation order: prerequisites first
-        check = by_code[outcome.code]
-        if (outcome.outcome is Outcome.DISABLED
-                or any(code in unsettled for code in check.depends_on)):
-            unsettled.add(check.code)
-        elif not check.repeats and check.code not in settled:
-            settled[check.code] = (where, outcome)
+    repeats = {check.code: check.repeats for check in _CHECKS}
+    for outcome in row_outcomes:
+        if (outcome.code not in off_here and not repeats[outcome.code]
+                and outcome.code not in settled):
+            settled[outcome.code] = (where, outcome)
     return settled
 
 
