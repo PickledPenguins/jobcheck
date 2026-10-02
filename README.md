@@ -109,6 +109,27 @@ print(explain_row(outcomes, 2).to_string(index=False))
 `explain_row` reads what `validate` kept for the row at that position and runs
 nothing again; it shows every check, passes included.
 
+`2` is the row's position in the frame, not its key. To explain a row by its key,
+take it from the full report, where every key is text:
+
+```python
+report = build_report(outcomes, df=df, key_column="id", include="all")
+print(report.loc["104", ["outcome", "detail"]].to_string())
+```
+
+```
+                       outcome                                       detail
+code                                                                       
+AGE_PRESENT             failed                                             
+AGE_NOT_A_NUMBER       skipped       prerequisite did not pass: AGE_PRESENT
+AGE_NEGATIVE           skipped  prerequisite did not pass: AGE_NOT_A_NUMBER
+AGE_TOO_HIGH           skipped  prerequisite did not pass: AGE_NOT_A_NUMBER
+AGE_NOT_INTEGER       disabled                          disabled by default
+EMAIL_PRESENT           passed                                             
+EMAIL_MISSING_AT        passed                                             
+EMAIL_DOMAIN_INVALID    passed                                             
+```
+
 ## Counting what happened
 
 `summarize_outcomes` counts what each check did across every row, and in how many

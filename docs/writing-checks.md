@@ -100,6 +100,12 @@ Keep them small and scalar. They end up in a CSV cell, written as they are — a
 from the data that looks like a formula stays one
 ([reporting.md](reporting.md#opening-the-csv-in-a-spreadsheet)).
 
+A comment shows the value the check worked with, not the cell as the file wrote it. A
+numeric column holding a blank is read by pandas as `float`, and a check that converts
+with `float()` does the same, so a cell `-1` reports as `value=-1.0`. Where the reader
+needs the cell as written, read the file with `pd.read_csv(path, dtype=str)`, convert
+inside the check, and put the original text in the comment.
+
 ## Which checks an entry point loads
 
 **Your checks live in your files, not in this package.** This package ships no
@@ -140,6 +146,13 @@ load_checks(["runs/2026-09-10/inputs/checks.py"])
 Each file gets a unique module name, so two run directories that each hold a
 `checks.py` both load. No `__pycache__` is written beside the caller's file: that
 directory is a record of what the run read, not somewhere to write to.
+
+A check file cannot import a module beside it. Each file is imported by path, and its
+directory is not put on `sys.path`, so `from helpers import parse_number` raises
+`ModuleNotFoundError: No module named 'helpers'`. Put helpers shared between check
+files in a package that is installed or on `PYTHONPATH`, and import it from there. The
+directory stays off `sys.path` on purpose: a helper named like a real module
+(`csv.py`, `types.py`) would shadow it for the whole process.
 
 ## Bundles: one file that loads the rest
 
@@ -363,6 +376,11 @@ check caching a parsed value on it gets an `AttributeError`, recorded as `errore
 rather than handing the first row's value to every later row. Caching per row needs a
 builder that returns a fresh subclass instance for each row.
 
+The builder runs once for every row, before any check, whether or not a check taking
+`context` will run on that row. Cheap work does not care. Work that reads or stats
+files belongs in a `functools.cached_property` on the subclass, so it happens only
+when a check first asks for it.
+
 Metadata that is not tabular — flags, computed paths, pipeline state — goes in
 `RowContext`, not in extra DataFrame columns, which cause dtype churn and end up
 in exports. Take `(row, context)` in the checks that need it.
@@ -527,6 +545,14 @@ same file, an earlier load of it failed part-way and left its checks registered:
 
 **An `errored` outcome with a `KeyError`.** The check read a column that is not in
 the frame; check the spelling against the data.
+
+**An `errored` outcome with `'float' object has no attribute ...`.** The cell was
+blank: pandas hands a blank as `NaN`, which is a `float`, so `row["name"].upper()`
+raises. Give the check a prerequisite that tests the field with `is_null`.
+
+**Every row errors with `'RowContext' object has no attribute ...`.** The checks take
+`(row, context)` but `validate` was called without the `context_builder`, so each row
+got the bare `RowContext`. Pass the builder.
 
 **A rule looks right but has no effect.** Another rule later in load order
 matches the same row and code, and last wins<sup>[12](configuration.md#precedence-last-rule-wins)</sup> — or its criterion names a column

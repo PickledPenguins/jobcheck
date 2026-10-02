@@ -7,7 +7,8 @@ One directory per case: `cmd` (run from the project root), `README.md`,
 Dimensions covered: the data (the built-in demo frame and all three shipped CSV
 files), rule loading (the shipped file, topic files, files from unrelated
 directories, and both orderings of the same three), the report format (table and
-CSV), one row explained, and the summary. The `bundles/` cases run
+CSV), how much of the report to print (`--include`), one row explained, and the
+summary. The `bundles/` cases run
 `examples/bundle_main.py` instead, and carry their own check files: a bundle is
 read together with the files beside it. The `run_file/` case runs
 `examples/run_from_config.py` on the shipped `examples/run.yaml`.
@@ -25,9 +26,15 @@ alone as a copyable reference.
 
 Not covered here, because a unit test asserts it more precisely: every rejection
 of a malformed rule file (see `../failures/`), individual check behavior, and
-and how pandas lays out a table.
+how pandas lays out a table.
 
 Absolute paths are normalized to `<project>` before comparison; nothing else is.
+
+Add a case with `scripts/new_catalog_case.py`, which writes `cmd` and `README.md` and
+records the output; its docstring has a full example. The entry point's arguments go
+after a bare `--`, which is required even when there are none. `--entry` names a script
+other than `examples/main.py`: `examples/run_from_config.py`, `examples/bundle_main.py`,
+or a script in the case directory.
 
 Regenerate after an intended change with `python3 scripts/regen_catalog.py`,
 then read the diff — a blind regeneration defeats the catalog.

@@ -169,6 +169,8 @@ failing two chains at the same depth counts against both. Data failures come fir
 errored check is a root cause only on a row with no data failure, where it is the one
 thing to read. A broken shallow check therefore never takes the flag from a real
 failure, and `root_cause_rows` can exceed `failed` by the rows where it stood alone.
+A check that a rule disables on a row is counted `disabled` there even when its
+prerequisite also failed: the rule is the reason it could never have run.
 
 
 Read it this way: a high `failed` count is a data problem; a high `skipped` count
