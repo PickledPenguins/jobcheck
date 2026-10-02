@@ -5,7 +5,8 @@
 `test_docs_structure_unit.py` split the documentation checks by concern; the paths and
 the public-name table they share live here so the six cannot disagree about which
 documents exist. The Python blocks, the output each shows, and the world they are run
-in live here too, because `scripts/regen_docs.py` runs them exactly as the test does.
+in live here too, because `scripts/regen_docs.py` runs them exactly as the test does;
+so does the README's worked session, for `test_readme.py`.
 """
 
 from __future__ import annotations
@@ -69,6 +70,19 @@ def docs_blocks(documents: list[Path] | None = None) -> list[DocsBlock]:
             line = text[: block.start()].count("\n") + 2
             found.append(DocsBlock(path, line, block.group(2), shown, span))
     return found
+
+
+def is_template(source: str) -> bool:
+    """The README's "writing a check" block is a template, not part of its worked session."""
+
+    return "AGE_ABOVE_LIMIT" in source
+
+
+def readme_session() -> list[DocsBlock]:
+    """The README's Python blocks that read as one continuous session, in order:
+    every one but the template, which `test_readme.py` checks on its own."""
+
+    return [block for block in docs_blocks([README]) if not is_template(block.source)]
 
 
 def documented_world(cwd: Path) -> dict[str, Any]:

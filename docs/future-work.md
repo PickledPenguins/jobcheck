@@ -27,24 +27,16 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.54. Each is either loud already, or needs the owner's decision.
+left is open below, from F.55. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
-on 2026-09-29; they are in the section below. F.48 was built the
+on 2026-09-29, and F.54 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
 registration, for a check and for a context builder alike, naming `functools.partial` and
 a keyword-only parameter as the two ways to write it.
 
 
 
-**`scripts/regen_docs.py` duplicates skills `bin/doc-examples`** (F.54, from the
-2026-09-27 commit review). doc-examples was committed 29 seconds after it, to replace
-it, and gives the same verdict on `docs/` in 3 seconds. Keeping both leaves two fence
-parsers that must agree (`tests/doc_files.py` matches a fence anywhere and allows no
-info string; doc-examples anchors at line start and allows one) and breaks the rule that
-a tool lives in skills. Either delete the script and its test and point
-`test_docs_blocks_unit.py`, `doc_files.py`, `contributing.md`, `testing.md`,
-`architecture.md` and `.claude/CLAUDE.md` at doc-examples, or record here why the
-published repository keeps its own copy.
+
 
 **Case-local `.py` basenames must be unique across `tests/`** (F.55, low). The catalog's
 case directories are not packages, so mypy checks each case-local file as a top-level
@@ -234,6 +226,17 @@ The friction log written while building the complex catalog cases
 already closed (root causes, F.47; a raising builder, F.46; `warn_blocking_rules`; the
 counts `doc-counts` now rewrites; F.55) were dropped; what was built is in the git log;
 F.88 is open above; the rest was declined, below.
+
+**Deleting `scripts/regen_docs.py` for skills `bin/doc-examples`** (F.54, from the
+2026-09-27 commit review; declined 2026-10-02). doc-examples was written to replace the
+script, and keeping both leaves two fence parsers that must agree (`tests/doc_files.py`
+matches a fence anywhere and allows no info string; doc-examples anchors at line start
+and allows one). The script stays: the skills repository has no remote, so the published
+repository cannot send a contributor to doc-examples, and deleting the script would not
+remove the second parser anyway, because the gates (`test_docs_blocks_unit.py`,
+`test_readme.py`) read blocks through `tests/doc_files.py`. The script regenerates the
+README's session too, from the same parser the README test uses, so no regeneration step
+depends on a tool outside the repository.
 
 **Rules cannot say "optional here"** (F.89, declined 2026-10-02). A rule can only disable
 a check, and disabling a presence check blocks its whole chain, so a rule meant as "a

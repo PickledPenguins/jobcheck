@@ -15,43 +15,21 @@ from __future__ import annotations
 import io
 import re
 from contextlib import redirect_stdout
-from pathlib import Path
 from typing import Any
 
 import pytest
 
 from conftest import EXAMPLE_CHECK_FILES, failures
+from doc_files import README, DocsBlock, docs_blocks, is_template, readme_session
 from jobcheck import registry as reg
 
 pytestmark = pytest.mark.fast
 
-README = Path(__file__).resolve().parent.parent / "README.md"
-BLOCK = re.compile(r"```(\w*)\n(.*?)```", re.S)
 
+def python_blocks() -> list[DocsBlock]:
+    """Each Python block of the README, with the output it shows, if any."""
 
-def blocks() -> list[tuple[str, str]]:
-    """Every fenced block in the README, as (language, body)."""
-
-    return [(lang, body) for lang, body in BLOCK.findall(README.read_text(encoding="utf-8"))]
-
-
-def python_blocks() -> list[tuple[int, str, str]]:
-    """Each Python block with the output block that follows it, if any."""
-
-    found = blocks()
-    pairs: list[tuple[int, str, str]] = []
-    for index, (lang, body) in enumerate(found):
-        if lang != "python":
-            continue
-        expected = ""
-        if index + 1 < len(found) and found[index + 1][0] == "":
-            expected = found[index + 1][1]
-        pairs.append((index, body, expected))
-    return pairs
-
-
-def block_id(case: tuple[int, str, str]) -> str:
-    return f"block-{case[0]}"
+    return docs_blocks([README])
 
 
 def test_the_readme_has_python_blocks_to_check() -> None:
@@ -59,18 +37,6 @@ def test_the_readme_has_python_blocks_to_check() -> None:
     than passing an empty parametrization."""
 
     assert len(python_blocks()) >= 3
-
-
-def is_template(source: str) -> bool:
-    """The "writing a check" block is a template, not part of the worked session."""
-
-    return "AGE_ABOVE_LIMIT" in source
-
-
-def session_blocks() -> list[tuple[int, str, str]]:
-    """The blocks the README presents as one continuous session."""
-
-    return [case for case in python_blocks() if not is_template(case[1])]
 
 
 def test_the_readme_session_runs_and_prints_exactly_what_it_shows(
@@ -87,12 +53,14 @@ def test_the_readme_session_runs_and_prints_exactly_what_it_shows(
     monkeypatch.chdir(README.parent)
     namespace: dict[str, Any] = {}
     compared = 0
-    for index, source, expected in session_blocks():
+    for block in readme_session():
         captured = io.StringIO()
         with redirect_stdout(captured):
-            exec(compile(source, f"README.md:block-{index}", "exec"), namespace)
-        if expected:
-            assert captured.getvalue() == expected, f"block {index} prints something else"
+            exec(compile(block.source, block.label, "exec"), namespace)
+        if block.shown_output is not None:
+            assert captured.getvalue() == block.shown_output, (
+                f"{block.label} prints something else; after an intended change, "
+                "python3 scripts/regen_docs.py README rewrites it")
             compared += 1
     assert compared >= 2, "the README stopped showing output for its examples"
 
@@ -106,9 +74,9 @@ def test_a_later_block_only_uses_names_an_earlier_one_defined(
 
     monkeypatch.chdir(README.parent)
     namespace: dict[str, Any] = {}
-    for index, source, _ in session_blocks():
+    for block in readme_session():
         with redirect_stdout(io.StringIO()):
-            exec(compile(source, f"README.md:block-{index}", "exec"), namespace)
+            exec(compile(block.source, block.label, "exec"), namespace)
 
     # The session builds a frame and validates it; both names outlive the blocks.
     assert "df" in namespace and "outcomes" in namespace
@@ -121,7 +89,7 @@ def test_the_writing_a_check_block_registers_a_working_check(fresh_registry: Non
 
     import pandas as pd
 
-    source = next(source for _, source, _ in python_blocks() if is_template(source))
+    source = next(block.source for block in python_blocks() if is_template(block.source))
     namespace: dict[str, Any] = {}
     exec(compile(source, "README.md:writing-a-check", "exec"), namespace)
 
@@ -144,8 +112,8 @@ def test_the_example_code_does_not_collide_with_the_shipped_checks(
 
     reg.load_checks(EXAMPLE_CHECK_FILES)
     shipped = {check.code for check in reg._CHECKS}
-    for _, source, _ in python_blocks():
-        for code in re.findall(r'@\w+\(\s*"([A-Z_]+)"', source):
+    for block in python_blocks():
+        for code in re.findall(r'@\w+\(\s*"([A-Z_]+)"', block.source):
             assert code not in shipped, f"README defines {code}, which the suites already own"
 
 
