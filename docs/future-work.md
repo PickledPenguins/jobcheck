@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.61. Each is either loud already, or needs the owner's decision.
+left is open below, from F.62. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -42,9 +42,14 @@ report from `.agent/reviews/`. F.59 was built the same day: `test_fuzz.py` also 
 files as YAML text. Probing the shapes it now generates found a file not saved as UTF-8
 raising the codec's own error, naming no file -- and, for a run file, a traceback with exit 1. Both now say
 `<file>: not UTF-8 text: ...` (exit 2 for the run file).
-
-
-**The native `/code-review` pass** (F.61) was not run in any of the 2026-09-27 reviews.
+F.61 was done on 2026-10-02: the built-in `/code-review` ran once over the branch and
+returned ten findings. Seven repeated decisions already recorded below (comment freezing,
+the `shared` status, module eviction, the load lock, `render`'s escaping, `validate`
+keeping every outcome, `--explain` reading the report). One was rejected: the run-file
+example's one-line `key_names` copies `paths._key_names` so it imports no private name.
+Two were real and fixed: `_settle` rebuilt the set of checks that do not repeat on every
+row under `repeat_key`, and a line of `RowContext`'s docstring was not indented. The owner
+chose not to make the built-in pass part of `creview`.
 
 **Two tentative traps, reasoned but never reproduced** (F.62). `registry._CHECKS.sort()`
 would leave the cached evaluation order contradicting the graph (noted 2026-09-24). A

@@ -256,6 +256,7 @@ def validate(
 
     if repeat_key is not None:
         _check_repeat_key(df, repeat_key)
+    shared = {check.code for check in _CHECKS if not check.repeats}
 
     # Read once per row: a generator would apply to the first row only.
     rules = list(rules or [])
@@ -283,23 +284,23 @@ def validate(
         where = f"at position {position}, the first row with {repeat_key} {_format_cell(value)}"
         if settled is not None:
             where += " to enable it"
-        settled_by_value[value] = _settle(row_outcomes, off_here, settled or {}, where)
+        settled_by_value[value] = _settle(row_outcomes, off_here, shared, settled or {}, where)
         frame_outcomes.append(row_outcomes)
     return frame_outcomes
 
 
 def _settle(
-    row_outcomes: list[CheckOutcome], off_here: set[str], settled: _Settled, where: str
+    row_outcomes: list[CheckOutcome], off_here: set[str], shared: set[str],
+    settled: _Settled, where: str
 ) -> _Settled:
-    """Add to *settled* what this copy settled: each check that does not repeat
-    and had no result yet, unless it was off here (*off_here*, from
-    `_explain_with_off_here`). A later copy whose rules enable that chain runs
-    it instead.
+    """Add to *settled* what this copy settled: each check in *shared* (those that
+    do not repeat) that had no result yet, unless it was off here (*off_here*,
+    from `_explain_with_off_here`). A later copy whose rules enable that chain
+    runs it instead.
     """
 
-    repeats = {check.code: check.repeats for check in _CHECKS}
     for outcome in row_outcomes:
-        if (outcome.code not in off_here and not repeats[outcome.code]
+        if (outcome.code in shared and outcome.code not in off_here
                 and outcome.code not in settled):
             settled[outcome.code] = (where, outcome)
     return settled
