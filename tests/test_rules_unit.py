@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import os
-import subprocess
-import sys
+import builtins
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +10,7 @@ import pandas as pd
 import pytest
 
 from conftest import PROJECT_ROOT, enabled_only, make_check
+from jobcheck import paths
 from jobcheck import registry as reg
 from jobcheck import rules
 from jobcheck import engine
@@ -42,18 +41,19 @@ def one_code(fresh_registry: None) -> None:
     make_check("A_CODE")
 
 
-def test_a_rule_file_is_read_as_utf8_under_an_ascii_locale(tmp_path: Path) -> None:
+def test_a_rule_file_is_read_as_utf8_under_an_ascii_locale(
+    one_code: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # In a C locale with Python's UTF-8 mode off, open() without an encoding
     # reads ASCII, and a rule message in any other script would not decode.
+    # The locale is fixed at start-up, so the test stands in an open() with that
+    # default; a subprocess would not see mutmut's mutants.
+    def ascii_by_default(file: Path, encoding: str = "ascii") -> Any:
+        return builtins.open(file, encoding=encoding)
+
+    monkeypatch.setattr(paths, "open", ascii_by_default, raising=False)
     path = write(tmp_path, "rules.yaml", GLOBAL_DISABLE.replace("why the rule exists", "café"))
-    script = ("from jobcheck import OK, load_rules, register_check\n"
-              "register_check('A_CODE', 'm')(lambda row: OK)\n"
-              f"print(ascii(load_rules([{path!r}])[0].message))\n")
-    env = {**os.environ, "LC_ALL": "C", "PYTHONUTF8": "0", "PYTHONCOERCECLOCALE": "0",
-           "PYTHONPATH": os.path.join(PROJECT_ROOT, "src")}
-    completed = subprocess.run([sys.executable, "-c", script], cwd=PROJECT_ROOT, env=env,
-                               capture_output=True, text=True, timeout=120)
-    assert (completed.returncode, completed.stdout) == (0, "'caf\\xe9'\n"), completed.stderr
+    assert reg.load_rules([path])[0].message == "café"
 
 
 def test_rule_fields_are_parsed(one_code: None, tmp_path: Path) -> None:
