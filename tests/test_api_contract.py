@@ -21,20 +21,16 @@ from jobcheck import registry as reg
 from jobcheck import engine
 from jobcheck import views
 from jobcheck import results as res
-from jobcheck import paths, rules
+from jobcheck import rules
 
 pytestmark = pytest.mark.fast
 
-# paths is below both loaders: what a caller sees of it is the message a bad
-# path raises, not a function to call.
-INTERNAL_MODULES = [paths]
-# Every other module, found rather than listed: a hand-kept list missed engine
-# and the table module, so a public function added to either could go unexported
-# without this noticing.
+# Every module, found rather than listed: a hand-kept list missed engine and the
+# table module, so a public function added to either could go unexported without
+# this noticing.
 MODULES = [
     importlib.import_module(f"jobcheck.{info.name}")
     for info in pkgutil.iter_modules(validation.__path__)
-    if f"jobcheck.{info.name}" not in {module.__name__ for module in INTERNAL_MODULES}
 ]
 
 

@@ -19,7 +19,7 @@ from typing import Any, Callable
 import pandas as pd
 
 from .context import RowContext
-from .paths import _key_names, _read_yaml, resolve_input_file
+from .paths import _key_names, _read_yaml, _resolve_input_file
 from . import rules
 from .rules import Rule
 
@@ -298,7 +298,7 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     global _LOAD_SEQUENCE
     resolved: list[str] = []
     for path in list(paths):
-        name = str(resolve_input_file(path, "check file", "load_checks()", base_dir))
+        name = str(_resolve_input_file(path, "check file", "load_checks()", base_dir))
         # A file mid-import is skipped, so a bundle naming itself, or two naming
         # each other, finish instead of recursing.
         if name not in _LOADED_FILES and name not in resolved and name not in _LOADING:
@@ -538,7 +538,7 @@ def load_setup(path: str) -> list[Rule]:
     It composes `load_checks` and `load_rules` and does nothing they do not.
     """
 
-    setup_file = resolve_input_file(path, "setup file", "load_setup()")
+    setup_file = _resolve_input_file(path, "setup file", "load_setup()")
     document = _read_yaml(setup_file, str(setup_file))
     if not isinstance(document, dict):
         raise ValueError(

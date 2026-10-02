@@ -27,16 +27,16 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.57. Each is either loud already, or needs the owner's decision.
+left is open below, from F.58. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
 registration, for a check and for a context builder alike, naming `functools.partial` and
-a keyword-only parameter as the two ways to write it.
+a keyword-only parameter as the two ways to write it. F.57 was built on 2026-10-02:
+`paths.resolve_input_file` became `_resolve_input_file`, and `test_api_contract.py`
+no longer exempts `paths` from the rule that a public function is exported.
 
-**`paths.resolve_input_file` has no underscore** (F.57, low). `paths` is exempted in
-the internal-modules list of `tests/test_api_contract.py` rather than having its public-looking
-name made private. Not checked since 2026-09-26.
+
 
 **A `creadme` audit of `docs/`** (F.58). `f068452` rewrote about 1,100 lines, and the doc
 tests check names, blocks and counts, not prose claims — which is how the "downstream"
