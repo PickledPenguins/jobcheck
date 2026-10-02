@@ -229,14 +229,15 @@ F.88 is open above; the rest was declined, below.
 
 **Deleting `scripts/regen_docs.py` for skills `bin/doc-examples`** (F.54, from the
 2026-09-27 commit review; declined 2026-10-02). doc-examples was written to replace the
-script, and keeping both leaves two fence parsers that must agree (`tests/doc_files.py`
-matches a fence anywhere and allows no info string; doc-examples anchors at line start
-and allows one). The script stays: the skills repository has no remote, so the published
-repository cannot send a contributor to doc-examples, and deleting the script would not
-remove the second parser anyway, because the gates (`test_docs_blocks_unit.py`,
-`test_readme.py`) read blocks through `tests/doc_files.py`. The script regenerates the
-README's session too, from the same parser the README test uses, so no regeneration step
-depends on a tool outside the repository.
+script, and keeping both leaves two fence parsers that must agree. The script stays: the
+skills repository has no remote, so the published repository cannot send a contributor to
+doc-examples, and deleting the script would not remove the second parser anyway, because
+the gates (`test_docs_blocks_unit.py`, `test_readme.py`) read blocks through
+`tests/doc_files.py`. The script regenerates the README's session too, from the same
+parser the README test uses, so no regeneration step depends on a tool outside the
+repository. The disagreement is closed instead: `doc_files.FENCE` is doc-examples'
+pattern (a fence starts a line, and the opening one may carry an info string), and
+`test_a_fence_is_read_only_at_the_start_of_a_line` pins it.
 
 **Rules cannot say "optional here"** (F.89, declined 2026-10-02). A rule can only disable
 a check, and disabling a presence check blocks its whole chain, so a rule meant as "a

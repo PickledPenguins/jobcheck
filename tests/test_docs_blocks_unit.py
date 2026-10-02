@@ -58,3 +58,14 @@ def test_the_documents_show_output_for_their_blocks() -> None:
     turn the comparison above into a no-op."""
 
     assert sum(block.shown_output is not None for block in docs_blocks()) >= 6
+
+
+def test_a_fence_is_read_only_at_the_start_of_a_line(tmp_path: Path) -> None:
+    """The fence rule `bin/doc-examples` uses: an info string after the language is
+    allowed, and three backticks inside a line of prose open nothing."""
+
+    path = tmp_path / "doc.md"
+    path.write_text("Prose quoting ```python\nis not a block.\n\n"
+                    "```python title\nprint(1)\n```\n\n```\n1\n```\n", encoding="utf-8")
+    (block,) = docs_blocks([path])
+    assert (block.line, block.source, block.shown_output) == (5, "print(1)\n", "1\n")
