@@ -369,7 +369,7 @@ def test_load_rules_spans_directories(one_code: None, tmp_path: Path) -> None:
 
 
 def test_the_codes_column_lists_every_code_a_rule_touches(one_code: None, tmp_path: Path) -> None:
-    """The detail behind codes_hit_count, as a column rather than a lookup function."""
+    """The detail behind code_count, as a column rather than a lookup function."""
 
     make_check("B_CODE")
     path = write(
@@ -377,7 +377,7 @@ def test_the_codes_column_lists_every_code_a_rule_touches(one_code: None, tmp_pa
     )
     table = views.rules_table(reg.load_rules([path]))
     assert table.loc[0, "codes"] == "A_CODE, B_CODE"
-    assert table.loc[0, "codes_hit_count"] == 2
+    assert table.loc[0, "code_count"] == 2
 
 
 # --- matching and precedence ------------------------------------------------

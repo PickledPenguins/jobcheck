@@ -77,7 +77,7 @@ Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
 | [`explain_row`](#explain_rowframe_outcomes-position---dataframe) | `frame_outcomes`, `position` | – | DataFrame `Row explanation` | Every check on the data row at `position`, in evaluation order: `layer`, `code`, `outcome`, `status`, `detail`. Runs nothing. |
 | [`summarize_outcomes`](#summarize_outcomesframe_outcomes---dataframe) | `frame_outcomes` | – | DataFrame `Summary` | Per-check counts across all rows: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `shared`, `passed`. Takes `validate`'s result, or any iterable of its rows. |
 | [`registry_table`](#registry_tablerulesnone---dataframe) | – | `rules=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `repeat`, `message`, `depends_on`, `source_file`, and from `rules`, `could_be_overridden_by`. |
-| [`rules_table`](#rules_tablerules---dataframe) | `rules` | – | DataFrame `Rules` | One line per rule: `name`, `action`, `codes_hit_count`, `codes`, `match`, `message`, `source_file`. |
+| [`rules_table`](#rules_tablerules---dataframe) | `rules` | – | DataFrame `Rules` | One line per rule: `name`, `action`, `code_count`, `codes`, `match`, `message`, `source_file`. |
 
 **Types and constants**
 
@@ -504,7 +504,7 @@ answer.<sup>[17](reporting.md#working-with-the-tables)</sup>
 
 ### `rules_table(rules) -> DataFrame`
 
-One row per rule, titled `Rules`: `name`, `action`, `codes_hit_count`, `codes` (the
+One row per rule, titled `Rules`: `name`, `action`, `code_count`, `codes` (the
 list behind the count), `match`, `message`, `source_file`.
 
 ### `is_null(value) -> bool`

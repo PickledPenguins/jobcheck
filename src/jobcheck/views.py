@@ -24,7 +24,7 @@ _REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "deta
                   "is_root_cause")
 _REGISTRY_COLUMNS = ["code", "layer", "default", "repeat", "message", "depends_on",
                      "source_file", "could_be_overridden_by"]
-_RULES_COLUMNS = ["name", "action", "codes_hit_count", "codes", "match", "message",
+_RULES_COLUMNS = ["name", "action", "code_count", "codes", "match", "message",
                   "source_file"]
 
 # Which outcomes reach a report, worst-first. Every level contains the one
@@ -347,7 +347,7 @@ def registry_table(rules: list[Rule] | None = None) -> pd.DataFrame:
 def rules_table(rules: list[Rule]) -> pd.DataFrame:
     """One row per rule, rather than per code.
 
-    `codes_hit_count` is a count beside the code list, so a caller can drop
+    `code_count` is a count beside the code list, so a caller can drop
     `codes` and keep a rule touching many codes from blowing the table apart.
     """
 
@@ -356,7 +356,7 @@ def rules_table(rules: list[Rule]) -> pd.DataFrame:
         rows.append({
             "name": rule.name,
             "action": rule.action,
-            "codes_hit_count": len(rule.codes),
+            "code_count": len(rule.codes),
             "codes": ", ".join(rule.codes),
             "match": _render_match(rule),
             "message": rule.message,

@@ -129,7 +129,7 @@ Optional, off by default. Before the registry table, print one row per loaded ru
 name, action, how many codes it touches, what it matches, and its message. The
 registry table is one row per *code*, so a rule touching eight codes is eight lines there
 and one line here — this is the view that answers "what did this rule file actually say".
-`main.py` drops the `codes` column and keeps `codes_hit_count`, so a broad rule does not
+`main.py` drops the `codes` column and keeps `code_count`, so a broad rule does not
 widen the table; `rules_table(rules)["codes"]` gives the detail.
 
 Under the table, one `warning:` line for each code a rule touches that a later

@@ -1,8 +1,8 @@
 == Rules ==
-                                   name  action  codes_hit_count                                  codes                                               match                                                      message            source_file
-            enable_legacy_integer_check  enable                1                        AGE_NOT_INTEGER source_system~=/^LEGACY_.*/; record_type~=/^BATCH$/    Turn on strict integer check for legacy-system batch rows rules/error_rules.yaml
-suppress_email_checks_for_test_accounts disable                2 EMAIL_MISSING_AT, EMAIL_DOMAIN_INVALID                           email~=/@internal\.test$/ Internal test accounts shouldn't trigger email format errors rules/error_rules.yaml
-     disable_age_integer_check_globally disable                1                        AGE_NOT_INTEGER                                                 all Example: disable AGE_NOT_INTEGER for every row, no filtering rules/error_rules.yaml
+                                   name  action  code_count                                  codes                                               match                                                      message            source_file
+            enable_legacy_integer_check  enable           1                        AGE_NOT_INTEGER source_system~=/^LEGACY_.*/; record_type~=/^BATCH$/    Turn on strict integer check for legacy-system batch rows rules/error_rules.yaml
+suppress_email_checks_for_test_accounts disable           2 EMAIL_MISSING_AT, EMAIL_DOMAIN_INVALID                           email~=/@internal\.test$/ Internal test accounts shouldn't trigger email format errors rules/error_rules.yaml
+     disable_age_integer_check_globally disable           1                        AGE_NOT_INTEGER                                                 all Example: disable AGE_NOT_INTEGER for every row, no filtering rules/error_rules.yaml
 warning: rule 'enable_legacy_integer_check' is overruled for AGE_NOT_INTEGER by the later rule 'disable_age_integer_check_globally', which matches every row: it can never apply to AGE_NOT_INTEGER
 
 == Registry ==

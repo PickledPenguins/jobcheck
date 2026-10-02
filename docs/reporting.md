@@ -219,7 +219,7 @@ load_checks(["my_checks/check_age.py", "my_checks/check_email.py"])
 registry = registry_table()
 registry.to_csv("registry.csv", index=False)   # the checks this run had
 off_by_default = registry.loc[registry["default"] == "OFF", "code"].tolist()
-broad_rules = rules_table(rules).query("codes_hit_count > 1")
+broad_rules = rules_table(rules).query("code_count > 1")
 ```
 
 And for output of your own that should read like the tables:
