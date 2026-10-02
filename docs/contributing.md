@@ -73,8 +73,8 @@ reason several obvious-looking shortcuts are absent:
   file".** `tables.py`'s `_format_cell` and `_reject_unknown_columns` are imported by
   `rules.py` and `views.py` on purpose. What the underscore rules out is a *user* calling them: a function or
   class without one has to be in `__all__`, which `tests/test_api_contract.py`
-  enforces for every module but `paths`, and anything exported needs a use case a
-  user outside this package actually has.
+  enforces for every module, and anything exported needs a use case a user outside
+  this package actually has.
 
 ## Writing the documents
 

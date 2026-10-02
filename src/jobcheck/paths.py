@@ -14,7 +14,7 @@ from typing import Any, Iterable
 import yaml
 
 
-def resolve_input_file(path: str, kind: str, caller: str,
+def _resolve_input_file(path: str, kind: str, caller: str,
                        base_dir: str | Path | None = None) -> Path:
     """The file *path* names, resolved, or a `ValueError` saying where it was
     looked for.

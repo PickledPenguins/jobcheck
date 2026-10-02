@@ -14,7 +14,7 @@ from typing import Any
 
 import pandas as pd
 
-from .paths import _key_names, _read_yaml, resolve_input_file
+from .paths import _key_names, _read_yaml, _resolve_input_file
 from .tables import _format_cell, is_null
 
 
@@ -181,7 +181,7 @@ def _parse_file(path: str, known_codes: set[str],
     there would be this machine's, not the one the caller would recognize.
     """
 
-    raw = _read_yaml(resolve_input_file(path, "rule file", "load_rules()", base_dir), path)
+    raw = _read_yaml(_resolve_input_file(path, "rule file", "load_rules()", base_dir), path)
     if raw is None:
         return []
     if not isinstance(raw, list):
