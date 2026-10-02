@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.62. Each is either loud already, or needs the owner's decision.
+left is open below, from F.63. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -49,12 +49,11 @@ keeping every outcome, `--explain` reading the report). One was rejected: the ru
 example's one-line `key_names` copies `paths._key_names` so it imports no private name.
 Two were real and fixed: `_settle` rebuilt the set of checks that do not repeat on every
 row under `repeat_key`, and a line of `RowContext`'s docstring was not indented. The owner
-chose not to make the built-in pass part of `creview`.
-
-**Two tentative traps, reasoned but never reproduced** (F.62). `registry._CHECKS.sort()`
-would leave the cached evaluation order contradicting the graph (noted 2026-09-24). A
-bundle that catches its own member's exception and loads it again in the same process
-would hit "Duplicate check code" (noted 2026-09-22).
+chose not to make the built-in pass part of `creview`. F.62's two tentative traps were
+tried the same day. Sorting `registry._CHECKS` changes nothing: the cached order holds the
+check objects, not positions in the list. A bundle that catches its member's exception
+and loads it again does hit "Duplicate check code", and the message names that case and
+says to call `clear_registry()` first, as `load_checks` documents.
 
 **Two meanings of `detail`** (F.63, raised by the owner on 2026-09-28, to come back to).
 In the report `detail` is only why a check gave no verdict, with `message` and
