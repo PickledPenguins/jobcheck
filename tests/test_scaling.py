@@ -123,7 +123,7 @@ def test_building_a_report_scales_with_the_failures_not_the_rows(
 
     A fraction rather than nothing: the same number of rows is still walked, and
     their root causes still resolved, to produce no report lines at all. Measured
-    at about a quarter on 4,000 rows.
+    at about a third on 4,000 rows (2026-10-02, idle and with every core busy).
 
     This asserted a bare ``quick < slow`` on two single measurements of about
     50ms each, and failed on a machine running a second suite -- the warm-up cost
