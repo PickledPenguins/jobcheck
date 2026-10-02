@@ -27,7 +27,8 @@ or bind it with `functools.partial(age_below, limit=130)` for a family of checks
 context parameter may still default to `None`. A context builder is held to the same
 rule.<sup>[1](interfaces.md#error-messages)</sup>
 
-Add one by putting a function in any `check_*.py` file the entry point loads.
+Add one by putting a function in any `.py` file the entry point loads (the examples
+name theirs `check_*.py`; nothing reads the name).
 There is no central list to update.
 
 ### Codes are permanent
@@ -129,9 +130,10 @@ import os
 load_checks(["check_age.py"], base_dir=os.path.join(os.getcwd(), "my_checks"))
 ```
 
-That is how a script keeps naming the files that sit beside it while being run
-from anywhere: it passes its own directory, `os.path.dirname(os.path.abspath(
-__file__))`, and `examples/main.py` does exactly that.<sup>[6](configuration.md#errors)</sup> An absolute path ignores
+That is how a script keeps naming its files while being run from anywhere: it passes a
+directory found from its own location, `os.path.dirname(os.path.abspath(__file__))` or
+a parent of it. `examples/main.py` passes the project root, the parent of its own
+directory, and names its files `examples/checks/...` under it.<sup>[6](configuration.md#errors)</sup><sup>[6](configuration.md#errors)</sup> An absolute path ignores
 `base_dir`. A file listed
 twice, or already loaded, is skipped; prerequisites may live in any file of one
 call, since the dependency graph is validated once the whole call has been

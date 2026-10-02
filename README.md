@@ -47,7 +47,7 @@ def age_above_limit(row):                         # or (row, context)
     return OK
 ```
 
-- That is the whole change: a function in any `check_*.py` file of your own.
+- That is the whole change: a function in any `.py` file of your own.
 - The check reads whatever columns it needs from the row.
 - It returns `OK` or a `Verdict`; `Verdict(condition)` wraps a bare comparison.
 - The comments it attaches appear in the report.

@@ -27,20 +27,18 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.58. Each is either loud already, or needs the owner's decision.
+left is open below, from F.59. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
 registration, for a check and for a context builder alike, naming `functools.partial` and
 a keyword-only parameter as the two ways to write it. F.57 was built on 2026-10-02:
 `paths.resolve_input_file` became `_resolve_input_file`, and `test_api_contract.py`
-no longer exempts `paths` from the rule that a public function is exported.
-
-
-
-**A `creadme` audit of `docs/`** (F.58). `f068452` rewrote about 1,100 lines, and the doc
-tests check names, blocks and counts, not prose claims — which is how the "downstream"
-root-cause line got in.
+no longer exempts `paths` from the rule that a public function is exported. F.58 and
+F.70 were done on 2026-10-02: a `creadme` audit of `docs/` found 14 drifts the doc tests could
+not see, all corrected, three of them tables split by a blank line, which
+`test_docs_structure_unit.py` now refuses; `caddressreview` then cleared every resolved
+report from `.agent/reviews/`.
 
 **A property test for the rule parser over generated YAML text** (F.59).
 `tests/test_fuzz.py` generates structures and dumps them with `yaml.safe_dump`, which
@@ -134,12 +132,6 @@ such as `True` beside text keys. The two projects therefore word the same kind o
 mistake differently. Aligning jobchain means copying the helper there (jobchain does not
 import jobcheck's private names) and regenerating any expected output that quotes the
 messages. Not yet surveyed, and the owner was not asked.
-
-**The saved review reports are resolved but not cleared** (F.70, moved here from the
-handoff). The three reports of 2026-09-27 in `.agent/reviews/` (`14-13-04`, `14-40-45`
-and `15-11-05`, all `claude-opus-5-5`) have every finding fixed (`a4582e1`), decided
-(F.46, F.47, F.48) or open as an F entry here. Deleting them is `caddressreview`'s
-call, and it has not run on them since. Last checked 2026-09-28.
 
 **Every interface in `interfaces.md` gets a brief example in its own section** (F.71,
 raised by the owner on 2026-09-28). Each function or type's definition block in

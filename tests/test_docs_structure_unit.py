@@ -3,9 +3,9 @@
 The README stays an index and reaches every document; no internal link or anchor is
 dead; the rule and setup keys, statuses and outcome names are documented where they
 belong; what a document copies from the code -- the shipped rule file, the default
-columns, the module and script tables -- matches it; the suite sizes, catalog counts
-and line-width limit the documents state are the real ones. `docs/cli.md` against
-the entry points is `test_docs_cli_unit.py`.
+columns, the module and script tables -- matches it; no table is split by a blank
+line; the suite sizes, catalog counts and line-width limit the documents state are the
+real ones. `docs/cli.md` against the entry points is `test_docs_cli_unit.py`.
 """
 
 from __future__ import annotations
@@ -68,6 +68,30 @@ def test_every_document_says_how_to_get_back(path: Path) -> None:
     """The index links out; each document links back, or a reader is stranded."""
 
     assert "](../README.md)" in path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("path", DOCS + [README], ids=lambda p: p.name)
+def test_no_table_is_split_by_a_blank_line(path: Path) -> None:
+    """A blank line ends a table, and the rows after it render as raw `|` text.
+
+    A row that opens a table has a delimiter row under it; any other row has to
+    follow a row, not a blank line.
+    """
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    in_fence = False
+    for number, line in enumerate(lines, start=1):
+        if line.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence or not line.startswith("|"):
+            continue
+        previous = lines[number - 2] if number > 1 else ""
+        following = lines[number] if number < len(lines) else ""
+        opens_a_table = following.startswith("|---") or following.startswith("| ---")
+        assert previous.startswith("|") or opens_a_table, (
+            f"{path.name}:{number}: a table row with no row above it and no delimiter row "
+            f"below it: {line[:60]}")
 
 
 def test_the_shipped_rule_keys_are_all_documented() -> None:

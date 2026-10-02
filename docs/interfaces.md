@@ -54,7 +54,6 @@ to its full entry below. **Required** arguments are positional and have no defau
 |---|---|---|---|---|
 | [`validate`](#validatedf-rulesnone-context_buildernone-on_errorrecord-context_argsnone-repeat_keynone---listlistcheckoutcome) | `df` | `rules=None`, `context_builder=None`, `on_error="record"`, `context_args=None`, `repeat_key=None` | `list[list[CheckOutcome]]` | Every check on every row of a DataFrame; one complete outcome list per row, in frame order. `context_builder` builds each row's `RowContext` from `(row)` or `(row, context_args)`. `on_error="raise"` propagates a check's exception instead of recording it as `errored`. `repeat_key` names the column marking copies of one row: a copy runs only the checks that repeat, and shares the rest. Holds every outcome in memory. |
 
-
 **Checking rule files**
 
 Each returns warning lines and raises nothing; an empty list means no problem.
@@ -152,8 +151,8 @@ is *for* is its `message`, printed wherever it fails and shown in the registry
 table; there is no second description field to keep in step with it.
 
 The registry itself is internal (`registry._CHECKS`). Read it through
-`registry_table`, which gives every check's code, layer, default, repeat, message and
-`depends_on` as a frame, and `source_file` on request. `source_file` is `<unknown>` for
+`registry_table`, which gives every check's code, layer, default, repeat, message,
+`depends_on`, `source_file` and `could_be_overridden_by` as a frame. `source_file` is `<unknown>` for
 a check registered as a `functools.partial` or a callable object, which carry no source
 file of their own. Nothing that mutates the list directly drops the cached evaluation
 order.
@@ -171,8 +170,9 @@ them. Without a builder, every row is handed the same empty context.<sup>[6](wri
 
 The base class takes no attributes (`__slots__ = ()`): shared by every row, a value
 a check cached on it would reach every later row. Setting one raises
-`AttributeError`, which the engine records as `errored`. A subclass keeps its
-`__dict__` and takes whatever it declares.
+`AttributeError`, which the engine records as `errored`. A subclass without
+`__slots__` of its own has a `__dict__` and takes any attribute; one that declares
+`__slots__` takes only those.
 
 ### `Rule`
 
@@ -330,8 +330,7 @@ this composes them, a bundle calls `load_checks` from inside a check file, and a
 caller holding paths of its own has no file to write. `examples/setup.yaml` is the
 worked example.
 
-## Running checks
-
+## Checking rule files
 
 ### `warn_missing_rule_columns(df, rules) -> list[str]`
 
@@ -366,6 +365,8 @@ another one the same rule disables is not reported again. Reads the registry for
 the dependency graph, so load the checks first; like the other two, it warns rather
 than raises, and `python3 examples/main.py --rules-table` prints it under the rules
 table.<sup>[13](configuration.md#disabling-a-check-disables-what-depends-on-it)</sup>
+
+## Running checks
 
 ### `validate(df, rules=None, context_builder=None, on_error="record", context_args=None, repeat_key=None) -> list[list[CheckOutcome]]`
 
@@ -490,8 +491,6 @@ check — an errored check among them on the rows with no data failure, so it ca
 exceed `failed`. Takes `validate`'s result, or any iterable of its rows, and keeps
 only the counts. Titled `Summary`.<sup>[16](reporting.md#diagnosing-a-whole-file)</sup>
 
-
-
 ### `registry_table(rules=None) -> DataFrame`
 
 One row per check, sorted layer, then code, titled `Registry`. Columns `code`,
@@ -547,17 +546,16 @@ the call named.
 | `validate` | `context_builder '<name>' needs keyword argument(s) <names> that validate cannot supply. Give them defaults, or read them from context_args.` |
 | `validate` | `context_builder 'build' has a default on its second parameter, 'strict', which would be handed context_args. Read the value from context_args, or make it keyword-only by putting it after a *.` |
 | a check's return, as the engine reads it | `Check '<code>' returned None. A check must return OK or a Verdict; Verdict(condition) wraps a bare comparison.` |
-
 | `Verdict` | `Unknown status 7. Use one of: Status.PASS, Status.MISSING, Status.MALFORMED, Status.INVALID, Status.ERROR.` |
 | `Verdict` | `Status.ERROR is the engine's, not a check's: it marks a check that raised. Raise the exception, or return a failure kind that describes the data.` |
 | `Verdict` | `Verdict comments must be a mapping, got <value>.` |
-
 | `build_report` | `outcomes cover 1 row(s) but the frame has 2: pass the same frame the outcomes were collected from.` |
 | `build_report` | `include must be one of root_causes, failures, blocked, all, got '<value>'.` |
 | `build_report` | `key_column '<name>' is not in the data. Available columns: <columns>.` |
 | `build_report` | `key_column '<name>' appears 2 times in the data: df[key_column] is then a table rather than a column, and every row would be labeled with the column name. Rename or drop the duplicate columns.` |
 | `build_report`'s `add_columns` | `add_columns ['<name>'] cannot be used for the report. Each name must be asked for once and be one of: <columns>.` |
 | `explain_row` | `position 3 is not a row: outcomes cover 3 row(s), numbered from 0.` |
+
 ## Stability
 
 Pre-1.0: the API may change between versions. The parts most likely to stay fixed

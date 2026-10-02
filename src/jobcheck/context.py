@@ -20,7 +20,8 @@ class RowContext:
 
     The base class takes no attributes: without a builder every row is handed
     the same instance, so a value a check cached on it would reach every later
-    row. A subclass has its own `__dict__` and takes whatever it declares.
+    row. A subclass without `__slots__` of its own has a `__dict__` and takes any
+attribute; one that declares `__slots__` takes only those.
     """
 
     __slots__ = ()

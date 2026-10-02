@@ -3,7 +3,7 @@ DataFrame carrying its own title in `attrs["title"]`, built from data already
 collected. Nothing here runs a check.
 
 `validate` keeps every check's outcome on every row; a view picks what it
-shows. The report is **long format** -- one line per check per data row,
+shows. The report is **long format** -- one line per outcome it includes,
 indexed by the row so its lines hang together -- which is the diagnostic unit,
 survives being written as CSV, and sorts and filters cleanly downstream. There
 is no command line; a pipeline decides where output goes.

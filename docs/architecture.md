@@ -91,7 +91,6 @@ return values and what each does, one line apiece -- see
 | `scripts/mutation_score.py` | Scores the results a mutmut run left against a floor: the mutation gate. |
 | `scripts/profile_examples.py` | Profiles the catalog's runs in this process: the `profile` mode. |
 
-
 ## Dependency direction
 
 Imports point one way, and a module never imports one listed after it:
@@ -100,7 +99,7 @@ Imports point one way, and a module never imports one listed after it:
 context, results, tables, paths    import nothing from the package
 rules                              <- paths, tables
 registry                           <- context, paths, rules
-engine                             <- context, registry, results, rules
+engine                             <- context, registry, results, rules, tables
 views                              <- registry, results, rules, tables
 __init__                           <- all of the above, to re-export them
 ```
@@ -290,7 +289,7 @@ to load.
 
 ## Extension points
 
-- **A check**: a function in a `check_*.py` file the entry point loads. Nothing else.
+- **A check**: a function in a `.py` file the entry point loads. Nothing else.
 - **Per-row metadata**: subclass `RowContext` and add the fields your checks read, then
   hand `validate` something that builds it.
 - **An entry point**: a script calling `load_checks` with its own list of files. See
