@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 844 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 845 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 279 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1123 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1124 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -80,7 +80,7 @@ Fast:
 | `tests/test_perf_baseline_unit.py` | The baseline arithmetic itself: recording, comparing, the tolerance floor and cap, and discarding a baseline from another machine. |
 | `tests/test_readme.py` | The README executed, byte for byte, plus the prose claims: dependencies, install, the scope limits, the check files it names. |
 | `tests/test_docs_api_unit.py` | The documents against the public API, both directions: every call shown binds against the real signature and names something this package, pandas or the builtins provides; every exported function has its real signature in `interfaces.md` -- names, order and defaults -- and every exported type its fields or members; nothing documented there is gone; every check code a document shows is one that exists; no document says a bare bool or status return is converted. |
-| `tests/test_docs_blocks_unit.py` | Every Python block under `docs/` runs, in a working directory holding the demo frame, its outcomes, the rules and the check files the blocks name, and prints byte for byte the output shown after it. One collected test per block. |
+| `tests/test_docs_blocks_unit.py` | Every Python block under `docs/` runs, in a working directory holding the demo frame, its outcomes, the rules and the check files the blocks name, and prints byte for byte the output shown after it. One collected test per block, plus the fence rule the blocks are read by. |
 | `tests/test_regen_docs_unit.py` | `scripts/regen_docs.py`: a stale shown output rewritten and nothing else touched, a right one left alone, a raising block named with its output kept, the world the documents assume, the README run as one session, and the document filter. |
 | `tests/test_docs_cli_unit.py` | `docs/cli.md` against the three entry points, both directions: a heading for every flag and argument each parser takes and none for anything else, the usage line argparse prints, every exit code the scripts can return and no other, the run-file table and keys, and the null markers `--data` lists against the ones pandas applies. |
 | `tests/test_docs_structure_unit.py` | The documents as a set: the README stays an index and links every document, no internal link or anchor is dead, the rule and setup keys, statuses and outcome names are documented where they belong, what a document copies from the code matches it -- the shipped rule file, a row in `architecture.md` for every module, entry point and script, a row here for every test module, every list of the summary columns -- and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. It also gates line width: no Python line in `src/`, `examples/` or `scripts/` exceeds the 100 characters `contributing.md` claims, and that document names the three directories the gate covers. |

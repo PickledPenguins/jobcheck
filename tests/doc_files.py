@@ -36,6 +36,12 @@ ILLUSTRATIVE_CHECK_FILES = {
 }
 
 
+#: A fenced block: the fences start a line, the opening one may carry an info string
+#: after the language, and the closing one is alone on its line. The same pattern as
+#: skills `bin/doc-examples`, so the two read the same blocks.
+FENCE = re.compile(r"^```([\w+-]*)[^\n]*\n(.*?)^```[ \t]*$", re.M | re.S)
+
+
 class DocsBlock(NamedTuple):
     """One ```python block of a document, and the output the document shows after it."""
 
@@ -58,7 +64,7 @@ def docs_blocks(documents: list[Path] | None = None) -> list[DocsBlock]:
     found = []
     for path in DOCS if documents is None else documents:
         text = path.read_text(encoding="utf-8")
-        blocks = list(re.finditer(r"```(\w*)\n(.*?)```", text, re.S))
+        blocks = list(FENCE.finditer(text))
         for index, block in enumerate(blocks):
             if block.group(1) != "python":
                 continue
