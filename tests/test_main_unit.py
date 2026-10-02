@@ -195,7 +195,7 @@ def test_the_rules_table_prints_one_row_per_rule_not_per_code(fresh_registry: No
 
     out = run(capsys, "--rules-table")
     rules = out.split("== Rules")[1].split("== Registry")[0]
-    assert "codes_hit_count" in rules
+    assert "code_count" in rules
     assert rules.count("suppress_email_checks_for_test_accounts") == 1
     # The same rule, twice in the registry table: once per code it can reach.
     registry = out.split("== Registry")[1].split("== Report")[0]

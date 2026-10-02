@@ -137,7 +137,7 @@ def test_rules_table_is_one_row_per_rule(fresh_registry: None) -> None:
                                          a_rule("two", action="enable")])
     assert list(table["name"]) == ["one", "two"]
     assert list(table["action"]) == ["disable", "enable"]
-    assert list(table["codes_hit_count"]) == [2, 1]
+    assert list(table["code_count"]) == [2, 1]
 
 
 def test_match_all_renders_as_all(fresh_registry: None) -> None:
@@ -199,5 +199,5 @@ def test_the_rules_table_is_data_and_prints_nothing(
     table = views.rules_table(reg.load_rules([str(path)]))
     assert capsys.readouterr().out == ""
     assert list(table["name"]) == ["off_everywhere"]
-    assert list(table.columns) == ["name", "action", "codes_hit_count", "codes", "match", "message",
+    assert list(table.columns) == ["name", "action", "code_count", "codes", "match", "message",
                                    "source_file"]
