@@ -95,7 +95,7 @@ def test_the_csv_report_format_is_selectable() -> None:
     output unparseable, so `table_text` writes one for the table only."""
 
     out = run_cli("examples/main.py", "--report", "csv").stdout
-    assert "row,code,status,layer,outcome" in out
+    assert "id,code,status,layer,outcome" in out
     assert "== Report" not in out
 
 

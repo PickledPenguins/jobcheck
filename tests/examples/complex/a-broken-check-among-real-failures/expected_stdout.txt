@@ -1,14 +1,14 @@
 == Report ==
-                                                status  layer  outcome                                   message                                                   detail                                  comments  is_root_cause
-row carrier    code                                                                                                                                                                                                               
-S3             CARRIER_KNOWN                 ERROR (9)      0  errored                  check raised; see detail  AttributeError: 'float' object has no attribute 'upper'                                                     True
-S4             CARRIER_KNOWN                 ERROR (9)      0  errored                  check raised; see detail  AttributeError: 'float' object has no attribute 'upper'                                                    False
-               DELIVERED_BEFORE_SHIPPED    INVALID (3)      2   failed           Delivered before it was shipped                                                           shipped=2024-03-09; delivered=2024-03-01           True
-S5  Royal Mail CARRIER_KNOWN               INVALID (3)      0   failed           Carrier is not one we ship with                                                                                 carrier=Royal Mail           True
-S6  FedEx      TRACKING_MATCHES_CARRIER    INVALID (3)      1   failed  Tracking number does not fit the carrier                                                                expected_prefix=FX; tracking=JD0006           True
-               SHIPPED_NOT_A_DATE        MALFORMED (2)      1   failed        Ship date is not a YYYY-MM-DD date                                                                                   value=2024-02-30           True
-S7             CARRIER_KNOWN                 ERROR (9)      0  errored                  check raised; see detail  AttributeError: 'float' object has no attribute 'upper'                                                    False
-               SHIPPED_PRESENT             MISSING (1)      0   failed                      Ship date is missing                                                                                                              True
+                                               status  layer  outcome                                   message                                                   detail                                  comments  is_root_cause
+id carrier    code                                                                                                                                                                                                               
+S3            CARRIER_KNOWN                 ERROR (9)      0  errored                  check raised; see detail  AttributeError: 'float' object has no attribute 'upper'                                                     True
+S4            CARRIER_KNOWN                 ERROR (9)      0  errored                  check raised; see detail  AttributeError: 'float' object has no attribute 'upper'                                                    False
+              DELIVERED_BEFORE_SHIPPED    INVALID (3)      2   failed           Delivered before it was shipped                                                           shipped=2024-03-09; delivered=2024-03-01           True
+S5 Royal Mail CARRIER_KNOWN               INVALID (3)      0   failed           Carrier is not one we ship with                                                                                 carrier=Royal Mail           True
+S6 FedEx      TRACKING_MATCHES_CARRIER    INVALID (3)      1   failed  Tracking number does not fit the carrier                                                                expected_prefix=FX; tracking=JD0006           True
+              SHIPPED_NOT_A_DATE        MALFORMED (2)      1   failed        Ship date is not a YYYY-MM-DD date                                                                                   value=2024-02-30           True
+S7            CARRIER_KNOWN                 ERROR (9)      0  errored                  check raised; see detail  AttributeError: 'float' object has no attribute 'upper'                                                    False
+              SHIPPED_PRESENT             MISSING (1)      0   failed                      Ship date is missing                                                                                                              True
 
 == Summary ==
                     code  layer  failed  root_cause_rows  errored  skipped  disabled  shared  passed

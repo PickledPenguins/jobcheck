@@ -420,20 +420,20 @@ print(report[["outcome", "detail"]].to_string())
 ```
 
 ```
-                          outcome                                          detail
-row dirname code                                                                 
-J1  alpha   VAL_IN_RANGE   failed                                                
-            BASE_EXISTS    passed                                                
-            CHILD_EXISTS   passed                                                
-    alpha2  VAL_IN_RANGE   shared  failed at position 0, the first row with id J1
-            BASE_EXISTS    failed                                                
-            CHILD_EXISTS  skipped          prerequisite did not pass: BASE_EXISTS
-    beta    VAL_IN_RANGE   shared  failed at position 0, the first row with id J1
-            BASE_EXISTS    passed                                                
-            CHILD_EXISTS   passed                                                
-J2  beta    VAL_IN_RANGE   passed                                                
-            BASE_EXISTS    passed                                                
-            CHILD_EXISTS   passed                                                
+                         outcome                                          detail
+id dirname code                                                                 
+J1 alpha   VAL_IN_RANGE   failed                                                
+           BASE_EXISTS    passed                                                
+           CHILD_EXISTS   passed                                                
+   alpha2  VAL_IN_RANGE   shared  failed at position 0, the first row with id J1
+           BASE_EXISTS    failed                                                
+           CHILD_EXISTS  skipped          prerequisite did not pass: BASE_EXISTS
+   beta    VAL_IN_RANGE   shared  failed at position 0, the first row with id J1
+           BASE_EXISTS    passed                                                
+           CHILD_EXISTS   passed                                                
+J2 beta    VAL_IN_RANGE   passed                                                
+           BASE_EXISTS    passed                                                
+           CHILD_EXISTS   passed                                                
 ```
 
 - **A check marked `repeat=True` runs on every copy,** and so does every check that

@@ -1,4 +1,4 @@
-row,source_system,record_type,age,code,status,layer,outcome,message,detail,comments,is_root_cause
+id,source_system,record_type,age,code,status,layer,outcome,message,detail,comments,is_root_cause
 102,MODERN,BATCH,-5,AGE_NEGATIVE,INVALID (3),2,failed,Age is negative,,value=-5.0; minimum=0,False
 102,MODERN,BATCH,-5,DATES_OUT_OF_ORDER,INVALID (3),1,failed,start_date is after end_date,,start_date=2024-05-01; end_date=2024-03-01,True
 102,MODERN,BATCH,-5,EMAIL_DOMAIN_INVALID,MALFORMED (2),2,failed,Email domain looks malformed,,domain=example,False

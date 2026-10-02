@@ -1,4 +1,4 @@
-row,run_dir,code,status,layer,outcome,message,detail,comments,is_root_cause
+id,run_dir,code,status,layer,outcome,message,detail,comments,is_root_cause
 J2,runs/r2,OUTPUT_SHARED,INVALID (3),1,failed,Another job writes the same output,,"writers=J2,J5",True
 J3,runs/r3,INPUT_EMPTY,INVALID (3),3,failed,Input file is empty,,bytes=0,True
 J4,runs/r4,RUN_DIR_EXISTS,MISSING (1),1,failed,Run directory does not exist,,run_dir=runs/r4,True

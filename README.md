@@ -72,7 +72,7 @@ print(build_report(outcomes, df=df, key_column="id").to_string())
 
 ```
                              status  layer outcome           message detail                comments  is_root_cause
-row code                                                                                                          
+id  code                                                                                                          
 102 AGE_NEGATIVE        INVALID (3)      2  failed   Age is negative          value=-5.0; minimum=0           True
 103 EMAIL_MISSING_AT  MALFORMED (2)      1  failed  Email has no '@'         at_signs=0; value=nope           True
 104 AGE_PRESENT         MISSING (1)      0  failed    Age is missing                                          True
@@ -81,7 +81,7 @@ row code
 - One line per failure, not one per row; a row's failures hang under its key.
 - Every table the library builds is a DataFrame that carries its own title;
   `table.to_string()` prints it, and `table.to_csv("file.csv")` writes it, the
-  report's `row` and `code` on every line. The other tables take `index=False`.
+  report's key (`id` here, after `key_column`) and `code` on every line. The other tables take `index=False`.
 - `add_columns=[...]` adds columns from the frame next to the row key.
 - `include="root_causes"` keeps only what to read first on each row.
 

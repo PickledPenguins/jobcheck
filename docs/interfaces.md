@@ -68,12 +68,12 @@ Each returns warning lines and raises nothing; an empty list means no problem.
 **Reporting**
 
 Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
-(`to_string()`, `to_csv()`). The report is indexed by `row`, the added columns and
+(`to_string()`, `to_csv()`). The report is indexed by the row key, the added columns and
 `code`, and keeps that index; the others drop their plain one with `index=False`.
 
 | Name | Required | Optional (default) | Returns | What it does |
 |---|---|---|---|---|
-| [`build_report`](#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | `frame_outcomes`, `df` | `key_column=None`, `add_columns=None`, `include="failures"` | DataFrame `Report` | The long-format report: one line per outcome per data row, indexed by `row`, the `add_columns`, then `code`. `key_column` labels rows (default: the index); `add_columns` copies frame columns in; `include` is `"root_causes"`, `"failures"`, `"blocked"` or `"all"`. |
+| [`build_report`](#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | `frame_outcomes`, `df` | `key_column=None`, `add_columns=None`, `include="failures"` | DataFrame `Report` | The long-format report: one line per outcome per data row, indexed by the row key, the `add_columns`, then `code`. `key_column` labels rows and names the key level (default: the index, named `row`); `add_columns` copies frame columns in; `include` is `"root_causes"`, `"failures"`, `"blocked"` or `"all"`. |
 | [`explain_row`](#explain_rowframe_outcomes-position---dataframe) | `frame_outcomes`, `position` | – | DataFrame `Row explanation` | Every check on the data row at `position`, in evaluation order: `layer`, `code`, `outcome`, `status`, `detail`. Runs nothing. |
 | [`summarize_outcomes`](#summarize_outcomesframe_outcomes---dataframe) | `frame_outcomes` | – | DataFrame `Summary` | Per-check counts across all rows: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `shared`, `passed`. Takes `validate`'s result, or any iterable of its rows. |
 | [`registry_table`](#registry_tablerulesnone---dataframe) | – | `rules=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `repeat`, `message`, `depends_on`, `source_file`, and from `rules`, `could_be_overridden_by`. |
@@ -445,8 +445,10 @@ once, raises `ValueError`; without it the frame's index labels the rows.
 `add_columns` copies frame columns into the report; a name not in the frame, named
 twice, or colliding with one of the report's own columns raises `ValueError`.
 
-The report is indexed by `row`, then the `add_columns` in the order given, then
-`code`. `to_string()` prints a row's labels once and hangs its lines beneath them;
+The report is indexed by the row key -- a level named after `key_column`, or `row`
+when the frame's index is the key -- then the `add_columns` in the order given, then
+`code`. A `key_column` named like one of the report's own columns raises `ValueError`:
+`key_column 'code' would head the report's key, but the report already has a column of that name (code, status, layer, outcome, message, detail, comments, is_root_cause). Copy the column under another name and pass that.` `to_string()` prints a row's labels once and hangs its lines beneath them;
 `to_csv()` writes every label on every line; `reset_index()` makes them plain
 columns. Two data rows with the same label print as one block, so a `key_column`
 that is not unique reads as one row in the terminal.

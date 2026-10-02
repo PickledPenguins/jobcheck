@@ -1,4 +1,4 @@
-row,dirname,code,status,layer,outcome,message,detail,comments,is_root_cause
+id,dirname,code,status,layer,outcome,message,detail,comments,is_root_cause
 J2,gamma,VAL_IN_RANGE,INVALID (3),0,failed,val is outside 0 to 10,,val=50,True
 J2,gamma2,BASE_EXISTS,MISSING (1),1,failed,Run directory does not exist,,,True
 J3,delta,CHILD_EXISTS,MISSING (1),2,failed,Child directory does not exist,,child=delta/delta,True

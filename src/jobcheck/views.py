@@ -129,7 +129,9 @@ def build_report(
     include: str = "failures",
 ) -> pd.DataFrame:
     """Build the long-format report: one line per included outcome, in
-    evaluation order, indexed by `row`, the `add_columns` and `code`.
+    evaluation order, indexed by the row key, the `add_columns` and `code`. The
+    key level is named after `key_column`, or `row` when the frame's index is the
+    key, so a CSV reader can tell an id from a position.
 
     The index is what makes a row's lines hang together: printed, a repeated
     `row` and added value show once, on the row's first line. Two data rows
@@ -152,17 +154,23 @@ def build_report(
         )
     wanted = _included(include)
     add_columns = list(add_columns or [])
+    row_labels = _row_labels(df, key_column)
+    key = "row" if key_column is None else key_column
+    if key in _REPORT_COLUMNS[1:]:
+        raise ValueError(
+            f"key_column {key_column!r} would head the report's key, but the report "
+            f"already has a column of that name ({', '.join(_REPORT_COLUMNS[1:])}). "
+            "Copy the column under another name and pass that.")
 
     # A column is on offer when its name appears exactly once -- a duplicated
     # label would hand back a table rather than a column -- and would not collide
-    # with one the report writes itself. It is asked for by name as text and read
-    # by the frame's own label, which may be a number.
+    # with one the report writes itself, the key included. It is asked for by name
+    # as text and read by the frame's own label, which may be a number.
     names = [str(column) for column in df.columns]
+    taken = {*_REPORT_COLUMNS, str(key)}
     available = {name: column for name, column in zip(names, df.columns)
-                 if names.count(name) == 1 and name not in _REPORT_COLUMNS}
+                 if names.count(name) == 1 and name not in taken}
     _reject_unknown_columns(add_columns, list(available), "the report")
-
-    row_labels = _row_labels(df, key_column)
     added = _added_values(df, [available[name] for name in add_columns], add_columns,
                           len(frame_outcomes))
 
@@ -176,7 +184,7 @@ def build_report(
                 continue
             rows.append(
                 {
-                    "row": label,
+                    key: label,
                     **context,
                     "code": outcome.code,
                     "status": _render_status(outcome.status),
@@ -188,9 +196,9 @@ def build_report(
                     "is_root_cause": outcome.code in causes,
                 }
             )
-    # `row` first and the added columns straight after it, so a reader meets the
-    # identity and its context before the outcome.
-    index = ["row", *add_columns, "code"]
+    # The key first and the added columns straight after it, so a reader meets
+    # the identity and its context before the outcome.
+    index = [key, *add_columns, "code"]
     report = pd.DataFrame(rows, columns=[*index, *_REPORT_COLUMNS[2:]]).set_index(index)
     report.attrs["title"] = "Report"
     return report

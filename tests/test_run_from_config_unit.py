@@ -59,8 +59,8 @@ def test_the_shipped_run_prints_its_four_tables_in_order(fresh_registry: None,
     assert headings == ["== Rules ==", "== Registry ==", "== Report ==", "== Summary =="]
     # The shipped file's column choices reached the report.
     report = out.split("== Report")[1].split("== Summary")[0]
-    # The column headings, then the index's: row, the added name, code.
-    assert report.splitlines()[2].split() == ["row", "name", "code"]
+    # The column headings, then the index's: the key, the added name, code.
+    assert report.splitlines()[2].split() == ["id", "name", "code"]
     assert "comments" not in report and "detail" not in report
     assert "could_be_overridden_by" in out
 

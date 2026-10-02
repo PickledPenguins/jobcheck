@@ -48,8 +48,9 @@ def outcomes(df: pd.DataFrame = FRAME) -> list[list[res.CheckOutcome]]:
 
 
 def build(*args: Any, **kwargs: Any) -> pd.DataFrame:
-    """The report with its index made columns again, `row` first: most tests
-    read `row` and `code` as columns. The index itself is tested on its own."""
+    """The report with its index made columns again, the row key first: most
+    tests read the key and `code` as columns. The index itself is tested on its
+    own."""
 
     return views.build_report(*args, **kwargs).reset_index()
 
@@ -87,9 +88,9 @@ def test_validate_can_be_made_fatal_on_a_raising_check(fresh_registry: None) -> 
 
 def test_the_report_has_one_row_per_failure(two_layers: None) -> None:
     report = build(outcomes(), df=FRAME, key_column="id")
-    assert tuple(report.columns) == views._REPORT_COLUMNS
+    assert tuple(report.columns) == ("id", *views._REPORT_COLUMNS[1:])
     assert list(report["code"]) == ["AGE_IN_RANGE", "AGE_PRESENT"]
-    assert list(report["row"]) == ["102", "103"]
+    assert list(report["id"]) == ["102", "103"]
 
 
 def test_a_clean_frame_produces_an_empty_report_with_columns(two_layers: None) -> None:
@@ -99,7 +100,7 @@ def test_a_clean_frame_produces_an_empty_report_with_columns(two_layers: None) -
 
 
 def test_the_report_carries_status_layer_and_comments(two_layers: None) -> None:
-    report = build(outcomes(), df=FRAME, key_column="id").set_index("row")
+    report = build(outcomes(), df=FRAME, key_column="id").set_index("id")
     row = report.loc["102"]
     assert row["status"] == "INVALID (3)"
     assert row["layer"] == 1
@@ -162,7 +163,7 @@ def test_rows_without_a_key_column_are_labeled_by_index(two_layers: None) -> Non
 def test_a_missing_key_value_is_labeled_rather_than_rendered_as_nan(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": None, "age": -5}])
     report = build(validate(frame), df=frame, key_column="id")
-    assert list(report["row"]) == ["<no key>"]
+    assert list(report["id"]) == ["<no key>"]
 
 
 def test_without_a_frame_rows_are_numbered_by_position(two_layers: None) -> None:
@@ -174,7 +175,7 @@ def test_a_whole_float_key_loses_its_decimal(two_layers: None) -> None:
 
     frame = pd.DataFrame([{"id": 102.0, "age": -5}])
     report = build(validate(frame), df=frame, key_column="id")
-    assert list(report["row"]) == ["102"]
+    assert list(report["id"]) == ["102"]
 
 
 def test_an_unknown_key_column_is_rejected(two_layers: None) -> None:
@@ -192,14 +193,14 @@ def test_a_frame_of_the_wrong_length_is_rejected(two_layers: None) -> None:
 
 def test_extra_columns_sit_between_the_row_key_and_the_code(two_layers: None) -> None:
     report = build(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
-    assert tuple(report.columns) == ("row", "age", *views._REPORT_COLUMNS[1:])
+    assert tuple(report.columns) == ("id", "age", *views._REPORT_COLUMNS[1:])
 
 
 def test_extra_columns_keep_the_order_they_were_given(two_layers: None) -> None:
     frame = pd.DataFrame([{"id": 1, "age": -5, "batch": "B1", "region": "EU"}])
     report = build(validate(frame), df=frame, key_column="id",
                               add_columns=["region", "batch"])
-    assert list(report.columns)[:3] == ["row", "region", "batch"]
+    assert list(report.columns)[:3] == ["id", "region", "batch"]
 
 
 def test_a_data_column_repeats_on_every_failure_of_its_row(two_layers: None) -> None:
@@ -221,7 +222,7 @@ def test_data_column_values_render_like_the_row_key(two_layers: None) -> None:
 
 def test_extra_columns_reach_the_csv_too(two_layers: None) -> None:
     report = build(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
-    assert report.to_csv(index=False).splitlines()[0].startswith("row,age,code")
+    assert report.to_csv(index=False).splitlines()[0].startswith("id,age,code")
 
 
 def test_extra_columns_work_without_a_key_column(two_layers: None) -> None:
@@ -284,12 +285,27 @@ def test_a_data_column_colliding_with_a_report_column_is_rejected(two_layers: No
                          add_columns=["code"])
 
 
-def test_the_key_column_may_also_be_shown_as_a_data_column(two_layers: None) -> None:
-    """Nothing stops it, and it is a reasonable thing to want when the key is
-    also a value worth reading."""
+def test_the_key_level_is_named_after_the_key_column(two_layers: None) -> None:
+    """A CSV reader can then tell an id from a position; `row` is left for the
+    frame's own index."""
 
-    report = build(outcomes(), df=FRAME, key_column="id", add_columns=["id"])
-    assert list(report["row"]) == list(report["id"])
+    report = views.build_report(outcomes(), df=FRAME, key_column="id")
+    assert report.index.names[0] == "id"
+    assert views.build_report(outcomes(), df=FRAME).index.names[0] == "row"
+
+
+def test_the_key_column_is_not_offered_again_as_a_data_column(two_layers: None) -> None:
+    """It already heads the report under its own name; a second copy would be a
+    level with the same name and the same values."""
+
+    with pytest.raises(ValueError, match=r"add_columns \['id'\] cannot be used"):
+        build(outcomes(), df=FRAME, key_column="id", add_columns=["id"])
+
+
+def test_a_key_column_named_like_a_report_column_is_refused(fresh_registry: None) -> None:
+    frame = pd.DataFrame([{"code": "SOURCE-1", "age": -5}])
+    with pytest.raises(ValueError, match=r"key_column 'code' would head the report's key"):
+        build(validate(frame), df=frame, key_column="code")
 
 
 def test_include_skipped_adds_the_blocked_checks_with_their_reason(two_layers: None) -> None:
@@ -340,7 +356,7 @@ def test_every_table_carries_its_own_title(two_layers: None) -> None:
 
 def test_the_title_survives_selecting_and_filtering(two_layers: None) -> None:
     report = build(outcomes(), df=FRAME, key_column="id")
-    narrowed = report[report["code"] == "AGE_PRESENT"][["row", "code"]]
+    narrowed = report[report["code"] == "AGE_PRESENT"][["id", "code"]]
     assert narrowed.attrs["title"] == "Report"
 
 
@@ -513,7 +529,7 @@ def test_a_single_key_column_may_hold_the_separator(fresh_registry: None) -> Non
     make_check("FAILS", passes=False)
     frame = pd.DataFrame([{"k1": "a|b"}])
     report = build(validate(frame), df=frame, key_column="k1")
-    assert list(report["row"]) == ["a|b"]
+    assert list(report["k1"]) == ["a|b"]
 
 
 def test_an_unknown_include_level_names_the_levels(two_layers: None) -> None:
@@ -543,7 +559,7 @@ def test_the_report_hangs_a_rows_lines_from_its_first(two_layers: None) -> None:
 
     report = views.build_report(outcomes(), df=FRAME, key_column="id", include="all",
                                 add_columns=["age"])
-    assert list(report.index.names) == ["row", "age", "code"]
+    assert list(report.index.names) == ["id", "age", "code"]
     printed = report[["outcome"]].to_string().splitlines()
     assert printed[2].split() == ["101", "34", "AGE_PRESENT", "passed"]
     assert printed[3].split() == ["AGE_IN_RANGE", "passed"]
@@ -554,7 +570,7 @@ def test_the_report_hangs_a_rows_lines_from_its_first(two_layers: None) -> None:
 def test_an_empty_report_keeps_its_index_and_columns(two_layers: None) -> None:
     report = views.build_report(outcomes(), df=FRAME, include="root_causes",
                                 key_column="id", add_columns=["age"]).iloc[:0]
-    assert list(report.index.names) == ["row", "age", "code"]
+    assert list(report.index.names) == ["id", "age", "code"]
     clean = views.build_report(validate(FRAME.head(1)), df=FRAME.head(1))
     assert clean.empty
     assert list(clean.index.names) == ["row", "code"]
@@ -575,13 +591,13 @@ def test_a_frame_offering_no_extra_columns_says_so(fresh_registry: None) -> None
 
 
 def test_the_report_shows_its_default_columns_in_their_order(two_layers: None) -> None:
-    report = build(outcomes(), df=FRAME, key_column="id")
+    report = build(outcomes(), df=FRAME)
     assert list(report.columns) == list(views._REPORT_COLUMNS)
 
 
 def test_added_columns_follow_row(two_layers: None) -> None:
     report = build(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
-    assert list(report.columns) == ["row", "age", *views._REPORT_COLUMNS[1:]]
+    assert list(report.columns) == ["id", "age", *views._REPORT_COLUMNS[1:]]
 
 
 def test_dropping_a_column_with_pandas_keeps_the_title(two_layers: None) -> None:

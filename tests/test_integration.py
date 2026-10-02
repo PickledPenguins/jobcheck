@@ -116,7 +116,7 @@ def test_a_written_report_reads_back_as_a_frame(example_checks: None, tmp_path: 
     path.write_text(report.to_csv(), encoding="utf-8")
     written = pd.read_csv(path)
     assert list(written.columns) == list(report.reset_index().columns)
-    assert list(written["row"]) == [3, 3, 3]
+    assert list(written["id"]) == [3, 3, 3]
     assert list(written["code"]) == ["AGE_NEGATIVE", "DATES_OUT_OF_ORDER", "EMAIL_MISSING_AT"]
     # Lines keep evaluation order; the flag marks every failure at the shallowest
     # failing layer. Here that is DATES_OUT_OF_ORDER and EMAIL_MISSING_AT, both at
