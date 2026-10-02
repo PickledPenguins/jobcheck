@@ -77,6 +77,26 @@ def test_a_block_runs_in_the_world_the_documents_assume(
     assert "```\n6 6 3\n```" in path.read_text(encoding="utf-8")
 
 
+def test_the_readme_runs_as_one_session_and_stops_at_a_block_that_raises(
+    regen: ModuleType, fresh_registry: None, tmp_path: Path, monkeypatch: Any, capsys: Any,
+) -> None:
+    """A later block reads a name an earlier one defined, as in test_readme.py; a
+    block that raises keeps its output, and the blocks after it are not run."""
+
+    path = tmp_path / "README.md"
+    path.write_text("```python\nx = 2\n```\n\n```python\nprint(x * 3)\n```\n\n```\nstale\n```\n\n"
+                    "```python\nraise ValueError('broken')\n```\n\n"
+                    "```python\nprint(x)\n```\n\n```\nkept\n```\n", encoding="utf-8")
+    monkeypatch.setattr(regen, "README", path)
+    monkeypatch.setattr(regen, "readme_session", lambda: regen.docs_blocks([path]))
+    assert regen.regenerate([path]) == 1
+    assert path.read_text(encoding="utf-8").count("```\n6\n```") == 1
+    assert "```\nkept\n```" in path.read_text(encoding="utf-8")
+    captured = capsys.readouterr()
+    assert captured.out == "README.md:6: rewritten\n"
+    assert captured.err == "README.md:14: raised ValueError: broken\n"
+
+
 def test_a_name_on_the_command_line_selects_the_documents(
     regen: ModuleType, monkeypatch: Any,
 ) -> None:
@@ -90,10 +110,13 @@ def test_a_name_on_the_command_line_selects_the_documents(
 
     monkeypatch.setattr(regen, "regenerate", record)
     monkeypatch.setattr(regen, "DOCS", [Path("docs/cli.md"), Path("docs/reporting.md")])
+    monkeypatch.setattr(regen, "README", Path("README.md"))
     assert regen.main(["reporting"]) == 0
     assert chosen[0] == [Path("docs/reporting.md")]
+    assert regen.main(["README"]) == 0
+    assert chosen[1] == [Path("README.md")]
     assert regen.main([]) == 0
-    assert chosen[1] == [Path("docs/cli.md"), Path("docs/reporting.md")]
+    assert chosen[2] == [Path("docs/cli.md"), Path("docs/reporting.md"), Path("README.md")]
 
 
 def test_a_name_matching_no_document_is_refused(
@@ -103,7 +126,8 @@ def test_a_name_matching_no_document_is_refused(
 
     monkeypatch.setattr(regen, "regenerate", lambda documents: pytest.fail("ran"))
     monkeypatch.setattr(regen, "DOCS", [Path("docs/cli.md"), Path("docs/reporting.md")])
+    monkeypatch.setattr(regen, "README", Path("README.md"))
     assert regen.main(["reporting", "nosuchdoc"]) == 2
     assert capsys.readouterr().err == (
-        "regen_docs: no document under docs/ matches nosuchdoc "
-        "(documents: cli.md, reporting.md)\n")
+        "regen_docs: no document under docs/ or the README matches nosuchdoc "
+        "(documents: cli.md, reporting.md, README.md)\n")
