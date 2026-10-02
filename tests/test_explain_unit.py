@@ -330,11 +330,14 @@ def test_root_cause_ignores_disabled_and_skipped_outcomes(fresh_registry: None) 
     assert first_cause(engine._explain(ROW)) == "FAILS"
 
 
-def test_an_errored_outcome_carries_the_layer_and_the_message(fresh_registry: None) -> None:
+def test_an_errored_outcome_carries_the_layer_and_a_pointer_to_detail(
+        fresh_registry: None) -> None:
     """An errored outcome is a reportable failure like any other, so it has to
-    carry what the report and the root-cause rule read: its layer, and the
-    check's message. Mutation found only its `detail` under test, and a check
-    that raised at the wrong layer changes which code a row reports as its cause.
+    carry what the report and the root-cause rule read: its layer, and a message.
+    The message is a fixed pointer to `detail`, not the check's own message, which
+    would claim a verdict on data the check never finished reading. Mutation found
+    only its `detail` under test, and a check that raised at the wrong layer
+    changes which code a row reports as its cause.
     """
 
     make_check("BASE")
@@ -342,7 +345,7 @@ def test_an_errored_outcome_carries_the_layer_and_the_message(fresh_registry: No
     outcome = next(o for o in engine._explain(ROW) if o.code == "RAISES")
     assert outcome.outcome == Outcome.ERRORED
     assert outcome.layer == 1
-    assert outcome.message == "RAISES failed"
+    assert outcome.message == "check raised; see detail"
     assert outcome.status == Status.ERROR
     assert outcome.detail == "RuntimeError: boom"
 

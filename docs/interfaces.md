@@ -129,7 +129,8 @@ What the engine recorded for one check on one row: `code` (the check code),
 `INVALID (3)`. `detail` explains the four non-evaluating outcomes: which rule
 disabled it, which prerequisites blocked it, what it raised, or, for `shared`, what it
 did on the copy that ran it and where that copy is. A `shared` outcome's status is `PASS`, as
-for `skipped` and `disabled`, and it has no message or comments.<sup>[1](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
+for `skipped` and `disabled`, and it has no message or comments. An `errored` outcome's
+`message` is the fixed text `check raised; see detail`, not the check's message.<sup>[1](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
 
 ### `Outcome`
 
