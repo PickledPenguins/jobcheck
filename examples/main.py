@@ -35,6 +35,7 @@ from jobcheck import (
     summarize_outcomes,
     validate,
 )
+from jobcheck.views import INCLUDE_LEVELS
 
 #: The check files this entry point runs. Named one by one, rather than
 #: discovered, so a second entry point in the same tree can run a different set.
@@ -75,6 +76,10 @@ def build_parser() -> argparse.ArgumentParser:
                              "Pass --rules with no paths to apply none.")
     parser.add_argument("--report", choices=("table", "csv"), default="table",
                         help="Report format (default table).")
+    parser.add_argument("--include", choices=tuple(INCLUDE_LEVELS), default="failures",
+                        help="Which lines the report keeps: each row's root causes, "
+                             "its failures (the default), those plus the checks they "
+                             "blocked, or every check.")
     parser.add_argument("--explain", type=int, metavar="ROW",
                         help="Print what every check did on one row, by position, and exit.")
     parser.add_argument("--summary", action="store_true",
@@ -233,7 +238,7 @@ def main(argv: list[str] | None = None) -> None:
     print(table_text(registry_table(rules=rules).drop(columns=["source_file"])))
 
     print()
-    report = build_report(outcomes, df=df, key_column=KEY_COLUMN)
+    report = build_report(outcomes, df=df, key_column=KEY_COLUMN, include=args.include)
     print(table_text(report, fmt=args.report))
 
     if args.write is not None:
