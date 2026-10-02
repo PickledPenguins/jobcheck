@@ -209,6 +209,16 @@ removed or would remove. The pass should apply the same rule as the code review:
 test earns its place by guarding core behavior a user relies on, and what it costs to
 keep is weighed. Not yet surveyed.
 
+**A run file cannot explain a row** (F.88, medium; from the friction log written while
+building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
+offers the registry, rules, report and summary tables, but not the row
+explanation, which only `main.py --explain` prints -- and `main.py` runs the four shipped
+check files. So a catalog case with its own checks cannot show why a check did not fire;
+a `report` table with `include: blocked` is the nearest substitute. The fix sketched at
+triage: an `explain` entry in the run file's table list taking a row position, about 15 lines and a
+catalog case. Held here by the owner's choice rather than built with the rest of the
+triage.
+
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
 builder's required keyword-only parameter is refused at setup), F.33 (two exports with
@@ -218,6 +228,59 @@ F.34 (merging the column validators) and F.35 (moving the setup schema out of th
 registry).
 
 ## Considered and deliberately not done
+
+The friction log written while building the complex catalog cases
+(`.agent/example-pain-points.md`) was triaged on 2026-10-02 and deleted. Its entries
+already closed (root causes, F.47; a raising builder, F.46; `warn_blocking_rules`; the
+counts `doc-counts` now rewrites; F.55) were dropped; what was built is in the git log;
+F.88 is open above; the rest was declined, below.
+
+**Rules cannot say "optional here"** (F.89, declined 2026-10-02). A rule can only disable
+a check, and disabling a presence check blocks its whole chain, so a rule meant as "a
+blank age is fine for these rows" also lets `-3` and `forty` through. A third action
+(`pass`: record the check as passed so its dependents run) would let a non-developer say
+it, but it widens the rule schema, which `__init__.py` declares permanent. The fix stays
+in Python -- the presence check reads the column that decides -- and
+`warn_blocking_rules` names every rule that disables a check with dependents. Reopen if
+rule authors keep meeting it.
+
+**Transitive reach in the registry and rules tables** (F.90, declined 2026-10-02).
+`could_be_overridden_by` and `code_count` count the codes a rule names, not the checks
+below them that the rule blocks on the same rows. One graph walk would add them, but
+`warn_blocking_rules` already says which rules block a chain, and the columns would stop
+matching what the rule file says.
+
+**A context builder from the shipped entry points** (F.91, declined 2026-10-02). Neither
+`main.py` nor the run file can pass one, so the job-manifest catalog case carries its own
+script. Naming a builder in the run file (`module:function`) would add run-file schema
+and an import path to a demo; a builder is Python, and the case's own script is the
+example of it. F.72 covers showing the builder in use.
+
+**A check declaring the context type it expects** (F.92, declined for now 2026-10-02).
+Forgetting `context_builder` hands every row the bare `RowContext`, and every
+context-taking check errors on every row. `register_check(..., context=JobContext)`
+with `validate` refusing a mismatched builder once would catch it up front, but it is
+new public API; the troubleshooting entry in `writing-checks.md` covers the symptom.
+Reopen, with a survey, if it bites again.
+
+**Typing `context` in a check's signature** (F.93, declined 2026-10-02). A check taking
+`(row, context)` sees `RowContext` statically, so `context.run_dir` is unknown to mypy
+unless the author annotates `context: JobContext`. That is the author's convention, as
+with any Python callback; nothing in the library can know the subclass.
+
+**Generating the catalog README's list of covered dimensions** (F.94, declined
+2026-10-02). `tests/examples/README.md` lists by hand what the cases cover and is edited
+per new kind of case. A generated list would cost more than the occasional edit.
+
+**A stop-at-the-first-broken-check flag on the entry points** (F.95, declined
+2026-10-02). The entry points now warn and exit 3 when a check raised; an
+`--on-error raise` flag would add a traceback the recorded `detail` already summarizes.
+
+**`explain_row` taking a row key** (F.96, declined 2026-10-02). The report is keyed by
+label and `explain_row` by position. The README now shows the bridge,
+`build_report(..., include="all").loc[key]` with the key as text, which already explains
+a row by its key;
+a second way into the same view is not worth the API. Decide again with F.63.
 
 **A float status is not refused** (F.83, cut on 2026-10-01). `Verdict(3.0)` is read as
 `INVALID`, because `Status` is an `IntEnum`. A status is expected to be an `int` (or a
