@@ -122,14 +122,14 @@ print(summarize_outcomes(outcomes).to_string(index=False))
 
 ```
                 code  layer  failed  root_cause_rows  errored  skipped  disabled  shared  passed
-        AGE_NEGATIVE      2       1                1        0        1         0       0       1
          AGE_PRESENT      0       1                1        0        0         0       0       2
     EMAIL_MISSING_AT      1       1                1        0        0         0       0       2
+        AGE_NEGATIVE      2       1                1        0        1         0       0       1
+       EMAIL_PRESENT      0       0                0        0        0         0       0       3
     AGE_NOT_A_NUMBER      1       0                0        0        1         0       0       2
+     AGE_NOT_INTEGER      2       0                0        0        0         3       0       0
         AGE_TOO_HIGH      2       0                0        0        1         0       0       2
 EMAIL_DOMAIN_INVALID      2       0                0        0        1         0       0       2
-     AGE_NOT_INTEGER      2       0                0        0        0         3       0       0
-       EMAIL_PRESENT      0       0                0        0        0         0       0       3
 ```
 
 Checks are loaded by path: `load_checks(paths)` imports the named `.py` files —

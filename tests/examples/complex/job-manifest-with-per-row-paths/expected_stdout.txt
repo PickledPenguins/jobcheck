@@ -10,9 +10,9 @@ J8,runs/r2,INPUT_PRESENT,MISSING (1),0,failed,Input file name is blank,,,True
 
 code,layer,failed,root_cause_rows,errored,skipped,disabled,shared,passed
 OUTPUT_SHARED,1,2,2,0,1,0,0,5
-INPUT_EMPTY,3,1,1,0,4,0,0,3
-INPUT_EXISTS,2,1,0,0,3,0,0,4
-RUN_DIR_EXISTS,1,1,1,0,1,0,0,6
 INPUT_PRESENT,0,1,1,0,0,0,0,7
 OUTPUT_PRESENT,0,1,1,0,0,0,0,7
 RUN_DIR_PRESENT,0,1,1,0,0,0,0,7
+RUN_DIR_EXISTS,1,1,1,0,1,0,0,6
+INPUT_EMPTY,3,1,1,0,4,0,0,3
+INPUT_EXISTS,2,1,0,0,3,0,0,4
