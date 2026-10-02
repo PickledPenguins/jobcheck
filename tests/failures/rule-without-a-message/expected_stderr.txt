@@ -1,1 +1,1 @@
-ValueError: rule 'no_email_checks_for_test_accounts' in tests/failures/rule-without-a-message/rules.yaml: 'message' must be the text saying why the rule exists, got None. It is printed beside the rule wherever the rules are listed.
+error: rule 'no_email_checks_for_test_accounts' in tests/failures/rule-without-a-message/rules.yaml: 'message' must be the text saying why the rule exists, got None. It is printed beside the rule wherever the rules are listed.

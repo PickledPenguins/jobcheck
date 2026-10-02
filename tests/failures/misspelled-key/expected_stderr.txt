@@ -1,1 +1,1 @@
-ValueError: rule 'legacy_rows_get_the_integer_check' in tests/failures/misspelled-key/rules.yaml: unknown key(s) 'codez'. Allowed: 'action', 'codes', 'match', 'message', 'name'.
+error: rule 'legacy_rows_get_the_integer_check' in tests/failures/misspelled-key/rules.yaml: unknown key(s) 'codez'. Allowed: 'action', 'codes', 'match', 'message', 'name'.

@@ -48,7 +48,12 @@ def main(argv: list[str] | None = None) -> None:
 
     args = build_parser().parse_args(argv)
 
-    load_checks([args.bundle])
+    # Exit 2 with one line, as the other entry points do for a file they cannot load.
+    try:
+        load_checks([args.bundle])
+    except (ValueError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from None
     print(table_text(registry_table()))
 
 

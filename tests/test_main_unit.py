@@ -15,6 +15,7 @@ import pytest
 
 import main
 from conftest import PROJECT_ROOT
+from jobcheck import CheckOutcome, Outcome, Status
 
 pytestmark = pytest.mark.fast
 
@@ -69,6 +70,24 @@ def test_explain_past_the_end_exits_two(fresh_registry: None, capsys: Any) -> No
         main.main(["--explain", "99"])
     assert raised.value.code == 2
     assert "outside the frame's 6 row(s)" in capsys.readouterr().err
+
+
+def test_a_run_where_a_check_raised_warns_and_exits_three(capsys: Any) -> None:
+    """Counted over every row: the warning says how many check runs broke."""
+
+    broken = CheckOutcome("BROKEN", Outcome.ERRORED, status=Status.ERROR)
+    passed = CheckOutcome("FINE", Outcome.PASSED)
+    with pytest.raises(SystemExit) as raised:
+        main.exit_if_a_check_raised([[broken, passed], [passed], [broken]])
+    assert raised.value.code == 3
+    assert capsys.readouterr().err == (
+        "warning: 2 check run(s) raised; see the errored lines\n")
+
+
+def test_a_run_where_nothing_raised_carries_on(capsys: Any) -> None:
+    failed = CheckOutcome("BAD_DATA", Outcome.FAILED, status=Status.INVALID)
+    main.exit_if_a_check_raised([[failed], []])
+    assert capsys.readouterr().err == ""
 
 
 def test_a_csv_file_is_validated_instead_of_the_demo_frame(fresh_registry: None,

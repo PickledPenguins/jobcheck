@@ -3,4 +3,4 @@
 One mistake, one message.
 
 Input:    `no_such_file.yaml`
-Expected: exit 1 with a `ValueError` naming the path and the absolute path it was resolved to
+Expected: exit 2 with an `error:` line naming the path and the absolute path it was resolved to

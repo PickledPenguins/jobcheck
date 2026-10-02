@@ -3,4 +3,4 @@
 One mistake, one message.
 
 Input:    `match: []`
-Expected: exit 1: an empty list is far likelier to be an omission than a deliberate wildcard
+Expected: exit 2: an empty list is far likelier to be an omission than a deliberate wildcard

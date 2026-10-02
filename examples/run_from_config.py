@@ -51,7 +51,7 @@ from jobcheck import (  # noqa: E402
     warn_missing_rule_columns,
     warn_shadowed_rules,
 )
-from main import load_frame, table_text  # noqa: E402
+from main import exit_if_a_check_raised, load_frame, table_text  # noqa: E402
 
 #: The run file loaded when the command line names none.
 DEFAULT_RUN = os.path.join(PROJECT_ROOT, "examples/run.yaml")
@@ -252,7 +252,10 @@ def main(argv: list[str] | None = None) -> None:
     document = read_run_file(run_file)
     here = os.path.dirname(os.path.abspath(run_file))
 
-    rules = load_setup(os.path.join(here, document["setup"]))
+    try:
+        rules = load_setup(os.path.join(here, document["setup"]))
+    except (ValueError, OSError, yaml.YAMLError) as exc:
+        fail(run_file, str(exc))
     df = load_frame(os.path.join(here, document["data"]))
     for warning in warn_missing_rule_columns(df, rules):
         print(f"warning: {warning}", file=sys.stderr)
@@ -268,6 +271,7 @@ def main(argv: list[str] | None = None) -> None:
     except ValueError as exc:
         fail(run_file, str(exc))
     sys.stdout.write(buffer.getvalue())
+    exit_if_a_check_raised(outcomes)
 
 
 if __name__ == "__main__":

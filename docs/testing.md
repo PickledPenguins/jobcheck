@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 838 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 840 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 276 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1114 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1116 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -289,7 +289,7 @@ rewritten. What they were:
   under test; `depends_on=[""]` was accepted, an empty code being a typo rather
   than a check with no name; and the required-keyword-argument message lists two
   arguments comma-separated, which one argument cannot show.
-- **`explain_row`, four.** An `errored` outcome carries a layer and the check's
+- **`explain_row`, four.** An `errored` outcome carries a layer and a
   message as well as its detail, and nothing asserted either. The layer is what
   decides which code a row reports as its root cause, so a check that raised at
   the wrong layer changes the answer rather than the wording.
