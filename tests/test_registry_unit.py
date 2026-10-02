@@ -31,6 +31,15 @@ def test_register_check_defaults_are_enabled_with_no_dependencies(fresh_registry
     assert (check.default_enabled, check.depends_on) == (True, [])
 
 
+def test_register_check_called_bare_is_on_by_default_and_does_not_repeat(
+    fresh_registry: None,
+) -> None:
+    # make_check passes both arguments, so only a direct call sees the defaults.
+    reg.register_check("BARE", "m")(lambda row: OK)
+    check = reg._CHECKS[0]
+    assert (check.default_enabled, check.repeat) == (True, False)
+
+
 def test_register_check_returns_the_undecorated_function(fresh_registry: None) -> None:
     @reg.register_check(code="RETURNED", message="m")
     def check(row: "pd.Series[Any]") -> Verdict:

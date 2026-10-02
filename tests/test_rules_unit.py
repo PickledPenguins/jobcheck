@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +40,20 @@ def write(tmp_path: Path, name: str, text: str) -> str:
 @pytest.fixture
 def one_code(fresh_registry: None) -> None:
     make_check("A_CODE")
+
+
+def test_a_rule_file_is_read_as_utf8_under_an_ascii_locale(tmp_path: Path) -> None:
+    # In a C locale with Python's UTF-8 mode off, open() without an encoding
+    # reads ASCII, and a rule message in any other script would not decode.
+    path = write(tmp_path, "rules.yaml", GLOBAL_DISABLE.replace("why the rule exists", "café"))
+    script = ("from jobcheck import OK, load_rules, register_check\n"
+              "register_check('A_CODE', 'm')(lambda row: OK)\n"
+              f"print(ascii(load_rules([{path!r}])[0].message))\n")
+    env = {**os.environ, "LC_ALL": "C", "PYTHONUTF8": "0", "PYTHONCOERCECLOCALE": "0",
+           "PYTHONPATH": os.path.join(PROJECT_ROOT, "src")}
+    completed = subprocess.run([sys.executable, "-c", script], cwd=PROJECT_ROOT, env=env,
+                               capture_output=True, text=True, timeout=120)
+    assert (completed.returncode, completed.stdout) == (0, "'caf\\xe9'\n"), completed.stderr
 
 
 def test_rule_fields_are_parsed(one_code: None, tmp_path: Path) -> None:
