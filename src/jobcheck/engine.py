@@ -42,11 +42,8 @@ def _resolve_enabled_state(
     matching rule wins, which is why the order rule files load in matters.
     """
 
-    enabled_by_code = {
-        check.code: (check.default_enabled,
-                     "default" if check.default_enabled else "off by default")
-        for check in _CHECKS
-    }
+    # The reason is read only for a disabled check: "disabled by default".
+    enabled_by_code = {check.code: (check.default_enabled, "default") for check in _CHECKS}
     for rule in rules:
         if not _rule_matches(rule, row):
             continue
