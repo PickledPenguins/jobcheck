@@ -61,8 +61,62 @@ def test_a_duplicate_code_names_what_registered_it(fresh_registry: None) -> None
     with pytest.raises(ValueError) as raised:
         reg.register_check(code="TAKEN", message="m")(lambda row: True)
     assert "Duplicate check code 'TAKEN' (registering " in message_of(raised)
+    assert "; already registered from " in message_of(raised)
     assert message_of(raised).endswith(
-        "Codes are permanent identifiers and must be unique.")
+        "Codes are permanent identifiers and must be unique. If both are the same file, "
+        "an earlier load of it failed part-way and left its checks registered: call "
+        "clear_registry() before loading it again.")
+
+
+_HALF = '''
+from jobcheck import OK, register_check
+
+@register_check("HALF_A", "first")
+def half_a(row):
+    return OK
+
+{second}
+'''
+
+
+def test_reloading_a_file_that_failed_part_way_names_it_and_the_remedy(
+    fresh_registry: None, tmp_path: Path,
+) -> None:
+    """The retry a notebook user makes after fixing the file: the first check is
+    still registered, so the message must say where from and what to do."""
+
+    path = tmp_path / "check_half.py"
+    path.write_text(_HALF.format(second="raise RuntimeError('typo')"), encoding="utf-8")
+    with pytest.raises(RuntimeError):
+        reg.load_checks([str(path)])
+    path.write_text(_HALF.format(second=""), encoding="utf-8")
+    with pytest.raises(ValueError) as raised:
+        reg.load_checks([str(path)])
+    assert f"already registered from {path}" in message_of(raised)
+    assert "call clear_registry() before loading it again" in message_of(raised)
+    reg.clear_registry()
+    reg.load_checks([str(path)])
+    assert [check.code for check in reg._CHECKS] == ["HALF_A"]
+
+
+def test_reloading_a_fixed_cycle_says_the_file_is_skipped(
+    fresh_registry: None, tmp_path: Path,
+) -> None:
+    path = tmp_path / "check_loop.py"
+    cycle = ('from jobcheck import OK, register_check\n'
+             '@register_check("LOOP_A", "a", depends_on=["LOOP_B"])\n'
+             'def a(row):\n    return OK\n'
+             '@register_check("LOOP_B", "b", depends_on={deps})\n'
+             'def b(row):\n    return OK\n')
+    path.write_text(cycle.format(deps='["LOOP_A"]'), encoding="utf-8")
+    with pytest.raises(ValueError) as raised:
+        reg.load_checks([str(path)])
+    assert message_of(raised) == (
+        "Dependency cycle among checks: LOOP_A -> LOOP_B -> LOOP_A. " + reg._RELOAD_HINT)
+    path.write_text(cycle.format(deps="[]"), encoding="utf-8")
+    reg.clear_registry()
+    reg.load_checks([str(path)])
+    assert sorted(check.code for check in reg._CHECKS) == ["LOOP_A", "LOOP_B"]
 
 
 def test_a_string_depends_on_explains_why_it_is_wrong(fresh_registry: None) -> None:

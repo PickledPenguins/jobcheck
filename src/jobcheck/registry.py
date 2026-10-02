@@ -79,6 +79,12 @@ _TOPO_ORDER: list[_Check] | None = None
 # would share a number.
 _LOAD_SEQUENCE = 0
 
+# For an error found after a file was recorded as loaded: the file is fixed, but
+# loading it again is a no-op, so the old error comes back until this is followed.
+_RELOAD_HINT = ("Correcting an already-loaded file does not take effect, because "
+                "load_checks skips a path it has already read -- call clear_registry() "
+                "first, then load again.")
+
 
 def _name_of(fn: CheckFn) -> str:
     """What to call the thing being registered, in a message. A plain function
@@ -170,10 +176,15 @@ def _reject_bad_registration(
         raise ValueError(f"Check code must be a non-empty string, got {code!r}.")
     if not isinstance(message, str) or not message:
         raise ValueError(f"Check {code!r}: message must be the text a person sees on failure.")
-    if any(check.code == code for check in _CHECKS):
+    existing = next((check for check in _CHECKS if check.code == code), None)
+    if existing is not None:
+        # A file whose import failed part-way is not recorded as loaded, but the
+        # checks it registered first stay: loading it again meets its own codes.
         raise ValueError(
-            f"Duplicate check code {code!r} (registering {where}). "
-            "Codes are permanent identifiers and must be unique."
+            f"Duplicate check code {code!r} (registering {where}; already registered "
+            f"from {existing.source_file}). Codes are permanent identifiers and must be "
+            "unique. If both are the same file, an earlier load of it failed part-way "
+            "and left its checks registered: call clear_registry() before loading it again."
         )
     if not isinstance(prerequisites, list) or not all(
         isinstance(prerequisite, str) and prerequisite for prerequisite in prerequisites
@@ -344,7 +355,8 @@ def _topological_order() -> list[_Check]:
             return
         if code in visiting_set:
             cycle = visiting[visiting.index(code):] + [code]
-            raise ValueError("Dependency cycle among checks: " + " -> ".join(cycle))
+            raise ValueError("Dependency cycle among checks: " + " -> ".join(cycle) + ". "
+                             + _RELOAD_HINT)
         visiting.append(code)
         visiting_set.add(code)
         for prerequisite in by_code[code].depends_on:
@@ -393,7 +405,7 @@ def _validate_registry() -> None:
             f"ordering walk is recursive and gives out near Python's recursion limit "
             f"of {sys.getrecursionlimit()} (widest declared depends_on: {widest}). "
             "Shorten the chain, or register prerequisites before the checks that "
-            "depend on them."
+            "depend on them. " + _RELOAD_HINT
         ) from None
     by_code = {check.code: check for check in _CHECKS}
     for check in order:

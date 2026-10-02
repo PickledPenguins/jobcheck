@@ -520,7 +520,7 @@ the call named.
 |---|---|
 | `register_check` | `Check code must be a non-empty string, got <code>.` |
 | `register_check` | `Check '<code>': message must be the text a person sees on failure.` |
-| `register_check` | `Duplicate check code '<code>' (registering <module>.<function>). Codes are permanent identifiers and must be unique.` |
+| `register_check` | `Duplicate check code '<code>' (registering <module>.<function>; already registered from <path>). Codes are permanent identifiers and must be unique. If both are the same file, an earlier load of it failed part-way and left its checks registered: call clear_registry() before loading it again.` |
 | `register_check` | `Check '<code>': depends_on must be a list of check codes, got '<text>'. A bare string is a list of its characters, which is never what you meant.` |
 | `register_check` | `Check '<code>': default_enabled must be True or False, got <value>.` |
 | `register_check` | `Check '<code>': repeat must be True or False, got <value>.` |
@@ -530,8 +530,8 @@ the call named.
 | `load_checks` | `load_checks takes a list of paths, not one string: pass ['<path>']. A bare string would be read as a list of its characters.` |
 | `load_checks` | `Cannot import '<path>' as a Python file.` |
 | `load_checks`, and the first run after a registration | `Check '<code>' depends on '<prerequisite>', which is not registered. Either the code is a typo, or it lives in a check file that was not loaded (currently loaded: <files>). Loading the missing file works; correcting an already-loaded one does not, because load_checks skips a path it has already read -- call clear_registry() first.` |
-| the same | `Dependency cycle among checks: A -> B -> A` |
-| the same | `Dependency chain too deep to resolve among <n> checks: the ordering walk is recursive and gives out near Python's recursion limit of <limit> (widest declared depends_on: <n>). Shorten the chain, or register prerequisites before the checks that depend on them.` |
+| the same | `Dependency cycle among checks: A -> B -> A. Correcting an already-loaded file does not take effect, because load_checks skips a path it has already read -- call clear_registry() first, then load again.` |
+| the same | `Dependency chain too deep to resolve among <n> checks: the ordering walk is recursive and gives out near Python's recursion limit of <limit> (widest declared depends_on: <n>). Shorten the chain, or register prerequisites before the checks that depend on them. Correcting an already-loaded file does not take effect, because load_checks skips a path it has already read -- call clear_registry() first, then load again.` |
 | `validate` | `on_error must be 'record' or 'raise', got '<value>'.` |
 | `validate` | `Row has duplicate column labels <labels>: a check reading one of them would be handed a Series instead of a value. Rename or drop the duplicate columns before validating.` |
 | `validate` | `validate takes a DataFrame, got <type>; for one row, pass row.to_frame().T.` |
