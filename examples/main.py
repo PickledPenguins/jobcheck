@@ -213,11 +213,11 @@ def main(argv: list[str] | None = None) -> None:
             print(f"error: --explain {args.explain} is outside the frame's {len(df)} row(s)",
                   file=sys.stderr)
             raise SystemExit(2)
-        print(table_text(explain_row(outcomes, args.explain)))
-        row = slice(args.explain, args.explain + 1)
-        causes = build_report(outcomes[row], df[row], include="root_causes")
-        print("root cause:", ", ".join(causes.index.get_level_values("code")) or "none")
-        exit_if_a_check_raised(outcomes[row])
+        explanation = explain_row(outcomes, args.explain)
+        print(table_text(explanation))
+        causes = explanation.loc[explanation["is_root_cause"], "code"]
+        print("root cause:", ", ".join(causes) or "none")
+        exit_if_a_check_raised(outcomes[args.explain:args.explain + 1])
         return
 
     if args.rules_table:

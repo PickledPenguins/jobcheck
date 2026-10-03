@@ -1,16 +1,16 @@
 Loaded 3 rule(s) from 1 file(s)
 
 == Row explanation ==
- layer                 code  outcome   status                                                     detail
-     0         ROW_ALL_NULL   passed PASS (0)                                                          -
-     0          AGE_PRESENT   passed PASS (0)                                                          -
-     1     AGE_NOT_A_NUMBER   passed PASS (0)                                                          -
-     2         AGE_NEGATIVE   passed PASS (0)                                                          -
-     2         AGE_TOO_HIGH   passed PASS (0)                                                          -
-     2      AGE_NOT_INTEGER disabled PASS (0)      disabled by rule 'disable_age_integer_check_globally'
-     0        DATES_PRESENT   passed PASS (0)                                                          -
-     1   DATES_OUT_OF_ORDER   passed PASS (0)                                                          -
-     0        EMAIL_PRESENT   passed PASS (0)                                                          -
-     1     EMAIL_MISSING_AT disabled PASS (0) disabled by rule 'suppress_email_checks_for_test_accounts'
-     2 EMAIL_DOMAIN_INVALID disabled PASS (0) disabled by rule 'suppress_email_checks_for_test_accounts'
+                code   status  layer  outcome message                                                     detail comments  is_root_cause
+        ROW_ALL_NULL PASS (0)      0   passed                                                                                      False
+         AGE_PRESENT PASS (0)      0   passed                                                                                      False
+    AGE_NOT_A_NUMBER PASS (0)      1   passed                                                                                      False
+        AGE_NEGATIVE PASS (0)      2   passed                                                                                      False
+        AGE_TOO_HIGH PASS (0)      2   passed                                                                                      False
+     AGE_NOT_INTEGER PASS (0)      2 disabled              disabled by rule 'disable_age_integer_check_globally'                   False
+       DATES_PRESENT PASS (0)      0   passed                                                                                      False
+  DATES_OUT_OF_ORDER PASS (0)      1   passed                                                                                      False
+       EMAIL_PRESENT PASS (0)      0   passed                                                                                      False
+    EMAIL_MISSING_AT PASS (0)      1 disabled         disabled by rule 'suppress_email_checks_for_test_accounts'                   False
+EMAIL_DOMAIN_INVALID PASS (0)      2 disabled         disabled by rule 'suppress_email_checks_for_test_accounts'                   False
 root cause: none

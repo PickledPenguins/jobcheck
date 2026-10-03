@@ -122,22 +122,22 @@ The demo frame's fifth row holds nothing but its `id`. In a fresh process, again
 shipped age checks and no rules:
 
 ```python
-from jobcheck import build_report, explain_row, load_checks, validate
+from jobcheck import explain_row, load_checks, validate
 
 load_checks(["examples/checks/check_age.py"])
 outcomes = validate(df)
-print(explain_row(outcomes, 4).to_string(index=False))
-causes = build_report(outcomes[4:5], df=df[4:5], include="root_causes")
-print("root cause:", ", ".join(causes.index.get_level_values("code")))
+explanation = explain_row(outcomes, 4)
+print(explanation.to_string(index=False))
+print("root cause:", ", ".join(explanation.loc[explanation["is_root_cause"], "code"]))
 ```
 
 ```
- layer             code  outcome      status                                      detail
-     0      AGE_PRESENT   failed MISSING (1)                              Age is missing
-     1 AGE_NOT_A_NUMBER  skipped    PASS (0)      prerequisite did not pass: AGE_PRESENT
-     2     AGE_NEGATIVE  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
-     2     AGE_TOO_HIGH  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
-     2  AGE_NOT_INTEGER disabled    PASS (0)                         disabled by default
+            code      status  layer  outcome        message                                      detail comments  is_root_cause
+     AGE_PRESENT MISSING (1)      0   failed Age is missing                                                                True
+AGE_NOT_A_NUMBER    PASS (0)      1  skipped                     prerequisite did not pass: AGE_PRESENT                   False
+    AGE_NEGATIVE    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                   False
+    AGE_TOO_HIGH    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                   False
+ AGE_NOT_INTEGER    PASS (0)      2 disabled                                        disabled by default                   False
 root cause: AGE_PRESENT
 ```
 
@@ -146,6 +146,8 @@ instead.<sup>[7](configuration.md#precedence-last-rule-wins)</sup>
 
 `explain_row` takes the position in the frame, 0 for the first row, and shows every
 check on it, passes included; it reads `validate`'s result and runs nothing again.
+Its columns are the report's without `row`, each meaning the same thing: the lines
+are the row's lines of `build_report(include="all")`.
 Reading order is evaluation order, so every `skipped` line names what blocked it.
 `include="root_causes"` keeps a row's **shallowest** failures, and there may be more
 than one when a row failed two chains at the same depth. Every failure shown is

@@ -182,20 +182,7 @@ def build_report(
                 continue
             if include == "root_causes" and outcome.code not in causes:
                 continue
-            rows.append(
-                {
-                    key: label,
-                    **context,
-                    "code": outcome.code,
-                    "status": _render_status(outcome.status),
-                    "layer": outcome.layer,
-                    "outcome": outcome.outcome.value,
-                    "message": outcome.message,
-                    "detail": outcome.detail,
-                    "comments": _render_comments(outcome.comments),
-                    "is_root_cause": outcome.code in causes,
-                }
-            )
+            rows.append({key: label, **context, **_line(outcome, causes)})
     # The key first and the added columns straight after it, so a reader meets
     # the identity and its context before the outcome.
     index = [key, *add_columns, "code"]
@@ -204,34 +191,38 @@ def build_report(
     return report
 
 
+def _line(outcome: CheckOutcome, causes: set[str]) -> dict[str, Any]:
+    """One outcome as the report and the row explanation both show it, under
+    `_REPORT_COLUMNS` after `row`; *causes* are the row's root-cause codes."""
+
+    return {
+        "code": outcome.code,
+        "status": _render_status(outcome.status),
+        "layer": outcome.layer,
+        "outcome": outcome.outcome.value,
+        "message": outcome.message,
+        "detail": outcome.detail,
+        "comments": _render_comments(outcome.comments),
+        "is_root_cause": outcome.code in causes,
+    }
+
+
 def explain_row(frame_outcomes: list[list[CheckOutcome]], position: int) -> pd.DataFrame:
     """What every check did to the row at *position* -- counted from 0, as in
     `validate`'s result -- and why: one line per check, in evaluation order.
 
-    `detail` is the one column that says why: the reason a check did not
-    evaluate the row, else the evidence it returned, else its message.
+    The columns are the report's, without `row`, and each means what it means
+    there: the explanation is the row's lines of `build_report(include="all")`.
     """
 
     if not 0 <= position < len(frame_outcomes):
         raise ValueError(
             f"position {position} is not a row: outcomes cover {len(frame_outcomes)} "
             "row(s), numbered from 0.")
-    table = pd.DataFrame(
-        [
-            {
-                "layer": outcome.layer,
-                "code": outcome.code,
-                "outcome": outcome.outcome.value,
-                "status": _render_status(outcome.status),
-                "detail": outcome.detail
-                or _render_comments(outcome.comments)
-                or outcome.message
-                or "-",
-            }
-            for outcome in frame_outcomes[position]
-        ],
-        columns=["layer", "code", "outcome", "status", "detail"],
-    )
+    row_outcomes = frame_outcomes[position]
+    causes = set(_root_causes(row_outcomes))
+    table = pd.DataFrame([_line(outcome, causes) for outcome in row_outcomes],
+                         columns=list(_REPORT_COLUMNS[1:]))
     table.attrs["title"] = "Row explanation"
     return table
 
