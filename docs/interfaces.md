@@ -102,6 +102,9 @@ fixed: these five are the whole of it, and a value outside them is refused.<sup>
 - A check must return a `Verdict`: anything else — a bare bool, a bare `Status`
   value, `None` — raises `TypeError` naming the check, as the engine reads it.
 
+Example: [writing-checks.md: Layering](writing-checks.md#layering-one-problem-one-error),
+one status per depth.
+
 ### `Verdict`
 
 What a check returns. Frozen dataclass: `status: int = Status.PASS`,
@@ -117,6 +120,8 @@ What a check returns. Frozen dataclass: `status: int = Status.PASS`,
 - Construction validates: a value outside `Status` (a string included), `Status.ERROR`
   (the engine's, not a check's), or a non-mapping `comments` raises.<sup>[4](#error-messages)</sup>
 - `OK` is the shared passing result.
+
+Example: [writing-checks.md: The shape of a check](writing-checks.md#the-shape-of-a-check).
 
 ### `CheckOutcome`
 
@@ -135,6 +140,14 @@ for `skipped` and `disabled`, and it has no message or comments. An `errored` ou
 `rule` names the rule that switched the check on or off for the row, enable or
 disable, whatever the outcome; it is `""` where the check's default stood.<sup>[1](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
 
+```python
+# Why nothing fired on the fifth row: each check that never ran, and the rule
+# that decided it, if any.
+for outcome in outcomes[4]:
+    if outcome.outcome in (Outcome.SKIPPED, Outcome.DISABLED):
+        print(outcome.code, outcome.detail, outcome.rule or "(default)")
+```
+
 ### `Outcome`
 
 What happened to a check on a row: `Outcome.PASSED`, `FAILED`, `DISABLED`, `SKIPPED`,
@@ -145,6 +158,9 @@ a check that does not repeat. A
 `AttributeError`. `CheckOutcome` accepts the plain string and refuses one that is
 not an outcome. Write `.value` where the text is wanted: formatting a member prints
 `Outcome.FAILED` on Python 3.11 and later, and `failed` on 3.10.<sup>[5](reporting.md#diagnosing-one-row)</sup>
+
+Example: [reporting.md: Working with the tables](reporting.md#working-with-the-tables),
+selecting rows by outcome.
 
 ### The registry
 
@@ -178,11 +194,21 @@ a check cached on it would reach every later row. Setting one raises
 `__slots__` of its own has a `__dict__` and takes any attribute; one that declares
 `__slots__` takes only those.
 
+Example: [writing-checks.md: Per-row context](writing-checks.md#per-row-context).
+
 ### `Rule`
 
 One loaded rule: `name`, `action`, `codes`, `criteria`, `match_all`, `message`,
 `source_file`. Each of `criteria` has a `column`, the `pattern` as written, and the
 compiled `regex`; its type is internal, because nothing but the rule parser builds one.
+
+```python
+# What each loaded rule does, and on which rows.
+for rule in rules:
+    where = "every row" if rule.match_all else ", ".join(
+        f"{criterion.column} ~ {criterion.pattern}" for criterion in rule.criteria)
+    print(f"{rule.name}: {rule.action} {', '.join(rule.codes)} on {where}")
+```
 
 ## Registering checks
 
@@ -204,6 +230,8 @@ would be handed the context (`def age_below(row, limit=130)`; write `*, limit=13
 use `functools.partial`). A context builder is refused the same way. The `depends_on`
 *codes* are checked later, when the dependency graph is validated, since a prerequisite
 may live in a module not yet imported.<sup>[4](#error-messages)</sup>
+
+Example: [writing-checks.md: The shape of a check](writing-checks.md#the-shape-of-a-check).
 
 ### `load_checks(paths: list[str], base_dir: str | Path | None = None) -> None`
 
@@ -283,6 +311,15 @@ different set between runs, or runs a second entry point in a second process --
 which is what the process-global registry means (see
 [architecture](architecture.md)).
 
+```python
+from jobcheck import clear_registry, load_checks
+
+# A notebook session after editing a check file: load the set again.
+load_checks(["examples/checks/check_age.py"])
+clear_registry()
+load_checks(["examples/checks/check_age.py"])
+```
+
 ## Loading rules
 
 `load_rules(paths, base_dir=None)` takes a list of paths and anchors them
@@ -301,6 +338,8 @@ Load the check files first: a rule naming an unregistered code is an error. See
 
 Which codes a rule touches is `rule.codes`, and as a column,
 `rules_table(rules)["codes"]`.
+
+Example: [writing-checks.md: In a pipeline](writing-checks.md#in-a-pipeline).
 
 ## Loading both at once
 
@@ -334,6 +373,8 @@ this composes them, a bundle calls `load_checks` from inside a check file, and a
 caller holding paths of its own has no file to write. `examples/setup.yaml` is the
 worked example.
 
+Example: [configuration.md: Setup files](configuration.md#setup-files-naming-the-checks-and-the-rules-at-once).
+
 ## Checking rule files
 
 ### `warn_missing_rule_columns(df, rules) -> list[str]`
@@ -341,6 +382,8 @@ worked example.
 One line per rule criterion naming a column the frame lacks — a rule that can
 never fire. Checks are not checked: they read the row themselves, so a missing
 field raises and is recorded as an `ERROR` outcome naming the column.<sup>[12](configuration.md#warnings)</sup>
+
+Example: [writing-checks.md: In a pipeline](writing-checks.md#in-a-pipeline).
 
 ### `warn_shadowed_rules(rules) -> list[str]`
 
@@ -357,6 +400,13 @@ one and decisive for another. Warns rather than raises, like
 rule on purpose, as the precedence demonstration, and
 `python3 examples/main.py --rules-table` prints the warning under the rules table.
 
+```python
+from jobcheck import warn_shadowed_rules
+
+for warning in warn_shadowed_rules(rules):
+    print("warning:", warning)
+```
+
 ### `warn_blocking_rules(rules) -> list[str]`
 
 One line per disable rule and code that other checks depend on, naming every
@@ -369,6 +419,16 @@ another one the same rule disables is not reported again. Reads the registry for
 the dependency graph, so load the checks first; like the other two, it warns rather
 than raises, and `python3 examples/main.py --rules-table` prints it under the rules
 table.<sup>[13](configuration.md#disabling-a-check-disables-what-depends-on-it)</sup>
+
+```python
+from jobcheck import load_checks, load_rules, warn_blocking_rules
+
+# A pipeline's start-up: refuse rule files that would silence checks unasked.
+load_checks(["examples/checks/check_age.py", "examples/checks/check_email.py"])
+problems = warn_blocking_rules(load_rules(["examples/rules/error_rules.yaml"]))
+if problems:
+    raise SystemExit("\n".join(problems))
+```
 
 ## Running checks
 
@@ -431,6 +491,8 @@ naming the position.<sup>[4](#error-messages)</sup> See
 It keeps one outcome per check per row; for a frame where that will not fit in
 memory, validate it in chunks and write each chunk's report out.<sup>[14](reporting.md#cost)</sup>
 
+Example: [reporting.md: The short version](reporting.md#the-short-version).
+
 ## Reporting
 
 Every view is a DataFrame whose `attrs["title"]` names it — `Report`,
@@ -474,6 +536,8 @@ come first: an `errored` outcome counts only on a row with no `failed` one, so a
 broken check never takes the flag from a real failure, and a row whose only problem
 is a broken check is still flagged. A row that passed has none.
 
+Example: [reporting.md: The short version](reporting.md#the-short-version).
+
 ### `explain_row(frame_outcomes, position) -> DataFrame`
 
 One line per check on the data row at `position` (0 for the first) of `validate`'s
@@ -483,6 +547,8 @@ it means there, so the lines equal that row's lines of `build_report(include="al
 Every check is shown, passes included; it reads the outcomes and runs nothing. A
 `position` outside the outcomes raises `ValueError`.
 Titled `Row explanation`.<sup>[5](reporting.md#diagnosing-one-row)</sup>
+
+Example: [reporting.md: Diagnosing one row](reporting.md#diagnosing-one-row).
 
 ### `summarize_outcomes(frame_outcomes) -> DataFrame`
 
@@ -496,6 +562,8 @@ check — an errored check among them on the rows with no data failure, so it ca
 exceed `failed`. Takes `validate`'s result, or any iterable of its rows, and keeps
 only the counts. Titled `Summary`.<sup>[16](reporting.md#diagnosing-a-whole-file)</sup>
 
+Example: [reporting.md: Diagnosing a whole file](reporting.md#diagnosing-a-whole-file).
+
 ### `registry_table(rules=None) -> DataFrame`
 
 One row per check, sorted layer, then code, titled `Registry`. Columns `code`,
@@ -506,16 +574,22 @@ One row per check, sorted layer, then code, titled `Registry`. Columns `code`,
 "was overridden by" — whether a rule fires is a per-row question this table cannot
 answer.<sup>[17](reporting.md#working-with-the-tables)</sup>
 
+Example: [writing-checks.md: Which checks an entry point loads](writing-checks.md#which-checks-an-entry-point-loads).
+
 ### `rules_table(rules) -> DataFrame`
 
 One row per rule, titled `Rules`: `name`, `action`, `code_count`, `codes` (the
 list behind the count), `match`, `message`, `source_file`.
+
+Example: [reporting.md: Working with the tables](reporting.md#working-with-the-tables).
 
 ### `is_null(value) -> bool`
 
 The null check the engine and the tables use — reach for it in your own
 checks too, since `NaN` is truthy and `pd.isna` returns an array for list-like
 values. `None`, `NaN`, `NaT` and `pd.NA` are null; a list or an array never is.<sup>[18](writing-checks.md#reading-a-value-safely)</sup>
+
+Example: [writing-checks.md: Reading a value safely](writing-checks.md#reading-a-value-safely).
 
 ## Error messages
 
