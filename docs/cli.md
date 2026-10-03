@@ -255,6 +255,9 @@ built table with pandas (`table.drop(columns=...)`):
 | `report` | `key_column`, `add_columns`, `drop_columns`, `include`, `format` | `build_report`; `format` is `table` (default) or `csv` |
 | `summary` | none | `summarize_outcomes` |
 
+There is no explain table: a `report` with `include: all` prints every row's
+explanation, the same lines in the same order `main.py --explain` prints for one row.
+
 A rule naming a column the data lacks is warned about on stderr, as `main.py` does.
 
 Every problem with the run file prints `error: <run file>: <what>` to stderr and exits 2,

@@ -293,15 +293,7 @@ null-is-truthy test moved to `test_tables_unit.py`, in-process, where it is the 
 test of `is_null` returning true. `test_differential_jobchain.py` stays whole: it is the
 record of what jobchain relies on, and its overlap with the unit suites is the point.
 
-**A run file cannot explain a row** (F.88, medium; from the friction log written while
-building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
-offers the registry, rules, report and summary tables, but not the row
-explanation, which only `main.py --explain` prints -- and `main.py` runs the four shipped
-check files. So a catalog case with its own checks cannot show why a check did not fire;
-a `report` table with `include: blocked` is the nearest substitute. The fix sketched at
-triage: an `explain` entry in the run file's table list taking a row position, about 15 lines and a
-catalog case. Held here by the owner's choice rather than built with the rest of the
-triage.
+
 
 On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
 demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
@@ -317,7 +309,7 @@ The friction log written while building the complex catalog cases
 (`.agent/example-pain-points.md`) was triaged on 2026-10-02 and deleted. Its entries
 already closed (root causes, F.47; a raising builder, F.46; `warn_blocking_rules`; the
 counts `doc-counts` now rewrites; F.55) were dropped; what was built is in the git log;
-F.88 is open above; the rest was declined, below.
+the rest was declined, below.
 
 **Deleting `scripts/regen_docs.py` for skills `bin/doc-examples`** (F.54, from the
 2026-09-27 commit review; declined 2026-10-02). doc-examples was written to replace the
@@ -352,6 +344,17 @@ runs beside a long-suite run, which passed too. A bound of 1.5 would still catch
 whose cost follows the rows, but not a slide part of the way there; hunting the old
 failure would mean tens of minutes on code that no longer exists. The test is unchanged,
 so a return of the flake shows.
+
+**An `explain` table in the run file** (F.88, from the same friction log; declined
+2026-10-03). `examples/run_from_config.py` prints no row explanation, which only
+`main.py --explain` does, and `main.py` cannot run a case's own checks. The run file
+already has one: `explain_row` is the row's lines of `build_report(include="all")`, and the report
+keeps evaluation order within a row, so a `report` table with `include: all` prints every
+row's explanation, line for line (checked on 2026-10-03 against all 49 rows of
+`examples/data/customers.csv`). An `explain` table would add only the one-row filter, and
+for it a third option type and the run file's first required option, two error messages,
+and two differences from `--explain`: exit 3 counting only the explained row, and the
+`root cause:` line. `docs/cli.md` says where the explanation is instead.
 
 **Rules cannot say "optional here"** (F.89, declined 2026-10-02). A rule can only disable
 a check, and disabling a presence check blocks its whole chain, so a rule meant as "a
