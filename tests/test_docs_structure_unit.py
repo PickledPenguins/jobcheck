@@ -211,10 +211,10 @@ def test_the_documented_suite_sizes_are_the_real_ones() -> None:
     anything compared them with a collection: they are the one documented
     surface nothing else gates."""
 
-    # The long suite's size includes the three property tests, which an
-    # interpreter without hypothesis does not collect at all -- so on that
-    # interpreter the documented number is right and the collection is short by
-    # three. The long suite refuses to run there for the same reason.
+    # The long suite's size includes the property tests, which an interpreter
+    # without hypothesis does not collect at all -- so on that interpreter the
+    # documented number is right and the collection is short by all of them. The
+    # long suite refuses to run there for the same reason.
     pytest.importorskip(
         "hypothesis", reason="the long-suite size counts the property tests"
     )
