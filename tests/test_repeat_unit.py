@@ -162,6 +162,17 @@ def test_a_check_disabled_on_every_copy_reads_as_disabled_on_each(
     assert copy["DIR"].detail == "prerequisite disabled: NAMES"
 
 
+def test_a_shared_line_names_the_rule_that_switched_its_check_on(
+    fresh_registry: None,
+) -> None:
+    make_check("ONCE", default_enabled=False)
+    everywhere = Rule(name="on_everywhere", action="enable", codes=["ONCE"], criteria=[],
+                      match_all=True, message="why the rule exists")
+    copy = by_code(validate(copies(), rules=[everywhere], repeat_key="id")[1])
+    assert copy["ONCE"].outcome is Outcome.SHARED
+    assert copy["ONCE"].rule == "on_everywhere"
+
+
 def test_a_rule_disables_a_shared_check_on_the_copy_it_matches(fresh_registry: None) -> None:
     make_check("ONCE")
     make_check("EACH", repeat=True)

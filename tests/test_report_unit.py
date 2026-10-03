@@ -198,8 +198,12 @@ def test_the_key_column_is_not_offered_again_as_a_data_column(two_layers: None) 
 
 def test_a_key_column_named_like_a_report_column_is_refused(fresh_registry: None) -> None:
     frame = pd.DataFrame([{"code": "SOURCE-1", "age": -5}])
-    with pytest.raises(ValueError, match=r"key_column 'code' would head the report's key"):
+    with pytest.raises(ValueError) as raised:
         build(validate(frame), df=frame, key_column="code")
+    assert str(raised.value) == (
+        "key_column 'code' would head the report's key, but the report already has a "
+        "column of that name (code, status, layer, outcome, message, detail, comments, "
+        "rule, is_root_cause). Copy the column under another name and pass that.")
 
 
 def test_include_skipped_adds_the_blocked_checks_with_their_reason(two_layers: None) -> None:

@@ -91,12 +91,17 @@ def test_registry_table_renders_the_default_as_on_or_off(example_checks: None) -
 def test_registry_table_joins_dependencies_and_dashes_when_there_are_none(
     fresh_registry: None,
 ) -> None:
+    """A dash where a check has no prerequisites and does not repeat; and the
+    message a check was registered with, which a renamed key would leave empty."""
+
     make_check("ROOT")
     make_check("OTHER")
     make_check("LEAF", depends_on=["ROOT", "OTHER"])
     table = views.registry_table().set_index("code")
     assert table.loc["LEAF", "depends_on"] == "ROOT; OTHER"
     assert table.loc["ROOT", "depends_on"] == "-"
+    assert table.loc["ROOT", "repeat"] == "-"
+    assert table.loc["LEAF", "message"] == "LEAF failed"
 
 
 def test_registry_table_of_an_empty_registry_has_columns_and_no_rows(fresh_registry: None) -> None:
