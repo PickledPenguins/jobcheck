@@ -74,8 +74,11 @@ and an enable of a default-on check could not be found at all. `CheckOutcome` no
 empty where the default stood. `detail` is unchanged, `disabled by rule 'name'`
 included. Lost: the old column set and CSV header, so a reader indexing columns by
 position shifts by one, and `rule` is now refused as an `add_columns` or `key_column`
-name. Still open: `prerequisite disabled: X` does not say who disabled X; X's own line
-does. F.69 was built on 2026-10-03, in jobchain: its two unknown-key messages
+name. Declined on 2026-10-03: naming the rule in a dependent's `prerequisite disabled:
+X` too. Every view that shows that line shows X's own `disabled by rule` line for the
+same row (`include: blocked` keeps both, and the explanation lists X first), and
+`warn_blocking_rules` names the rule and what it stops at load, so the copy would say one
+fact twice. F.69 was built on 2026-10-03, in jobchain: its two unknown-key messages
 (`reject_unknown_keys` in `core.py`, the stage check in `pipeline.py`) printed
 Python's list of the keys sorted by value, so a YAML key read as a bool or a number
 beside a misspelled text key raised `TypeError` instead of the error. They now use
