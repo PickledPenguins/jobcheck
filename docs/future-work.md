@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.75. Each is either loud already, or needs the owner's decision.
+left is open below, from F.76. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -98,11 +98,7 @@ a block in `interfaces.md`. A call added to an example only to be counted is wha
 item ruled out. Not done: moving the job-manifest case into `examples/`, the one honest
 way to show a context there.
 
-**`on_error="raise"`** (F.75, low; same review). A few lines in `engine._explain` and
-`validate`, used only by tests. It is the one way to get a traceback
-from a check that raises, since a recorded error keeps only `Type: message`; F.65 asks
-how a raising check's exception should be shown, so decide the two together.
-Recommended at the review: keep.
+
 
 **A full pass over the tests** (F.76, raised by the owner on 2026-09-29). About 6,600
 executable test lines against about 1,100 in `src/`. Several files test the tooling
@@ -243,6 +239,16 @@ report, explanation and CSV prints its lines in evaluation order; it also names 
 backwards. An iterative walk keeping the order saves about 8 lines and reads worse;
 deleting the handler alone turns a chain about 1,000 checks deep into a bare
 `RecursionError`. The recursive walk stays as the clearest form.
+
+**Removing `on_error="raise"`** (F.75, kept by the owner 2026-10-03). Surveyed as
+about -50 lines across `engine.py`, eight test files and five documents, since only
+the tests pass it. Kept: since F.65 a recorded error names the innermost line in the
+check's own file, but raise mode is still the only way to get the whole traceback —
+a helper in another module, the locals, `%debug` or `pdb.pm()` in the check's frame —
+and the only fail-fast run, with the escaping exception noted with its row. Calling
+the registered function on one row gives a traceback too, but only once the row and
+the check are known. It costs two lines in the per-check loop and one validated
+parameter.
 
 **A float status is not refused** (F.83, cut on 2026-10-01). `Verdict(3.0)` is read as
 `INVALID`, because `Status` is an `IntEnum`. A status is expected to be an `int` (or a
