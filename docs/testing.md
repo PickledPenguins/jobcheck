@@ -178,8 +178,8 @@ mutmut show <name>  # the diff for one survivor
 ```
 
 **The floor is 94%, set 2026-09-26 against a measured 95.7%.** The score is detected over
-total: killed, caught by the type check, or timed out. The 96.9% of `c515049` is 2.9
-points, about 43 of its 1,494 mutants, above the floor -- room for a change that adds a
+total: killed, caught by the type check, or timed out. The 97.8% of `cc22f4b` is 3.8
+points, about 56 of its 1,479 mutants, above the floor -- room for a change that adds a
 few untested lines, not for a module losing its tests. Raise it when the score rises and stays there; lower it only with the survivors read
 and recorded below, never to make a run pass.
 
@@ -219,26 +219,41 @@ read `mutmut results` in between as the suite's score.
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
 
-Measured on 2026-10-03 at commit `c515049`, on a clean tree: **1,494 mutants, 1,447
-killed, 47 survived, 0 timeouts — 96.9%**, in about four minutes. That is a record of one
+Measured on 2026-10-03 at commit `cc22f4b`, on a clean tree: **1,479 mutants, 1,446
+killed, 33 survived, 0 timeouts — 97.8%**, in about three minutes. That is a record of one
 commit, not the current score: re-run before quoting a number, and update this paragraph
 with what comes back. Earlier scores, oldest first: 89.2% (2026-09-10), 89.5% (09-11),
-94.6% (09-25), 95.7% (09-26), 96.6% (09-28), 97.1% (10-02). Each run's reading of its
-survivors is in `git log -p docs/testing.md`.
+94.6% (09-25), 95.7% (09-26), 96.6% (09-28), 97.1% (10-02), 96.9% (10-03, before the
+reading below). Each run's reading of its survivors is in `git log -p docs/testing.md`.
 
-Survivors by module at `c515049`: `engine` 16, `views` 12, `registry` 11, `paths` 7,
-`tables` 1. They have not been read one by one since the output modules were merged
-into `views`, so which of them are missing assertions and which are equivalents is not
-known. Two classes recur in every reading so far:
+Survivors by module at `cc22f4b`: `registry` 11, `engine` 10, `paths` 7, `views` 4,
+`tables` 1. All 33 were read on 2026-10-03; the 14 that were missing assertions got them
+in that commit. What is left falls into four classes:
 
-- **Default-argument mutants — unkillable here.** mutmut's trampoline keeps the
+- **Default arguments (10) — unkillable here.** mutmut's trampoline keeps the
   *original* function's defaults and forwards the caller's arguments, so a
   mutated default in the mutant body is never evaluated. Verified by hand on
-  `validate(on_error="XXrecordXX")`, which behaves exactly like the original.
-- **Equivalent mutants.** A change Python or pandas reads the same way: `False` swapped
-  for `None` where the value is only read through `not`, `reset_index(drop=None)`
-  before a column selection that drops the added `index`, `to_csv(index=None)`, the
-  letter case of a codec name.
+  `validate(on_error="XXrecordXX")`, which behaves exactly like the original. The ten:
+  `on_error` of `validate` and `_explain` (4), `default_enabled` and `repeat` of
+  `register_check` (2), `include` of `build_report` (2), `deep` of `construct_mapping`
+  (1), `missing` of `_format_cell` (1).
+- **Equivalent (19).** A change Python, pandas or PyYAML reads the same way: `False`
+  swapped for `None` where the value is only read for truth — `passed[code]` (3),
+  `required=` (1), `itertuples(index=)` (1); the YAML loader passing `deep` as `None` or
+  not at all (4); `itertuples` yielding namedtuples instead of plain tuples, read by
+  position either way (1); the letter case of `"UTF-8"` (1); `getattr(fn, "__module__")`
+  without its fallback, on functions that always have one (1); `clear_registry` leaving
+  `_TOPO_ORDER` as `""`, which orders the empty registry to nothing just as `None` does
+  and is reset by the next registration (1); `_LOAD_SEQUENCE` stepped by −1 or +2, still
+  distinct per load (2); `visiting_set.discard(None)`, harmless because a visited code is
+  in `done`, which is tested first (1); the `default` of the `max` that sizes `widest`,
+  reached only after a `RecursionError`, which an empty registry cannot raise (3).
+- **Python-version only (3).** The `add_note` stand-in for Python 3.10; the suite runs
+  on 3.12, which has the method.
+- **Killable, left (1).** `continue` to `break` after an unhashable YAML key in
+  `_StrictLoader.construct_mapping`: a duplicate after that key goes unreported, but
+  SafeLoader refuses the unhashable key anyway, so the file fails either way and only
+  which of two messages comes first differs.
 
 Writing the message tests found a defect the suite had never noticed:
 `register_check(depends_on="AGE_PRESENT")` did `list(depends_on or [])` before the guard
