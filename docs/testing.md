@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 817 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 281 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1098 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 815 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 217 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 1032 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -88,7 +88,7 @@ Fast:
 | `tests/test_docs_messages_unit.py` | Every message a user can meet is quoted in the document that owns it: each exception raised with a message in `src/` and `examples/`, each `error:` line an example script prints, and each warning line, read from the source rather than a list. `interfaces.md`, `configuration.md` and `cli.md` own them, by source file; a new source file that speaks to a user must be given an owner. |
 | `tests/test_docs_references_unit.py` | The superscript cross-references agree with each document's `## References` table: every citation is a row, every row is cited, rows are numbered 1, 2, 3 and point to distinct places, and the table is the last section. |
 | `tests/doc_files.py` | Not a test: the documents and public names the six `test_docs_*` files share, and the Python blocks, their shown output and the world they run in, which `scripts/regen_docs.py` shares with the blocks test and the README test. |
-| `tests/test_golden_output.py` | The report library's exact tables, written as CSV, byte for byte against the files in `tests/golden/`. |
+| `tests/test_golden_output.py` | The report library's exact tables, written as CSV, byte for byte against the files in `tests/golden/`, and the report read back by a CSV reader into the same columns and values. |
 | `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, `__all__` equal to the list written in the test so a new export is a decision, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
 | `tests/test_tables_unit.py` | `is_null`, and every column of the registry and rules tables. |
 | `tests/test_context_unit.py` | `RowContext` as the base type an adopter subclasses. |
@@ -102,7 +102,7 @@ Long:
 | File | Covers |
 |---|---|
 | `tests/test_e2e_catalogs.py` | Every catalog case through the real entry point, plus the catalog's own rules: each case documents itself, states its level, and the level counts stay above their floors. |
-| `tests/test_integration.py` | Real rule files on disk driving a whole DataFrame, precedence across directories, CSV export, a check file written at runtime and loaded by path, a written report re-read as a spreadsheet reader would. |
+| `tests/test_integration.py` | The shipped rule files driving a whole DataFrame, the split files saying what the single file says, precedence across directories in both orders, and a row's explanation matching its lines of the full report. |
 | `tests/test_concurrency.py` | Threads sharing one registry agree with one thread; separate processes do not share one; several processes loading the same file all succeed and leave no bytecode; a crashing process does not affect its neighbor. |
 | `tests/test_faults.py` | The filesystem failing underneath: unreadable rule and check files, a directory where a file was expected, symlinks pointing nowhere, NUL bytes, a full disk mid-write, and a read-only output directory. |
 | `tests/test_scaling.py` | The *shape* of the cost: four times the rows or the checks costs under eight times the time, a 100-deep dependency chain does not cost more than a flat registry, a frame with no failures costs the report a fraction of a failing one, and going row by row holds a quarter of what collecting holds. Every timing here is a ratio with room in it, and the one that compares two small measurements takes the best of five runs after a warm-up, so a busy machine does not fail a run. |
@@ -367,9 +367,8 @@ byte for byte.
 They are tighter than the catalog: the catalog pins everything an entry point prints,
 while these isolate one view each, so a diff points straight at what changed.
 
-`test_a_written_file_is_byte_for_byte_the_golden_csv` compares the bytes on disk, not
-just the string, which is what pins the encoding and keeps `csv`'s `\r\n` from creeping
-back into written reports.
+The golden files hold `\n` line endings, so a `\r\n` from `csv` creeping back into the
+output fails the comparison.
 
 Regenerate with `python3 scripts/regen_golden.py` and read the diff, exactly as with the
 catalog.

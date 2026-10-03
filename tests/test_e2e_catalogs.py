@@ -55,6 +55,11 @@ def test_every_case_documents_itself(case: Path) -> None:
     expected = readme.split("Expected:", 1)[1]
     assert f"exit {(case / 'exit_code').read_text().strip()}" in expected, (
         f"{case.name}: README's Expected: block does not name the exit code")
+    # An example states its level, since that is how a reader picks one.
+    if case.parent.parent.name == "examples":
+        levels = [level for level in ("simple", "moderate", "complex")
+                  if f"Level:    {level}" in readme]
+        assert len(levels) == 1, f"{case.name}: README needs one 'Level:' line"
 
 
 #: Cases whose recorded output is allowed to match another's, with the reason.
@@ -90,23 +95,13 @@ def test_no_two_cases_record_the_same_output() -> None:
     assert unexpected == [], f"cases recording identical output: {unexpected}"
 
 
-@pytest.mark.parametrize("case", case_dirs("examples"), ids=case_id)
-def test_every_example_states_its_level(case: Path) -> None:
-    """A reader picks a case by how much it does; the level is how they pick."""
-
-    readme = (case / "README.md").read_text(encoding="utf-8")
-    levels = [level for level in ("simple", "moderate", "complex")
-              if f"Level:    {level}" in readme]
-    assert levels, f"{case.name}: README has no 'Level:' line"
-    assert len(levels) == 1
-
-
-def test_the_catalog_has_enough_of_each_level() -> None:
+def test_the_catalogs_keep_their_floors() -> None:
     """Floors on variety, not volume: the catalog is a reference, not a suite.
 
     A reader looking for something close to their own case should find it, which
     needs breadth at every level -- and the complex cases are the ones no unit
-    check replaces, because nothing there is under check on its own.
+    check replaces, because nothing there is under check on its own. Each failure
+    case is a message a user will meet; its count keeps them coming.
     """
 
     counts = {"simple": 0, "moderate": 0, "complex": 0}
@@ -118,11 +113,6 @@ def test_the_catalog_has_enough_of_each_level() -> None:
     assert counts["simple"] >= 15, counts
     assert counts["moderate"] >= 15, counts
     assert counts["complex"] >= 10, counts
-
-
-def test_the_failure_catalog_covers_the_common_mistakes() -> None:
-    """Each of these is a message a user will meet; the count keeps them coming."""
-
     assert len(case_dirs("failures")) >= 15
 
 

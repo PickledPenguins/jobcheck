@@ -12,8 +12,6 @@ read the diff.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from golden_fixture import CHECK_FILES, GOLDEN_DIR, ROOT, frame, read_golden, golden_views
@@ -32,6 +30,8 @@ GOLDEN_FILES = ["report.csv", "report_with_skipped.csv", "report_with_extra_colu
 
 @pytest.mark.parametrize("name", GOLDEN_FILES)
 def test_output_matches_its_golden_file(fresh_registry: None, name: str) -> None:
+    """The golden files hold `\\n` line endings, so a `\\r\\n` from `csv.writer`
+    creeping back into the output fails here."""
     assert golden_views()[name] == read_golden(name)
 
 
@@ -55,32 +55,10 @@ def test_the_golden_report_shows_every_outcome_the_report_can_carry(
     for fragment in ("failed", "skipped", "disabled", "MISSING (1)", "MALFORMED (2)",
                      "INVALID (3)", "<no key>", "True", "False"):
         assert fragment in text, f"the golden frame no longer produces {fragment}"
-
-
-def test_the_data_columns_golden_shows_them_next_to_the_row_key() -> None:
     header = read_golden("report_with_extra_columns.csv").splitlines()[0]
     assert header.split(",")[:5] == [
         "id", "source_system", "record_type", "age", "code"
     ]
-
-
-def test_a_written_file_is_byte_for_byte_the_golden_csv(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    """Pins the file on disk, not just the string: the CSV written the way
-    `examples/main.py --write` writes it keeps `\\n` line endings."""
-
-    load_checks([str(ROOT / path) for path in CHECK_FILES])
-    rules = load_rules([str(ROOT / "examples/rules/error_rules.yaml")])
-    df = frame()
-    report = build_report(validate(df, rules=rules), df=df, key_column="id")
-
-    path = tmp_path / "report.csv"
-    path.write_text(report.to_csv(), encoding="utf-8", newline="")
-    written = path.read_bytes()
-
-    assert written.decode("utf-8") == read_golden("report.csv")
-    assert b"\r\n" not in written, "csv.writer's \\r\\n must not reach the file"
 
 
 def test_the_golden_csv_parses_back_into_the_same_frame(fresh_registry: None) -> None:

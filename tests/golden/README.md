@@ -7,7 +7,7 @@ unrelated output.
 
 | File | What it pins |
 |---|---|
-| `report.csv` | The failure report: column order, quoting, the `<no key>` label, the trailing newline. Also compared against the bytes a written file holds. |
+| `report.csv` | The failure report: column order, quoting, the `<no key>` label, the trailing newline and `\n` line endings, so a `\r\n` from `csv.writer` fails the comparison. Also read back with `pandas.read_csv` into the same columns and values. |
 | `report_with_extra_columns.csv` | `add_columns=[...]`: frame columns placed between `row` and `code`, and how their values read. |
 | `report_with_skipped.csv` | `include="blocked"`, so every outcome the report can carry appears: failed, skipped, disabled, each status, both root-cause values. |
 | `row_explanation.csv` | `explain_row` on the all-null row. |
