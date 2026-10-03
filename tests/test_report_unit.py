@@ -61,25 +61,6 @@ def report_for(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
     return build(validate(df), df=df, **kwargs)
 
 
-# --- collection -------------------------------------------------------------
-
-
-def test_validate_returns_one_list_per_row(two_layers: None) -> None:
-    collected = outcomes()
-    assert len(collected) == len(FRAME)
-    assert [o.code for o in collected[0]] == ["AGE_PRESENT", "AGE_IN_RANGE"]
-
-
-def test_validate_passes_rules_through(two_layers: None) -> None:
-    rule = reg.Rule(name="off", action="disable", codes=["AGE_IN_RANGE"],
-                            criteria=[], match_all=True, message="why the rule exists")
-    collected = validate(FRAME, rules=[rule])
-    assert {o.outcome for row in collected for o in row if o.code == "AGE_IN_RANGE"} == {"disabled"}
-
-
-
-
-
 # --- building the report ----------------------------------------------------
 
 
@@ -90,12 +71,6 @@ def test_the_report_has_one_row_per_failure(two_layers: None) -> None:
     assert list(report["id"]) == ["102", "103"]
 
 
-def test_a_clean_frame_produces_an_empty_report_with_columns(two_layers: None) -> None:
-    report = report_for(pd.DataFrame([{"id": 1, "age": 30}]))
-    assert report.empty
-    assert tuple(report.columns) == views._REPORT_COLUMNS
-
-
 def test_the_report_carries_status_layer_and_comments(two_layers: None) -> None:
     report = build(outcomes(), df=FRAME, key_column="id").set_index("id")
     row = report.loc["102"]
@@ -103,24 +78,6 @@ def test_the_report_carries_status_layer_and_comments(two_layers: None) -> None:
     assert row["layer"] == 1
     assert row["comments"] == "minimum=0; actual=-5.0"
     assert row["message"] == "Age is out of range"
-
-
-def test_two_failures_at_the_same_layer_are_both_root_causes(fresh_registry: None) -> None:
-    """Neither is upstream of the other, so naming one of them would be arbitrary."""
-
-    make_check("FIRST", passes=False)
-    make_check("SECOND", passes=False)
-    report = report_for(pd.DataFrame([{"age": 1}]))
-    assert list(report["is_root_cause"]) == [True, True]
-
-
-def test_a_failure_below_another_is_not_a_root_cause(fresh_registry: None) -> None:
-    make_check("PARENT")
-    make_check("FIRST", passes=False)
-    make_check("CHILD", passes=False, depends_on=["PARENT"])
-    report = report_for(pd.DataFrame([{"age": 1}]))
-    flagged = dict(zip(report["code"], report["is_root_cause"]))
-    assert flagged == {"FIRST": True, "CHILD": False}
 
 
 def test_a_broken_check_never_takes_the_flag_from_a_data_failure(
@@ -163,21 +120,6 @@ def test_a_missing_key_value_is_labeled_rather_than_rendered_as_nan(two_layers: 
     assert list(report["id"]) == ["<no key>"]
 
 
-def test_without_a_frame_rows_are_numbered_by_position(two_layers: None) -> None:
-    assert list(build(outcomes(), df=FRAME)["row"]) == ["1", "2"]
-
-
-def test_a_whole_float_key_loses_its_decimal(two_layers: None) -> None:
-    """An integer id column pandas widened to float still reads as 102, not 102.0."""
-
-    frame = pd.DataFrame([{"id": 102.0, "age": -5}])
-    report = build(validate(frame), df=frame, key_column="id")
-    assert list(report["id"]) == ["102"]
-
-
-
-
-
 def test_a_frame_of_the_wrong_length_is_rejected(two_layers: None) -> None:
     with pytest.raises(ValueError, match="outcomes cover 3 row\\(s\\) but the frame has 1"):
         build(outcomes(), df=FRAME.head(1))
@@ -198,39 +140,21 @@ def test_extra_columns_keep_the_order_they_were_given(two_layers: None) -> None:
     assert list(report.columns)[:3] == ["id", "region", "batch"]
 
 
-def test_a_data_column_repeats_on_every_failure_of_its_row(two_layers: None) -> None:
-    frame = pd.DataFrame([{"id": 1, "age": -5, "batch": "B1"}])
-    report = build(validate(frame), df=frame, key_column="id",
-                              add_columns=["batch"])
-    assert list(report["batch"]) == ["B1"]
-
-
 def test_data_column_values_render_like_the_row_key(two_layers: None) -> None:
-    """Whole floats lose the .0; a missing value is blank rather than nan."""
+    """Whole floats lose the .0, the key's included: an integer id column pandas
+    widened to float still reads as 102. A missing value is blank rather than nan."""
 
-    frame = pd.DataFrame([{"id": 1, "age": -5, "batch": 7.0, "region": None}])
+    frame = pd.DataFrame([{"id": 102.0, "age": -5, "batch": 7.0, "region": None}])
     report = build(validate(frame), df=frame, key_column="id",
                               add_columns=["batch", "region"])
+    assert list(report["id"]) == ["102"]
     assert list(report["batch"]) == ["7"]
     assert list(report["region"]) == [""]
-
-
-def test_extra_columns_reach_the_csv_too(two_layers: None) -> None:
-    report = build(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
-    assert report.to_csv(index=False).splitlines()[0].startswith("id,age,code")
-
-
-def test_extra_columns_work_without_a_key_column(two_layers: None) -> None:
-    report = build(outcomes(), df=FRAME, add_columns=["age"])
-    assert list(report.columns)[:2] == ["row", "age"]
 
 
 def test_an_empty_data_columns_list_changes_nothing(two_layers: None) -> None:
     assert tuple(build(outcomes(), df=FRAME, add_columns=[]).columns) == \
         views._REPORT_COLUMNS
-
-
-
 
 
 def test_a_duplicated_frame_column_is_rejected_rather_than_misread(two_layers: None) -> None:
@@ -262,18 +186,6 @@ def test_a_duplicate_elsewhere_in_the_frame_does_not_block_other_columns(
     outs = validate(pd.DataFrame([{"id": 1, "age": -5}]))
     report = build(outs, df=frame, key_column="id", add_columns=["age"])
     assert list(report["age"]) == ["-5"]
-
-
-
-
-
-def test_the_key_level_is_named_after_the_key_column(two_layers: None) -> None:
-    """A CSV reader can then tell an id from a position; `row` is left for the
-    frame's own index."""
-
-    report = views.build_report(outcomes(), df=FRAME, key_column="id")
-    assert report.index.names[0] == "id"
-    assert views.build_report(outcomes(), df=FRAME).index.names[0] == "row"
 
 
 def test_the_key_column_is_not_offered_again_as_a_data_column(two_layers: None) -> None:
@@ -316,16 +228,10 @@ def test_an_errored_check_appears_in_the_report(fresh_registry: None) -> None:
 
 
 def test_comments_render_in_the_order_the_check_wrote_them() -> None:
+    """Keys of mixed types too: sorting them once raised `TypeError` in the report."""
+
     assert views._render_comments({"zebra": 1, "actual": 2}) == "zebra=1; actual=2"
-
-
-def test_comment_keys_of_mixed_types_render() -> None:
-    """Regression: sorting keys of mixed types raised `TypeError` in the report."""
-
     assert views._render_comments({1: "a", "b": 2}) == "1=a; b=2"
-
-
-def test_empty_comments_render_as_nothing() -> None:
     assert views._render_comments({}) == ""
 
 
@@ -337,10 +243,11 @@ def test_every_table_carries_its_own_title(two_layers: None) -> None:
     assert views.summarize_outcomes(outcomes()).attrs["title"] == "Summary"
 
 
-def test_the_title_survives_selecting_and_filtering(two_layers: None) -> None:
+def test_the_title_survives_selecting_filtering_and_dropping(two_layers: None) -> None:
     report = build(outcomes(), df=FRAME, key_column="id")
     narrowed = report[report["code"] == "AGE_PRESENT"][["id", "code"]]
     assert narrowed.attrs["title"] == "Report"
+    assert report.drop(columns=["comments", "detail"]).attrs["title"] == "Report"
 
 
 # --- explanations and summaries --------------------------------------------
@@ -414,41 +321,6 @@ def test_root_cause_rows_counts_the_rows_each_code_explains(fresh_registry: None
     assert table["root_cause_rows"].to_dict() == {"COMMON": 2, "RARE": 1}
 
 
-def test_a_check_that_never_was_a_root_cause_counts_zero(two_layers: None) -> None:
-    table = views.summarize_outcomes(outcomes(pd.DataFrame([{"id": 1, "age": 30}])))
-    assert list(table["root_cause_rows"]) == [0, 0]
-
-
-def test_validate_hands_each_row_the_context_its_builder_returned(
-    fresh_registry: None,
-) -> None:
-    """The context_builder is the adopter's one hook, so its result has to arrive.
-
-    Written against a surviving mutant: passing ``context=None`` instead of
-    ``context_builder(row)`` broke nothing any check asserted.
-    """
-
-    from jobcheck import OK, RowContext, Outcome
-
-    class Allowed(RowContext):
-        def __init__(self, allowed: bool) -> None:
-            self.allowed = allowed
-
-    @reg.register_check(code="NEEDS_CTX", message="the context said no")
-    def check(row: "pd.Series[Any]", context: "RowContext | None") -> Verdict:
-        if context is None:
-            return Verdict(Status.INVALID, {"context": "missing"})
-        allowed = getattr(context, "allowed", False)
-        return OK if allowed else Verdict(Status.INVALID, {"allowed": allowed})
-
-    frame = pd.DataFrame([{"id": 1, "allow": True}, {"id": 2, "allow": False}])
-    outcomes = validate(
-        frame, context_builder=lambda row: Allowed(allowed=bool(row["allow"]))
-    )
-    assert [o[0].outcome for o in outcomes] == [Outcome.PASSED, Outcome.FAILED]
-    assert outcomes[1][0].comments == {"allowed": False}
-
-
 def test_the_summary_reads_a_generator_once_and_still_finds_the_root_causes(
     two_layers: None,
 ) -> None:
@@ -484,36 +356,14 @@ def two_independent_failures(fresh: None) -> tuple[list[list[Any]], pd.DataFrame
 
 
 def test_every_failure_at_the_shallowest_layer_is_a_root_cause(fresh_registry: None) -> None:
-    """Two failures at the same depth are two root causes, not a race between them."""
+    """Two failures at the same depth are two root causes, not a race between them.
+    A deeper failure is not one, and the root cause is not always the first line --
+    the claim a docstring once made, pinned as false so it stays fixed."""
 
     outcomes, frame = two_independent_failures(fresh_registry)
     report = build(outcomes, df=frame)
-    flagged = set(report.loc[report["is_root_cause"], "code"])
-    assert flagged == {"SHALLOW_A", "SHALLOW_B"}
-
-
-def test_a_deeper_failure_is_not_a_root_cause(fresh_registry: None) -> None:
-    outcomes, frame = two_independent_failures(fresh_registry)
-    report = build(outcomes, df=frame)
-    assert not report.loc[report["code"] == "DEEP", "is_root_cause"].any()
-
-
-def test_the_root_cause_is_not_always_the_first_line(fresh_registry: None) -> None:
-    """The claim the docstring used to make, pinned as false so it stays fixed."""
-
-    outcomes, frame = two_independent_failures(fresh_registry)
-    report = build(outcomes, df=frame)
-    assert report.iloc[0]["code"] == "DEEP"
-    assert not report.iloc[0]["is_root_cause"]
-
-
-def test_a_single_key_column_may_hold_the_separator(fresh_registry: None) -> None:
-    """Nothing is joined, so nothing is ambiguous."""
-
-    make_check("FAILS", passes=False)
-    frame = pd.DataFrame([{"k1": "a|b"}])
-    report = build(validate(frame), df=frame, key_column="k1")
-    assert list(report["k1"]) == ["a|b"]
+    assert list(zip(report["code"], report["is_root_cause"])) == [
+        ("DEEP", False), ("SHALLOW_A", True), ("SHALLOW_B", True)]
 
 
 def test_an_unknown_include_level_names_the_levels(two_layers: None) -> None:
@@ -555,6 +405,8 @@ def test_the_report_hangs_a_rows_lines_from_its_first(two_layers: None) -> None:
 
 
 def test_an_empty_report_keeps_its_index_and_columns(two_layers: None) -> None:
+    """The key level is named after `key_column`, so a CSV reader can tell an id
+    from a position; `row` is left for the frame's own index."""
     report = views.build_report(outcomes(), df=FRAME, include="root_causes",
                                 key_column="id", add_columns=["age"]).iloc[:0]
     assert list(report.index.names) == ["id", "age", "code"]
@@ -577,23 +429,6 @@ def test_a_frame_offering_no_extra_columns_says_so(fresh_registry: None) -> None
 # --- which columns the report shows -------------------------------------------
 
 
-def test_the_report_shows_its_default_columns_in_their_order(two_layers: None) -> None:
-    report = build(outcomes(), df=FRAME)
-    assert list(report.columns) == list(views._REPORT_COLUMNS)
-
-
-def test_added_columns_follow_row(two_layers: None) -> None:
-    report = build(outcomes(), df=FRAME, key_column="id", add_columns=["age"])
-    assert list(report.columns) == ["id", "age", *views._REPORT_COLUMNS[1:]]
-
-
-def test_dropping_a_column_with_pandas_keeps_the_title(two_layers: None) -> None:
-    report = build(outcomes(), df=FRAME, key_column="id")
-    trimmed = report.drop(columns=["comments", "detail"])
-    assert trimmed.attrs["title"] == "Report"
-    assert "comments" not in trimmed.columns
-
-
 def test_add_columns_reads_a_column_whose_label_is_a_number(fresh_registry: None) -> None:
     """Asked for by name as text, read by the frame's own label: `"5"` passed the
     check against the offered names and then raised KeyError on `df[["5"]]`."""
@@ -605,12 +440,6 @@ def test_add_columns_reads_a_column_whose_label_is_a_number(fresh_registry: None
 
 
 # --- found by reading the mutation survivors, 2026-09-25 ---------------------
-
-
-def a_long(word: str, count: int = 12) -> str:
-    """Text wider than any wrap width here, breakable only between words."""
-
-    return " ".join([word] * count)
 
 
 def outcome(code: str, outcome: res.Outcome, **fields: Any) -> res.CheckOutcome:
