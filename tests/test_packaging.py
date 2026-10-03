@@ -51,12 +51,6 @@ def test_the_package_ships_no_checks_of_its_own() -> None:
     assert shipped == []
 
 
-def test_the_example_checks_live_outside_the_package() -> None:
-    checks = ROOT / "examples" / "checks"
-    for name in ("check_row_shape.py", "check_age.py", "check_dates.py", "check_email.py"):
-        assert (checks / name).is_file()
-
-
 def test_the_annotations_are_advertised() -> None:
     """Without the marker, mypy treats an installed copy as untyped."""
 
@@ -137,42 +131,6 @@ def test_an_adopter_can_produce_a_report(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip().startswith("2,FIELD_MISSING,MISSING (1),0,failed")
     assert (home / "report.csv").is_file()
-
-
-def test_a_misspelled_path_says_so_rather_than_raising_an_import_error(
-    tmp_path: Path,
-) -> None:
-    """A typo in a path is a missing file, named, rather than an ImportError."""
-
-    home = adopter_package(tmp_path)
-    result = run_isolated(
-        "from jobcheck import load_checks\n"
-        "try:\n"
-        "    load_checks(['thier_checks/check_theirs.py'])\n"
-        "except ValueError as exc:\n"
-        "    print(exc)\n",
-        cwd=home,
-        extra_path=[home],
-    )
-    assert result.returncode == 0, result.stderr
-    assert "No check file at 'thier_checks/check_theirs.py'" in result.stdout
-    assert "nothing is discovered" in result.stdout
-
-
-def test_a_null_field_is_not_truthy_for_an_adopter(tmp_path: Path) -> None:
-    """The pandas trap the docs warn about: a missing value arrives as NaN, which
-    is truthy, so `if row["field"]` silently passes. is_null is the way through."""
-
-    home = adopter_package(tmp_path)
-    result = run_isolated(
-        "import pandas as pd\n"
-        "from jobcheck import is_null\n"
-        "row = pd.DataFrame([{'field': 'x'}, {'field': None}]).iloc[1]\n"
-        "print(bool(row['field']), is_null(row['field']))\n",
-        cwd=home,
-        extra_path=[home],
-    )
-    assert result.stdout.split() == ["True", "True"]
 
 
 # --- the version floor ------------------------------------------------------

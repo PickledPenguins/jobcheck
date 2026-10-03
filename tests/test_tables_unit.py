@@ -26,6 +26,16 @@ def a_rule(name: str = "r", action: str = "disable", codes: list[str] | None = N
 # --- is_null ----------------------------------------------------------------
 
 
+def test_a_missing_value_is_null_although_it_is_truthy() -> None:
+    """The pandas trap the docs warn about: a missing value arrives as NaN, which
+    is truthy, so `if row["field"]` silently passes. is_null is the way through."""
+
+    row = pd.DataFrame([{"field": "x"}, {"field": None}]).iloc[1]
+    assert bool(row["field"]) is True
+    assert tables.is_null(row["field"]) is True
+    assert tables.is_null(None) is True
+
+
 @pytest.mark.parametrize(
     "value",
     [

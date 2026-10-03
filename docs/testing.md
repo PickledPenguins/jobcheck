@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 676 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 202 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 878 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 664 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 199 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 863 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 3s |
@@ -90,8 +90,8 @@ Fast:
 | `tests/test_docs_references_unit.py` | The superscript cross-references agree with each document's `## References` table: every citation is a row, every row is cited, rows are numbered 1, 2, 3 and point to distinct places, and the table is the last section. |
 | `tests/doc_files.py` | Not a test: the documents and public names the six `test_docs_*` files share, and the Python blocks, their shown output and the world they run in, which `scripts/regen_docs.py` shares with the blocks test and the README test. |
 | `tests/test_golden_output.py` | The report library's exact tables, written as CSV, byte for byte against the files in `tests/golden/`, and the report read back by a CSV reader into the same columns and values. |
-| `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, `__all__` equal to the list written in the test so a new export is a decision, permanent `Status` values and outcome names, stable report and registry columns, and the default arguments of every exported function. |
-| `tests/test_tables_unit.py` | `is_null`, and every column of the registry and rules tables. |
+| `tests/test_api_contract.py` | The public surface: every name in `__all__` importable, every public function exported, `__all__` equal to the list written in the test so a new export is a decision, permanent `Status` values and outcome names, and the report's column order. Signatures and defaults are checked against `docs/interfaces.md` by `test_docs_api_unit.py`. |
+| `tests/test_tables_unit.py` | `is_null` (true for a missing value pandas reads as truthy, false for any container), and every column of the registry and rules tables. |
 | `tests/test_context_unit.py` | `RowContext` as the base type an adopter subclasses. |
 | `tests/test_paths_unit.py` | The step both loaders take before they open anything: an existing file resolved, a symlink followed, and each way a path that is not a file is refused -- relative, absolute and a directory -- word for word. |
 | `tests/test_interface_cli.py` | The parser's defaults, and what only a subprocess shows: running from another directory, the exit code reaching the shell, results on stdout and an error as one line on stderr. The rest of the entry point is in `test_main_unit.py`, and in the catalogs byte for byte. |
@@ -108,7 +108,7 @@ Long:
 | `tests/test_faults.py` | The filesystem failing underneath: an unreadable rule file stops the whole load, an unreadable check file or one Python cannot compile registers nothing. |
 | `tests/test_scaling.py` | The *shape* of the cost: four times the rows or the checks costs under eight times the time, a 100-deep dependency chain does not cost more than a flat registry, a frame with no failures costs the report a fraction of a failing one, and going row by row holds nothing between rows: four times the rows raise the peak by under 2 MB. Every timing here is a ratio with room in it, and the one that compares two small measurements takes the best of five runs after a warm-up, so a busy machine does not fail a run. |
 | `tests/test_load.py` | The long suite's one absolute ceiling (5,000 rows validated, reported and summarized), 500 rules × 200 rows, and a guard that the topological sort never runs inside the row loop. |
-| `tests/test_packaging.py` | What an adopter gets: the package ships no tests of its own, `py.typed` is there, every module imports on its own, and a scratch adopter package outside this repository loads its check file and writes a report. |
+| `tests/test_packaging.py` | What an adopter gets: the package ships no checks of its own, `py.typed` is there, every module imports on its own, importing registers nothing, a scratch adopter package outside this repository loads its check file and writes a report, and nothing uses a standard library name newer than the declared 3.10 floor. |
 | `tests/test_fuzz.py` | Generated input from a fixed seed: 300 rule files written as data and 300 written as YAML text (repeated keys, unquoted booleans, tags, bytes that are not UTF-8), 300 frames, 100 hostile comment payloads. |
 | `tests/test_properties.py` | The same invariants explored by Hypothesis, which shrinks a failure to the smallest reproducing case; and, over random graphs, `repeat` flags, copy groupings and per-copy rules, copies under `repeat_key`: a check that does not repeat is called at most once per key and settled on the first copy enabling its chain, a `shared` outcome passes and names an earlier copy that did it, a check is `disabled` exactly where a rule disables it, and when every check repeats, `repeat_key` changes nothing. |
 
@@ -253,8 +253,8 @@ Survivors by module at 2026-09-26: `engine` 22, `registry` 13, `tables` 8, `repo
 
 The 89 survivors in `report` and `registry_tables` at `7865edc` were read one by one on
 2026-09-25. 49 were assertions the suite did not make, and each now has a test (they
-are the section of `test_report_unit.py` and `test_tables_unit.py` headed "found by
-reading the mutation survivors"; the printing functions they name were replaced
+are the section of `test_report_unit.py` headed "found by reading the mutation
+survivors"; the printing functions they name were replaced
 by `render` later that day): a column wrapped by name in every printer, where a
 renamed key left it unwrapped and nothing looked; `print_report` not passing
 `wrap_width` on; `print_rules` ignoring `drop_columns`; the rules table's `action`

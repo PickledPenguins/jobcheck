@@ -277,6 +277,22 @@ stays whole -- its two raising-block tests go through `docs_printed` and `readme
 which catch separately -- and so does `test_mutation_score_unit.py`, one test per exit
 path. The mutation score `docs/testing.md` quoted, 97.1%, was a day old; 96.9% is today's.
 
+F.76i was done on 2026-10-03 (878 tests to 863). In `test_api_contract.py`, the
+exported-names, sorted and outcome-text tests became asserts in the export-list and
+outcome-names tests, and the report index, registry columns, `load_checks` needing a
+path, `validate` returning `CheckOutcome` and the five public-defaults cases went:
+`test_report_unit.py` and `test_tables_unit.py` pin the columns, and
+`test_docs_api_unit.py` compares every documented signature and default with the code.
+What that gives up: a default changed in the code and in `docs/interfaces.md` together
+now passes without a second edit to a test, and `jobcheck.OK` is no longer asserted to be
+`results.OK` (the pass-through half moved to `test_results_unit.py`). In
+`test_packaging.py`, the examples-outside-the-package test went (every catalog and the
+golden fixture load them), as did the misspelled-path test (its message is asserted
+in-process by `test_paths_unit.py` and does not depend on the working directory); the
+null-is-truthy test moved to `test_tables_unit.py`, in-process, where it is the only
+test of `is_null` returning true. `test_differential_jobchain.py` stays whole: it is the
+record of what jobchain relies on, and its overlap with the unit suites is the point.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row
