@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Test entry point. One mode per gate:
 #
-#   tests/run-tests.sh fast    unit, smoke, interface, regression, cheap
+#   tests/run-tests.sh fast    unit, interface, regression, cheap
 #                              pathological plus mypy -- the pre-commit gate
 #   tests/run-tests.sh long    integration, load, concurrency, faults, scaling,
 #                              end-to-end catalogs, then the example profile

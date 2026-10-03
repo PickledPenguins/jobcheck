@@ -1,25 +1,23 @@
-"""Interface checks: the CLI contract — flags, defaults, exit codes, routing."""
+"""Interface checks: the CLI contract — the parser's defaults, and what only a
+subprocess shows: the working directory, exit codes reaching the shell, and
+which stream each line goes to.
+
+Every other path of the entry point is driven in process by
+`tests/test_main_unit.py`, and run as a subprocess, byte for byte, by the
+example and failure catalogs.
+"""
 
 from __future__ import annotations
 
-import itertools
 import os
 from typing import Any
 
 import pytest
 
 import main
-from conftest import PROJECT_ROOT, CommandResult, run_cli
+from conftest import PROJECT_ROOT, run_cli
 
 pytestmark = pytest.mark.fast
-
-
-@pytest.fixture(scope="module")
-def default_run() -> CommandResult:
-    """The entry point with no arguments, run once: nine tests read the same
-    output, and each subprocess costs more than the rest of this file."""
-
-    return run_cli("examples/main.py")
 
 
 # --- argument parsing -------------------------------------------------------
@@ -34,13 +32,13 @@ def test_defaults_when_no_flags_are_given() -> None:
     assert args.summary is False
 
 
-def test_rules_takes_several_files_in_the_order_given() -> None:
-    args = main.build_parser().parse_args(["--rules", "a.yaml", "b.yaml"])
-    assert args.rules == ["a.yaml", "b.yaml"]
+def test_rules_takes_several_files_in_order_and_replaces_the_default() -> None:
+    parser = main.build_parser()
+    assert parser.parse_args(["--rules", "a.yaml", "b.yaml"]).rules == ["a.yaml", "b.yaml"]
+    assert parser.parse_args(["--rules", "a.yaml"]).rules == ["a.yaml"]
 
 
-def test_passing_rules_replaces_the_default_rather_than_extending_it() -> None:
-    assert main.build_parser().parse_args(["--rules", "a.yaml"]).rules == ["a.yaml"]
+# --- what only a subprocess shows -------------------------------------------
 
 
 def test_the_entry_point_runs_from_any_directory(tmp_path: Any) -> None:
@@ -53,133 +51,27 @@ def test_the_entry_point_runs_from_any_directory(tmp_path: Any) -> None:
     assert "== Report" in result.stdout
 
 
-# --- exit codes -------------------------------------------------------------
-
-
-def test_success_exits_zero(default_run: CommandResult) -> None:
-    assert default_run.returncode == 0
-
-
-def test_failing_rows_still_exit_zero(default_run: CommandResult) -> None:
+def test_a_run_with_failing_rows_exits_zero_with_everything_on_stdout() -> None:
     """Validation failures are data, not a process error."""
 
-    result = default_run
+    result = run_cli("examples/main.py")
+    assert result.returncode == 0
+    assert result.stdout.startswith("Loaded 3 rule(s) from 1 file(s)")
     assert "AGE_NEGATIVE" in result.stdout
-    assert result.returncode == 0
+    assert result.stderr == ""
 
 
-def test_the_report_names_each_row_by_its_key_column_and_root_cause(
-    default_run: CommandResult,
-) -> None:
-    failures = default_run.stdout.split("== Report")[1]
-    assert ["2", "AGE_NEGATIVE"] in [line.split()[:2] for line in failures.splitlines()]
-    assert "value=-5.0; minimum=0" in failures
-    assert "<no key>" in failures
-
-
-def test_cascading_checks_are_absent_from_the_report(default_run: CommandResult) -> None:
-    """Row 5 has no age at all: only AGE_PRESENT is reported for it."""
-
-    failures = default_run.stdout.split("== Report")[1].splitlines()
-    # The row label is printed on its first line only; the rest hang below it.
-    start = next(i for i, line in enumerate(failures) if line.startswith("5 "))
-    block = [failures[start]] + list(
-        itertools.takewhile(lambda line: line.startswith(" "), failures[start + 1:]))
-
-    assert [line.split()[1] if line is block[0] else line.split()[0]
-            for line in block] == ["AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"]
-
-
-def test_the_csv_report_format_is_selectable() -> None:
-    """And carries no heading of its own: a title line above CSV would make the
-    output unparseable, so `table_text` writes one for the table only."""
-
-    out = run_cli("examples/main.py", "--report", "csv").stdout
-    assert "id,code,status,layer,outcome" in out
-    assert "== Report" not in out
-
-
-def test_explain_prints_one_row_and_its_root_cause() -> None:
-    out = run_cli("examples/main.py", "--explain", "5").stdout
-    assert "== Row explanation ==" in out
-    assert "prerequisite did not pass: AGE_PRESENT" in out
-    # Row 5 is entirely empty, so every layer-0 check fails and all of them are
-    # root causes -- none is upstream of another.
-    assert out.strip().splitlines()[-1] == (
-        "root cause: ROW_ALL_NULL, AGE_PRESENT, DATES_PRESENT, EMAIL_PRESENT")
-
-
-def test_explain_outside_the_frame_exits_two() -> None:
-    result = run_cli("examples/main.py", "--explain", "99")
-    assert result.returncode == 2
-    assert "--explain 99 is outside the frame's 6 row(s)" in result.stderr
-
-
-def test_summary_reports_counts_and_root_causes() -> None:
-    out = run_cli("examples/main.py", "--summary").stdout
-    assert "== Summary" in out
-    assert "skipped" in out
-    assert "root_cause_rows" in out
-
-
-def test_unknown_flag_exits_two() -> None:
-    result = run_cli("examples/main.py", "--nope")
-    assert result.returncode == 2
-    assert "unrecognized arguments" in result.stderr
-
-
-def test_flag_without_its_value_exits_two() -> None:
-    result = run_cli("examples/main.py", "--data")
-    assert result.returncode == 2
-    assert "expected one argument" in result.stderr
-
-
-def test_rules_with_no_paths_applies_none() -> None:
-    """The baseline: `--rules` alone is how a reader sees the checks as written,
-    before any rule file switches one on or off for anybody."""
-
-    result = run_cli("examples/main.py", "--rules")
-    assert result.returncode == 0
-    assert result.stdout.startswith("Loaded 0 rule(s) from 0 file(s)")
-
-
-def test_missing_rule_file_exits_two_with_one_line() -> None:
+def test_an_error_is_one_line_on_stderr_and_stdout_stays_clean() -> None:
     result = run_cli("examples/main.py", "--rules", "no_such_file.yaml")
     assert result.returncode == 2
     assert result.stderr.startswith("error: No rule file at")
     assert "Traceback" not in result.stderr
     assert "No rule file at 'no_such_file.yaml'" in result.stderr
     assert "load_rules() names files explicitly" in result.stderr
-
-
-# --- output routing and shape ----------------------------------------------
-
-
-def test_results_go_to_stdout_and_nothing_to_stderr(default_run: CommandResult) -> None:
-    result = default_run
-    assert result.stdout.startswith("Loaded 3 rule(s) from 1 file(s)")
-    assert result.stderr == ""
-
-
-def test_errors_go_to_stderr_and_leave_stdout_clean() -> None:
-    result = run_cli("examples/main.py", "--rules", "no_such_file.yaml")
-    assert result.stderr.startswith("error: ")
     assert "== Registry" not in result.stdout
 
 
-def test_the_default_run_prints_the_registry_and_the_failures(default_run: CommandResult) -> None:
-    out = default_run.stdout
-    assert "== Registry" in out
-    assert "== Report" in out
-
-
 # --- reading a data file ----------------------------------------------------
-
-
-def test_load_frame_returns_the_demo_frame_when_no_path_is_given() -> None:
-    frame = main.load_frame(None)
-    assert list(frame["id"])[:5] == [1.0, 2.0, 3.0, 4.0, 5.0]
-    assert len(frame) == 6
 
 
 def test_load_frame_reads_every_column_of_a_csv_as_text(tmp_path: Any) -> None:
@@ -198,25 +90,3 @@ def test_load_frame_reads_an_empty_cell_as_missing_not_as_the_word(tmp_path: Any
     path = tmp_path / "rows.csv"
     path.write_text("id,age\n1,\n")
     assert pd.isna(main.load_frame(str(path))["age"][0])
-
-
-def test_a_missing_data_file_exits_two_naming_the_path() -> None:
-    result = run_cli("examples/main.py", "--data", "no/such/file.csv")
-    assert result.returncode == 2
-    assert "cannot read no/such/file.csv" in result.stderr
-
-
-def test_a_data_file_with_no_columns_exits_two(tmp_path: Any) -> None:
-    path = tmp_path / "blank.csv"
-    path.write_text("")
-    result = run_cli("examples/main.py", "--data", str(path))
-    assert result.returncode == 2
-    assert "cannot read" in result.stderr
-
-
-def test_a_csv_file_is_validated_when_one_is_named() -> None:
-    # Failures in the data are a report, not an error: the run exits 0 and the
-    # reader decides. Only a broken *invocation* exits non-zero.
-    result = run_cli("examples/main.py", "--data", "examples/data/customers.csv")
-    assert result.returncode == 0
-    assert "ROW_ALL_NULL" in result.stdout

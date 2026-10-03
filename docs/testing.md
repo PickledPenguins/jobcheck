@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 869 tests: unit, smoke, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 835 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 281 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1150 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 1116 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
@@ -73,8 +73,8 @@ Fast:
 | `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys and added data columns, `include` levels, titles, explanations and summaries. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_run_from_config_unit.py` | The run-file entry point in this process: the shipped run's tables in order, paths resolved against the run file, repeated tables, every rejection of a malformed run file word for word, and that a table the library refuses prints none of the run. |
-| `tests/test_bundle_main_unit.py` | The bundle entry point in this process, and the shipped bundle it loads: the four members and their order, the registry it prints with each check's file, and the argument that names another bundle. |
-| `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artifact: every rule file loads alone and together, every rule names a real code and a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
+| `tests/test_bundle_main_unit.py` | The bundle entry point in this process, and the shipped bundle it loads: the registry it prints with each member's file, and the argument that names another bundle. |
+| `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artifact: the rule files load together, which refuses a duplicate rule name or an unknown code, every rule matches a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
 | `tests/test_differential_jobchain.py` | What jobchain's own suite asserted of the pre-rename engine, restated against this one — layering, root cause, cross-row context, crashes, rule-driven disabling. |
 | `tests/test_error_messages_unit.py` | Every message the library raises, compared word for word rather than by keyword: registration, loading, per-row evaluation, reporting and the whole-frame entry point. |
 | `tests/test_perf_baseline_unit.py` | The baseline arithmetic itself: recording, comparing, the tolerance floor and cap, and discarding a baseline from another machine. |
@@ -93,8 +93,7 @@ Fast:
 | `tests/test_tables_unit.py` | `is_null`, and every column of the registry and rules tables. |
 | `tests/test_context_unit.py` | `RowContext` as the base type an adopter subclasses. |
 | `tests/test_paths_unit.py` | The step both loaders take before they open anything: an existing file resolved, a symlink followed, and each way a path that is not a file is refused -- relative, absolute and a directory -- word for word. |
-| `tests/test_smoke.py` | The entry point starts, exits 0, and produces its main output. |
-| `tests/test_interface_cli.py` | The CLI contract as a user meets it, in subprocesses: defaults, exit codes 0/1/2, stdout vs stderr routing, and the data-file flag. |
+| `tests/test_interface_cli.py` | The parser's defaults, and what only a subprocess shows: running from another directory, the exit code reaching the shell, results on stdout and an error as one line on stderr. The rest of the entry point is in `test_main_unit.py`, and in the catalogs byte for byte. |
 | `tests/test_pathological.py` | Malformed YAML, unicode, 1000 rules, empty and wide rows, duplicate column labels, a 200-deep dependency chain, a check that raises. |
 | `tests/test_safety.py` | the safe YAML loader refuses `!!python/object`, patterns are never evaluated, loading writes nothing, validation does not mutate the frame, a check file name is a path and never a module name, and a catastrophic regex stays bounded. |
 

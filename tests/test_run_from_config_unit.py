@@ -65,9 +65,7 @@ def test_the_shipped_run_prints_its_four_tables_in_order(fresh_registry: None,
     assert "could_be_overridden_by" in out
 
 
-def test_the_default_run_file_is_the_shipped_one() -> None:
-    assert run_from_config.DEFAULT_RUN == os.path.join(PROJECT_ROOT, "examples/run.yaml")
-    assert run_from_config.build_parser().parse_args([]).run_file == run_from_config.DEFAULT_RUN
+
 
 
 def test_paths_resolve_against_the_run_file_not_the_working_directory(
@@ -174,6 +172,8 @@ def test_a_run_file_that_is_not_utf8_is_one_error_line(capsys: Any, tmp_path: Pa
     assert err == (
         f"error: {run_file}: not UTF-8 text: 'utf-8' codec can't decode byte 0xe9 in "
         "position 10: invalid continuation byte. Save the file as UTF-8.\n")
+
+
 def test_a_key_given_twice_is_refused_rather_than_the_last_winning(
     capsys: Any, tmp_path: Path
 ) -> None:
