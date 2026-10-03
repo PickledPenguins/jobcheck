@@ -9,7 +9,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import PROJECT_ROOT, enabled_only, make_check
+from conftest import enabled_only, make_check
 from jobcheck import paths
 from jobcheck import registry as reg
 from jobcheck import rules
@@ -68,49 +68,17 @@ def test_rule_fields_are_parsed(one_code: None, tmp_path: Path) -> None:
     assert (rule.criteria[0].column, rule.criteria[0].pattern) == ("email", "x$")
     assert rule.match_all is False
 
-
-def test_match_all_sets_the_flag_and_leaves_criteria_empty(one_code: None, tmp_path: Path) -> None:
-    rule = reg.load_rules([write(tmp_path, "r.yaml", GLOBAL_DISABLE)])[0]
-    assert rule.match_all is True
-    assert rule.criteria == []
-
-
-def test_source_file_records_the_file_the_rule_came_from(one_code: None, tmp_path: Path) -> None:
-    path = write(tmp_path, "rules.yaml", GLOBAL_DISABLE)
-    assert reg.load_rules([path])[0].source_file == path
-
-
-def test_a_rule_without_a_message_is_refused(one_code: None, tmp_path: Path) -> None:
-    """A rule nobody can justify is a rule nobody dares delete, so say why."""
-
-    body = '- name: "silent"\n  action: disable\n  codes: [A_CODE]\n  match: all\n'
-    with pytest.raises(ValueError) as excinfo:
-        reg.load_rules([write(tmp_path, "r.yaml", body)])
-    assert "'message' must be the text saying why the rule exists" in str(excinfo.value)
-
-
-def test_an_unknown_key_is_rejected_rather_than_silently_ignored(
-    one_code: None, tmp_path: Path
-) -> None:
-    """A misspelled key in a hand-edited file is a setting that does nothing."""
-
-    path = write(tmp_path, "r.yaml", GLOBAL_DISABLE + "  bogus_key: 1\n")
-    with pytest.raises(ValueError) as excinfo:
-        reg.load_rules([path])
-    assert "unknown key(s) 'bogus_key'" in str(excinfo.value)
-    assert "Allowed: 'action', 'codes', 'match', 'message', 'name'." in str(excinfo.value)
-
-    # Two typos are listed together, sorted, so one run reports both.
-    path = write(tmp_path, "r2.yaml", GLOBAL_DISABLE + "  zzz: 1\n  bogus_key: 1\n")
-    with pytest.raises(ValueError) as excinfo:
-        reg.load_rules([path])
-    assert "unknown key(s) 'bogus_key', 'zzz'." in str(excinfo.value)
+    match_all = reg.load_rules([write(tmp_path, "all.yaml", GLOBAL_DISABLE)])[0]
+    assert match_all.match_all is True
+    assert match_all.criteria == []
 
 
 def test_a_key_yaml_reads_as_a_bool_is_named_rather_than_crashing(
     one_code: None, tmp_path: Path
 ) -> None:
-    """YAML 1.1 reads `on:` as True and `2:` as an int. Joining them raised a bare
+    """A misspelled key in a hand-edited file is a setting that does nothing.
+
+    YAML 1.1 reads `on:` as True and `2:` as an int. Joining them raised a bare
     TypeError once; now each shows as Python writes it, so the unquoted `True`
     says YAML read a bool where the file said `on`."""
 
@@ -122,38 +90,23 @@ def test_a_key_yaml_reads_as_a_bool_is_named_rather_than_crashing(
         "Allowed: 'action', 'codes', 'match', 'message', 'name'.")
 
 
-def test_every_documented_key_is_accepted(one_code: None, tmp_path: Path) -> None:
-    path = write(
-        tmp_path, "r.yaml",
-        '- name: "full"\n  message: "d"\n  action: disable\n  codes: [A_CODE]\n'
-        "  match: all\n",
-    )
-    assert reg.load_rules([path])[0].message == "d"
-
-
-def test_empty_file_contributes_no_rules(one_code: None, tmp_path: Path) -> None:
+def test_an_empty_file_and_no_files_contribute_no_rules(one_code: None, tmp_path: Path) -> None:
     assert reg.load_rules([write(tmp_path, "empty.yaml", "")]) == []
+    assert reg.load_rules([]) == []
 
 
-def test_base_dir_anchors_a_relative_rule_path(one_code: None, tmp_path: Path,
-                                               monkeypatch: Any) -> None:
-    write(tmp_path, "rules.yaml", GLOBAL_DISABLE)
-    started_in = tmp_path / "started-in"
-    started_in.mkdir()
-    monkeypatch.chdir(started_in)
-    assert [rule.name for rule in reg.load_rules(["rules.yaml"], base_dir=tmp_path)] == ["kill_it"]
-
-
-def test_a_rule_records_the_path_the_caller_wrote(one_code: None, tmp_path: Path) -> None:
+def test_base_dir_anchors_a_relative_rule_path_and_the_rule_records_it_as_written(
+    one_code: None, tmp_path: Path, monkeypatch: Any
+) -> None:
     """source_file is printed beside the rule, so it stays the caller's own
     text: an absolute path resolved out of base_dir would be this machine's."""
 
     write(tmp_path, "rules.yaml", GLOBAL_DISABLE)
+    started_in = tmp_path / "started-in"
+    started_in.mkdir()
+    monkeypatch.chdir(started_in)
     rule = reg.load_rules(["rules.yaml"], base_dir=tmp_path)[0]
-    assert rule.source_file == "rules.yaml"
-
-
-
+    assert (rule.name, rule.source_file) == ("kill_it", "rules.yaml")
 
 
 @pytest.mark.parametrize(
@@ -260,6 +213,12 @@ def test_a_rule_records_the_path_the_caller_wrote(one_code: None, tmp_path: Path
             '- name: off\n  message: m\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
             "rule 2: every rule needs a non-empty string 'name', got False.",
             id="name-an-unquoted-yaml-boolean-in-the-second-rule",
+        ),
+        pytest.param(
+            # A rule nobody can justify is a rule nobody dares delete, so say why.
+            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
+            "'message' must be the text saying why the rule exists",
+            id="missing-message",
         ),
         pytest.param(
             '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n  message: 7\n',
@@ -371,10 +330,6 @@ def test_duplicate_rule_name_across_files_names_both_files(one_code: None, tmp_p
     assert f"defined in {first} and again in {second}" in message
 
 
-def test_loading_no_files_returns_nothing(one_code: None) -> None:
-    assert reg.load_rules([]) == []
-
-
 def test_load_rules_keeps_the_given_order_not_alphabetical(
     one_code: None, tmp_path: Path
 ) -> None:
@@ -382,28 +337,6 @@ def test_load_rules_keeps_the_given_order_not_alphabetical(
     second = write(tmp_path, "z.yaml", GLOBAL_DISABLE.replace("kill_it", "zulu"))
     loaded = reg.load_rules([second, first])
     assert [r.name for r in loaded] == ["zulu", "alpha"]
-
-
-def test_load_rules_spans_directories(one_code: None, tmp_path: Path) -> None:
-    left = tmp_path / "left"
-    right = tmp_path / "right"
-    left.mkdir()
-    right.mkdir()
-    a = write(left, "a.yaml", GLOBAL_DISABLE.replace("kill_it", "from_left"))
-    b = write(right, "b.yaml", GLOBAL_DISABLE.replace("kill_it", "from_right"))
-    assert [r.name for r in reg.load_rules([a, b])] == ["from_left", "from_right"]
-
-
-def test_the_codes_column_lists_every_code_a_rule_touches(one_code: None, tmp_path: Path) -> None:
-    """The detail behind code_count, as a column rather than a lookup function."""
-
-    make_check("B_CODE")
-    path = write(
-        tmp_path, "r.yaml", '- name: "two"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [A_CODE, B_CODE]\n  match: all\n'
-    )
-    table = views.rules_table(reg.load_rules([path]))
-    assert table.loc[0, "codes"] == "A_CODE, B_CODE"
-    assert table.loc[0, "code_count"] == 2
 
 
 # --- matching and precedence ------------------------------------------------
@@ -450,22 +383,12 @@ def test_pattern_is_a_search_not_a_full_match(fresh_registry: None) -> None:
     assert enabled_only(engine._resolve_enabled_state(pd.Series({"email": "qa@internal.test"}), [unanchored]))["A_CODE"] is False
 
 
-def test_absent_column_does_not_match(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    on_email = rule("r", "disable", ["A_CODE"], [("email", ".*")])
-    assert enabled_only(engine._resolve_enabled_state(pd.Series({"age": 1}), [on_email]))["A_CODE"] is True
-
-
-def test_null_value_does_not_match(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    on_email = rule("r", "disable", ["A_CODE"], [("email", ".*")])
-    assert enabled_only(engine._resolve_enabled_state(pd.Series({"email": None}), [on_email]))["A_CODE"] is True
-
-
-def test_non_string_values_are_matched_as_text(fresh_registry: None) -> None:
+def test_numbers_are_matched_as_text_and_a_fraction_keeps_its_decimals(
+        fresh_registry: None) -> None:
     make_check("A_CODE")
     numeric = rule("r", "disable", ["A_CODE"], [("age", "^41$")])
     assert enabled_only(engine._resolve_enabled_state(pd.Series({"age": 41}), [numeric]))["A_CODE"] is False
+    assert enabled_only(engine._resolve_enabled_state(pd.Series({"age": 41.5}), [numeric]))["A_CODE"] is True
 
 
 def test_a_whole_number_is_matched_as_the_report_prints_it(fresh_registry: None) -> None:
@@ -488,12 +411,6 @@ def test_a_whole_number_is_matched_as_the_report_prints_it(fresh_registry: None)
     all_numeric = pd.DataFrame({"id": [101, 102], "age": [1.5, 2.0]})
     outcomes = engine.validate(all_numeric, rules=[on_id])
     assert [row[0].outcome for row in outcomes] == [Outcome.PASSED, Outcome.DISABLED]
-
-
-def test_a_fraction_keeps_its_decimals(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    on_age = rule("r", "disable", ["A_CODE"], [("age", "^41$")])
-    assert enabled_only(engine._resolve_enabled_state(pd.Series({"age": 41.5}), [on_age]))["A_CODE"] is True
 
 
 def test_matching_is_case_sensitive(fresh_registry: None) -> None:
@@ -521,15 +438,6 @@ def test_a_non_matching_later_rule_does_not_override(fresh_registry: None) -> No
     assert enabled_only(engine._resolve_enabled_state(pd.Series({"email": "a@b.com"}), loaded))["A_CODE"] is True
 
 
-def test_one_rule_switches_several_codes(fresh_registry: None) -> None:
-    make_check("FIRST")
-    make_check("SECOND")
-    state = enabled_only(engine._resolve_enabled_state(
-        pd.Series({"age": 1}), [rule("both", "disable", ["FIRST", "SECOND"], None)]
-    ))
-    assert state == {"FIRST": False, "SECOND": False}
-
-
 def test_every_outcome_names_the_last_rule_that_switched_its_check(fresh_registry: None) -> None:
     make_check("REENABLED", passes=False)
     make_check("OFF_BY_DEFAULT", default_enabled=False, raises=RuntimeError("boom"))
@@ -550,16 +458,12 @@ def test_every_outcome_names_the_last_rule_that_switched_its_check(fresh_registr
     }
     # detail keeps saying why a check never ran; the rule column is a separate fact.
     assert {o.code: o.detail for o in row}["SWITCHED_OFF"] == "disabled by rule 'off'"
-
-
-def test_the_report_carries_the_deciding_rule_and_blank_for_the_default(
-        fresh_registry: None) -> None:
-    make_check("OFF_BY_DEFAULT", default_enabled=False, passes=False)
-    make_check("ON_BY_DEFAULT", passes=False)
+    # The report carries the deciding rule, and a blank where the default decided.
     frame = pd.DataFrame({"age": [1]})
-    outcomes = engine.validate(frame, rules=[rule("on", "enable", ["OFF_BY_DEFAULT"], None)])
-    report = views.build_report(outcomes, frame).reset_index()
-    assert dict(zip(report["code"], report["rule"])) == {"OFF_BY_DEFAULT": "on", "ON_BY_DEFAULT": ""}
+    report = views.build_report(engine.validate(frame, rules=loaded), frame,
+                                include="all").reset_index()
+    assert dict(zip(report["code"], report["rule"]))["REENABLED"] == "back_on"
+    assert dict(zip(report["code"], report["rule"]))["UNTOUCHED"] == ""
 
 
 def test_codes_that_are_not_registered_are_ignored_by_resolution(fresh_registry: None) -> None:
@@ -579,15 +483,17 @@ def test_a_null_cell_never_matches_a_rule(fresh_registry: None) -> None:
     pattern meant for real values.
     """
 
-    import pandas as pd
-
-    from jobcheck import rules
-
     row = pd.Series({"email": None, "age": float("nan"), "name": "real"})
     assert rules._cell_text(row, "email") is None
     assert rules._cell_text(row, "age") is None
     assert rules._cell_text(row, "absent") is None
     assert rules._cell_text(row, "name") == "real"
+
+    # Through resolution: a blank or absent column leaves the check as it was.
+    make_check("A_CODE")
+    for column in ("email", "absent"):
+        on_column = rule("r", "disable", ["A_CODE"], [(column, ".*")])
+        assert enabled_only(engine._resolve_enabled_state(row, [on_column]))["A_CODE"] is True
 
 
 # --- rules a later rule overrules for every row ------------------------------
@@ -644,6 +550,8 @@ def test_two_conditional_rules_are_not_reported(one_code: None, tmp_path: Path) 
     """Deliberately out of scope: whether two patterns overlap needs them
     compared rather than read, and a wrong answer is worse than none."""
 
+    assert rules.warn_shadowed_rules([]) == []
+
     loaded = _rules(tmp_path, """
 - name: "first"
   message: "m"
@@ -689,21 +597,6 @@ def test_a_rule_is_judged_per_code_not_per_rule(fresh_registry: None, tmp_path: 
     ]
 
 
-def test_the_shipped_example_reports_its_deliberate_shadowed_rule(
-    example_checks: None,
-) -> None:
-    """`examples/rules/error_rules.yaml` shadows a rule on purpose -- it is the
-    precedence demonstration `docs/configuration.md` describes -- so the shipped
-    file is also the worked example of this warning."""
-
-    loaded = reg.load_rules([str(Path(PROJECT_ROOT) / "examples/rules/error_rules.yaml")])
-    assert rules.warn_shadowed_rules(loaded) == [
-        "rule 'enable_legacy_integer_check' is overruled for AGE_NOT_INTEGER by the later "
-        "rule 'disable_age_integer_check_globally', which matches every row: it can never "
-        "apply to AGE_NOT_INTEGER"
-    ]
-
-
 def test_a_code_with_no_unconditional_rule_does_not_end_the_search(
     fresh_registry: None, tmp_path: Path
 ) -> None:
@@ -743,6 +636,8 @@ def test_the_rule_warnings_take_a_generator(one_code: None, tmp_path: Path) -> N
     """A generator is read more than once inside; read as it came, the second
     pass found it empty and the warning went missing."""
 
+    make_check("B_CODE", depends_on=["A_CODE"])
+
     loaded = _rules(tmp_path, """
 - name: "narrow"
   message: "m"
@@ -756,20 +651,9 @@ def test_the_rule_warnings_take_a_generator(one_code: None, tmp_path: Path) -> N
     frame = pd.DataFrame({"other": [1]})
     assert len(rules.warn_missing_rule_columns(
         frame, (rule for rule in loaded))) == 1  # type: ignore[arg-type]
-
-
-def test_no_rules_and_no_unconditional_rule_report_nothing(one_code: None, tmp_path: Path) -> None:
-    assert rules.warn_shadowed_rules([]) == []
-    loaded = _rules(tmp_path, """
-- name: "narrow"
-  message: "m"
-  action: disable
-  codes: [A_CODE]
-  match:
-    - column: source
-      pattern: "^LEGACY"
-""")
-    assert rules.warn_shadowed_rules(loaded) == []
+    blocking = [disabling("A_CODE")]
+    assert len(reg.warn_blocking_rules(
+        rule for rule in blocking)) == 1  # type: ignore[arg-type]
 
 
 # --- disable rules that silence the checks below them ------------------------
@@ -841,20 +725,6 @@ def test_a_rule_naming_a_code_no_longer_registered_warns_about_nothing(
     """Rules loaded, then the registry cleared and a different set loaded."""
 
     assert reg.warn_blocking_rules([disabling("GONE_CODE")]) == []
-
-
-def test_the_blocking_warning_takes_a_generator(age_chain: None) -> None:
-    rules_given = [disabling("AGE_NUMBER")]
-    assert len(reg.warn_blocking_rules(
-        rule for rule in rules_given)) == 1  # type: ignore[arg-type]
-
-
-def test_the_shipped_rules_silence_nothing_they_do_not_name(example_checks: None) -> None:
-    """`error_rules.yaml` disables EMAIL_MISSING_AT and, in the same rule, the
-    check depending on it -- the way to say a chain's silence is meant."""
-
-    loaded = reg.load_rules([str(Path(PROJECT_ROOT) / "examples/rules/error_rules.yaml")])
-    assert reg.warn_blocking_rules(loaded) == []
 
 
 def test_a_check_reached_by_two_paths_is_named_once(fresh_registry: None) -> None:

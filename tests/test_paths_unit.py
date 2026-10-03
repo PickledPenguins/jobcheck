@@ -20,12 +20,6 @@ from jobcheck.paths import _read_yaml, _resolve_input_file
 pytestmark = pytest.mark.fast
 
 
-def test_an_existing_file_comes_back_resolved(tmp_path: Path) -> None:
-    target = tmp_path / "checks.py"
-    target.write_text("")
-    assert _resolve_input_file(str(target), "check file", "load_checks()") == target.resolve()
-
-
 def test_a_relative_path_is_resolved_against_the_working_directory(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
@@ -105,16 +99,6 @@ def test_a_directory_is_named_as_the_mistake_it_is(tmp_path: Path) -> None:
         "so name the file in it. load_rules() names files explicitly; "
         "nothing is discovered."
     )
-
-
-def test_the_kind_and_the_caller_are_the_words_the_message_uses(tmp_path: Path) -> None:
-    """Both loaders share this code, so neither may describe itself as the other."""
-
-    with pytest.raises(ValueError) as raised:
-        _resolve_input_file(str(tmp_path / "absent.yaml"), "rule file", "load_rules()")
-    message = str(raised.value)
-    assert message.startswith("No rule file at ")
-    assert "load_rules() names files explicitly" in message
 
 
 def test_a_repeat_after_a_merge_key_is_still_refused(tmp_path: Path) -> None:

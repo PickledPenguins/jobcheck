@@ -138,6 +138,7 @@ def test_rules_table_is_one_row_per_rule(fresh_registry: None) -> None:
     assert list(table["name"]) == ["one", "two"]
     assert list(table["action"]) == ["disable", "enable"]
     assert list(table["code_count"]) == [2, 1]
+    assert list(table["codes"]) == ["A_CODE, B_CODE", "A_CODE"]
 
 
 def test_match_all_renders_as_all(fresh_registry: None) -> None:
