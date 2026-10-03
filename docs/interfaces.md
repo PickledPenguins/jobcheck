@@ -127,7 +127,9 @@ What the engine recorded for one check on one row: `code` (the check code),
 `.failed` is True for `failed` and `errored`; `.status_label` renders as
 `INVALID (3)`. `detail` explains the four non-evaluating outcomes: which rule
 disabled it, which prerequisites blocked it, what it raised, or, for `shared`, what it
-did on the copy that ran it and where that copy is. A `shared` outcome's status is `PASS`, as
+did on the copy that ran it and where that copy is. What it raised reads `Type: text
+(file.py:line)`: the innermost line in the file the check was written in, and no colon
+when the exception has no text. A `shared` outcome's status is `PASS`, as
 for `skipped` and `disabled`, and it has no message or comments. An `errored` outcome's
 `message` is the fixed text `check raised; see detail`, not the check's message.<sup>[1](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
 

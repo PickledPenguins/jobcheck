@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.63. Each is either loud already, or needs the owner's decision.
+left is open below, from F.66. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -60,22 +60,13 @@ No one name fit that blend, so `explain_row` now has the report's columns withou
 `row`, built by the same `views._line`, and `is_root_cause` with them. Lost: the
 compact five-column table (it is about 120 characters wide for the README's rows), and
 the `-` on a line with nothing to say. `--explain` reads its root-cause line from the
-explanation instead of building a report.
-
-**A check that raises should report its exception type and message** (F.65, raised by
-the owner on 2026-09-28). With `on_error="record"`, the owner found the exception
-effectively hidden unless the run is repeated with `on_error="raise"`, and wants the
-exception type and message in `detail` or `comments`, whichever fits. What the code
-does today: the engine already writes `f"{type(exc).__name__}: {exc}"` into the
-outcome's `detail` (`src/jobcheck/engine.py:138`), and the report and the row
-explanation both show it in their `detail` columns. The owner's own case showed
-`detail='AttributeError: ...'` on the outcome. So the survey must first find out why it
-read as hidden. Candidates: the `detail` column is not where a reader looks, next to
-an empty `comments` column; `str(exc)` can be terse or empty, leaving only the type;
-and there is no location, so nothing says which line of which check raised. Possible
-additions: the file and line of the innermost frame in the check (from
-`exc.__traceback__`), or the full traceback kept on the outcome for `render` to show on
-request. Not yet surveyed.
+explanation instead of building a report. F.65 was built the same day: an `errored`
+outcome's `detail` already carried the exception's type and text, but not where it was
+raised, so finding the line meant re-running with `on_error="raise"`. It now ends with
+`(file.py:line)`, the innermost line in the check's own file (through a helper in
+another file, the check's call to it), and an exception with no text drops the colon.
+Lost: an exact match on the old text; the full traceback is still only under
+`on_error="raise"`.
 
 **A unique line counter in the output tables** (F.66, raised by the owner on 2026-09-28).
 The owner wants a counter that uniquely identifies each line of a table. It is global:

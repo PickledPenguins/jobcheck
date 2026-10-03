@@ -264,8 +264,10 @@ registry_table()   # a misspelled depends_on raises here, naming both codes
 
 ## When a check raises
 
-An exception inside a check becomes a `Status.ERROR` outcome carrying the
-exception text, the row carries on, and dependents treat it as "did not pass".
+An exception inside a check becomes a `Status.ERROR` outcome whose `detail` is the
+exception's type, its text and where it was raised -- `KeyError: 'amount'
+(check_orders.py:14)`, the innermost line in the check's own file -- the row carries
+on, and dependents treat it as "did not pass".
 Errors are counted separately from failures in the summary, so a broken check can
 never be mistaken for bad data. Pass `on_error="raise"` to `validate` for a run
 that should stop at the first broken check instead.<sup>[10](reporting.md#diagnosing-a-whole-file)</sup>

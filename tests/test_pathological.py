@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import functools
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -147,7 +149,52 @@ def test_a_check_that_raises_is_recorded_as_an_error_not_a_pass(fresh_registry: 
     outcome = failures(pd.Series({"age": 1}))[0]
     assert outcome.outcome == "errored"
     assert outcome.status == Status.ERROR
-    assert outcome.detail == "RuntimeError: check is broken"
+    line = check.__code__.co_firstlineno + 2  # the decorator, the def, then the raise
+    assert outcome.detail == f"RuntimeError: check is broken (test_pathological.py:{line})"
+
+
+def test_an_errored_detail_names_the_checks_line_through_a_helper(
+        fresh_registry: None, tmp_path: Path) -> None:
+    """Raised inside a helper in another file, the line shown is the check's call
+    to it: the innermost line in the file the check was written in."""
+
+    (tmp_path / "helpers.py").write_text("def parse(value):\n    return value.upper()\n",
+                                         encoding="utf-8")
+    (tmp_path / "check_x.py").write_text(
+        "from jobcheck import OK, register_check\n"
+        "from helpers import parse\n"
+        "\n"
+        "@register_check('PARSES', 'm')\n"
+        "def parses(row):\n"
+        "    parse(len(row))\n"
+        "    return OK\n", encoding="utf-8")
+    sys.path.insert(0, str(tmp_path))
+    try:
+        reg.load_checks([str(tmp_path / "check_x.py")])
+    finally:
+        sys.path.remove(str(tmp_path))
+        sys.modules.pop("helpers", None)
+    outcome = failures(pd.Series({"value": "x"}))[0]
+    assert outcome.detail == (
+        "AttributeError: 'int' object has no attribute 'upper' (check_x.py:6)")
+
+
+@pytest.mark.parametrize("make", [
+    lambda fn: fn,
+    lambda fn: functools.partial(fn),
+])
+def test_an_errored_detail_with_no_message_drops_its_colon(
+        fresh_registry: None, make: Any) -> None:
+    """`raise ValueError()` has no text: the type and the place, no dangling `: `.
+    A `functools.partial` is located in the function it wraps."""
+
+    def check(row: "pd.Series[Any]", context: Any) -> bool:
+        raise ValueError()
+
+    reg.register_check(code="SILENT", message="m")(make(check))
+    outcome = failures(pd.Series({"age": 1}))[0]
+    line = check.__code__.co_firstlineno + 1
+    assert outcome.detail == f"ValueError (test_pathological.py:{line})"
 
 
 def test_a_raising_check_can_be_made_fatal(fresh_registry: None) -> None:

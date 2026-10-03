@@ -347,7 +347,7 @@ def test_an_errored_outcome_carries_the_layer_and_a_pointer_to_detail(
     assert outcome.layer == 1
     assert outcome.message == "check raised; see detail"
     assert outcome.status == Status.ERROR
-    assert outcome.detail == "RuntimeError: boom"
+    assert outcome.detail.startswith("RuntimeError: boom (conftest.py:")
 
 
 def test_an_errored_check_can_be_the_root_cause(fresh_registry: None) -> None:

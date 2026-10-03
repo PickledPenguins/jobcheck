@@ -8,6 +8,8 @@ its result is `views.py`'s business.
 from __future__ import annotations
 
 import inspect
+import traceback
+from pathlib import Path
 from typing import Any, Callable
 
 import pandas as pd
@@ -166,7 +168,7 @@ def _explain_with_off_here(
                     # Not check.message: that is a verdict on data the check never
                     # finished reading.
                     message="check raised; see detail",
-                    detail=f"{type(exc).__name__}: {exc}",
+                    detail=_describe_error(exc),
                 )
             )
             continue
@@ -287,6 +289,27 @@ def validate(
         settled_by_value[value] = _settle(row_outcomes, off_here, shared, settled or {}, where)
         frame_outcomes.append(row_outcomes)
     return frame_outcomes
+
+
+def _describe_error(exc: Exception) -> str:
+    """`Type: message (file.py:line)` for an exception a check raised.
+
+    The line is the innermost one in the file the check was called in -- through a
+    helper in another file, the check's line that called it -- so a reader can open
+    the check where it broke without re-running with `on_error="raise"`. Frames in
+    this package (the engine's call, the runner `register_check` may wrap a
+    one-argument check in) are left out. A message that is empty drops its colon.
+    """
+
+    text = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
+    package = Path(__file__).parent
+    frames = [frame for frame in traceback.extract_tb(exc.__traceback__)
+              if Path(frame.filename).parent != package]
+    if not frames:
+        return text
+    own = frames[0].filename
+    line = [frame for frame in frames if frame.filename == own][-1].lineno
+    return f"{text} ({Path(own).name}:{line})"
 
 
 def _settle(

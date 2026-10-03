@@ -326,7 +326,8 @@ def test_an_errored_check_appears_in_the_report(fresh_registry: None) -> None:
     report = report_for(pd.DataFrame([{"age": 1}]))
     assert list(report["outcome"]) == ["errored"]
     assert list(report["status"]) == ["ERROR (9)"]
-    assert list(report["detail"]) == ["RuntimeError: boom"]
+    assert len(report) == 1
+    assert report["detail"].iloc[0].startswith("RuntimeError: boom (conftest.py:")
 
 
 # --- comments and titles ------------------------------------------------------

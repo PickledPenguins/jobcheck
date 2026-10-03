@@ -123,7 +123,7 @@ def test_on_error_records_the_exception_and_keeps_going(fresh_registry: None) ->
     make_check("BOOM", raises=RuntimeError("nope"))
     outcomes = validate(frame(2))
     assert [row[0].outcome for row in outcomes] == [Outcome.ERRORED, Outcome.ERRORED]
-    assert outcomes[0][0].detail == "RuntimeError: nope"
+    assert outcomes[0][0].detail.startswith("RuntimeError: nope (conftest.py:")
 
 
 def test_on_error_raise_stops_at_the_first_broken_check(fresh_registry: None) -> None:
