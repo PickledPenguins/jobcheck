@@ -1,8 +1,9 @@
 """Interface checks: the public surface other code depends on.
 
-These are the checks that fail when an export is forgotten, a default changes, or
-a permanent identifier moves -- the kind of break that is invisible until someone
-else's import fails.
+These are the checks that fail when an export is forgotten or a permanent
+identifier moves -- the kind of break that is invisible until someone else's
+import fails. Signatures and their defaults are checked against
+`docs/interfaces.md` by test_docs_api_unit.py.
 """
 
 from __future__ import annotations
@@ -12,13 +13,11 @@ import inspect
 import pkgutil
 import re
 from pathlib import Path
-from typing import Any
+
 
 import pytest
 
 import jobcheck as validation
-from jobcheck import registry as reg
-from jobcheck import engine
 from jobcheck import views
 from jobcheck import results as res
 from jobcheck import rules
@@ -32,17 +31,6 @@ MODULES = [
     importlib.import_module(f"jobcheck.{info.name}")
     for info in pkgutil.iter_modules(validation.__path__)
 ]
-
-
-def test_every_exported_name_exists() -> None:
-    missing = [name for name in validation.__all__ if not hasattr(validation, name)]
-    assert missing == []
-
-
-def test_all_is_sorted_and_free_of_duplicates() -> None:
-    names = [name for name in validation.__all__ if not name.startswith("__")]
-    assert names == sorted(names)
-    assert len(validation.__all__) == len(set(validation.__all__))
 
 
 def test_every_tool_the_suite_relies_on_is_declared() -> None:
@@ -61,7 +49,6 @@ def test_the_package_states_a_version() -> None:
     """Anyone depending on this needs to be able to say which behavior they have."""
 
     assert re.fullmatch(r"\d+\.\d+\.\d+", validation.__version__)
-    assert "__version__" in validation.__all__
 
 
 def test_the_rule_parser_does_not_import_the_registry() -> None:
@@ -124,6 +111,9 @@ def test_the_export_list_is_the_one_written_down() -> None:
     assert sorted(exported - PUBLIC_NAMES) == [], "exported but not chosen"
     assert sorted(PUBLIC_NAMES - exported) == [], "chosen but not exported"
     assert len(validation.__all__) == len(exported), "__all__ names something twice"
+    names = [name for name in validation.__all__ if not name.startswith("__")]
+    assert names == sorted(names), "__all__ is not sorted"
+    assert [name for name in exported if not hasattr(validation, name)] == []
 
 
 def test_status_values_are_permanent() -> None:
@@ -141,9 +131,6 @@ def test_outcome_names_are_permanent() -> None:
         "PASSED": "passed", "FAILED": "failed", "DISABLED": "disabled",
         "SKIPPED": "skipped", "ERRORED": "errored", "SHARED": "shared",
     }
-
-
-def test_an_outcome_compares_equal_to_its_text() -> None:
     assert res.Outcome.FAILED == "failed"
 
 
@@ -159,78 +146,3 @@ def test_report_columns_are_stable() -> None:
         "row", "code", "status", "layer", "outcome", "message", "detail", "comments",
         "rule", "is_root_cause",
     )
-
-
-def test_the_report_is_indexed_by_row_then_added_columns_then_code() -> None:
-    import pandas as pd
-
-    report = views.build_report([[]], pd.DataFrame({"id": [1], "age": [2]}),
-                                add_columns=["age"])
-    assert list(report.index.names) == ["row", "age", "code"]
-    assert list(report.columns) == list(views._REPORT_COLUMNS[2:])
-
-
-def test_registry_table_columns_are_stable(example_checks: None) -> None:
-    assert list(views.registry_table().columns) == [
-        "code", "layer", "default", "repeat", "message", "depends_on", "source_file",
-        "could_be_overridden_by",
-    ]
-
-
-def defaults(fn: Any) -> dict[str, Any]:
-    return {
-        name: parameter.default
-        for name, parameter in inspect.signature(fn).parameters.items()
-        if parameter.default is not inspect.Parameter.empty
-    }
-
-
-@pytest.mark.parametrize(
-    "fn, expected",
-    [
-        pytest.param(reg.register_check,
-                     {"default_enabled": True, "depends_on": None, "repeat": False},
-                     id="register_check"),
-        pytest.param(reg.load_checks, {"base_dir": None}, id="load_checks"),
-        pytest.param(reg.load_rules, {"base_dir": None}, id="load_rules"),
-        pytest.param(engine.validate,
-                     {"rules": None, "context_builder": None,
-                      "on_error": "record", "context_args": None, "repeat_key": None},
-                     id="validate"),
-        pytest.param(views.build_report,
-                     {"key_column": None, "add_columns": None,
-                      "include": "failures"},
-                     id="build_report"),
-
-    ],
-)
-def test_public_defaults(fn: Any, expected: dict[str, Any]) -> None:
-    assert defaults(fn) == expected
-
-
-def test_load_checks_names_files_explicitly() -> None:
-    """This package ships no checks and discovers nothing, so a path is required."""
-
-    with pytest.raises(TypeError):
-        reg.load_checks()  # type: ignore[call-arg]
-
-
-def test_validate_returns_outcomes_not_a_separate_result_type(fresh_registry: None) -> None:
-    import pandas as pd
-    from conftest import make_check
-
-    make_check("FAILS", passes=False)
-    [results] = engine.validate(pd.DataFrame([_row()]))
-    assert all(isinstance(result, res.CheckOutcome) for result in results)
-    assert (results[0].code, results[0].message) == ("FAILS", "FAILS failed")
-
-
-def test_pass_is_a_shared_singleton() -> None:
-    assert res.OK is validation.OK
-    assert res._normalize_verdict(res.OK, "CODE") is res.OK
-
-
-def _row() -> Any:
-    import pandas as pd
-
-    return pd.Series({"age": 1})

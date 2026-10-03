@@ -73,6 +73,7 @@ def test_a_value_outside_the_vocabulary_is_refused(value: object) -> None:
 def test_a_result_passes_through() -> None:
     result = Verdict(Status.MISSING)
     assert res._normalize_verdict(result, "CODE") is result
+    assert res._normalize_verdict(OK, "CODE") is OK
 
 
 def test_a_bool_is_never_read_as_an_integer_status() -> None:
