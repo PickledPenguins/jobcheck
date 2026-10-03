@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.69. Each is either loud already, or needs the owner's decision.
+left is open below, from F.71. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -75,18 +75,12 @@ empty where the default stood. `detail` is unchanged, `disabled by rule 'name'`
 included. Lost: the old column set and CSV header, so a reader indexing columns by
 position shifts by one, and `rule` is now refused as an `add_columns` or `key_column`
 name. Still open: `prerequisite disabled: X` does not say who disabled X; X's own line
-does.
-
-**jobchain's unknown-key messages still list keys the old way** (F.69, raised on
-2026-09-28, moved here from the handoff). Since `22d2973`, jobcheck lists unknown and
-allowed keys one way everywhere: each key's `repr`, sorted as text, joined by commas
-(`paths._key_names`). jobchain's own two messages, at `jobchain/core.py:272` and
-`jobchain/pipeline.py:260`, still print Python's list of the sorted keys, brackets
-included, and sort by value, which raises `TypeError` if YAML hands over a mixed set
-such as `True` beside text keys. The two projects therefore word the same kind of
-mistake differently. Aligning jobchain means copying the helper there (jobchain does not
-import jobcheck's private names) and regenerating any expected output that quotes the
-messages. Not yet surveyed, and the owner was not asked.
+does. F.69 was built on 2026-10-03, in jobchain: its two unknown-key messages
+(`reject_unknown_keys` in `core.py`, the stage check in `pipeline.py`) printed
+Python's list of the keys sorted by value, so a YAML key read as a bool or a number
+beside a misspelled text key raised `TypeError` instead of the error. They now use
+`core.key_names`, a copy of `paths._key_names`, so both projects word the mistake the
+same way. Lost: the brackets around the key lists.
 
 **Every interface in `interfaces.md` gets a brief example in its own section** (F.71,
 raised by the owner on 2026-09-28). Each function or type's definition block in
