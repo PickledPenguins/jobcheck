@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 752 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 714 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 209 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 961 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 923 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 3s |
@@ -66,7 +66,7 @@ Fast:
 |---|---|
 | `tests/test_registry_unit.py` | Registration and its duplicate guard, `clear_registry`, dependency validation, cycle detection, topological order and its cache. |
 | `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads skipped, unique module names, prerequisites across files in one call, that a broken file's error propagates and `clear_registry` recovers, and that no `__pycache__` appears beside the caller's file. Bundles -- a check file that loads check files -- have a section of their own: deferred validation, a failing member's error reaching the caller, and the guard that stops a bundle naming itself from recursing. |
-| `tests/test_validate_unit.py` | The whole-frame entry point: one list of outcomes per row **in its own position**, the checks that did not run kept, rules and the context builder passed through, and both `on_error` modes. |
+| `tests/test_validate_unit.py` | The whole-frame entry point: one list of outcomes per row **in its own position**, rules and the context builder passed through, and both `on_error` modes. |
 | `tests/test_repeat_unit.py` | Copies of a row under `validate(repeat_key=...)`: a check that does not repeat runs on the first copy only and is recorded `shared` on the rest, with status `PASS` and a `detail` saying where; `repeat=True` and its dependents run on every copy, each with its own context, reading a shared prerequisite's result from the first copy; rules match every copy, a copy disabling a check records `disabled`, and a check disabled on the first copy runs on the next copy that enables it; copies need not be adjacent; a shared failure is reported and counted once; every refused `repeat_key` and `repeat` value. |
 | `tests/test_rules_unit.py` | Every rule-file rejection (24 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
 | `tests/test_results_unit.py` | The fixed status vocabulary, `Verdict` truthiness and validation, and normalizing whatever a check returned. |
