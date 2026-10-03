@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.74. Each is either loud already, or needs the owner's decision.
+left is open below, from F.75. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -97,14 +97,6 @@ callers are long-lived processes, jobchain between runs among them, and F.71 gav
 a block in `interfaces.md`. A call added to an example only to be counted is what the
 item ruled out. Not done: moving the job-manifest case into `examples/`, the one honest
 way to show a context there.
-
-**A recursive topological sort, and its own recursion-limit message** (F.74, low-medium;
-same review). `registry._topological_order` (23 lines) walks recursively, so
-`_validate_registry` catches `RecursionError` and rewrites it (about 10 lines). The
-standard library's `graphlib.TopologicalSorter` (3.9+) is iterative and reports a
-cycle itself (`CycleError.args[1]`): about -20 lines. Lost: only the current cycle
-message's exact format, which would be rebuilt from the cycle `graphlib` names.
-Recommended: build.
 
 **`on_error="raise"`** (F.75, low; same review). A few lines in `engine._explain` and
 `validate`, used only by tests. It is the one way to get a traceback
@@ -240,6 +232,17 @@ enough; the text fuzz keeps its nesting shallow for that reason.
 Surveyed: a `line` column numbering the report's lines from 1 after `include`
 filtering, since a repeated key or `<no key>` leaves no column naming one line. The
 owner no longer wants it; `report.reset_index()` gives a position when one is needed.
+
+**`graphlib` in place of the recursive topological sort** (F.74, declined by the owner
+2026-10-03). Proposed as about -20 lines in `registry._topological_order` and the
+`RecursionError` handler in `_validate_registry`, losing only the cycle message's
+format. Measured, it loses more: `graphlib.TopologicalSorter` emits checks layer by
+layer (`ROW_ALL_NULL, AGE_PRESENT, DATES_PRESENT, EMAIL_PRESENT, AGE_NOT_A_NUMBER, ...`)
+where the depth-first walk keeps each chain together in registration order, and every
+report, explanation and CSV prints its lines in evaluation order; it also names a cycle
+backwards. An iterative walk keeping the order saves about 8 lines and reads worse;
+deleting the handler alone turns a chain about 1,000 checks deep into a bare
+`RecursionError`. The recursive walk stays as the clearest form.
 
 **A float status is not refused** (F.83, cut on 2026-10-01). `Verdict(3.0)` is read as
 `INVALID`, because `Status` is an `IntEnum`. A status is expected to be an `int` (or a
