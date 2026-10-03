@@ -178,9 +178,9 @@ mutmut show <name>  # the diff for one survivor
 ```
 
 **The floor is 94%, set 2026-09-26 against a measured 95.7%.** The score is detected over
-total: killed, caught by the type check, or timed out. 1.7 points is about 23 of the 1,369
-mutants -- room for a change that adds a few untested lines, not for a module losing its
-tests. Raise it when the score rises and stays there; lower it only with the survivors read
+total: killed, caught by the type check, or timed out. The 96.9% of `c515049` is 2.9
+points, about 43 of its 1,494 mutants, above the floor -- room for a change that adds a
+few untested lines, not for a module losing its tests. Raise it when the score rises and stays there; lower it only with the survivors read
 and recorded below, never to make a run pass.
 
 **That incantation is not decoration.** Plain `mutmut run` fails during stats collection
@@ -192,13 +192,12 @@ in `[tool.mutmut]`:
 - `also_copy = ["examples/", "scripts/"]` — mutmut runs the suite against a copy of the
   tree under `mutants/`; the entry point and example check files the tests load live in
   `examples/`, and one test regenerates the example data from `scripts/` and compares.
-- `pytest_add_cli_args_test_selection` excludes twenty test files **from mutmut's runs
-  only** — they still run in every normal suite. Four of them shell out to a subprocess,
+- `pytest_add_cli_args_test_selection` excludes eighteen test files **from mutmut's runs
+  only** — they still run in every normal suite. Three of them shell out to a subprocess,
   which never loads mutmut's instrumentation, so a mutant would always look like it
   survived; eight assert on the module's own structure or read the documents
   (`test_api_contract.py`, `test_readme.py` and the six `test_docs_*` files), neither of
-  which survives being copied into `mutants/`; one reads git history; the remaining
-  seven (load, scaling, perf, memory, concurrency, property, fuzz) are excluded for cost,
+  which survives being copied into `mutants/`; the remaining seven (load, scaling, perf, memory, concurrency, property, fuzz) are excluded for cost,
   since mutmut runs the whole selection once per mutant and each of those is covered by
   a faster test of the same behavior. The list, with a reason beside each entry, is in
   `pyproject.toml`.
@@ -221,107 +220,25 @@ Surviving mutants are a to-do list, not a failure: each one is a change to the c
 no test noticed.
 
 Measured on 2026-10-03 at commit `c515049`, on a clean tree: **1,494 mutants, 1,447
-killed, 47 survived, 0 timeouts — 96.9%.** The records below are older; the module names
-in them (`report`, `registry_tables`) are the ones since merged into `views`.
+killed, 47 survived, 0 timeouts — 96.9%**, in about four minutes. That is a record of one
+commit, not the current score: re-run before quoting a number, and update this paragraph
+with what comes back. Earlier scores, oldest first: 89.2% (2026-09-10), 89.5% (09-11),
+94.6% (09-25), 95.7% (09-26), 96.6% (09-28), 97.1% (10-02). Each run's reading of its
+survivors is in `git log -p docs/testing.md`.
 
-Measured on 2026-10-02 at commit `d7d248c`, on a clean tree: **1,431 mutants, 1,389
-killed, 42 survived, 0 timeouts — 97.1%.**
-
-Measured on 2026-09-28, with the silent fixes of the 2026-09-27 reviews and their tests:
-**1,525 mutants, 1,473 killed, 52 survived, 0 timeouts — 96.6%**, in about five minutes.
-Survivors by module: `engine` 13, `tables` 10, `paths` 9, `report` 9, `registry` 9,
-`registry_tables` 2. Those in the new code were read: the ones left are equivalents
-(`deep=None` for `deep=False` in the YAML loader, the letter case of a codec name, a
-negative sentinel of -2 for -1, an explicit `utf-8` on a UTF-8 box) and `continue` turned
-to `break` after an unhashable key, which YAML then refuses anyway.
-
-Measured on 2026-09-26 on a tree cleaned first (`rm -rf mutants .mutmut-cache`), at
-commit `c4d6b0b` plus the `summarize_outcomes` fix: **1,369 mutants, 1,310 killed, 59
-survived, 0 timeouts — 95.7%.** The run takes about four minutes at ~6 mutations/second.
-Fewer mutants than before because the output layer shrank (one `render` in place of the
-printing functions). Earlier record, commit `7865edc` plus its tests: 1,656 mutants, 1,566
-killed, 90 survived, 94.6%.
-
-That is a record of one commit, not the current score. Re-run before quoting a number,
-and update this section with what comes back.
-
-Survivors by module at 2026-09-26: `engine` 22, `registry` 13, `tables` 8, `report` 8,
-`rules` 6, `registry_tables` 2. The ones in the new output code (`render`, `_shown`,
-`summarize_outcomes`, `registry_table`) are default arguments and equivalents:
-`fmt="XXtableXX"`, `to_csv(index=None)`, and `reset_index(drop=False)` whose added
-`index` column the column narrowing then drops.
-
-The 89 survivors in `report` and `registry_tables` at `7865edc` were read one by one on
-2026-09-25. 49 were assertions the suite did not make, and each now has a test (they
-are the section of `test_report_unit.py` headed "found by reading the mutation
-survivors"; the printing functions they name were replaced
-by `render` later that day): a column wrapped by name in every printer, where a
-renamed key left it unwrapped and nothing looked; `print_report` not passing
-`wrap_width` on; `print_rules` ignoring `drop_columns`; the rules table's `action`
-column; the table name in two `drop_columns` errors and the whole duplicate-key message;
-`<no key>` for a null index label; `wrap_width=1` being accepted; `errored` breaking a
-tie on `failed`; root causes ranked by rows rather than by name, and their columns when
-there are none; and three "none" lines asserted with `in`, which a mutant that wraps
-the text in `XX` still satisfies. The 40 left:
-
-- **19 default-argument mutants** — every `title`, `fmt`, `include` and `wrap_width`
-  default. Unkillable here; see below.
-- **14 equivalent mutants** — `reset_index(drop=None or False)` followed by a column
-  selection that drops the added `index`; `itertuples(index=None)` and its default
-  `name=`; `to_csv(index=None)`, which pandas reads as false; `write_report`'s encoding
-  and newline on a UTF-8 Linux box (five); and `summarize_outcomes` building its frame
-  with `None` rows or no `columns=`, when the rows' own keys are already in order (four).
-- **7 wrap widths moved by one** — 40 to 41 and the like. A width is a presentation
-  choice, and a test pinning it to the character would fail on every deliberate change
-  to it.
-
-The other four modules' 50 survivors were last read at `b648bcf` (47 then): default
-arguments, unreachable branches, equivalents, and assertions the suite does not make.
-Not re-read this time.
-
-The earlier runs, for the shape of what a survivor tends to be. The 2026-09-11 run at
-`9fe2207` scored 89.5%; its first pass scored 87.9%, and 20 of the survivors were the new
-`add_columns` selection on the registry tables, where no test asked a table for
-`source_file` and read it back, and the report's "(none available)" message for a
-frame with nothing left to offer. Both are covered now. The four extra survivors in `rules` are the
-wording of the new `message` and bare-string-path errors — the same gap the 2026-09-21
-run still lists.
-
-The 2026-09-10 run scored 89.2% on its first pass, and the difference then was
-nine mutants that were real gaps, all in code the simplification had just
-rewritten. What they were:
-
-- **`register_check`, four.** The duplicate-code message names the *module* as
-  well as the function, and only a check defined by `exec`, which has no module, was
-  under test; `depends_on=[""]` was accepted, an empty code being a typo rather
-  than a check with no name; and the required-keyword-argument message lists two
-  arguments comma-separated, which one argument cannot show.
-- **`explain_row`, four.** An `errored` outcome carries a layer and a
-  message as well as its detail, and nothing asserted either. The layer is what
-  decides which code a row reports as its root cause, so a check that raised at
-  the wrong layer changes the answer rather than the wording.
-
-The other four groups, which no assertion can reach:
+Survivors by module at `c515049`: `engine` 16, `views` 12, `registry` 11, `paths` 7,
+`tables` 1. They have not been read one by one since the output modules were merged
+into `views`, so which of them are missing assertions and which are equivalents is not
+known. Two classes recur in every reading so far:
 
 - **Default-argument mutants — unkillable here.** mutmut's trampoline keeps the
   *original* function's defaults and forwards the caller's arguments, so a
   mutated default in the mutant body is never evaluated. Verified by hand on
   `validate(on_error="XXrecordXX")`, which behaves exactly like the original.
-- **Unreachable branches.** `state.get(check.code, <default>)` in `explain_row`
-  cannot miss: `_resolve_enabled_state` builds an entry for every registered check.
-  `passed.get(code, False)` cannot miss either, because the topological order
-  evaluates prerequisites first and `validate_registry` rejects dangling ones. (Both
-  lookups have indexed directly since `32a704f` removed the F.24 guards, so this group
-  no longer exists.)
-- **Equivalent mutants.** `False` swapped for `None` where the value is only ever
-  read through `not`. (`write_report`'s encoding and newline mutants went with
-  `write_report` on 2026-09-25: the library no longer writes files.)
-- **Print-function wording — mostly not unkillable after all.** The 2026-09-21 run
-  filed the 82 survivors in `report` and `registry_tables` here, as output pinned byte
-  for byte only by the example catalog and golden files, which run in a subprocess
-  mutmut cannot instrument. Read one by one on 2026-09-25, 49 of the 89 then present
-  were reachable in-process and are killed now; see above. The library's *error*
-  messages are pinned word for word by `tests/test_error_messages_unit.py`.
+- **Equivalent mutants.** A change Python or pandas reads the same way: `False` swapped
+  for `None` where the value is only read through `not`, `reset_index(drop=None)`
+  before a column selection that drops the added `index`, `to_csv(index=None)`, the
+  letter case of a codec name.
 
 Writing the message tests found a defect the suite had never noticed:
 `register_check(depends_on="AGE_PRESENT")` did `list(depends_on or [])` before the guard

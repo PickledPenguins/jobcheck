@@ -109,7 +109,7 @@ rather than the library (`test_mutation_score_unit.py`, `test_perf_baseline_unit
 `test_regen_docs_unit.py`), and many pin behavior the simplicity principle has since
 removed or would remove. The pass should apply the same rule as the code review: each
 test earns its place by guarding core behavior a user relies on, and what it costs to
-keep is weighed.
+keep is weighed. Done on 2026-10-03, in the nine steps below: 1,150 tests to 863.
 
 Surveyed 2026-10-03: 7,212 executable test lines against 1,161 in `src/` and 864 in
 `examples/` and `scripts/`. Overlap is already visible: `test_main_unit.py` and
