@@ -119,17 +119,13 @@ def test_an_unnamed_context_is_an_empty_one_not_none(fresh_registry: None) -> No
     assert all(isinstance(ctx, RowContext) for ctx in seen)
 
 
-@pytest.mark.parametrize(
-    "arguments",
-    [pytest.param("", id="none"), pytest.param("row, context, extra", id="three")],
-)
-def test_a_signature_the_engine_cannot_call_is_rejected_at_registration(
-    fresh_registry: None, arguments: str
+def test_a_check_taking_no_arguments_is_rejected_at_registration(
+    fresh_registry: None,
 ) -> None:
-    namespace: dict[str, Any] = {}
-    exec(f"def check({arguments}):\n    return True", namespace)
     with pytest.raises(ValueError, match=r"must take \(row\) or \(row, context\)"):
-        reg.register_check(code="BAD_SIGNATURE", message="m")(namespace["check"])
+        @reg.register_check(code="BAD_SIGNATURE", message="m")
+        def check() -> bool:
+            return True
 
 
 def test_a_starargs_check_is_accepted(fresh_registry: None) -> None:

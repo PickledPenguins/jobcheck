@@ -132,12 +132,7 @@ def test_on_error_raise_stops_at_the_first_broken_check(fresh_registry: None) ->
         validate(frame(2), on_error="raise")
 
 
-def test_a_bad_on_error_is_rejected_before_anything_runs(fresh_registry: None) -> None:
-    calls: list[str] = []
-    make_check("A", calls=calls)
-    with pytest.raises(ValueError, match="on_error must be 'record' or 'raise'"):
-        validate(frame(2), on_error="explode")
-    assert calls == []
+
 
 
 def test_a_bad_on_error_is_refused_even_on_an_empty_frame(fresh_registry: None) -> None:
@@ -148,12 +143,7 @@ def test_a_bad_on_error_is_refused_even_on_an_empty_frame(fresh_registry: None) 
         validate(pd.DataFrame(columns=["age"]), on_error="ignore")
 
 
-def test_a_series_is_refused_with_a_pointer_to_the_per_row_functions(
-    fresh_registry: None,
-) -> None:
-    make_check("CODE")
-    with pytest.raises(TypeError, match="validate takes a DataFrame, got Series"):
-        validate(pd.Series({"age": 1}))  # type: ignore[arg-type]
+
 
 
 def test_a_context_builder_taking_two_arguments_is_given_the_context_args(
@@ -208,20 +198,6 @@ def test_a_builder_taking_neither_shape_says_so(fresh_registry: None) -> None:
     assert "must take (row) or (row, context_args), not 3 positional argument(s)" in str(
         raised.value)
 
-
-def test_a_builder_with_a_required_keyword_argument_is_refused_before_any_row(
-    fresh_registry: None
-) -> None:
-    """Refused at setup, so an empty frame -- where the builder is never called --
-    reports it too, rather than passing until the first real row arrives."""
-
-    make_check("CODE")
-
-    def build(row, *, mode):  # type: ignore[no-untyped-def]
-        return None
-
-    with pytest.raises(ValueError, match="needs keyword argument"):
-        validate(pd.DataFrame({"a": []}), context_builder=build)
 
 
 def test_a_builder_whose_keyword_argument_has_a_default_is_accepted(

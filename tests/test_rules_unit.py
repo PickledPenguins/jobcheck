@@ -153,10 +153,7 @@ def test_a_rule_records_the_path_the_caller_wrote(one_code: None, tmp_path: Path
     assert rule.source_file == "rules.yaml"
 
 
-def test_missing_file_is_refused_the_way_a_missing_check_file_is(one_code: None,
-                                                                 tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="No rule file at"):
-        reg.load_rules([str(tmp_path / "absent.yaml")])
+
 
 
 @pytest.mark.parametrize(

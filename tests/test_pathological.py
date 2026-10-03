@@ -197,13 +197,7 @@ def test_an_errored_detail_with_no_message_drops_its_colon(
     assert outcome.detail == f"ValueError (test_pathological.py:{line})"
 
 
-def test_a_raising_check_can_be_made_fatal(fresh_registry: None) -> None:
-    @reg.register_check(code="EXPLODES", message="m")
-    def check(row: "pd.Series[Any]") -> bool:
-        raise RuntimeError("check is broken")
 
-    with pytest.raises(RuntimeError, match="check is broken"):
-        failures(pd.Series({"age": 1}), on_error="raise")
 
 
 def test_a_check_reading_a_column_that_is_absent_errors_naming_it(fresh_registry: None) -> None:
@@ -218,10 +212,14 @@ def test_a_check_reading_a_column_that_is_absent_errors_naming_it(fresh_registry
     assert "agee" in outcome.detail
 
 
+
+
+
 def test_a_check_returning_nothing_raises_even_when_errors_are_recorded(
     fresh_registry: None,
 ) -> None:
-    """A bad return is an authoring bug, not a data problem, so it is never recorded."""
+    """A bad return is an authoring bug, not a data problem, so it is never recorded.
+    The only test of that path through the engine, so the message names the check."""
 
     @reg.register_check(code="FORGOT", message="m")
     def check(row: "pd.Series[Any]") -> Any:
@@ -267,15 +265,7 @@ def test_a_hundred_comment_keys_render_in_the_order_written(fresh_registry: None
     assert rendered.count(";") == 99
 
 
-def test_a_frame_with_duplicate_column_labels_fails_on_the_first_row(
-    fresh_registry: None,
-) -> None:
-    from jobcheck import validate
 
-    make_check("CODE")
-    frame = pd.DataFrame([[1, 2]], columns=["age", "age"])
-    with pytest.raises(ValueError, match="duplicate column labels"):
-        validate(frame)
 
 
 def test_an_empty_frame_produces_an_empty_report(fresh_registry: None) -> None:

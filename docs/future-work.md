@@ -144,6 +144,17 @@ stderr empty, an error as one stderr line with stdout clean); everything else it
 files are one parametrized test. Coverage of the three entry points and the 47 surviving
 mutants are the same before and after.
 
+F.76b was done on 2026-10-03: `test_error_messages_unit.py` stays the one place a
+message is pinned word for word, and 17 unit tests that drove the same input to the same
+message, asserting nothing more, went (1,116 tests to 1,098). Kept: a test with a
+different input (the frame shorter than the outcomes, the duplicated-label regressions, an
+empty-string prerequisite) or one that asserts more (no check ran, nothing registered).
+The position pin moved the other way: `test_report_unit.py` already compared the whole
+string for -1 and 3, so the error_messages copy went. One cut was restored: the check
+returning None in `test_pathological.py` is the only test of that path through the
+engine, and without it a mutant passing no code to the message survived. Coverage and the
+47 surviving mutants are the same before and after.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row

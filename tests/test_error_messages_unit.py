@@ -24,12 +24,11 @@ import pytest
 from conftest import make_check
 from jobcheck import (
     build_report,
-    explain_row,
     validate,
     load_rules,
     registry as reg,
 )
-from jobcheck.results import Verdict, _normalize_verdict
+from jobcheck.results import _normalize_verdict
 from jobcheck.results import OK
 
 pytestmark = pytest.mark.fast
@@ -211,6 +210,9 @@ def test_a_dangling_prerequisite_lists_the_loaded_files(fresh_registry: None) ->
 
 
 def test_a_bare_string_path_is_refused_by_both_loaders(fresh_registry: None) -> None:
+    """A string is a list of its characters, so iterating one loads nothing and
+    reports a missing file named 'c'. Say what to pass instead."""
+
     with pytest.raises(TypeError) as raised:
         reg.load_checks("checks.py")  # type: ignore[arg-type]
     assert message_of(raised) == (
@@ -289,10 +291,7 @@ def test_a_check_returning_nonsense_says_what_it_may_return(fresh_registry: None
         "bare comparison.")
 
 
-def test_a_result_with_an_unknown_status_names_the_registered_ones(fresh_registry: None) -> None:
-    with pytest.raises(ValueError) as raised:
-        Verdict(99)
-    assert message_of(raised).startswith("Unknown status 99.")
+
 
 
 def test_a_frame_that_is_not_a_frame_says_how_to_make_one(fresh_registry: None) -> None:
@@ -304,12 +303,7 @@ def test_a_frame_that_is_not_a_frame_says_how_to_make_one(fresh_registry: None) 
     )
 
 
-def test_a_position_that_is_not_a_row_says_how_many_there_are() -> None:
-    with pytest.raises(ValueError) as raised:
-        explain_row([[], []], 2)
-    assert message_of(raised) == (
-        "position 2 is not a row: outcomes cover 2 row(s), numbered from 0."
-    )
+
 
 
 # --- reporting --------------------------------------------------------------
@@ -355,6 +349,8 @@ def test_an_ambiguous_data_column_is_refused_with_the_frame_columns(
 
 
 def test_a_data_column_clashing_with_a_report_column_is_refused(fresh_registry: None) -> None:
+    """Silently overwriting the report's own column would hide the failure."""
+
     make_check("CODE", passes=False)
     frame = pd.DataFrame([{"id": 1, "code": "x"}])
     with pytest.raises(ValueError) as raised:
@@ -378,7 +374,9 @@ def test_a_builder_with_a_required_keyword_argument_says_how_to_fix_it(
     fresh_registry: None
 ) -> None:
     """Regression: the check path refused this at registration and the builder
-    path did not, so the builder failed on the first row with a bare TypeError."""
+    path did not, so the builder failed on the first row with a bare TypeError.
+    Refused at setup, so an empty frame -- where the builder is never called --
+    reports it too, rather than passing until the first real row arrives."""
 
     make_check("CODE")
 
@@ -386,7 +384,7 @@ def test_a_builder_with_a_required_keyword_argument_says_how_to_fix_it(
         return None
 
     with pytest.raises(ValueError) as raised:
-        validate(pd.DataFrame([{"a": 1}]), context_builder=build)
+        validate(pd.DataFrame({"a": []}), context_builder=build)
     assert message_of(raised) == (
         "context_builder 'build' needs keyword argument(s) mode that validate cannot "
         "supply. Give them defaults, or read them from context_args.")
