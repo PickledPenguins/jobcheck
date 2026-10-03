@@ -135,6 +135,9 @@ pytest_add_cli_args_test_selection = [
 # The counts the documents state, and where each real number comes from, for
 # ~/work/ai/skills/bin/doc-counts (`doc-counts --write` after adding tests or
 # catalog cases). tests/test_docs_structure_unit.py gates the same numbers.
+# Pass --python naming an interpreter that has hypothesis: under one without it
+# the property tests are not collected, the long and all counts come out short by
+# that many, and --write would record them.
 [[tool.doc-counts.count]]
 file = "docs/testing.md"
 pattern = '\| `\./tests/run-tests\.sh fast` \| ([\d,]+) tests'
