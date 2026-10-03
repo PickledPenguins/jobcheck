@@ -43,13 +43,6 @@ def test_a_check_that_does_not_repeat_runs_on_the_first_copy_only(fresh_registry
         Outcome.PASSED, Outcome.SHARED, Outcome.SHARED, Outcome.PASSED]
 
 
-def test_a_repeated_check_runs_on_every_copy(fresh_registry: None) -> None:
-    calls: list[str] = []
-    make_check("EACH", calls=calls, repeat=True)
-    validate(copies(), repeat_key="id")
-    assert calls == ["EACH"] * 4
-
-
 def test_without_repeat_key_every_check_runs_on_every_row(fresh_registry: None) -> None:
     calls: list[str] = []
     make_check("ONCE", calls=calls)
@@ -61,20 +54,23 @@ def test_without_repeat_key_every_check_runs_on_every_row(fresh_registry: None) 
 def test_a_shared_outcome_passes_status_and_says_where(
     fresh_registry: None,
 ) -> None:
-    make_check("ONCE", passes=False, status=Status.MALFORMED, comments={"v": 1})
-    shared = validate(copies(), repeat_key="id")[1][0]
+    """It keeps its check's layer, and says whether the first copy failed or errored."""
+
+    make_check("BASE")
+    make_check("ONCE", passes=False, status=Status.MALFORMED, comments={"v": 1},
+               depends_on=["BASE"])
+    make_check("RAISES", raises=RuntimeError("boom"))
+    copy = by_code(validate(copies(), repeat_key="id")[1])
+    shared = copy["ONCE"]
     assert shared.outcome is Outcome.SHARED
     assert shared.status == Status.PASS
     assert shared.detail == "failed at position 0, the first row with id J1"
     assert not shared.failed
     assert shared.message == "" and dict(shared.comments) == {}
-    assert shared.layer == 0
-
-
-def test_a_shared_outcome_keeps_its_checks_layer(fresh_registry: None) -> None:
-    make_check("BASE")
-    make_check("ONCE", depends_on=["BASE"])
-    assert by_code(validate(copies(), repeat_key="id")[1])["ONCE"].layer == 1
+    assert shared.layer == 1
+    assert copy["RAISES"].outcome is Outcome.SHARED
+    assert copy["RAISES"].status == Status.PASS
+    assert copy["RAISES"].detail == "errored at position 0, the first row with id J1"
 
 
 def test_a_repeated_check_runs_on_a_copy_when_its_shared_prerequisite_passed(
@@ -225,14 +221,6 @@ def test_a_shared_failure_is_reported_and_counted_once(fresh_registry: None) -> 
     summary = summarize_outcomes(outcomes).set_index("code")
     assert summary.loc["ONCE", ["failed", "shared", "root_cause_rows"]].tolist() == [2, 2, 2]
     assert summary.loc["EACH", ["passed", "shared"]].tolist() == [4, 0]
-
-
-def test_a_check_that_raised_is_shared_as_errored_in_detail(fresh_registry: None) -> None:
-    make_check("ONCE", raises=RuntimeError("boom"))
-    shared = validate(copies(), repeat_key="id")[1][0]
-    assert shared.outcome is Outcome.SHARED
-    assert shared.status == Status.PASS
-    assert shared.detail == "errored at position 0, the first row with id J1"
 
 
 def test_on_error_raise_propagates_under_repeat_key(fresh_registry: None) -> None:

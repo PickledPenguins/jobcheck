@@ -19,25 +19,14 @@ from jobcheck.results import Verdict, OK, Status
 pytestmark = pytest.mark.fast
 
 
-def test_register_check_captures_code_and_message(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    check = reg._CHECKS[0]
-    assert (check.code, check.message) == ("A_CODE", "A_CODE failed")
-
-
-def test_register_check_defaults_are_enabled_with_no_dependencies(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    check = reg._CHECKS[0]
-    assert (check.default_enabled, check.depends_on) == (True, [])
-
-
 def test_register_check_called_bare_is_on_by_default_and_does_not_repeat(
     fresh_registry: None,
 ) -> None:
-    # make_check passes both arguments, so only a direct call sees the defaults.
+    # make_check passes every argument, so only a direct call sees the defaults.
     reg.register_check("BARE", "m")(lambda row: OK)
     check = reg._CHECKS[0]
-    assert (check.default_enabled, check.repeat) == (True, False)
+    assert (check.code, check.message) == ("BARE", "m")
+    assert (check.default_enabled, check.repeat, check.depends_on) == (True, False, [])
 
 
 def test_register_check_returns_the_undecorated_function(fresh_registry: None) -> None:
@@ -54,9 +43,6 @@ def test_register_check_copies_depends_on_so_caller_list_cannot_mutate_it(fresh_
     make_check("SECOND", depends_on=codes)
     codes.append("LATER")
     assert reg._CHECKS[1].depends_on == ["FIRST"]
-
-
-
 
 
 def test_source_file_points_at_the_defining_file(example_checks: None) -> None:
@@ -138,25 +124,12 @@ def test_a_callable_object_of_the_wrong_shape_is_refused_with_a_message(
     )
 
 
-def test_a_check_defined_by_exec_registers(fresh_registry: None) -> None:
+def test_a_check_defined_by_exec_registers_and_its_duplicate_names_the_function(
+    fresh_registry: None,
+) -> None:
     """Regression: a function from exec() has __module__ set to None, which the
     registration path must not assume is a string."""
 
-    namespace: dict[str, Any] = {}
-    exec(
-        "from jobcheck import OK, register_check\n"
-        '@register_check("EXECED", "m")\n'
-        "def check(row):\n"
-        "    return OK\n",
-        namespace,
-    )
-    registered = reg._CHECKS[0]
-    assert registered.code == "EXECED"
-    assert registered.source_file == "<unknown>"
-    assert failures(pd.Series({"age": 1})) == []
-
-
-def test_a_duplicate_code_from_exec_still_names_the_function(fresh_registry: None) -> None:
     namespace: dict[str, Any] = {}
     source = (
         "from jobcheck import OK, register_check\n"
@@ -165,6 +138,8 @@ def test_a_duplicate_code_from_exec_still_names_the_function(fresh_registry: Non
         "    return OK\n"
     )
     exec(source, namespace)
+    assert reg._CHECKS[0].source_file == "<unknown>"
+    assert failures(pd.Series({"age": 1})) == []
     with pytest.raises(ValueError, match=r"Duplicate check code 'EXECED' \(registering check;"):
         exec(source, namespace)
 
@@ -179,18 +154,13 @@ def test_importing_the_package_alone_registers_nothing(fresh_registry: None) -> 
     assert jobcheck.registry._LOADED_FILES == []
 
 
-def test_clear_registry_empties_the_checks_and_the_loaded_files(example_checks: None) -> None:
-    reg.clear_registry()
-    assert reg._CHECKS == []
-    assert reg._LOADED_FILES == []
-
-
 def test_clear_registry_then_load_checks_re_registers(fresh_registry: None) -> None:
     """Regression: clearing left the modules in sys.modules, so the re-import was a
     no-op and the registry stayed silently empty."""
 
     reg.load_checks(EXAMPLE_CHECK_FILES)
     reg.clear_registry()
+    assert (reg._CHECKS, reg._LOADED_FILES) == ([], [])
     reg.load_checks(EXAMPLE_CHECK_FILES)
     assert sorted(t.code for t in reg._CHECKS) == [
         "AGE_NEGATIVE",
@@ -205,13 +175,6 @@ def test_clear_registry_then_load_checks_re_registers(fresh_registry: None) -> N
         "EMAIL_PRESENT",
         "ROW_ALL_NULL",
     ]
-
-
-def test_validate_registry_accepts_a_satisfied_dependency(fresh_registry: None) -> None:
-    make_check("BASE_CHECK")
-    make_check("DEPENDENT", depends_on=["BASE_CHECK"])
-    reg._validate_registry()
-    assert [t.code for t in reg._get_topo_order()] == ["BASE_CHECK", "DEPENDENT"]
 
 
 def test_unregistered_prerequisite_raises_naming_both_codes(fresh_registry: None) -> None:
@@ -230,14 +193,6 @@ def test_prerequisite_in_an_unloaded_file_raises_rather_than_skipping(fresh_regi
     make_check("NEEDS_EMAIL", depends_on=["EMAIL_MISSING_AT"])
     with pytest.raises(ValueError, match="EMAIL_MISSING_AT"):
         reg._validate_registry()
-
-
-def test_direct_cycle_raises_naming_the_path(fresh_registry: None) -> None:
-    make_check("CYCLE_A", depends_on=["CYCLE_B"])
-    make_check("CYCLE_B", depends_on=["CYCLE_A"])
-    with pytest.raises(ValueError) as excinfo:
-        reg._validate_registry()
-    assert str(excinfo.value) == "Dependency cycle among checks: CYCLE_A -> CYCLE_B -> CYCLE_A. " + reg._RELOAD_HINT
 
 
 def test_transitive_cycle_raises_naming_the_whole_chain(fresh_registry: None) -> None:
@@ -294,12 +249,6 @@ def test_registering_a_check_invalidates_the_cached_order(fresh_registry: None) 
     make_check("SECOND")
     assert reg._TOPO_ORDER is None
     assert len(reg._get_topo_order()) == 2
-
-
-def test_get_topo_order_recomputes_after_the_cache_is_dropped(fresh_registry: None) -> None:
-    make_check("ONLY")
-    reg._TOPO_ORDER = None
-    assert [t.code for t in reg._get_topo_order()] == ["ONLY"]
 
 
 # --- what mutation testing found the suite was not pinning ------------------
@@ -364,19 +313,15 @@ def test_saving_the_registry_copies_every_global_clear_registry_clears(
 ) -> None:
     """The suite's own isolation depends on it: a registry global added to the
     module and not to SavedRegistry is state every test silently loses. That is
-    what happened to the load sequence."""
+    what happened to the load sequence.
+
+    The in-progress load stack is left out deliberately, not by oversight: it
+    belongs to the `load_checks` call that is running, and a frame put back from
+    a finished load would take the blame for the next file's checks."""
 
     saved = set(SavedRegistry.__slots__)
     cleared = {"checks", "loaded_files", "topo_order"}
     assert saved == cleared
-
-
-def test_saving_the_registry_leaves_out_the_in_progress_load_stack() -> None:
-    """Deliberate, not an oversight: the stack belongs to the `load_checks`
-    call that is running, and a frame put back from a finished load would take
-    the blame for the next file's checks."""
-
-    assert not any("loading" in name for name in SavedRegistry.__slots__)
 
 
 def test_the_load_sequence_survives_a_clear(fresh_registry: None, tmp_path: Any) -> None:

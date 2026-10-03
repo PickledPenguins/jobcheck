@@ -206,6 +206,28 @@ out-of-vocabulary parametrize. The owner's decision that the key level is named 
 header line with an added column, pinned only through the data lines now. Coverage and
 the 47 surviving mutants are the same before and after.
 
+e3 was done on 2026-10-03 (151 tests to 113, 961 to 923 in all; 1,109 executable lines
+to 942). `test_explain_unit.py` held tests whose names claimed more than they asserted
+(evaluation order, the first root cause), a wrapped condition and a named status the
+results tests already pin, the clean-row root cause twice, layer zero inside the
+deepest-chain test, and a "did not pass" detail asserted identically twice. Its
+off-by-default and rule-disabled tests each joined the test giving the reason, the three
+`_root_causes` tests became one, the integer check's two halves one, and a passing
+prerequisite joined the mixed-blockers test. In `test_registry_unit.py` the captured code
+and defaults joined the bare-call test (the defaults test went through `make_check`,
+which passes `default_enabled` itself), the two `exec` tests became one, clearing joined
+clear-and-reload, and the 2-node cycle, the satisfied-dependency and the dropped-cache
+tests went to their neighbors. In `test_repeat_unit.py` the shared outcome's layer and
+the errored detail joined the shared-outcome test; in `test_validate_unit.py` the shape
+and index-label tests joined the positional test, and the skipped-kept, rules-reach and
+one-argument-builder tests went. In `test_context_unit.py` the attribute refusal joined
+the caching test and the None-returning builder the no-builder test. The owner's
+reasons moved with the tests that absorbed them (the disabled prerequisite, the load
+stack left out of `SavedRegistry`, the refused attribute). Lost: the shipped example
+checks with `AGE_PRESENT` disabled (the chain under a failing `AGE_PRESENT` is still
+pinned), a 2-node cycle's message, and a named one-argument builder. Coverage and the 47
+surviving mutants are the same before and after.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row
