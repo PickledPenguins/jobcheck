@@ -1,6 +1,6 @@
 """Scaling: how cost grows as one dimension grows, not how fast it is once.
 
-A fixed ceiling ("20,000 rows in under 60s") catches a tenfold regression on the
+A fixed ceiling ("5,000 rows in under 60s") catches a tenfold regression on the
 machine that wrote it and nothing on a faster one. These checks assert the
 *shape* instead -- doubling the rows should roughly double the work, not
 quadruple it -- which is machine-independent and is what an accidental per-row

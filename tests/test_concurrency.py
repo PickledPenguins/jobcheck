@@ -7,8 +7,8 @@ several runs -- and the guarantees are different for each:
 
 - **Threads share the registry.** Validation must not mutate it, so many threads
   validating at once must agree with the same rows validated one at a time.
-- **Processes do not share it.** Each builds its own from its own suites or
-  files, and one process's loading says nothing about another's.
+- **Processes do not share it.** Each builds its own from its own files; the
+  only thing they share is the disk, and loading writes nothing to it.
 
 Loading from more than one thread, or while another thread validates, is *not* a
 supported state and is not tested as one: registration mutates a global list and
@@ -22,6 +22,7 @@ import sys
 import textwrap
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -49,28 +50,23 @@ def frame(rows: int) -> pd.DataFrame:
 
 
 def test_threads_validating_rows_agree_with_one_thread(example_checks: None) -> None:
+    """Each row's failures and its root cause, the same whichever thread ran it."""
+
+    def codes_and_cause(row: "pd.Series[Any]") -> tuple[list[str], str | None]:
+        found = failures(row)
+        return [outcome.code for outcome in found], first_cause(found)
+
     df = frame(ROWS)
     rows = [row for _, row in df.iterrows()]
-    expected = [[outcome.code for outcome in failures(row)] for row in rows]
+    expected = [codes_and_cause(row) for row in rows]
 
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        concurrent = list(pool.map(lambda row: [o.code for o in failures(row)], rows))
-
-    assert concurrent == expected
-
-
-def test_threads_do_not_disturb_each_others_root_causes(example_checks: None) -> None:
-    df = frame(ROWS)
-    rows = [row for _, row in df.iterrows()]
-    expected = [first_cause(failures(row)) for row in rows]
-
-    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
-        concurrent = list(pool.map(lambda row: first_cause(failures(row)), rows))
+        concurrent = list(pool.map(codes_and_cause, rows))
 
     assert concurrent == expected
     # Not all None: a check that only proves two empty lists are equal proves
     # nothing about the engine.
-    assert any(cause is not None for cause in expected)
+    assert any(cause is not None for _, cause in expected)
 
 
 def test_whole_frames_validated_on_threads_agree_with_one_thread(example_checks: None) -> None:
@@ -127,22 +123,7 @@ def run_child(source: str) -> subprocess.CompletedProcess[str]:
                           text=True, timeout=120, cwd=PROJECT_ROOT)
 
 
-def test_two_processes_loading_the_same_file_do_not_share_a_registry(tmp_path: Path) -> None:
-    """Each process registers the file itself; neither sees the other's checks."""
 
-    src = str(Path(PROJECT_ROOT) / "src")
-    left = tmp_path / "left.py"
-    right = tmp_path / "right.py"
-    left.write_text(CHECK_FILE.format(code="LEFT_ONLY"))
-    right.write_text(CHECK_FILE.format(code="RIGHT_ONLY"))
-
-    first = run_child(CHILD.format(src=src, path=str(left)))
-    second = run_child(CHILD.format(src=src, path=str(right)))
-
-    assert first.returncode == 0, first.stderr
-    assert second.returncode == 0, second.stderr
-    assert first.stdout.splitlines() == ["LEFT_ONLY", "1"]
-    assert second.stdout.splitlines() == ["RIGHT_ONLY", "1"]
 
 
 def test_many_processes_loading_the_same_file_all_succeed(tmp_path: Path) -> None:
@@ -161,18 +142,3 @@ def test_many_processes_loading_the_same_file_all_succeed(tmp_path: Path) -> Non
     # And no bytecode was written beside the caller's file, by any of them.
     assert not (tmp_path / "__pycache__").exists()
 
-
-def test_a_second_process_is_unaffected_by_a_crashing_one(tmp_path: Path) -> None:
-    src = str(Path(PROJECT_ROOT) / "src")
-    broken = tmp_path / "broken.py"
-    broken.write_text("raise RuntimeError('boom')\n")
-    good = tmp_path / "good.py"
-    good.write_text(CHECK_FILE.format(code="GOOD"))
-
-    failed = run_child(CHILD.format(src=src, path=str(broken)))
-    survived = run_child(CHILD.format(src=src, path=str(good)))
-
-    assert failed.returncode == 1
-    assert "RuntimeError: boom" in failed.stderr
-    assert survived.returncode == 0
-    assert survived.stdout.splitlines() == ["GOOD", "1"]

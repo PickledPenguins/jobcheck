@@ -16,11 +16,11 @@ pip install -e ".[dev]"
 | Command | Runs | Time |
 |---|---|---|
 | `./tests/run-tests.sh fast` | 815 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 217 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 1032 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh long` | 209 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 1024 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
-| `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 13s |
+| `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 3s |
 | `./tests/run-tests.sh profile` | the example profile alone | 3s |
 | `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 97.1%) | 300s |
 | `./tests/run-tests.sh types` | mypy alone | 8s |
@@ -54,8 +54,9 @@ There is no CI. The pre-commit hook and the release gates below are what run the
 
 Each gate has been checked by breaking the thing it guards and watching it fail — the
 coverage floor by deleting a test, the perf gate by lowering a stored baseline (a 4x
-regression reported `6.15s against a limit of 2.06s`), the memory ceiling by holding the
-outcomes the per-row loop is supposed to release.
+regression reported `6.15s against a limit of 2.06s`), and the row-by-row memory test in
+`test_scaling.py` by holding the outcomes the per-row loop is supposed to release
+(rechecked 2026-10-03).
 
 ## What each file covers
 
@@ -103,10 +104,10 @@ Long:
 |---|---|
 | `tests/test_e2e_catalogs.py` | Every catalog case through the real entry point, plus the catalog's own rules: each case documents itself, states its level, and the level counts stay above their floors. |
 | `tests/test_integration.py` | The shipped rule files driving a whole DataFrame, the split files saying what the single file says, precedence across directories in both orders, and a row's explanation matching its lines of the full report. |
-| `tests/test_concurrency.py` | Threads sharing one registry agree with one thread; separate processes do not share one; several processes loading the same file all succeed and leave no bytecode; a crashing process does not affect its neighbor. |
+| `tests/test_concurrency.py` | Threads sharing one registry agree with one thread, on rows and on whole frames, and leave the registry unchanged; several processes loading the same file all succeed and leave no bytecode. |
 | `tests/test_faults.py` | The filesystem failing underneath: unreadable rule and check files, a directory where a file was expected, symlinks pointing nowhere, NUL bytes, a full disk mid-write, and a read-only output directory. |
-| `tests/test_scaling.py` | The *shape* of the cost: four times the rows or the checks costs under eight times the time, a 100-deep dependency chain does not cost more than a flat registry, a frame with no failures costs the report a fraction of a failing one, and going row by row holds a quarter of what collecting holds. Every timing here is a ratio with room in it, and the one that compares two small measurements takes the best of five runs after a warm-up, so a busy machine does not fail a run. |
-| `tests/test_load.py` | 20,000 rows within a time ceiling, correctness at volume, 500 checks × 200 rows, 500 rules × 200 rows, and a guard that the topological sort never runs inside the row loop. |
+| `tests/test_scaling.py` | The *shape* of the cost: four times the rows or the checks costs under eight times the time, a 100-deep dependency chain does not cost more than a flat registry, a frame with no failures costs the report a fraction of a failing one, and going row by row holds nothing between rows: four times the rows raise the peak by under 2 MB. Every timing here is a ratio with room in it, and the one that compares two small measurements takes the best of five runs after a warm-up, so a busy machine does not fail a run. |
+| `tests/test_load.py` | The long suite's one absolute ceiling (5,000 rows validated, reported and summarized), 500 rules × 200 rows, and a guard that the topological sort never runs inside the row loop. |
 | `tests/test_packaging.py` | What an adopter gets: the package ships no tests of its own, `py.typed` is there, every module imports on its own, and a scratch adopter package outside this repository loads its check file and writes a report. |
 | `tests/test_fuzz.py` | Generated input from a fixed seed: 300 rule files written as data and 300 written as YAML text (repeated keys, unquoted booleans, tags, bytes that are not UTF-8), 300 frames, 100 hostile comment payloads. |
 | `tests/test_properties.py` | The same invariants explored by Hypothesis, which shrinks a failure to the smallest reproducing case; and, over random graphs, `repeat` flags, copy groupings and per-copy rules, copies under `repeat_key`: a check that does not repeat is called at most once per key and settled on the first copy enabling its chain, a `shared` outcome passes and names an earlier copy that did it, a check is `disabled` exactly where a rule disables it, and when every check repeats, `repeat_key` changes nothing. |
@@ -115,8 +116,8 @@ Own gates:
 
 | File | Covers |
 |---|---|
-| `tests/test_perf.py` | Four timings against this machine's recorded baseline, plus rule resolution over 50 rules. |
-| `tests/test_memory.py` | Peak memory for the per-row algorithm over many rows, and for `validate` plus the report on a large frame. |
+| `tests/test_perf.py` | Three timings against this machine's recorded baseline (`validate`, the report, the summary), plus rule resolution over 50 rules. |
+| `tests/test_memory.py` | Peak memory for `validate` plus the report on a large frame. |
 
 ## The example catalog
 
