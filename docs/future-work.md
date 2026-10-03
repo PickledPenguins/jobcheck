@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.72. Each is either loud already, or needs the owner's decision.
+left is open below, from F.74. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -88,18 +88,15 @@ document used -- `CheckOutcome`, `Rule`, `clear_registry`, `warn_shadowed_rules`
 `warn_blocking_rules` -- got a block of their own. The blocks show no output, so a change
 to a table's shape does not rewrite this document too. Not done: an inline block in every
 section, which would have doubled the examples of about sixteen names and the output to
-regenerate.
-
-**Every interface is used realistically in the example scripts** (F.72, raised by the
-owner on 2026-09-28). Each name `interfaces.md` defines should appear in a script under
-`examples/`, used the way a real entry point would use it. Counted by name on
-2026-09-28, these have no use in `examples/`: `Outcome`, `RowContext`, `clear_registry`,
-`explain_row` and `validate_row` (`render_comments` was made private on 2026-09-30,
-F.82). F.37 accepted a use in `docs/` or in
-jobchain as the example; this raises the bar to the examples catalog. The survey must
-say, for each missing name, which script it belongs in and why a real caller would reach
-for it there, rather than a call added only to be counted. Not yet surveyed.
-
+regenerate. F.72 was closed the same day as already met: 20 of the 22 public names are
+used in `examples/` (`CheckOutcome` and `Rule` as the type hints an entry point
+writes). `RowContext` is used the way a real caller would, in the catalog case
+`complex/job-manifest-with-per-row-paths` (`validate_jobs.py`) and by jobchain
+(`checks.py`). `clear_registry` has no honest call in a one-shot entry point: its
+callers are long-lived processes, jobchain between runs among them, and F.71 gave it
+a block in `interfaces.md`. A call added to an example only to be counted is what the
+item ruled out. Not done: moving the job-manifest case into `examples/`, the one honest
+way to show a context there.
 
 **A recursive topological sort, and its own recursion-limit message** (F.74, low-medium;
 same review). `registry._topological_order` (23 lines) walks recursively, so
