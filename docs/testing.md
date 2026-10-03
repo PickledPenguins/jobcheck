@@ -15,14 +15,14 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 683 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 676 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 202 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 885 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 878 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 3s |
 | `./tests/run-tests.sh profile` | the example profile alone | 3s |
-| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 97.1%) | 300s |
+| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 96.9%) | 300s |
 | `./tests/run-tests.sh types` | mypy alone | 8s |
 
 Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
@@ -220,9 +220,12 @@ read `mutmut results` in between as the suite's score.
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
 
-Measured on 2026-10-02 at commit `d7d248c`, on a clean tree: **1,431 mutants, 1,389
-killed, 42 survived, 0 timeouts — 97.1%.** The records below are older; the module names
+Measured on 2026-10-03 at commit `c515049`, on a clean tree: **1,494 mutants, 1,447
+killed, 47 survived, 0 timeouts — 96.9%.** The records below are older; the module names
 in them (`report`, `registry_tables`) are the ones since merged into `views`.
+
+Measured on 2026-10-02 at commit `d7d248c`, on a clean tree: **1,431 mutants, 1,389
+killed, 42 survived, 0 timeouts — 97.1%.**
 
 Measured on 2026-09-28, with the silent fixes of the 2026-09-27 reviews and their tests:
 **1,525 mutants, 1,473 killed, 52 survived, 0 timeouts — 96.6%**, in about five minutes.
