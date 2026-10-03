@@ -200,6 +200,8 @@ def _context_caller(
     the two together.
     """
 
+    # A functools.partial has no __name__, so it is shown as itself.
+    name = getattr(builder, "__name__", builder)
     parameters = list(inspect.signature(builder).parameters.values())
     positional = [p for p in parameters
                   if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
@@ -207,23 +209,22 @@ def _context_caller(
               if p.kind is p.KEYWORD_ONLY and p.default is p.empty]
     if needed:
         raise ValueError(
-            f"context_builder {getattr(builder, '__name__', builder)!r} needs keyword "
-            f"argument(s) {', '.join(needed)} that validate cannot supply. Give them "
-            "defaults, or read them from context_args.")
+            f"context_builder {name!r} needs keyword argument(s) {', '.join(needed)} "
+            "that validate cannot supply. Give them defaults, or read them from "
+            "context_args.")
     defaulted = _defaulted_second(positional)
     if defaulted is not None:
         raise ValueError(
-            f"context_builder {getattr(builder, '__name__', builder)!r} has a default on "
-            f"its second parameter, {defaulted.name!r}, which would be handed "
-            "context_args. Read the value from context_args, or make it keyword-only "
-            "by putting it after a *.")
+            f"context_builder {name!r} has a default on its second parameter, "
+            f"{defaulted.name!r}, which would be handed context_args. Read the value "
+            "from context_args, or make it keyword-only by putting it after a *.")
     if any(p.kind is p.VAR_POSITIONAL for p in parameters) or len(positional) == 2:
         return lambda row, context_args: builder(row, context_args)
     if len(positional) == 1:
         return lambda row, context_args: builder(row)
     raise ValueError(
-        f"context_builder {getattr(builder, '__name__', builder)!r} must take (row) or "
-        f"(row, context_args), not {len(positional)} positional argument(s)."
+        f"context_builder {name!r} must take (row) or (row, context_args), "
+        f"not {len(positional)} positional argument(s)."
     )
 
 
