@@ -157,7 +157,7 @@ def test_report_columns_are_stable() -> None:
 
     assert views._REPORT_COLUMNS == (
         "row", "code", "status", "layer", "outcome", "message", "detail", "comments",
-        "is_root_cause",
+        "rule", "is_root_cause",
     )
 
 

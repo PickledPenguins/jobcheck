@@ -21,7 +21,7 @@ from .rules import Rule
 from .tables import _format_cell, _reject_unknown_columns
 
 _REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "detail", "comments",
-                  "is_root_cause")
+                  "rule", "is_root_cause")
 _REGISTRY_COLUMNS = ["code", "layer", "default", "repeat", "message", "depends_on",
                      "source_file", "could_be_overridden_by"]
 _RULES_COLUMNS = ["name", "action", "code_count", "codes", "match", "message",
@@ -203,6 +203,7 @@ def _line(outcome: CheckOutcome, causes: set[str]) -> dict[str, Any]:
         "message": outcome.message,
         "detail": outcome.detail,
         "comments": _render_comments(outcome.comments),
+        "rule": outcome.rule,
         "is_root_cause": outcome.code in causes,
     }
 

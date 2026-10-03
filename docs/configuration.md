@@ -166,6 +166,10 @@ one case where every row gives the same answer.<sup>[5](interfaces.md#registry_t
 pattern that works is the reverse order — disable for every row, then enable for the
 rows that match — and it reports nothing.
 
+To see which rule decided a check on a row, read the report's `rule` column: it names
+the last matching rule, enable or disable, and is empty where the check's default
+stood. `build_report(include="all")` shows it for checks that passed too.<sup>[6](reporting.md#shape-one-row-per-failure)</sup>
+
 Two conditional rules are not compared. Whether their patterns overlap is a question
 about the regexes rather than about the file, and a wrong answer would be worse than
 none.
@@ -178,7 +182,7 @@ Rules still match every copy. A rule that disables `VAL_IN_RANGE` where `dirname
 matches `^eps2$` records `disabled` on the `eps2` copy, and skips its dependents there,
 whichever copy `eps2` is. If it is the first copy, the next copy that enables the check
 runs it, and the copies after that one share the result. A check that every copy
-disables is `disabled` on each.<sup>[6](writing-checks.md#one-row-many-copies)</sup>
+disables is `disabled` on each.<sup>[7](writing-checks.md#one-row-many-copies)</sup>
 
 ## Disabling a check disables what depends on it
 
@@ -186,7 +190,7 @@ A check runs only once every check it depends on has passed, and a disabled one 
 Disabling `AGE_PRESENT` for some rows therefore switches off `AGE_NOT_A_NUMBER`,
 `AGE_NEGATIVE`, `AGE_TOO_HIGH` and the off-by-default `AGE_NOT_INTEGER` on those rows as
 well: a negative or unreadable age there
-passes without a line in the report, and only the summary's `skipped` column counts it.<sup>[7](writing-checks.md#layering-one-problem-one-error)</sup> A
+passes without a line in the report, and only the summary's `skipped` column counts it.<sup>[8](writing-checks.md#layering-one-problem-one-error)</sup> A
 rule cannot say "this field may be blank"; the check has to know which rows may leave it
 empty.
 
@@ -195,7 +199,7 @@ below it the rule does not list itself. `python3 examples/main.py --rules-table`
 those warnings under the rules table. Listing the dependents in the same rule says the
 silence is meant and ends the warning: the shipped file's
 `suppress_email_checks_for_test_accounts` disables `EMAIL_MISSING_AT` together with the
-check that depends on it, and reports nothing.<sup>[8](interfaces.md#warn_blocking_rulesrules---liststr)</sup>
+check that depends on it, and reports nothing.<sup>[9](interfaces.md#warn_blocking_rulesrules---liststr)</sup>
 
 ## Errors
 
@@ -294,7 +298,7 @@ print(len(report), "failure(s)")
 `load_setup` returns the rules for `validate`, having already registered the check files.
 Both lists resolve against **the setup file's own directory**, so a setup file and the paths
 in it travel together; the setup file's own path is relative to where you stand, like any
-path you type.<sup>[9](interfaces.md#loading-both-at-once)</sup>
+path you type.<sup>[10](interfaces.md#loading-both-at-once)</sup>
 
 `checks` is required: a setup naming only rules configures nothing, because rules switch
 checks on and off. `rules` may be absent or empty -- the no-rules baseline every rule file
@@ -340,7 +344,8 @@ messages starts with.
 | 3 | [reporting.md: Showing data](reporting.md#showing-data-alongside-the-failures) | the same rendering in the report |
 | 4 | [Warnings](#warnings) | `warn_missing_rule_columns`, for a column the data lacks |
 | 5 | [interfaces.md: registry_table](interfaces.md#registry_tablerulesnone---dataframe) | what `could_be_overridden_by` says |
-| 6 | [writing-checks.md: One row, many copies](writing-checks.md#one-row-many-copies) | `repeat_key` and `repeat=True` |
-| 7 | [writing-checks.md: Layering](writing-checks.md#layering-one-problem-one-error) | why a skipped check reports nothing |
-| 8 | [interfaces.md: warn_blocking_rules](interfaces.md#warn_blocking_rulesrules---liststr) | the function in full |
-| 9 | [interfaces.md: Loading both at once](interfaces.md#loading-both-at-once) | `load_setup` as a call |
+| 6 | [reporting.md: Shape](reporting.md#shape-one-row-per-failure) | the report's columns, `rule` among them |
+| 7 | [writing-checks.md: One row, many copies](writing-checks.md#one-row-many-copies) | `repeat_key` and `repeat=True` |
+| 8 | [writing-checks.md: Layering](writing-checks.md#layering-one-problem-one-error) | why a skipped check reports nothing |
+| 9 | [interfaces.md: warn_blocking_rules](interfaces.md#warn_blocking_rulesrules---liststr) | the function in full |
+| 10 | [interfaces.md: Loading both at once](interfaces.md#loading-both-at-once) | `load_setup` as a call |

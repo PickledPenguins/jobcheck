@@ -71,11 +71,11 @@ print(build_report(outcomes, df=df, key_column="id").to_string())
 ```
 
 ```
-                             status  layer outcome           message detail                comments  is_root_cause
-id  code                                                                                                          
-102 AGE_NEGATIVE        INVALID (3)      2  failed   Age is negative          value=-5.0; minimum=0           True
-103 EMAIL_MISSING_AT  MALFORMED (2)      1  failed  Email has no '@'         at_signs=0; value=nope           True
-104 AGE_PRESENT         MISSING (1)      0  failed    Age is missing                                          True
+                             status  layer outcome           message detail                comments rule  is_root_cause
+id  code                                                                                                               
+102 AGE_NEGATIVE        INVALID (3)      2  failed   Age is negative          value=-5.0; minimum=0                True
+103 EMAIL_MISSING_AT  MALFORMED (2)      1  failed  Email has no '@'         at_signs=0; value=nope                True
+104 AGE_PRESENT         MISSING (1)      0  failed    Age is missing                                               True
 ```
 
 - One line per failure, not one per row; a row's failures hang under its key.
@@ -95,15 +95,15 @@ print(explain_row(outcomes, 2).to_string(index=False))
 ```
 
 ```
-                code      status  layer  outcome        message                                      detail comments  is_root_cause
-         AGE_PRESENT MISSING (1)      0   failed Age is missing                                                                True
-    AGE_NOT_A_NUMBER    PASS (0)      1  skipped                     prerequisite did not pass: AGE_PRESENT                   False
-        AGE_NEGATIVE    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                   False
-        AGE_TOO_HIGH    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                   False
-     AGE_NOT_INTEGER    PASS (0)      2 disabled                                        disabled by default                   False
-       EMAIL_PRESENT    PASS (0)      0   passed                                                                              False
-    EMAIL_MISSING_AT    PASS (0)      1   passed                                                                              False
-EMAIL_DOMAIN_INVALID    PASS (0)      2   passed                                                                              False
+                code      status  layer  outcome        message                                      detail comments rule  is_root_cause
+         AGE_PRESENT MISSING (1)      0   failed Age is missing                                                                     True
+    AGE_NOT_A_NUMBER    PASS (0)      1  skipped                     prerequisite did not pass: AGE_PRESENT                        False
+        AGE_NEGATIVE    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                        False
+        AGE_TOO_HIGH    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                        False
+     AGE_NOT_INTEGER    PASS (0)      2 disabled                                        disabled by default                        False
+       EMAIL_PRESENT    PASS (0)      0   passed                                                                                   False
+    EMAIL_MISSING_AT    PASS (0)      1   passed                                                                                   False
+EMAIL_DOMAIN_INVALID    PASS (0)      2   passed                                                                                   False
 ```
 
 `explain_row` reads what `validate` kept for the row at that position and runs

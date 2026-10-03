@@ -38,21 +38,21 @@ _EMPTY_CONTEXT = RowContext()
 def _resolve_enabled_state(
     row: "pd.Series[Any]", rules: list[Rule]
 ) -> dict[str, tuple[bool, str]]:
-    """Whether every registered code is on or off for one row, and why.
+    """Whether every registered code is on or off for one row, and the name of
+    the rule that decided it, or "" where the default stands.
 
     Precedence is positional -- there is no priority field -- so the last
     matching rule wins, which is why the order rule files load in matters.
     """
 
-    # The reason is read only for a disabled check: "disabled by default".
-    enabled_by_code = {check.code: (check.default_enabled, "default") for check in _CHECKS}
+    enabled_by_code = {check.code: (check.default_enabled, "") for check in _CHECKS}
     for rule in rules:
         if not _rule_matches(rule, row):
             continue
         enabled = rule.action == "enable"
         for code in rule.codes:
             if code in enabled_by_code:
-                enabled_by_code[code] = (enabled, f"rule {rule.name!r}")
+                enabled_by_code[code] = (enabled, rule.name)
     return enabled_by_code
 
 
@@ -121,7 +121,7 @@ def _explain_with_off_here(
     outcomes: list[CheckOutcome] = []
 
     for check in _get_topo_order():
-        enabled, reason = enabled_by_code[check.code]
+        enabled, rule = enabled_by_code[check.code]
         if not enabled or any(code in off_here for code in check.depends_on):
             off_here.add(check.code)
         elif settled is not None and not check.repeats and check.code in settled:
@@ -131,7 +131,7 @@ def _explain_with_off_here(
             passed[check.code] = original.outcome is Outcome.PASSED
             outcomes.append(
                 CheckOutcome(check.code, Outcome.SHARED, layer=check.layer,
-                             detail=f"{original.outcome.value} {where}")
+                             detail=f"{original.outcome.value} {where}", rule=rule)
             )
             continue
         if not enabled:
@@ -139,7 +139,8 @@ def _explain_with_off_here(
             disabled.add(check.code)
             outcomes.append(
                 CheckOutcome(check.code, Outcome.DISABLED, layer=check.layer,
-                            detail=f"disabled by {reason}")
+                             detail=f"disabled by rule {rule!r}" if rule
+                             else "disabled by default", rule=rule)
             )
             continue
 
@@ -152,7 +153,7 @@ def _explain_with_off_here(
                       else "prerequisite did not pass: ")
             outcomes.append(
                 CheckOutcome(check.code, Outcome.SKIPPED, layer=check.layer,
-                            detail=reason + ", ".join(blocking))
+                             detail=reason + ", ".join(blocking), rule=rule)
             )
             continue
 
@@ -169,6 +170,7 @@ def _explain_with_off_here(
                     # finished reading.
                     message="check raised; see detail",
                     detail=_describe_error(exc),
+                    rule=rule,
                 )
             )
             continue
@@ -183,6 +185,7 @@ def _explain_with_off_here(
                 layer=check.layer,
                 message="" if result else check.message,
                 comments=result.comments,
+                rule=rule,
             )
         )
     return outcomes, off_here

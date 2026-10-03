@@ -483,7 +483,7 @@ def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> Non
 
     assert list(views.explain_row([[]], 0).columns) == [
         "code", "status", "layer", "outcome", "message", "detail", "comments",
-        "is_root_cause"]
+        "rule", "is_root_cause"]
 
 
 # --- root causes, and keys that identify a row ------------------------------

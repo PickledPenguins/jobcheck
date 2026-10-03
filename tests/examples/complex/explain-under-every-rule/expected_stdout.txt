@@ -1,16 +1,16 @@
 Loaded 6 rule(s) from 4 file(s)
 
 == Row explanation ==
-                code   status  layer  outcome message                                                              detail comments  is_root_cause
-        ROW_ALL_NULL PASS (0)      0   passed                                                                                               False
-         AGE_PRESENT PASS (0)      0   passed                                                                                               False
-    AGE_NOT_A_NUMBER PASS (0)      1   passed                                                                                               False
-        AGE_NEGATIVE PASS (0)      2   passed                                                                                               False
-        AGE_TOO_HIGH PASS (0)      2   passed                                                                                               False
-     AGE_NOT_INTEGER PASS (0)      2 disabled         disabled by rule 'disable_age_integer_check_from_another_directory'                   False
-       DATES_PRESENT PASS (0)      0   passed                                                                                               False
-  DATES_OUT_OF_ORDER PASS (0)      1   passed                                                                                               False
-       EMAIL_PRESENT PASS (0)      0   passed                                                                                               False
-    EMAIL_MISSING_AT PASS (0)      1   passed                                                                                               False
-EMAIL_DOMAIN_INVALID PASS (0)      2   passed                                                                                               False
+                code   status  layer  outcome message                                                              detail comments                                             rule  is_root_cause
+        ROW_ALL_NULL PASS (0)      0   passed                                                                                                                                                False
+         AGE_PRESENT PASS (0)      0   passed                                                                                                                                                False
+    AGE_NOT_A_NUMBER PASS (0)      1   passed                                                                                                                                                False
+        AGE_NEGATIVE PASS (0)      2   passed                                                                                                                                                False
+        AGE_TOO_HIGH PASS (0)      2   passed                                                                                                                                                False
+     AGE_NOT_INTEGER PASS (0)      2 disabled         disabled by rule 'disable_age_integer_check_from_another_directory'          disable_age_integer_check_from_another_directory          False
+       DATES_PRESENT PASS (0)      0   passed                                                                                                                                                False
+  DATES_OUT_OF_ORDER PASS (0)      1   passed                                                                                                                                                False
+       EMAIL_PRESENT PASS (0)      0   passed                                                                                                                                                False
+    EMAIL_MISSING_AT PASS (0)      1   passed                                                                                                                                                False
+EMAIL_DOMAIN_INVALID PASS (0)      2   passed                                                                                                                                                False
 root cause: none

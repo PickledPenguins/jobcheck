@@ -14,17 +14,17 @@ Loaded 3 rule(s) from 1 file(s)
         AGE_TOO_HIGH      2      ON      -      Age is implausibly high (over 130) AGE_NOT_A_NUMBER                                                                                  -
 EMAIL_DOMAIN_INVALID      2      ON      -            Email domain looks malformed EMAIL_MISSING_AT                                  suppress_email_checks_for_test_accounts (disable)
 
-id,code,status,layer,outcome,message,detail,comments,is_root_cause
-2,AGE_NEGATIVE,INVALID (3),2,failed,Age is negative,,value=-5.0; minimum=0,False
-2,DATES_OUT_OF_ORDER,INVALID (3),1,failed,start_date is after end_date,,start_date=2024-05-01; end_date=2024-03-01,True
-2,EMAIL_MISSING_AT,MALFORMED (2),1,failed,Email has no '@',,at_signs=0; value=broken-email,True
-3,AGE_TOO_HIGH,INVALID (3),2,failed,Age is implausibly high (over 130),,value=200.0; maximum=130,True
-3,EMAIL_DOMAIN_INVALID,MALFORMED (2),2,failed,Email domain looks malformed,,domain=nodotdomain,True
-5,AGE_PRESENT,MISSING (1),0,failed,Age is missing,,,True
-5,DATES_PRESENT,MISSING (1),0,failed,Both start_date and end_date are needed,,"columns=start_date, end_date",True
-5,EMAIL_PRESENT,MISSING (1),0,failed,Email is missing,,,True
-<no key>,ROW_ALL_NULL,MISSING (1),0,failed,Row is entirely empty,,columns=7,True
-<no key>,AGE_PRESENT,MISSING (1),0,failed,Age is missing,,,True
-<no key>,DATES_PRESENT,MISSING (1),0,failed,Both start_date and end_date are needed,,"columns=start_date, end_date",True
-<no key>,EMAIL_PRESENT,MISSING (1),0,failed,Email is missing,,,True
+id,code,status,layer,outcome,message,detail,comments,rule,is_root_cause
+2,AGE_NEGATIVE,INVALID (3),2,failed,Age is negative,,value=-5.0; minimum=0,,False
+2,DATES_OUT_OF_ORDER,INVALID (3),1,failed,start_date is after end_date,,start_date=2024-05-01; end_date=2024-03-01,,True
+2,EMAIL_MISSING_AT,MALFORMED (2),1,failed,Email has no '@',,at_signs=0; value=broken-email,,True
+3,AGE_TOO_HIGH,INVALID (3),2,failed,Age is implausibly high (over 130),,value=200.0; maximum=130,,True
+3,EMAIL_DOMAIN_INVALID,MALFORMED (2),2,failed,Email domain looks malformed,,domain=nodotdomain,,True
+5,AGE_PRESENT,MISSING (1),0,failed,Age is missing,,,,True
+5,DATES_PRESENT,MISSING (1),0,failed,Both start_date and end_date are needed,,"columns=start_date, end_date",,True
+5,EMAIL_PRESENT,MISSING (1),0,failed,Email is missing,,,,True
+<no key>,ROW_ALL_NULL,MISSING (1),0,failed,Row is entirely empty,,columns=7,,True
+<no key>,AGE_PRESENT,MISSING (1),0,failed,Age is missing,,,,True
+<no key>,DATES_PRESENT,MISSING (1),0,failed,Both start_date and end_date are needed,,"columns=start_date, end_date",,True
+<no key>,EMAIL_PRESENT,MISSING (1),0,failed,Email is missing,,,,True
 

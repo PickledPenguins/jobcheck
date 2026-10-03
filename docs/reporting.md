@@ -27,16 +27,16 @@ print(report.to_string())    # report.to_csv("report.csv") for a file
 ```
 
 ```
-                                      status  layer outcome                             message detail                        comments  is_root_cause
-id       code                                                                                                                                        
-2        AGE_NEGATIVE            INVALID (3)      2  failed                     Age is negative                  value=-5.0; minimum=0          False
-         EMAIL_MISSING_AT      MALFORMED (2)      1  failed                    Email has no '@'         at_signs=0; value=broken-email           True
-3        AGE_TOO_HIGH            INVALID (3)      2  failed  Age is implausibly high (over 130)               value=200.0; maximum=130           True
-         EMAIL_DOMAIN_INVALID  MALFORMED (2)      2  failed        Email domain looks malformed                     domain=nodotdomain           True
-5        AGE_PRESENT             MISSING (1)      0  failed                      Age is missing                                                  True
-         EMAIL_PRESENT           MISSING (1)      0  failed                    Email is missing                                                  True
-<no key> AGE_PRESENT             MISSING (1)      0  failed                      Age is missing                                                  True
-         EMAIL_PRESENT           MISSING (1)      0  failed                    Email is missing                                                  True
+                                      status  layer outcome                             message detail                        comments rule  is_root_cause
+id       code                                                                                                                                             
+2        AGE_NEGATIVE            INVALID (3)      2  failed                     Age is negative                  value=-5.0; minimum=0               False
+         EMAIL_MISSING_AT      MALFORMED (2)      1  failed                    Email has no '@'         at_signs=0; value=broken-email                True
+3        AGE_TOO_HIGH            INVALID (3)      2  failed  Age is implausibly high (over 130)               value=200.0; maximum=130                True
+         EMAIL_DOMAIN_INVALID  MALFORMED (2)      2  failed        Email domain looks malformed                     domain=nodotdomain                True
+5        AGE_PRESENT             MISSING (1)      0  failed                      Age is missing                                                       True
+         EMAIL_PRESENT           MISSING (1)      0  failed                    Email is missing                                                       True
+<no key> AGE_PRESENT             MISSING (1)      0  failed                      Age is missing                                                       True
+         EMAIL_PRESENT           MISSING (1)      0  failed                    Email is missing                                                       True
 ```
 
 ## Shape: one row per failure
@@ -55,6 +55,7 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 | `message` | The check's message — what a person reads first — for a check that failed. `check raised; see detail` for one that errored: the check's own message would be a verdict on data it never finished reading. Empty for one that passed, was skipped, was disabled or was shared. |
 | `detail` | Why a check gave no verdict: the rule that disabled it, the prerequisites that blocked it, the exception it raised with the check's file and line, or, on a copy under `repeat_key`, what it did on the first copy and where. Empty for a check that passed or failed. |
 | `comments` | What the check attached, rendered `key=value; key=value`, in the order the check wrote them. |
+| `rule` | The name of the rule that switched the check on or off for this row — the last matching one — whatever the outcome. Empty where no rule matched and the check's default stood. |
 | `is_root_cause` | True for **every** failure at that row's shallowest failing layer. Two failures at the same depth are two root causes: neither is upstream of the other. Not always the row's first line: lines are in evaluation order, so an independent chain registered earlier prints above a shallower failure.<sup>[5](interfaces.md#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe)</sup> |
 
 The report is indexed by the row key, then any [added columns](#showing-data-alongside-the-failures),
@@ -132,12 +133,12 @@ print("root cause:", ", ".join(explanation.loc[explanation["is_root_cause"], "co
 ```
 
 ```
-            code      status  layer  outcome        message                                      detail comments  is_root_cause
-     AGE_PRESENT MISSING (1)      0   failed Age is missing                                                                True
-AGE_NOT_A_NUMBER    PASS (0)      1  skipped                     prerequisite did not pass: AGE_PRESENT                   False
-    AGE_NEGATIVE    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                   False
-    AGE_TOO_HIGH    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                   False
- AGE_NOT_INTEGER    PASS (0)      2 disabled                                        disabled by default                   False
+            code      status  layer  outcome        message                                      detail comments rule  is_root_cause
+     AGE_PRESENT MISSING (1)      0   failed Age is missing                                                                     True
+AGE_NOT_A_NUMBER    PASS (0)      1  skipped                     prerequisite did not pass: AGE_PRESENT                        False
+    AGE_NEGATIVE    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                        False
+    AGE_TOO_HIGH    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                        False
+ AGE_NOT_INTEGER    PASS (0)      2 disabled                                        disabled by default                        False
 root cause: AGE_PRESENT
 ```
 
@@ -268,7 +269,7 @@ Path("flagged.csv").write_text(df.assign(failed=failed).to_csv(index=False))
 
 Every table carries every column it builds; the library chooses none. The report's
 index is the row key, the `add_columns`, then `code`, and its columns `status`, `layer`,
-`outcome`, `message`, `detail`, `comments` and `is_root_cause`. The registry table carries `source_file` and
+`outcome`, `message`, `detail`, `comments`, `rule` and `is_root_cause`. The registry table carries `source_file` and
 `could_be_overridden_by`, and the rules table both `codes` and its count.
 
 For a run that wants fewer columns, drop them with pandas; the title survives:
@@ -281,16 +282,16 @@ if not debug:
 print(report.to_string())
 ```
 ```
-                                      status outcome                             message  is_root_cause
-id       code                                                                                          
-2        AGE_NEGATIVE            INVALID (3)  failed                     Age is negative          False
-         EMAIL_MISSING_AT      MALFORMED (2)  failed                    Email has no '@'           True
-3        AGE_TOO_HIGH            INVALID (3)  failed  Age is implausibly high (over 130)           True
-         EMAIL_DOMAIN_INVALID  MALFORMED (2)  failed        Email domain looks malformed           True
-5        AGE_PRESENT             MISSING (1)  failed                      Age is missing           True
-         EMAIL_PRESENT           MISSING (1)  failed                    Email is missing           True
-<no key> AGE_PRESENT             MISSING (1)  failed                      Age is missing           True
-         EMAIL_PRESENT           MISSING (1)  failed                    Email is missing           True
+                                      status outcome                             message rule  is_root_cause
+id       code                                                                                               
+2        AGE_NEGATIVE            INVALID (3)  failed                     Age is negative               False
+         EMAIL_MISSING_AT      MALFORMED (2)  failed                    Email has no '@'                True
+3        AGE_TOO_HIGH            INVALID (3)  failed  Age is implausibly high (over 130)                True
+         EMAIL_DOMAIN_INVALID  MALFORMED (2)  failed        Email domain looks malformed                True
+5        AGE_PRESENT             MISSING (1)  failed                      Age is missing                True
+         EMAIL_PRESENT           MISSING (1)  failed                    Email is missing                True
+<no key> AGE_PRESENT             MISSING (1)  failed                      Age is missing                True
+         EMAIL_PRESENT           MISSING (1)  failed                    Email is missing                True
 ```
 
 A dropped column is gone from the CSV too, since both formats write the frame they

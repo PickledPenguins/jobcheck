@@ -138,7 +138,8 @@ def _normalize_verdict(returned: Any, check_code: str) -> Verdict:
 class CheckOutcome:
     """What one check did on one row -- including the ones that never ran, where
     `detail` says why: the rule that disabled it, the prerequisites that blocked
-    it, or what it raised."""
+    it, or what it raised. `rule` names the rule that switched the check on or
+    off for this row, whatever the outcome, and is "" where the default stood."""
 
     __test__ = False  # not a pytest check class, despite the name
 
@@ -149,6 +150,7 @@ class CheckOutcome:
     message: str = ""
     detail: str = ""
     comments: Mapping[str, Any] = field(default_factory=dict)
+    rule: str = ""
 
     def __post_init__(self) -> None:
         # A plain string is accepted and checked, so a misspelled outcome fails here.

@@ -16,5 +16,5 @@ EMAIL_DOMAIN_INVALID      2      ON      -            Email domain looks malform
 
 == Report ==
 Empty DataFrame
-Columns: [status, layer, outcome, message, detail, comments, is_root_cause]
+Columns: [status, layer, outcome, message, detail, comments, rule, is_root_cause]
 Index: []
