@@ -533,6 +533,38 @@ def test_one_rule_switches_several_codes(fresh_registry: None) -> None:
     assert state == {"FIRST": False, "SECOND": False}
 
 
+def test_every_outcome_names_the_last_rule_that_switched_its_check(fresh_registry: None) -> None:
+    make_check("REENABLED", passes=False)
+    make_check("OFF_BY_DEFAULT", default_enabled=False, raises=RuntimeError("boom"))
+    make_check("BLOCKED", depends_on=["REENABLED"])
+    make_check("SWITCHED_OFF")
+    make_check("UNTOUCHED")
+    loaded = [
+        rule("off", "disable", ["REENABLED", "SWITCHED_OFF"], None),
+        rule("back_on", "enable", ["REENABLED", "OFF_BY_DEFAULT", "BLOCKED"], None),
+    ]
+    row = engine.validate(pd.DataFrame({"age": [1]}), rules=loaded)[0]
+    assert {o.code: (o.outcome, o.rule) for o in row} == {
+        "REENABLED": (Outcome.FAILED, "back_on"),
+        "OFF_BY_DEFAULT": (Outcome.ERRORED, "back_on"),
+        "BLOCKED": (Outcome.SKIPPED, "back_on"),
+        "SWITCHED_OFF": (Outcome.DISABLED, "off"),
+        "UNTOUCHED": (Outcome.PASSED, ""),
+    }
+    # detail keeps saying why a check never ran; the rule column is a separate fact.
+    assert {o.code: o.detail for o in row}["SWITCHED_OFF"] == "disabled by rule 'off'"
+
+
+def test_the_report_carries_the_deciding_rule_and_blank_for_the_default(
+        fresh_registry: None) -> None:
+    make_check("OFF_BY_DEFAULT", default_enabled=False, passes=False)
+    make_check("ON_BY_DEFAULT", passes=False)
+    frame = pd.DataFrame({"age": [1]})
+    outcomes = engine.validate(frame, rules=[rule("on", "enable", ["OFF_BY_DEFAULT"], None)])
+    report = views.build_report(outcomes, frame).reset_index()
+    assert dict(zip(report["code"], report["rule"])) == {"OFF_BY_DEFAULT": "on", "ON_BY_DEFAULT": ""}
+
+
 def test_codes_that_are_not_registered_are_ignored_by_resolution(fresh_registry: None) -> None:
     make_check("A_CODE")
     state = enabled_only(engine._resolve_enabled_state(

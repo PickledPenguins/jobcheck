@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.67. Each is either loud already, or needs the owner's decision.
+left is open below, from F.69. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -66,36 +66,16 @@ raised, so finding the line meant re-running with `on_error="raise"`. It now end
 `(file.py:line)`, the innermost line in the check's own file (through a helper in
 another file, the check's call to it), and an exception with no text drops the colon.
 Lost: an exact match on the old text; the full traceback is still only under
-`on_error="raise"`.
-
-**Record the rule that enabled a check** (F.67, raised on 2026-09-28 while answering the
-owner's request for a table of every check a rule decided). The engine records a rule
-only when it disables a check: the outcome's `detail` reads `disabled by rule 'name'`
-(`src/jobcheck/engine.py:111`). `_resolve_enabled_state` computes the same reason for a
-rule that enables a check, but the loop at `engine.py:104` drops it, so a rule-enabled
-check's PASSED, FAILED or SKIPPED outcome has no trace of the rule. Today the only way
-to find one is indirect: an off-by-default code (`registry_table()`'s `default == 'OFF'`)
-whose outcome is not `disabled`. That loses the rule's name, and it cannot see an enable
-rule on a check that is on by default (one re-enabled after an earlier rule disabled it).
-A related gap: `prerequisite disabled: X` does not say whether X was disabled by a rule
-or by default.
-
-- Gained: the table of rule-decided checks becomes one filter, names the rule, and
-  catches enables of default-on checks.
-- Lost, if written into `detail`: its documented meaning, "empty for a check that passed
-  or failed" (`docs/reporting.md:53`, the `CheckOutcome` docstring); any caller that
-  treats `detail == ""` as "ran normally"; and a failures report would show `detail` on
-  every rule-enabled line, so the column would sometimes explain the outcome and
-  sometimes explain why the check ran at all.
-- Alternative: a separate `rule` field on `CheckOutcome` and a report column. That keeps
-  `detail` to one meaning, but changes the report's columns and more of the docs.
-- Size: about 10 source lines in `engine.py` for the `detail` form, or about 25 across
-  `results.py`, `engine.py` and `report.py` for the field; docs in `reporting.md` and
-  `interfaces.md`; about 3 tests.
-- Blast radius: `build_report`, `explain_row`, the CSV columns, and the shown output
-  of the doc examples, which the doc-example test would catch.
-- Priority: medium. Nothing fails, but "ran because of a rule" is only approximate.
-- Recommended: the separate `rule` field. Not yet decided.
+`on_error="raise"`. F.67 was built on 2026-10-02: the engine named a rule only when it
+disabled a check, in `detail`, so a check a rule switched on left no trace of the rule,
+and an enable of a default-on check could not be found at all. `CheckOutcome` now has a
+`rule` field, last, and the report and explanation a `rule` column before
+`is_root_cause`: the last matching rule's name, enable or disable, on every outcome, or
+empty where the default stood. `detail` is unchanged, `disabled by rule 'name'`
+included. Lost: the old column set and CSV header, so a reader indexing columns by
+position shifts by one, and `rule` is now refused as an `add_columns` or `key_column`
+name. Still open: `prerequisite disabled: X` does not say who disabled X; X's own line
+does.
 
 **jobchain's unknown-key messages still list keys the old way** (F.69, raised on
 2026-09-28, moved here from the handoff). Since `22d2973`, jobcheck lists unknown and

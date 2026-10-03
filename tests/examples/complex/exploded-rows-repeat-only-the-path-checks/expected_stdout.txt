@@ -1,8 +1,8 @@
-id,dirname,code,status,layer,outcome,message,detail,comments,is_root_cause
-J2,gamma,VAL_IN_RANGE,INVALID (3),0,failed,val is outside 0 to 10,,val=50,True
-J2,gamma2,BASE_EXISTS,MISSING (1),1,failed,Run directory does not exist,,,True
-J3,delta,CHILD_EXISTS,MISSING (1),2,failed,Child directory does not exist,,child=delta/delta,True
-J4,,NAMES_PRESENT,MISSING (1),0,failed,No run directories listed,,,True
+id,dirname,code,status,layer,outcome,message,detail,comments,rule,is_root_cause
+J2,gamma,VAL_IN_RANGE,INVALID (3),0,failed,val is outside 0 to 10,,val=50,,True
+J2,gamma2,BASE_EXISTS,MISSING (1),1,failed,Run directory does not exist,,,,True
+J3,delta,CHILD_EXISTS,MISSING (1),2,failed,Child directory does not exist,,child=delta/delta,,True
+J4,,NAMES_PRESENT,MISSING (1),0,failed,No run directories listed,,,,True
 
 code,layer,failed,root_cause_rows,errored,skipped,disabled,shared,passed
 NAMES_PRESENT,0,1,1,0,0,0,4,4
@@ -10,8 +10,8 @@ VAL_IN_RANGE,0,1,1,0,0,0,4,4
 BASE_EXISTS,1,1,1,0,1,1,0,6
 CHILD_EXISTS,2,1,1,0,3,0,0,5
 
-code,status,layer,outcome,message,detail,comments,is_root_cause
-NAMES_PRESENT,PASS (0),0,shared,,"passed at position 3, the first row with id J2",,False
-VAL_IN_RANGE,PASS (0),0,shared,,"failed at position 3, the first row with id J2",,False
-BASE_EXISTS,MISSING (1),1,failed,Run directory does not exist,,,True
-CHILD_EXISTS,PASS (0),2,skipped,,prerequisite did not pass: BASE_EXISTS,,False
+code,status,layer,outcome,message,detail,comments,rule,is_root_cause
+NAMES_PRESENT,PASS (0),0,shared,,"passed at position 3, the first row with id J2",,,False
+VAL_IN_RANGE,PASS (0),0,shared,,"failed at position 3, the first row with id J2",,,False
+BASE_EXISTS,MISSING (1),1,failed,Run directory does not exist,,,,True
+CHILD_EXISTS,PASS (0),2,skipped,,prerequisite did not pass: BASE_EXISTS,,,False

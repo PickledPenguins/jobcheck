@@ -14,7 +14,7 @@ Loaded 6 rule(s) from 4 file(s)
         AGE_TOO_HIGH      2      ON      -      Age is implausibly high (over 130) AGE_NOT_A_NUMBER                                                                                                                                                                                             -
 EMAIL_DOMAIN_INVALID      2      ON      -            Email domain looks malformed EMAIL_MISSING_AT                                                                                 suppress_email_checks_for_test_accounts (disable); suppress_email_checks_for_test_accounts_by_topic (disable)
 
-id,code,status,layer,outcome,message,detail,comments,is_root_cause
+id,code,status,layer,outcome,message,detail,comments,rule,is_root_cause
 
 
 == Summary ==

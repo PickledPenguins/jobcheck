@@ -85,7 +85,7 @@ Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
 | [`Verdict`](#verdict) | `status=Status.PASS`, `comments={}` | What a check returns. A bool status is accepted: True passes, False is an `INVALID` failure. `comments` is the detail printed with a failure. True in a boolean test when it passed. |
 | `OK` | – | The shared passing `Verdict`. |
 | [`Status`](#status) | `PASS` 0, `MISSING` 1, `MALFORMED` 2, `INVALID` 3, `ERROR` 9 | `IntEnum` of failure kinds. `ERROR` is the engine's, for a check that raised; a check never returns it. |
-| [`CheckOutcome`](#checkoutcome) | `code`, `outcome`, `status`, `layer`, `message`, `detail`, `comments` | What the engine recorded for one check on one row. `.failed` covers failed and errored; `detail` says why a check did not run or what it raised. |
+| [`CheckOutcome`](#checkoutcome) | `code`, `outcome`, `status`, `layer`, `message`, `detail`, `comments`, `rule` | What the engine recorded for one check on one row. `.failed` covers failed and errored; `detail` says why a check did not run or what it raised; `rule` names the rule that switched it on or off. |
 | [`Outcome`](#outcome) | `PASSED`, `FAILED`, `DISABLED`, `SKIPPED`, `ERRORED`, `SHARED` | `str` enum of what happened to a check on a row. |
 | [`RowContext`](#rowcontext) | none; subclass to add | Per-row state the frame does not carry, handed to `(row, context)` checks. Built by `validate`'s `context_builder`. |
 | [`Rule`](#rule) | `name`, `action`, `codes`, `criteria`, `match_all`, `message`, `source_file` | One loaded rule, as `load_rules` returns it. |
@@ -122,7 +122,7 @@ What a check returns. Frozen dataclass: `status: int = Status.PASS`,
 
 What the engine recorded for one check on one row: `code` (the check code),
 `outcome` (an `Outcome`), `status` (a
-`Status` value), `layer`, `message`, `detail`, `comments`.
+`Status` value), `layer`, `message`, `detail`, `comments`, `rule`.
 
 `.failed` is True for `failed` and `errored`; `.status_label` renders as
 `INVALID (3)`. `detail` explains the four non-evaluating outcomes: which rule
@@ -131,7 +131,9 @@ did on the copy that ran it and where that copy is. What it raised reads `Type: 
 (file.py:line)`: the innermost line in the file the check was written in, and no colon
 when the exception has no text. A `shared` outcome's status is `PASS`, as
 for `skipped` and `disabled`, and it has no message or comments. An `errored` outcome's
-`message` is the fixed text `check raised; see detail`, not the check's message.<sup>[1](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
+`message` is the fixed text `check raised; see detail`, not the check's message.
+`rule` names the rule that switched the check on or off for the row, enable or
+disable, whatever the outcome; it is `""` where the check's default stood.<sup>[1](concepts.md#what-a-check-says-and-what-the-engine-records)</sup>
 
 ### `Outcome`
 
@@ -451,7 +453,7 @@ twice, or colliding with one of the report's own columns raises `ValueError`.
 The report is indexed by the row key -- a level named after `key_column`, or `row`
 when the frame's index is the key -- then the `add_columns` in the order given, then
 `code`. A `key_column` named like one of the report's own columns raises `ValueError`:
-`key_column 'code' would head the report's key, but the report already has a column of that name (code, status, layer, outcome, message, detail, comments, is_root_cause). Copy the column under another name and pass that.` `to_string()` prints a row's labels once and hangs its lines beneath them;
+`key_column 'code' would head the report's key, but the report already has a column of that name (code, status, layer, outcome, message, detail, comments, rule, is_root_cause). Copy the column under another name and pass that.` `to_string()` prints a row's labels once and hangs its lines beneath them;
 `to_csv()` writes every label on every line; `reset_index()` makes them plain
 columns. Two data rows with the same label print as one block, so a `key_column`
 that is not unique reads as one row in the terminal.
@@ -476,7 +478,7 @@ is a broken check is still flagged. A row that passed has none.
 
 One line per check on the data row at `position` (0 for the first) of `validate`'s
 result, in evaluation order: `code`, `status`, `layer`, `outcome`, `message`, `detail`,
-`comments`, `is_root_cause` -- the report's columns without `row`, each meaning what
+`comments`, `rule`, `is_root_cause` -- the report's columns without `row`, each meaning what
 it means there, so the lines equal that row's lines of `build_report(include="all")`.
 Every check is shown, passes included; it reads the outcomes and runs nothing. A
 `position` outside the outcomes raises `ValueError`.

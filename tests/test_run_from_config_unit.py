@@ -95,7 +95,7 @@ def test_a_table_may_repeat_with_different_options(fresh_registry: None, capsys:
     table, csv = out.split("\n\n", 1)
     assert table.startswith("== Report ==")
     # CSV gets no heading, and the second report's include reached build_report.
-    assert csv.startswith("row,code,status,layer,outcome,message,detail,is_root_cause\n")
+    assert csv.startswith("row,code,status,layer,outcome,message,detail,rule,is_root_cause\n")
     assert csv.count("\n") > 3
 
 
