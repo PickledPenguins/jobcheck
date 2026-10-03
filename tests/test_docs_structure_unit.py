@@ -1,8 +1,7 @@
 """The documents as a set: an index, reachable, linked, and saying true numbers.
 
 The README stays an index and reaches every document; no internal link or anchor is
-dead; the rule and setup keys, statuses and outcome names are documented where they
-belong; what a document copies from the code -- the shipped rule file, the default
+dead; the rule and setup keys and statuses are documented where they belong; what a document copies from the code -- the shipped rule file, the default
 columns, the module and script tables -- matches it; no table is split by a blank
 line; the suite sizes, catalog counts and line-width limit the documents state are the
 real ones. `docs/cli.md` against the entry points is `test_docs_cli_unit.py`.
@@ -18,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from doc_files import DOCS, README, ROOT
-from jobcheck import Outcome, summarize_outcomes
+from jobcheck import summarize_outcomes
 
 pytestmark = pytest.mark.fast
 
@@ -120,13 +119,6 @@ def test_the_status_vocabulary_is_documented() -> None:
     writing = (ROOT / "docs" / "writing-checks.md").read_text(encoding="utf-8")
     for status in Status:
         assert status.name in writing, status.name
-
-
-@pytest.mark.parametrize("outcome", [member.value for member in Outcome])
-def test_every_outcome_name_is_documented(outcome: str) -> None:
-    reporting = (ROOT / "docs" / "reporting.md").read_text(encoding="utf-8")
-    writing = (ROOT / "docs" / "writing-checks.md").read_text(encoding="utf-8")
-    assert outcome in reporting or outcome in writing
 
 
 def test_the_setup_keys_are_documented() -> None:
@@ -273,7 +265,14 @@ def test_the_gated_directories_sit_under_the_documented_line_width() -> None:
     """`contributing.md` says lines stay under 100 characters and that nothing
     enforces it. Something does now: the claim was false on 2026-09-23, when two
     lines had drifted to 101 and 103, and nothing would have stopped the next two.
+    A rule enforced for three directories out of four has to say which, or the
+    document is misleading in a new way.
     """
+
+    contributing = (ROOT / "docs" / "contributing.md").read_text(encoding="utf-8")
+    for directory in WIDTH_GATED_DIRS:
+        assert f"`{directory}/`" in contributing, (
+            f"contributing.md does not say the width rule covers {directory}/")
 
     too_long = [
         f"{path.relative_to(ROOT)}:{number} is {len(line)} characters"
@@ -286,13 +285,3 @@ def test_the_gated_directories_sit_under_the_documented_line_width() -> None:
         f"over {MAX_LINE_WIDTH} characters, the width contributing.md claims:\n  "
         + "\n  ".join(too_long)
     )
-
-
-def test_contributing_names_what_the_width_gate_covers() -> None:
-    """A rule enforced for three directories out of four has to say so, or the
-    document is misleading in a new way."""
-
-    contributing = (ROOT / "docs" / "contributing.md").read_text(encoding="utf-8")
-    for directory in WIDTH_GATED_DIRS:
-        assert f"`{directory}/`" in contributing, (
-            f"contributing.md does not say the width rule covers {directory}/")

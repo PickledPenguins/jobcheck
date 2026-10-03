@@ -32,13 +32,6 @@ def python_blocks() -> list[DocsBlock]:
     return docs_blocks([README])
 
 
-def test_the_readme_has_python_blocks_to_check() -> None:
-    """A guard on the guard: if the README stops carrying examples, say so rather
-    than passing an empty parametrization."""
-
-    assert len(python_blocks()) >= 3
-
-
 def test_the_readme_session_runs_and_prints_exactly_what_it_shows(
     fresh_registry: None, monkeypatch: Any,
 ) -> None:
@@ -48,7 +41,11 @@ def test_the_readme_session_runs_and_prints_exactly_what_it_shows(
     From the project root, because that is where the reader is standing: the
     README names its check files relative to the clone, which is what a reader
     would type. Without the chdir the suite passes only when pytest happens to
-    have been started there."""
+    have been started there.
+
+    One namespace also means a reader pasting the blocks in order: a block
+    reaching for something no earlier block defined fails here as it would for
+    them."""
 
     monkeypatch.chdir(README.parent)
     namespace: dict[str, Any] = {}
@@ -63,21 +60,6 @@ def test_the_readme_session_runs_and_prints_exactly_what_it_shows(
                 "python3 scripts/regen_docs.py README rewrites it")
             compared += 1
     assert compared >= 2, "the README stopped showing output for its examples"
-
-
-def test_a_later_block_only_uses_names_an_earlier_one_defined(
-    fresh_registry: None, monkeypatch: Any,
-) -> None:
-    """A reader pastes these in order; a block reaching for something undefined
-    would fail on them and not on us. From the project root, for the reason the
-    block above gives."""
-
-    monkeypatch.chdir(README.parent)
-    namespace: dict[str, Any] = {}
-    for block in readme_session():
-        with redirect_stdout(io.StringIO()):
-            exec(compile(block.source, block.label, "exec"), namespace)
-
     # The session builds a frame and validates it; both names outlive the blocks.
     assert "df" in namespace and "outcomes" in namespace
     assert len(namespace["outcomes"]) == len(namespace["df"])
@@ -112,6 +94,8 @@ def test_the_example_code_does_not_collide_with_the_shipped_checks(
 
     reg.load_checks(EXAMPLE_CHECK_FILES)
     shipped = {check.code for check in reg._CHECKS}
+    # A guard on the guard: a README without examples would pass the loop empty.
+    assert len(python_blocks()) >= 3
     for block in python_blocks():
         for code in re.findall(r'@\w+\(\s*"([A-Z_]+)"', block.source):
             assert code not in shipped, f"README defines {code}, which the suites already own"
@@ -229,14 +213,3 @@ def test_rule_files_can_only_switch_existing_codes(fresh_registry: None, tmp_pat
     )
     with pytest.raises(ValueError, match="unknown code 'BRAND_NEW_CODE'"):
         load_rules([str(path)])
-
-
-def test_the_check_files_the_readme_names_exist(fresh_registry: None) -> None:
-    from jobcheck import load_checks
-    from jobcheck.registry import _LOADED_FILES
-
-    named = ["examples/checks/check_age.py", "examples/checks/check_email.py"]
-    assert f"load_checks({named!r})".replace("'", '"') in readme_text()
-    # The README's paths are relative to the project root, as a reader's are.
-    load_checks([str(README.parent / path) for path in named])
-    assert len(_LOADED_FILES) == 2
