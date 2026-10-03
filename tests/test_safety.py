@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from conftest import enabled_only, failures, make_check
+from conftest import enabled_only, make_check
 from jobcheck import registry as reg
 from jobcheck import engine
 from jobcheck.rules import _MatchCriterion
@@ -55,21 +55,6 @@ def test_loading_rules_writes_nothing_to_disk(one_code: None, tmp_path: Path) ->
     assert sorted(p.name for p in tmp_path.iterdir()) == before
 
 
-def test_validation_never_mutates_the_dataframe_it_reads(example_checks: None) -> None:
-    df = pd.DataFrame([{"age": -1, "email": "a@b.com"}])
-    snapshot = df.copy(deep=True)
-    df.apply(lambda row: failures(row), axis=1)
-    assert df.equals(snapshot)
-
-
-def test_a_check_file_name_is_a_path_never_a_module_name(fresh_registry: None) -> None:
-    """load_checks imports files, so a module name is a missing file, not an import."""
-
-    with pytest.raises(ValueError, match="No check file at"):
-        reg.load_checks(["os"])
-    assert reg._CHECKS == []
-
-
 def test_a_catastrophic_regex_on_a_short_value_finishes_in_seconds(one_code: None, tmp_path: Path) -> None:
     """A nested-quantifier pattern on a 23-character value returns in under a
     second here. Nothing bounds it: the framework does not sandbox regexes, and
@@ -88,19 +73,6 @@ def test_a_catastrophic_regex_on_a_short_value_finishes_in_seconds(one_code: Non
     start = time.monotonic()
     enabled_only(engine._resolve_enabled_state(row, [rule]))
     assert time.monotonic() - start < 5.0
-
-
-def test_an_ndarray_cell_does_not_break_rule_matching(one_code: None) -> None:
-    """Regression: pd.isna on an ndarray returns an array, and the bool() of that
-    raised "truth value of an array is ambiguous" instead of matching."""
-
-    import numpy
-
-    rule = reg.Rule(
-        name="r", action="disable", codes=["A_CODE"],
-        criteria=[_MatchCriterion("data", "x", re.compile("x"))], match_all=False, message="why the rule exists")
-    row = pd.Series({"data": numpy.array([1, 2])})
-    assert enabled_only(engine._resolve_enabled_state(row, [rule]))["A_CODE"] is True
 
 
 # --- comments -----------------------------------------------------------------

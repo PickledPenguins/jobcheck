@@ -218,11 +218,14 @@ def test_a_raising_builder_and_a_bad_return_name_the_row_too(fresh_registry: Non
     assert _notes(raised.value) == [
         "validate: raised on the row at position 0 (index label 0)."]
 
+    # A bad return is an authoring bug, not a data problem, so it is never
+    # recorded. The only test of that path through the engine, so the message
+    # names the check.
     @register_check("NONE", "returns nothing")
     def returns_none(row: Any) -> Any:
         return None
 
-    with pytest.raises(TypeError, match="returned None") as raised_type:
+    with pytest.raises(TypeError, match=r"Check 'NONE' returned None") as raised_type:
         validate(frame(2))
     assert _notes(raised_type.value) == [
         "validate: raised on the row at position 0 (index label 0)."]

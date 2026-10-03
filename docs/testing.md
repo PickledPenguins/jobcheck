@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 703 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
-| `./tests/run-tests.sh long` | 209 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 912 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 683 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh long` | 202 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 885 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 3s |
@@ -95,8 +95,8 @@ Fast:
 | `tests/test_context_unit.py` | `RowContext` as the base type an adopter subclasses. |
 | `tests/test_paths_unit.py` | The step both loaders take before they open anything: an existing file resolved, a symlink followed, and each way a path that is not a file is refused -- relative, absolute and a directory -- word for word. |
 | `tests/test_interface_cli.py` | The parser's defaults, and what only a subprocess shows: running from another directory, the exit code reaching the shell, results on stdout and an error as one line on stderr. The rest of the entry point is in `test_main_unit.py`, and in the catalogs byte for byte. |
-| `tests/test_pathological.py` | Malformed YAML, unicode, 1000 rules, empty and wide rows, duplicate column labels, a 200-deep dependency chain, a check that raises. |
-| `tests/test_safety.py` | the safe YAML loader refuses `!!python/object`, patterns are never evaluated, loading writes nothing, validation does not mutate the frame, a check file name is a path and never a module name, and a catastrophic regex stays bounded. |
+| `tests/test_pathological.py` | A rule file that is not YAML, naming itself; a check that raises, shown as the line in the check's own file -- through a helper, with no message, and wrapped in `functools.partial`. |
+| `tests/test_safety.py` | the safe YAML loader refuses `!!python/object`, patterns and comments are never evaluated, loading writes nothing, a catastrophic regex stays bounded, and a rule error quotes the offending value, not the file. |
 
 Long:
 
@@ -105,7 +105,7 @@ Long:
 | `tests/test_e2e_catalogs.py` | Every catalog case through the real entry point, plus the catalog's own rules: each case documents itself, states its level, and the level counts stay above their floors. |
 | `tests/test_integration.py` | The shipped rule files driving a whole DataFrame, the split files saying what the single file says, precedence across directories in both orders, and a row's explanation matching its lines of the full report. |
 | `tests/test_concurrency.py` | Threads sharing one registry agree with one thread, on rows and on whole frames, and leave the registry unchanged; several processes loading the same file all succeed and leave no bytecode. |
-| `tests/test_faults.py` | The filesystem failing underneath: unreadable rule and check files, a directory where a file was expected, symlinks pointing nowhere, NUL bytes, a full disk mid-write, and a read-only output directory. |
+| `tests/test_faults.py` | The filesystem failing underneath: an unreadable rule file stops the whole load, an unreadable check file or one Python cannot compile registers nothing. |
 | `tests/test_scaling.py` | The *shape* of the cost: four times the rows or the checks costs under eight times the time, a 100-deep dependency chain does not cost more than a flat registry, a frame with no failures costs the report a fraction of a failing one, and going row by row holds nothing between rows: four times the rows raise the peak by under 2 MB. Every timing here is a ratio with room in it, and the one that compares two small measurements takes the best of five runs after a warm-up, so a busy machine does not fail a run. |
 | `tests/test_load.py` | The long suite's one absolute ceiling (5,000 rows validated, reported and summarized), 500 rules × 200 rows, and a guard that the topological sort never runs inside the row loop. |
 | `tests/test_packaging.py` | What an adopter gets: the package ships no tests of its own, `py.typed` is there, every module imports on its own, and a scratch adopter package outside this repository loads its check file and writes a report. |

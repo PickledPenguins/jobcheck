@@ -290,6 +290,9 @@ def test_outcomes_carry_the_layer(fresh_registry: None) -> None:
 
 
 def test_duplicate_labels_raise_before_any_check_runs(fresh_registry: None) -> None:
+    """A duplicate label hands the check a Series, which every value helper turns
+    into None -- so the check would silently pass on data it never read."""
+
     calls: list[str] = []
     make_check("CODE", calls=calls)
     with pytest.raises(ValueError, match=r"duplicate column labels \['age'\]"):
@@ -321,6 +324,10 @@ def test_duplicate_labels_raise_before_any_check_runs(fresh_registry: None) -> N
                       "end_date": "2024-03-01"}, ["DATES_OUT_OF_ORDER"], id="dates-reversed"),
         pytest.param({"age": None, "email": "a@b.com", "start_date": "2024-01-01",
                       "end_date": "2024-02-01"}, ["AGE_PRESENT"], id="missing-age"),
+        pytest.param({}, ["ROW_ALL_NULL", "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"],
+                     id="empty-row"),
+        pytest.param({"totally": "unrelated"},
+                     ["AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"], id="unrelated-columns"),
     ],
 )
 def test_example_checks_report_the_expected_codes(

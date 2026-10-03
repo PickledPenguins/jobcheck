@@ -11,8 +11,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import pytest
 
+from jobcheck import engine
 from jobcheck import registry as reg
 
 pytestmark = pytest.mark.fast
@@ -83,9 +85,13 @@ def test_every_file_of_one_name_gets_its_own_module(
 
 
 def test_a_missing_path_raises_and_registers_nothing(fresh_registry: None, tmp_path: Path) -> None:
+    """load_checks imports files, so a module name is a missing file, not an import."""
+
     good = write_check_file(tmp_path, "checks.py", "GOOD")
     with pytest.raises(ValueError, match="No check file at"):
         reg.load_checks([good, str(tmp_path / "absent.py")])
+    with pytest.raises(ValueError, match="No check file at 'os'"):
+        reg.load_checks(["os"])
     assert reg._CHECKS == []
 
 
@@ -240,6 +246,9 @@ def test_a_file_that_raises_is_not_rolled_back_and_clear_registry_recovers(
     assert [t.code for t in reg._CHECKS] == ["KEPT", "A"]
     assert reg._LOADED_FILES == [str(Path(good).resolve())]
     assert reg._LOADING == []
+    # And what registered runs: the failure path must leave the evaluation order
+    # recomputed, not a stale cache that would validate a row against nothing.
+    assert [o.code for o in engine._explain(pd.Series({"value": 1}))] == ["KEPT", "A"]
 
     broken.write_text(
         "from jobcheck import OK, register_check\n"

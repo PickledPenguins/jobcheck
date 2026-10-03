@@ -6,6 +6,7 @@ import builtins
 from pathlib import Path
 from typing import Any
 
+import numpy
 import pandas as pd
 import pytest
 
@@ -91,7 +92,8 @@ def test_a_key_yaml_reads_as_a_bool_is_named_rather_than_crashing(
 
 
 def test_an_empty_file_and_no_files_contribute_no_rules(one_code: None, tmp_path: Path) -> None:
-    assert reg.load_rules([write(tmp_path, "empty.yaml", "")]) == []
+    for text in ("", "# nothing here\n", "null\n"):
+        assert reg.load_rules([write(tmp_path, "empty.yaml", text)]) == []
     assert reg.load_rules([]) == []
 
 
@@ -298,6 +300,8 @@ def test_a_rule_file_that_is_not_utf8_names_itself(one_code: None, tmp_path: Pat
     assert str(raised.value) == (
         f"{path}: not UTF-8 text: 'utf-8' codec can't decode byte 0xe9 in position 11: "
         "invalid continuation byte. Save the file as UTF-8.")
+
+
 def test_a_merge_key_may_restate_a_key_it_merges(one_code: None, tmp_path: Path) -> None:
     """`<<: *base` then `name:` overrides the merged name, which is what YAML
     merge keys are for rather than a repeated key."""
@@ -488,6 +492,9 @@ def test_a_null_cell_never_matches_a_rule(fresh_registry: None) -> None:
     assert rules._cell_text(row, "age") is None
     assert rules._cell_text(row, "absent") is None
     assert rules._cell_text(row, "name") == "real"
+    # Regression: pd.isna on an ndarray returns an array, and the bool() of that
+    # raised "truth value of an array is ambiguous" instead of matching.
+    assert rules._cell_text(pd.Series({"data": numpy.array([1, 2])}), "data") == "[1 2]"
 
     # Through resolution: a blank or absent column leaves the check as it was.
     make_check("A_CODE")
