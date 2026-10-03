@@ -245,6 +245,27 @@ are the only tie between the sentence and the code. The shared `doc-errors`,
 and count tests, and are no reason to cut them: the tools are outside the repository and
 outside the gate.
 
+F.76g was done on 2026-10-03 (912 tests to 885). `test_pathological.py` kept four tests:
+the YAML error naming its file, which took over the NUL-byte fault test, and the three
+that pin an errored outcome's file and line. The rest repeated a unit test or tested
+Python: comment-only and `null` files joined the empty-file test, the empty and unrelated
+rows became parameters of the shipped-example test, duplicate labels and the `None`
+return already had unit tests (which took their reasons), a typo'd column is any raised
+exception, and the unicode, long-string, 1000-rule, 200-deep and 1000-column probes
+asserted nothing a regex, `test_load.py` or `test_scaling.py` does not. From
+`test_safety.py` the frame-mutation test went (the README session checks it through
+`validate`), the module-name test joined the missing-check-file test, and the ndarray
+regression moved to the call site, `_cell_text`. From `test_faults.py` the directory and
+dangling-symlink tests went (one branch in `paths.py` with the missing file), the
+list-of-two joined the unreadable-file test, and the failed-call test's last assertion
+joined the not-rolled-back test. `test_fuzz.py` and `test_properties.py` stay whole: only
+the fuzz runs the shipped checks on hostile values and pins the tie-break. Lost: a
+NUL-byte file (PyYAML's reader, not its scanner), dangling symlinks by name, the large
+inputs without a time ceiling, unicode in a pattern, and the `None` return on Python
+3.10, whose only engine-level test is skipped below 3.11 for `add_note`. The faults row
+in `docs/testing.md` had claimed a full disk and a read-only output directory, which no
+test ever covered.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row
