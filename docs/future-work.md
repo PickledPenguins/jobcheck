@@ -136,6 +136,14 @@ decision keeps that decision somewhere. Order, most overlap for least risk:
 The tooling tests are expected to stay: a broken scoring script would make its gate pass
 silently. The jobchain differential is the only guard on that contract from this side.
 
+F.76a was done on 2026-10-03: the demo entry points' tests went from 666 to 498
+lines and from 1,150 tests to 1,116. `test_smoke.py` went; `test_interface_cli.py` keeps
+the parser's defaults and what only a subprocess shows (the working directory, exit 0 with
+stderr empty, an error as one stderr line with stdout clean); everything else it ran is in
+`test_main_unit.py` in process and in the catalogs byte for byte. The five unreadable data
+files are one parametrized test. Coverage of the three entry points and the 47 surviving
+mutants are the same before and after.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row

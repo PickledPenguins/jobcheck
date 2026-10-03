@@ -55,7 +55,7 @@ addopts = "-q --strict-markers -p no:benchmark"
 # readable. Same reason as the mypy and coverage settings below.
 cache_dir = ".build/pytest"
 markers = [
-    "fast: unit, smoke, interface, regression, cheap pathological. Gates every commit.",
+    "fast: unit, interface, regression, cheap pathological. Gates every commit.",
     "long: integration, load, end-to-end, catalogs. Gates every release.",
     "perf: timing against this machine's recorded baseline. Its own gate: tests/run-tests.sh perf.",
     "memory: peak-memory ceilings, measured under tracemalloc. Its own gate: tests/run-tests.sh memory.",
@@ -98,7 +98,7 @@ also_copy = ["examples/", "scripts/"]
 # unaffected -- they are exercised by the normal test suite, just not mutated.
 pytest_add_cli_args_test_selection = [
     "--ignore=tests/test_interface_cli.py",
-    "--ignore=tests/test_smoke.py",
+
     "--ignore=tests/test_packaging.py",
     "--ignore=tests/test_e2e_catalogs.py",
     # Inspects the module's own structure (vars(), __all__ completeness), which

@@ -20,21 +20,6 @@ from jobcheck import registry as reg
 
 pytestmark = pytest.mark.fast
 
-SHIPPED_CHECKS = ["ROW_ALL_NULL", "AGE_PRESENT", "AGE_NOT_A_NUMBER", "AGE_NEGATIVE",
-                  "AGE_TOO_HIGH", "AGE_NOT_INTEGER", "DATES_PRESENT",
-                  "DATES_OUT_OF_ORDER", "EMAIL_PRESENT", "EMAIL_MISSING_AT",
-                  "EMAIL_DOMAIN_INVALID"]
-
-
-def test_the_shipped_bundle_loads_the_four_example_check_files(fresh_registry: None) -> None:
-    reg.load_checks([bundle_main.DEFAULT_BUNDLE])
-
-    loaded = [os.path.basename(path) for path in reg._LOADED_FILES]
-    assert loaded == ["check_row_shape.py", "check_age.py", "check_dates.py",
-                      "check_email.py", "all_checks.py"]
-    assert sorted(check.code for check in reg._CHECKS) == sorted(SHIPPED_CHECKS)
-
-
 def test_the_entry_point_prints_the_registry_with_each_check_s_file(
     fresh_registry: None, capsys: Any
 ) -> None:
@@ -70,9 +55,10 @@ def test_an_argument_names_a_different_bundle(fresh_registry: None, capsys: Any,
     assert "ONLY_ONE" in capsys.readouterr().out
 
 
-def test_the_default_bundle_is_the_shipped_one() -> None:
+def test_no_argument_means_the_shipped_bundle() -> None:
     assert bundle_main.DEFAULT_BUNDLE == os.path.join(
         PROJECT_ROOT, "examples/checks/all_checks.py")
+    assert bundle_main.build_parser().parse_args([]).bundle == bundle_main.DEFAULT_BUNDLE
 
 
 def test_help_answers_rather_than_being_read_as_a_bundle_path(capsys: Any) -> None:
@@ -90,18 +76,3 @@ def test_help_answers_rather_than_being_read_as_a_bundle_path(capsys: Any) -> No
     assert "[PATH]" in out
     assert "the bundle to load" in out
 
-
-def test_a_second_argument_is_an_error_rather_than_dropped(capsys: Any) -> None:
-    """Regression: the extra path was ignored and the run exited 0, so somebody
-    meaning to load two bundles got one and no warning."""
-
-    with pytest.raises(SystemExit) as excinfo:
-        bundle_main.main([bundle_main.DEFAULT_BUNDLE, "second_bundle.py"])
-    assert excinfo.value.code == 2
-    assert "unrecognized arguments: second_bundle.py" in capsys.readouterr().err
-
-
-def test_no_argument_still_means_the_shipped_bundle() -> None:
-    """The default moved into the parser; it is still the same file."""
-
-    assert bundle_main.build_parser().parse_args([]).bundle == bundle_main.DEFAULT_BUNDLE

@@ -1,7 +1,8 @@
 """The demo entry point, driven in this process rather than through a shell.
 
-`tests/test_interface_cli.py` runs the entry point as a subprocess, which is
-what pins the contract a user meets. These call `main()` directly instead, which
+The catalogs run the entry point as a subprocess and compare its output byte
+for byte, and `tests/test_interface_cli.py` keeps what only a subprocess shows.
+These call `main()` directly instead, which
 is what reaches the branches a subprocess run cannot report on -- and makes the
 report path, the explain path and every error exit measurable by coverage.
 """
@@ -41,16 +42,22 @@ def run(capsys: Any, *argv: str) -> str:
     return capsys.readouterr().out
 
 
-def test_the_default_run_prints_the_registry_and_the_report(fresh_registry: None,
-                                                            capsys: Any) -> None:
+def test_the_default_run_counts_its_rules_and_prints_the_registry_and_the_report(
+    fresh_registry: None, capsys: Any,
+) -> None:
     out = run(capsys)
+    assert "Loaded 3 rule(s) from 1 file(s)" in out
     assert "== Registry" in out
     assert "== Report" in out
 
 
-def test_the_loaded_line_counts_the_rules_it_read(fresh_registry: None, capsys: Any) -> None:
-    out = run(capsys)
-    assert "Loaded 3 rule(s) from 1 file(s)" in out
+def test_help_exits_zero_and_lists_the_flags(capsys: Any) -> None:
+    with pytest.raises(SystemExit) as raised:
+        main.main(["--help"])
+    assert raised.value.code == 0
+    out = capsys.readouterr().out
+    for flag in ("--data", "--rules", "--report", "--explain", "--summary"):
+        assert flag in out
 
 
 def test_summary_adds_the_per_check_counts(fresh_registry: None, capsys: Any) -> None:
@@ -90,64 +97,37 @@ def test_a_run_where_nothing_raised_carries_on(capsys: Any) -> None:
     assert capsys.readouterr().err == ""
 
 
-def test_a_csv_file_is_validated_instead_of_the_demo_frame(fresh_registry: None,
-                                                           capsys: Any) -> None:
-    out = run(capsys, "--data", SMALL)
-    assert "AGE_NEGATIVE" in out
-    assert "1004" in out
-
-
 def test_a_clean_file_reports_no_failures(fresh_registry: None, capsys: Any) -> None:
     assert "== Report ==\nEmpty DataFrame" in run(capsys, "--data", CLEAN)
 
 
-def test_a_missing_data_file_exits_two(fresh_registry: None, capsys: Any) -> None:
+@pytest.mark.parametrize("name, content, reason", [
+    ("absent.csv", None, "No such file or directory"),
+    ("directory", "a directory", ""),
+    ("empty.csv", "", ""),
+    ("ragged.csv", 'id,age\n1,2\n"unclosed,3,4,5\n6,7,8,9,10\n', ""),
+    # Regression: a Latin-1 file raised UnicodeDecodeError -- a traceback and
+    # exit 1 where cli.md promises exit 2 for a file that cannot be read.
+    ("latin1.csv", "id,email\n1,café@example.com\n".encode("latin-1"),
+     "'utf-8' codec can't decode byte 0xe9 in position 14: invalid continuation byte\n"),
+])
+def test_a_data_file_that_cannot_be_read_exits_two_naming_it(
+    fresh_registry: None, capsys: Any, tmp_path: Path, name: str,
+    content: str | bytes | None, reason: str,
+) -> None:
+    path = tmp_path / name
+    if content == "a directory":
+        path.mkdir()
+    elif isinstance(content, bytes):
+        path.write_bytes(content)
+    elif content is not None:
+        path.write_text(content)
     with pytest.raises(SystemExit) as raised:
-        main.main(["--data", "no/such/file.csv"])
+        main.main(["--data", str(path)])
     assert raised.value.code == 2
-    assert "cannot read no/such/file.csv" in capsys.readouterr().err
-
-
-def test_a_data_directory_exits_two(fresh_registry: None, capsys: Any) -> None:
-    with pytest.raises(SystemExit) as raised:
-        main.main(["--data", "examples/data"])
-    assert raised.value.code == 2
-    assert "cannot read examples/data" in capsys.readouterr().err
-
-
-def test_an_empty_data_file_exits_two(fresh_registry: None, capsys: Any,
-                                      tmp_path: Path) -> None:
-    empty = tmp_path / "empty.csv"
-    empty.write_text("")
-    with pytest.raises(SystemExit) as raised:
-        main.main(["--data", str(empty)])
-    assert raised.value.code == 2
-    assert "cannot read" in capsys.readouterr().err
-
-
-def test_a_file_that_is_not_csv_exits_two(fresh_registry: None, capsys: Any,
-                                          tmp_path: Path) -> None:
-    ragged = tmp_path / "ragged.csv"
-    ragged.write_text('id,age\n1,2\n"unclosed,3,4,5\n6,7,8,9,10\n')
-    with pytest.raises(SystemExit) as raised:
-        main.main(["--data", str(ragged)])
-    assert raised.value.code == 2
-    assert "cannot read" in capsys.readouterr().err
-
-
-def test_a_file_that_is_not_utf8_exits_two(fresh_registry: None, capsys: Any,
-                                           tmp_path: Path) -> None:
-    """Regression: a Latin-1 file raised UnicodeDecodeError -- a traceback and exit 1
-    where cli.md promises exit 2 for a file that cannot be read."""
-
-    latin1 = tmp_path / "latin1.csv"
-    latin1.write_bytes("id,email\n1,café@example.com\n".encode("latin-1"))
-    with pytest.raises(SystemExit) as raised:
-        main.main(["--data", str(latin1)])
-    assert raised.value.code == 2
-    assert capsys.readouterr().err == (
-        f"error: cannot read {latin1}: 'utf-8' codec can't decode byte 0xe9 in position "
-        "14: invalid continuation byte\n")
+    err = capsys.readouterr().err
+    assert err.startswith(f"error: cannot read {path}: ")
+    assert reason in err
 
 
 def test_a_file_without_the_key_column_exits_two_before_validating(
@@ -202,9 +182,7 @@ def test_rules_with_no_paths_loads_none(fresh_registry: None, capsys: Any) -> No
     assert "(disable)" not in out.split("== Registry")[1].split("== Report")[0]
 
 
-def test_the_csv_report_format_is_comma_separated(fresh_registry: None, capsys: Any) -> None:
-    out = run(capsys, "--data", SMALL, "--report", "csv")
-    assert "id,code,status,layer,outcome,message,detail,comments,rule,is_root_cause" in out
+
 
 
 def test_the_rules_table_prints_one_row_per_rule_not_per_code(fresh_registry: None,
@@ -253,12 +231,7 @@ def test_write_uses_the_report_format_rather_than_the_extension(fresh_registry: 
     assert "id,code" not in target.read_text(encoding="utf-8")
 
 
-def test_write_replaces_a_file_that_is_already_there(fresh_registry: None, capsys: Any,
-                                                     tmp_path: Path) -> None:
-    target = tmp_path / "report.csv"
-    target.write_text("stale\n" * 200, encoding="utf-8")
-    run(capsys, "--data", CLEAN, "--report", "csv", "--write", str(target))
-    assert "stale" not in target.read_text(encoding="utf-8")
+
 
 
 def test_write_into_a_missing_directory_exits_two_before_doing_the_work(

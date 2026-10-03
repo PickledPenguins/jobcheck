@@ -22,7 +22,7 @@ describes the current code.
 ## Commands
 
 ```sh
-tests/run-tests.sh          # fast: unit, smoke, interface, regression, cheap pathological, plus mypy
+tests/run-tests.sh          # fast: unit, interface, regression, cheap pathological, plus mypy
 tests/run-tests.sh long     # integration, load, concurrency, faults, scaling, catalogs, then the profile
 tests/run-tests.sh all      # both, plus mypy and the profile
 tests/run-tests.sh cov      # the fast suite with coverage, gated at 95%
