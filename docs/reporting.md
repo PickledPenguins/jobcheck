@@ -53,7 +53,7 @@ survives being written as CSV, and it filters and pivots cleanly downstream.
 | `layer` | How deep the check sits in the dependency graph; 0 is fundamental.<sup>[3](writing-checks.md#layering-one-problem-one-error)</sup> |
 | `outcome` | `failed`, `errored`, and `skipped`/`disabled`/`shared`/`passed` when asked for.<sup>[4](interfaces.md#outcome)</sup> |
 | `message` | The check's message — what a person reads first — for a check that failed. `check raised; see detail` for one that errored: the check's own message would be a verdict on data it never finished reading. Empty for one that passed, was skipped, was disabled or was shared. |
-| `detail` | Why a check gave no verdict: the rule that disabled it, the prerequisites that blocked it, the exception it raised, or, on a copy under `repeat_key`, what it did on the first copy and where. Empty for a check that passed or failed. |
+| `detail` | Why a check gave no verdict: the rule that disabled it, the prerequisites that blocked it, the exception it raised with the check's file and line, or, on a copy under `repeat_key`, what it did on the first copy and where. Empty for a check that passed or failed. |
 | `comments` | What the check attached, rendered `key=value; key=value`, in the order the check wrote them. |
 | `is_root_cause` | True for **every** failure at that row's shallowest failing layer. Two failures at the same depth are two root causes: neither is upstream of the other. Not always the row's first line: lines are in evaluation order, so an independent chain registered earlier prints above a shallower failure.<sup>[5](interfaces.md#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe)</sup> |
 
