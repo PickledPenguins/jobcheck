@@ -121,14 +121,6 @@ def test_no_document_names_a_public_function_that_is_gone(path: Path) -> None:
         )
 
 
-def test_every_exported_name_is_documented_in_interfaces() -> None:
-    """The other direction: a public name nobody documented is a name nobody finds."""
-
-    interfaces = (ROOT / "docs" / "interfaces.md").read_text(encoding="utf-8")
-    missing = [name for name in prv.__all__ if name not in interfaces]
-    assert missing == [], f"undocumented public names: {missing}"
-
-
 INTERFACES = ROOT / "docs" / "interfaces.md"
 
 #: Stands for "no default" on either side of the comparison below.

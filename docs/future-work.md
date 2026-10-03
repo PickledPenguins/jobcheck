@@ -228,6 +228,23 @@ checks with `AGE_PRESENT` disabled (the chain under a failing `AGE_PRESENT` is s
 pinned), a 2-node cycle's message, and a named one-argument builder. Coverage and the 47
 surviving mutants are the same before and after.
 
+F.76f was done on 2026-10-03 (923 tests to 912). Little repeats here: each test holds
+one document to one fact of the code. `test_readme.py`'s pasted-in-order test ran the
+same session as the byte-for-byte test, and joined it; its guard that the README carries
+examples joined the one test that loops over them with nothing else noticing an empty
+list; the check files the README names are loaded by that session from the project root.
+In `test_docs_structure_unit.py` the outcome-name test went: the names are `passed`,
+`failed` and the like, which prose in either document it read always contains, and
+`interfaces.md` is required to name every `Outcome` member already. The width gate's
+own-directories test joined the gate. In `test_docs_api_unit.py` the exported-name test
+went, since the At a glance rows, in the same document, must equal `__all__`. Kept on
+the owner's word: the three README prose-claim tests (`Verdict(condition)`, one line
+per failure, rules cannot define codes), whose behavior is pinned elsewhere but which
+are the only tie between the sentence and the code. The shared `doc-errors`,
+`doc-examples`, `doc-refs` and `doc-counts` tools overlap the message, block, reference
+and count tests, and are no reason to cut them: the tools are outside the repository and
+outside the gate.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row
