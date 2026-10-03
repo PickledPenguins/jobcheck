@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.66. Each is either loud already, or needs the owner's decision.
+left is open below, from F.67. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -67,19 +67,6 @@ raised, so finding the line meant re-running with `on_error="raise"`. It now end
 another file, the check's call to it), and an exception with no text drops the colon.
 Lost: an exact match on the old text; the full traceback is still only under
 `on_error="raise"`.
-
-**A unique line counter in the output tables** (F.66, raised by the owner on 2026-09-28).
-The owner wants a counter that uniquely identifies each line of a table. It is global:
-it counts the lines of the whole table rather than restarting for each data row. It is
-added beside the existing `row` column, which it does not replace. `row` is the
-`key_column` value or the frame's index (`src/jobcheck/report.py:67`). In the long-format
-report it repeats on every failure of a data row, and a key column may itself repeat or
-be missing (`<no key>`), so no column today names one line uniquely. The survey must
-settle which tables carry the counter (the report only, or every table the library builds),
-whether it starts at 0 or 1, whether it counts before or after `include` filtering (a
-failures-only report and an `include="all"` report would number the same failure
-differently), its column name and position, and how it interacts with `add_columns`
-name collisions and the CSV output. Not yet surveyed.
 
 **Record the rule that enabled a check** (F.67, raised on 2026-09-28 while answering the
 owner's request for a table of every check a rule decided). The engine records a rule
@@ -282,6 +269,11 @@ enough; the text fuzz keeps its nesting shallow for that reason.
 
 **Running the declared floors, Python 3.10 and pandas 2.1** (F.60, declined by the owner
 2026-10-02). Never run; the owner does not want it pursued. Not to be raised again.
+
+**A unique line counter in the report** (F.66, declined by the owner 2026-10-02).
+Surveyed: a `line` column numbering the report's lines from 1 after `include`
+filtering, since a repeated key or `<no key>` leaves no column naming one line. The
+owner no longer wants it; `report.reset_index()` gives a position when one is needed.
 
 **A float status is not refused** (F.83, cut on 2026-10-01). `Verdict(3.0)` is read as
 `INVALID`, because `Status` is an `IntEnum`. A status is expected to be an `int` (or a
