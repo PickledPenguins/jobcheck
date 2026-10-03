@@ -27,19 +27,10 @@ def baseline_file(tmp_path: Path, monkeypatch: Any) -> Path:
     return path
 
 
-def test_tolerance_never_polices_below_the_floor() -> None:
+def test_tolerance_follows_the_spread_between_a_floor_and_a_cap() -> None:
     assert pb.tolerance({"spread": 0.0}) == pb.MIN_TOLERANCE
-
-
-def test_tolerance_follows_a_noisy_machine() -> None:
     assert pb.tolerance({"spread": 0.30}) == pytest.approx(0.60)
-
-
-def test_tolerance_is_capped_however_noisy_the_machine_is() -> None:
     assert pb.tolerance({"spread": 5.0}) == pb.MAX_TOLERANCE
-
-
-def test_a_missing_spread_falls_back_to_the_floor() -> None:
     assert pb.tolerance({}) == pb.MIN_TOLERANCE
 
 
@@ -60,29 +51,19 @@ def test_the_first_measurement_is_recorded_not_compared(baseline_file: Path) -> 
     assert stored["measurements"]["thing"]["median"] == pytest.approx(median)
 
 
-def test_a_second_measurement_is_compared_against_the_first(baseline_file: Path) -> None:
-    pb.compare("thing", lambda: None)
-    verdict, _median, limit, _ratio = pb.compare("thing", lambda: None)
-    assert verdict == "compared"
-    assert limit < float("inf")
+def test_a_stored_measurement_is_compared_against_its_median_plus_tolerance(
+        baseline_file: Path) -> None:
+    """The limit is the stored median plus its tolerance, and the ratio says how
+    far the new measurement moved from that median."""
 
-
-def test_the_limit_is_the_stored_median_plus_its_tolerance(baseline_file: Path) -> None:
     baseline_file.write_text(json.dumps({
         "machine": pb.machine(),
         "measurements": {"thing": {"median": 1.0, "spread": 0.0, "repeats": 5.0}},
     }))
-    _verdict, _median, limit, _ratio = pb.compare("thing", lambda: None)
+    verdict, median, limit, ratio = pb.compare("thing", lambda: None)
+    assert verdict == "compared"
     assert limit == pytest.approx(1.0 * (1 + pb.MIN_TOLERANCE))
-
-
-def test_the_ratio_says_how_far_the_measurement_moved(baseline_file: Path) -> None:
-    baseline_file.write_text(json.dumps({
-        "machine": pb.machine(),
-        "measurements": {"thing": {"median": 1e-9, "spread": 0.0, "repeats": 5.0}},
-    }))
-    _verdict, median, _limit, ratio = pb.compare("thing", lambda: None)
-    assert ratio == pytest.approx(median / 1e-9)
+    assert ratio == pytest.approx(median / 1.0)
 
 
 def test_a_baseline_from_another_machine_is_discarded(baseline_file: Path) -> None:
@@ -101,13 +82,3 @@ def test_the_machine_record_names_the_interpreter_and_the_host() -> None:
     described = pb.machine()
     assert set(described) == {"python", "platform", "processor"}
     assert described["python"][0].isdigit()
-
-
-def test_load_returns_an_empty_baseline_when_the_file_is_absent(baseline_file: Path) -> None:
-    assert pb.load() == {"machine": pb.machine(), "measurements": {}}
-
-
-def test_save_then_load_round_trips(baseline_file: Path) -> None:
-    data = {"machine": pb.machine(), "measurements": {"x": {"median": 2.0, "spread": 0.1}}}
-    pb.save(data)
-    assert pb.load() == data

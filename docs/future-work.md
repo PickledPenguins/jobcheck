@@ -266,6 +266,17 @@ inputs without a time ceiling, unicode in a pattern, and the `None` return on Py
 in `docs/testing.md` had claimed a full disk and a read-only output directory, which no
 test ever covered.
 
+F.76h was done on 2026-10-03 (885 tests to 878). Only `test_perf_baseline_unit.py`
+repeated itself: the four one-call tolerance tests became one, the second-measurement
+and ratio tests joined the stored-baseline test, and the load and save tests went, since
+the first-run test starts with no file and reads what was saved, and the stored-baseline
+test loads a file it wrote. That file is outside the coverage and mutation gates, so each
+merge was checked by breaking the code on purpose: the tolerance cap, `save`, `load` of a
+stored file and `load` with none all fail a remaining test. `test_regen_docs_unit.py`
+stays whole -- its two raising-block tests go through `docs_printed` and `readme_printed`,
+which catch separately -- and so does `test_mutation_score_unit.py`, one test per exit
+path. The mutation score `docs/testing.md` quoted, 97.1%, was a day old; 96.9% is today's.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row
