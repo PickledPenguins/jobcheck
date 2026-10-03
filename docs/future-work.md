@@ -106,7 +106,35 @@ rather than the library (`test_mutation_score_unit.py`, `test_perf_baseline_unit
 `test_regen_docs_unit.py`), and many pin behavior the simplicity principle has since
 removed or would remove. The pass should apply the same rule as the code review: each
 test earns its place by guarding core behavior a user relies on, and what it costs to
-keep is weighed. Not yet surveyed.
+keep is weighed.
+
+Surveyed 2026-10-03: 7,212 executable test lines against 1,161 in `src/` and 864 in
+`examples/` and `scripts/`. Overlap is already visible: `test_main_unit.py` and
+`test_interface_cli.py` assert the same demo behavior in process and by subprocess,
+`test_smoke.py` repeats both, every message is pinned word for word in
+`test_error_messages_unit.py` and again by `pytest.raises(match=)` at 63 sites, and output
+is pinned three ways (goldens, the catalog, the documents' shown output). Decided: the
+pass goes one group at a time, each surveyed test by test (keep, merge or cut, with the
+reason) and approved before anything is cut, with `cov` and `mutation` rerun after each
+cut so a gate shows a cut that went too far. One test per behavior stays, on the path
+that can catch it: a subprocess test for exit codes, stream separation and the working
+directory, the cheaper in-process test for the rest. A test recording an owner's
+decision keeps that decision somewhere. Order, most overlap for least risk:
+
+| Step | Group | Files | Lines |
+|---|---|---|---|
+| F.76a | demo entry points | main_unit, run_from_config, interface_cli, shipped_examples, bundle_main, smoke | 666 |
+| F.76b | message pinning | error_messages, and the `match=` sites | 324 |
+| F.76c | output pinning | integration, e2e_catalogs, catalog, golden_output, golden_fixture | 427 |
+| F.76d | performance | load, scaling, perf, memory, perf_baseline, concurrency | 425 |
+| F.76e | library unit | rules, load_files, report, explain, registry, repeat, validate, tables, paths, context, results | 2,963 |
+| F.76f | documents | docs_api, docs_structure, readme, docs_messages, docs_cli, docs_references, docs_blocks, doc_files | 884 |
+| F.76g | adversarial | pathological, fuzz, properties, safety, faults | 751 |
+| F.76h | tooling | regen_docs_unit, perf_baseline_unit, mutation_score_unit | 204 |
+| F.76i | contract | api_contract, differential_jobchain, packaging | 477 |
+
+The tooling tests are expected to stay: a broken scoring script would make its gate pass
+silently. The jobchain differential is the only guard on that contract from this side.
 
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
