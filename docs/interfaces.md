@@ -73,7 +73,7 @@ Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
 | Name | Required | Optional (default) | Returns | What it does |
 |---|---|---|---|---|
 | [`build_report`](#build_reportframe_outcomes-df-key_columnnone-add_columnsnone-includefailures---dataframe) | `frame_outcomes`, `df` | `key_column=None`, `add_columns=None`, `include="failures"` | DataFrame `Report` | The long-format report: one line per outcome per data row, indexed by the row key, the `add_columns`, then `code`. `key_column` labels rows and names the key level (default: the index, named `row`); `add_columns` copies frame columns in; `include` is `"root_causes"`, `"failures"`, `"blocked"` or `"all"`. |
-| [`explain_row`](#explain_rowframe_outcomes-position---dataframe) | `frame_outcomes`, `position` | – | DataFrame `Row explanation` | Every check on the data row at `position`, in evaluation order: `layer`, `code`, `outcome`, `status`, `detail`. Runs nothing. |
+| [`explain_row`](#explain_rowframe_outcomes-position---dataframe) | `frame_outcomes`, `position` | – | DataFrame `Row explanation` | Every check on the data row at `position`, in evaluation order, under the report's columns without `row`. Runs nothing. |
 | [`summarize_outcomes`](#summarize_outcomesframe_outcomes---dataframe) | `frame_outcomes` | – | DataFrame `Summary` | Per-check counts across all rows: `failed`, `root_cause_rows`, `errored`, `skipped`, `disabled`, `shared`, `passed`. Takes `validate`'s result, or any iterable of its rows. |
 | [`registry_table`](#registry_tablerulesnone---dataframe) | – | `rules=None` | DataFrame `Registry` | One line per registered check: `code`, `layer`, `default`, `repeat`, `message`, `depends_on`, `source_file`, and from `rules`, `could_be_overridden_by`. |
 | [`rules_table`](#rules_tablerules---dataframe) | `rules` | – | DataFrame `Rules` | One line per rule: `name`, `action`, `code_count`, `codes`, `match`, `message`, `source_file`. |
@@ -473,10 +473,11 @@ is a broken check is still flagged. A row that passed has none.
 ### `explain_row(frame_outcomes, position) -> DataFrame`
 
 One line per check on the data row at `position` (0 for the first) of `validate`'s
-result, in evaluation order: `layer`, `code`, `outcome`, `status`, `detail`. Every
-check is shown, passes included; it reads the outcomes and runs nothing. `detail`
-says why a check gave no verdict, and otherwise holds its rendered comments, else
-its message, else `-`. A `position` outside the outcomes raises `ValueError`.
+result, in evaluation order: `code`, `status`, `layer`, `outcome`, `message`, `detail`,
+`comments`, `is_root_cause` -- the report's columns without `row`, each meaning what
+it means there, so the lines equal that row's lines of `build_report(include="all")`.
+Every check is shown, passes included; it reads the outcomes and runs nothing. A
+`position` outside the outcomes raises `ValueError`.
 Titled `Row explanation`.<sup>[5](reporting.md#diagnosing-one-row)</sup>
 
 ### `summarize_outcomes(frame_outcomes) -> DataFrame`

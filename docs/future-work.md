@@ -53,14 +53,14 @@ chose not to make the built-in pass part of `creview`. F.62's two tentative trap
 tried the same day. Sorting `registry._CHECKS` changes nothing: the cached order holds the
 check objects, not positions in the list. A bundle that catches its member's exception
 and loads it again does hit "Duplicate check code", and the message names that case and
-says to call `clear_registry()` first, as `load_checks` documents.
-
-**Two meanings of `detail`** (F.63, raised by the owner on 2026-09-28, to come back to).
-In the report `detail` is only why a check gave no verdict, with `message` and
-`comments` in their own columns. In the row explanation it is the first non-empty of
-detail, rendered comments, message, then `-` (`src/jobcheck/views.py`, `explain_row`).
-The entry's other half, the two confusing names `explain_row` and `row_explanation` and
-the re-run trap, closed with F.73 on 2026-10-01. Not yet surveyed.
+says to call `clear_registry()` first, as `load_checks` documents. F.63 was built the
+same day: the row explanation's `detail` had been the first non-empty of the reason,
+the rendered comments and the message, then `-`, where the report's is only the reason.
+No one name fit that blend, so `explain_row` now has the report's columns without
+`row`, built by the same `views._line`, and `is_root_cause` with them. Lost: the
+compact five-column table (it is about 120 characters wide for the README's rows), and
+the `-` on a line with nothing to say. `--explain` reads its root-cause line from the
+explanation instead of building a report.
 
 **A check that raises should report its exception type and message** (F.65, raised by
 the owner on 2026-09-28). With `on_error="record"`, the owner found the exception

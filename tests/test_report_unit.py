@@ -365,7 +365,7 @@ def test_the_title_survives_selecting_and_filtering(two_layers: None) -> None:
 
 def test_explain_row_lists_every_check_in_order(two_layers: None) -> None:
     table = views.explain_row(outcomes(), 2)
-    assert list(table.columns) == ["layer", "code", "outcome", "status", "detail"]
+    assert list(table.columns) == list(views._REPORT_COLUMNS[1:])
     assert list(table["code"]) == ["AGE_PRESENT", "AGE_IN_RANGE"]
     assert list(table["outcome"]) == ["failed", "skipped"]
 
@@ -481,7 +481,8 @@ def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> Non
     when one row explained nothing."""
 
     assert list(views.explain_row([[]], 0).columns) == [
-        "layer", "code", "outcome", "status", "detail"]
+        "code", "status", "layer", "outcome", "message", "detail", "comments",
+        "is_root_cause"]
 
 
 # --- root causes, and keys that identify a row ------------------------------

@@ -207,9 +207,23 @@ def test_the_root_cause_views_agree(example_checks: None) -> None:
     for position, row_outcomes in enumerate(outcomes):
         causes = [code for row, code in roots.index if row == str(DEMO.index[position])]
         explanation = explain_row(outcomes, position)
-        failed = explanation[explanation["outcome"].isin(["failed", "errored"])]
-        assert set(causes) <= set(failed["code"])
+        assert list(explanation.loc[explanation["is_root_cause"], "code"]) == causes
         assert (first_cause(row_outcomes) is None) == (causes == [])
+
+
+def test_a_row_explanation_is_that_rows_lines_of_the_full_report(
+        example_checks: None) -> None:
+    """The explanation's columns mean what the report's do: every value on every
+    line matches the row's lines of `build_report(include="all")`."""
+
+    from jobcheck import explain_row
+
+    outcomes = validate(DEMO)
+    report = build_report(outcomes, df=DEMO, include="all").reset_index()
+    for position in range(len(DEMO)):
+        lines = report[report["row"] == str(DEMO.index[position])].drop(columns="row")
+        pd.testing.assert_frame_equal(explain_row(outcomes, position),
+                                      lines.reset_index(drop=True), check_names=False)
 
 
 def test_a_rule_file_changes_the_same_report(example_checks: None) -> None:

@@ -95,15 +95,15 @@ print(explain_row(outcomes, 2).to_string(index=False))
 ```
 
 ```
- layer                 code  outcome      status                                      detail
-     0          AGE_PRESENT   failed MISSING (1)                              Age is missing
-     1     AGE_NOT_A_NUMBER  skipped    PASS (0)      prerequisite did not pass: AGE_PRESENT
-     2         AGE_NEGATIVE  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
-     2         AGE_TOO_HIGH  skipped    PASS (0) prerequisite did not pass: AGE_NOT_A_NUMBER
-     2      AGE_NOT_INTEGER disabled    PASS (0)                         disabled by default
-     0        EMAIL_PRESENT   passed    PASS (0)                                           -
-     1     EMAIL_MISSING_AT   passed    PASS (0)                                           -
-     2 EMAIL_DOMAIN_INVALID   passed    PASS (0)                                           -
+                code      status  layer  outcome        message                                      detail comments  is_root_cause
+         AGE_PRESENT MISSING (1)      0   failed Age is missing                                                                True
+    AGE_NOT_A_NUMBER    PASS (0)      1  skipped                     prerequisite did not pass: AGE_PRESENT                   False
+        AGE_NEGATIVE    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                   False
+        AGE_TOO_HIGH    PASS (0)      2  skipped                prerequisite did not pass: AGE_NOT_A_NUMBER                   False
+     AGE_NOT_INTEGER    PASS (0)      2 disabled                                        disabled by default                   False
+       EMAIL_PRESENT    PASS (0)      0   passed                                                                              False
+    EMAIL_MISSING_AT    PASS (0)      1   passed                                                                              False
+EMAIL_DOMAIN_INVALID    PASS (0)      2   passed                                                                              False
 ```
 
 `explain_row` reads what `validate` kept for the row at that position and runs

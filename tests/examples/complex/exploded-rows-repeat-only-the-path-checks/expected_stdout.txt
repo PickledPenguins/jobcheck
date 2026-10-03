@@ -10,8 +10,8 @@ VAL_IN_RANGE,0,1,1,0,0,0,4,4
 BASE_EXISTS,1,1,1,0,1,1,0,6
 CHILD_EXISTS,2,1,1,0,3,0,0,5
 
-layer,code,outcome,status,detail
-0,NAMES_PRESENT,shared,PASS (0),"passed at position 3, the first row with id J2"
-0,VAL_IN_RANGE,shared,PASS (0),"failed at position 3, the first row with id J2"
-1,BASE_EXISTS,failed,MISSING (1),Run directory does not exist
-2,CHILD_EXISTS,skipped,PASS (0),prerequisite did not pass: BASE_EXISTS
+code,status,layer,outcome,message,detail,comments,is_root_cause
+NAMES_PRESENT,PASS (0),0,shared,,"passed at position 3, the first row with id J2",,False
+VAL_IN_RANGE,PASS (0),0,shared,,"failed at position 3, the first row with id J2",,False
+BASE_EXISTS,MISSING (1),1,failed,Run directory does not exist,,,True
+CHILD_EXISTS,PASS (0),2,skipped,,prerequisite did not pass: BASE_EXISTS,,False
