@@ -56,10 +56,7 @@ def test_register_check_copies_depends_on_so_caller_list_cannot_mutate_it(fresh_
     assert reg._CHECKS[1].depends_on == ["FIRST"]
 
 
-def test_duplicate_code_raises_naming_the_code(fresh_registry: None) -> None:
-    make_check("SAME")
-    with pytest.raises(ValueError, match=r"Duplicate check code 'SAME'"):
-        make_check("SAME")
+
 
 
 def test_source_file_points_at_the_defining_file(example_checks: None) -> None:

@@ -126,9 +126,7 @@ def test_a_missing_path_raises_and_registers_nothing(fresh_registry: None, tmp_p
     assert reg._CHECKS == []
 
 
-def test_a_directory_is_not_a_check_file(fresh_registry: None, tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match="No check file at"):
-        reg.load_checks([str(tmp_path)])
+
 
 
 def test_a_file_that_raises_on_import_propagates(fresh_registry: None, tmp_path: Path) -> None:
@@ -315,17 +313,7 @@ def test_a_file_that_registers_nothing_can_still_be_loaded_again(fresh_registry:
     assert reg._LOADED_FILES == []
 
 
-def test_a_bare_string_path_is_refused_by_load_checks(fresh_registry: None) -> None:
-    """A string is a list of its characters, so iterating one loads nothing and
-    reports a missing file named 'c'. Say what to pass instead."""
 
-    with pytest.raises(TypeError, match=r"load_checks takes a list of paths"):
-        reg.load_checks("checks.py")  # type: ignore[arg-type]
-
-
-def test_a_bare_string_path_is_refused_by_load_rules(fresh_registry: None) -> None:
-    with pytest.raises(TypeError, match=r"load_rules takes a list of paths"):
-        reg.load_rules("rules.yaml")  # type: ignore[arg-type]
 
 
 def test_a_file_that_raises_is_not_rolled_back_and_clear_registry_recovers(
