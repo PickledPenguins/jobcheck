@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 779 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 752 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
 | `./tests/run-tests.sh long` | 209 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 988 tests, then mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 961 tests, then mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 3s |
@@ -71,7 +71,7 @@ Fast:
 | `tests/test_rules_unit.py` | Every rule-file rejection (24 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
 | `tests/test_results_unit.py` | The fixed status vocabulary, `Verdict` truthiness and validation, and normalizing whatever a check returned. |
 | `tests/test_explain_unit.py` | The per-row algorithm, `_explain`: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `warn_missing_rule_columns`, root cause, layers, and the shipped checks at their boundaries. |
-| `tests/test_report_unit.py` | Collection, the failure table and its columns, row keys and added data columns, `include` levels, titles, explanations and summaries. |
+| `tests/test_report_unit.py` | The failure table and its columns, row keys and added data columns, `include` levels, titles, explanations and summaries. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_run_from_config_unit.py` | The run-file entry point in this process: the shipped run's tables in order, paths resolved against the run file, repeated tables, every rejection of a malformed run file word for word, and that a table the library refuses prints none of the run. |
 | `tests/test_bundle_main_unit.py` | The bundle entry point in this process, and the shipped bundle it loads: the registry it prints with each member's file, and the argument that names another bundle. |

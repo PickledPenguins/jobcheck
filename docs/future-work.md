@@ -190,6 +190,22 @@ prints both. One cut was restored: the setup file's repeated key is the only tes
 reader error names the setup file, and without it two mutants passing another name
 survived. Coverage and the 47 surviving mutants are the same before and after.
 
+e2 was done on 2026-10-03 (104 tests to 77, 988 to 961 in all; 582 executable lines to
+465). `test_report_unit.py` repeated `validate`'s own tests (one list per row, rules
+passed through) and the context test in `test_context_unit.py`, held two pairs of
+identical tests (rows numbered by position, added columns following `row`), and had
+tests the multi-index tests already cover (the key level's name, extra columns in the
+CSV and without a key column, the empty report's columns). A test that a single key
+column may hold the separator went: nothing joins keys any more. Five root-cause tests
+became one, and the comment-rendering and title tests one each. In `test_tables_unit.py`
+the base columns were pinned twice, and the rules table's `source_file` and `message`
+joined its one-row-per-rule test; in `test_results_unit.py` the `OK` test joined the
+truthiness test, a wrapped condition repeated the bool test, and `'MISSING'` joined the
+out-of-vocabulary parametrize. The owner's decision that the key level is named after
+`key_column` (`f53890f`) moved to the empty-report test's docstring. Lost: the CSV
+header line with an added column, pinned only through the data lines now. Coverage and
+the 47 surviving mutants are the same before and after.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row

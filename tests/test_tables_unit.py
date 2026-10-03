@@ -50,13 +50,6 @@ def test_list_like_cells_are_not_treated_as_null(value: object) -> None:
 # --- get_registry_table -----------------------------------------------------
 
 
-def test_registry_table_has_the_base_columns(example_checks: None) -> None:
-    assert list(views.registry_table().columns) == [
-        "code", "layer", "default", "repeat", "message", "depends_on", "source_file",
-        "could_be_overridden_by",
-    ]
-
-
 def test_registry_table_is_sorted_by_layer_then_code(example_checks: None) -> None:
     table = views.registry_table()
     assert list(table["code"]) == [
@@ -115,30 +108,33 @@ def test_could_be_overridden_by_names_each_rule_with_its_action_in_load_order(
 
 
 def test_could_be_overridden_by_is_a_dash_for_an_unreferenced_code(fresh_registry: None) -> None:
+    """Without rules at all the column is still there, every cell a dash."""
+
     make_check("A_CODE")
     make_check("UNTOUCHED")
     table = views.registry_table([a_rule()]).set_index("code")
     assert table.loc["UNTOUCHED", "could_be_overridden_by"] == "-"
-
-
-def test_the_registry_without_rules_still_renders_that_column(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    table = views.registry_table().set_index("code")
-    assert table.loc["A_CODE", "could_be_overridden_by"] == "-"
+    bare = views.registry_table().set_index("code")
+    assert list(bare["could_be_overridden_by"]) == ["-", "-"]
 
 
 # --- rules_table ---------------------------------------------------
 
 
 def test_rules_table_is_one_row_per_rule(fresh_registry: None) -> None:
+    """With the file each came from, and the message that says why it exists: a
+    rule nobody can justify is a rule nobody dares delete."""
+
     make_check("A_CODE")
     make_check("B_CODE")
     table = views.rules_table([a_rule("one", codes=["A_CODE", "B_CODE"]),
-                                         a_rule("two", action="enable")])
+                                         a_rule("two", action="enable", source_file="here.yaml")])
     assert list(table["name"]) == ["one", "two"]
     assert list(table["action"]) == ["disable", "enable"]
     assert list(table["code_count"]) == [2, 1]
     assert list(table["codes"]) == ["A_CODE, B_CODE", "A_CODE"]
+    assert list(table["source_file"]) == ["rules.yaml", "here.yaml"]
+    assert list(table["message"]) == ["why the rule exists"] * 2
 
 
 def test_match_all_renders_as_all(fresh_registry: None) -> None:
@@ -169,22 +165,6 @@ def test_the_registry_table_carries_the_source_file_it_was_asked_for(
 ) -> None:
     table = views.registry_table().set_index("code")
     assert table.loc["AGE_NEGATIVE", "source_file"].endswith("check_age.py")
-
-
-def test_the_rules_table_carries_the_source_file_it_was_asked_for(fresh_registry: None) -> None:
-    make_check("A_CODE")
-    table = views.rules_table([a_rule(source_file="here.yaml")])
-    assert list(table["source_file"]) == ["here.yaml"]
-
-
-def test_the_rules_table_carries_the_message_that_says_why_a_rule_exists(
-    fresh_registry: None,
-) -> None:
-    """A rule nobody can justify is a rule nobody dares delete."""
-
-    make_check("A_CODE")
-    table = views.rules_table([a_rule()])
-    assert list(table["message"]) == ["why the rule exists"]
 
 
 def test_the_rules_table_is_data_and_prints_nothing(
