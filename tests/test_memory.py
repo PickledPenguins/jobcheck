@@ -18,27 +18,14 @@ import pytest
 from jobcheck import validate
 from jobcheck import views
 from test_load import frame
-from jobcheck import engine
 
 pytestmark = pytest.mark.memory
 
 
-def test_memory_stays_bounded_across_many_rows(example_checks: None) -> None:
-    """Validation holds no per-row state, so peak memory must not scale with rows."""
-
-    df = frame(5000)
-    tracemalloc.start()
-    for _, row in df.iterrows():
-        engine._explain(row)
-    _, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
-    assert peak < 64 * 1024 * 1024, f"peak {peak / 1e6:.0f} MB"
-
-
 def test_report_memory_stays_bounded_for_a_large_frame(example_checks: None) -> None:
     """validate keeps an object per check per row, so this is the number that
-    decides how large a frame the report path can take. Deliberately a smaller frame
-    than the validation ceiling above: the point is the ratio, not the absolute size."""
+    decides how large a frame the report path can take. That the per-row path
+    holds nothing between rows is `test_scaling.py`'s memory test."""
 
     df = frame(2000)
     tracemalloc.start()

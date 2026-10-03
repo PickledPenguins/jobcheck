@@ -167,6 +167,17 @@ mutant survive (`break` for `continue` in the `root_causes` filter): the unit te
 that level now puts a non-root failure first in each row and kills it, so coverage and
 the 47 surviving mutants are the same before and after.
 
+F.76d was done on 2026-10-03. `test_load.py` keeps one absolute ceiling (5,000 rows
+validated, reported and summarized), the many-rules ceiling and the guard that the
+topological sort stays out of the row loop; the 20,000-row and 500-check ceilings went to
+the scaling ratios and the perf gate, and its volume and registry-leak checks to the
+thread tests. `test_memory.py` lost the per-row peak, which `test_scaling.py`'s growth
+bound covers more strictly (verified by holding every outcome: it fails).
+`test_concurrency.py` merged its two row-level thread tests and dropped the two that
+proved processes do not share memory, which is the operating system's guarantee; the
+test that several processes load one file and write nothing to disk stays. Accepted
+loss: a 10-20x constant slowdown now passes `all` and is caught only by `perf`.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row
