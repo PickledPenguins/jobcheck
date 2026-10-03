@@ -246,7 +246,10 @@ per failure, rules cannot define codes), whose behavior is pinned elsewhere but 
 are the only tie between the sentence and the code. The shared `doc-errors`,
 `doc-examples`, `doc-refs` and `doc-counts` tools overlap the message, block, reference
 and count tests, and are no reason to cut them: the tools are outside the repository and
-outside the gate.
+outside the gate. For the same reason `pyproject.toml` has no `[tool.doc-errors]` table,
+so `doc-errors --owners` refuses to run: the table would repeat the test's two owner
+maps, by file and by function, in a second place free to drift, and the test already fails when
+an owning document stops quoting a message (declined 2026-10-03).
 
 F.76g was done on 2026-10-03 (912 tests to 885). `test_pathological.py` kept four tests:
 the YAML error naming its file, which took over the NUL-byte fault test, and the three
