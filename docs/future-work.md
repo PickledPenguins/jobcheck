@@ -178,6 +178,18 @@ proved processes do not share memory, which is the operating system's guarantee;
 test that several processes load one file and write nothing to disk stays. Accepted
 loss: a 10-20x constant slowdown now passes `all` and is caught only by `perf`.
 
+F.76e goes in three steps, by the module the tests drive: e1 rules, load_files and paths;
+e2 report, tables and results; e3 explain, registry, repeat, validate and context. e1 was
+done on 2026-10-03 (141 tests to 105, 1,024 to 988 in all). The loader tests repeated the
+resolver's own (`base_dir`, the missing-file messages) and the reader's (a repeated key,
+bytes that are not UTF-8, once through rules and again through setup), and several were
+weaker copies of a neighbor: the bytecode flag restored where another test pins `is False`,
+clear-and-reload where three longer tests clear and reload. The checks that the shipped
+`error_rules.yaml` warns exactly so and `setup.yaml` loads went to the catalog, which
+prints both. One cut was restored: the setup file's repeated key is the only test that a
+reader error names the setup file, and without it two mutants passing another name
+survived. Coverage and the 47 surviving mutants are the same before and after.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row

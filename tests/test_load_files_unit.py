@@ -7,14 +7,12 @@ nothing, and that a bad path is loud rather than silently empty.
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from conftest import PROJECT_ROOT
 from jobcheck import registry as reg
 
 pytestmark = pytest.mark.fast
@@ -36,11 +34,6 @@ def write_check_file(directory: Path, name: str, code: str) -> str:
     return str(path)
 
 
-def test_loads_a_file_by_path(fresh_registry: None, tmp_path: Path) -> None:
-    reg.load_checks([write_check_file(tmp_path, "checks.py", "BY_PATH")])
-    assert [t.code for t in reg._CHECKS] == ["BY_PATH"]
-
-
 def test_base_dir_anchors_the_relative_paths_of_one_call(fresh_registry: None,
                                                          tmp_path: Path,
                                                          monkeypatch: Any) -> None:
@@ -56,19 +49,6 @@ def test_base_dir_anchors_the_relative_paths_of_one_call(fresh_registry: None,
     assert reg._LOADED_FILES == [str((tmp_path / "checks.py").resolve())]
 
 
-def test_an_absolute_path_is_loaded_whatever_base_dir_says(fresh_registry: None,
-                                                           tmp_path: Path) -> None:
-    path = write_check_file(tmp_path, "checks.py", "ABSOLUTE")
-    reg.load_checks([path], base_dir=tmp_path / "no-such-directory")
-    assert [t.code for t in reg._CHECKS] == ["ABSOLUTE"]
-
-
-def test_a_missing_file_under_base_dir_names_that_directory(fresh_registry: None,
-                                                            tmp_path: Path) -> None:
-    with pytest.raises(ValueError, match=f"resolved against base_dir {tmp_path}"):
-        reg.load_checks(["absent.py"], base_dir=tmp_path)
-
-
 def test_loaded_files_records_resolved_paths_in_order(fresh_registry: None, tmp_path: Path) -> None:
     first = write_check_file(tmp_path, "first.py", "FIRST")
     second = write_check_file(tmp_path, "second.py", "SECOND")
@@ -76,31 +56,13 @@ def test_loaded_files_records_resolved_paths_in_order(fresh_registry: None, tmp_
     assert reg._LOADED_FILES == [str(Path(first).resolve()), str(Path(second).resolve())]
 
 
-def test_the_same_file_twice_in_one_call_is_loaded_once(fresh_registry: None, tmp_path: Path) -> None:
-    path = write_check_file(tmp_path, "checks.py", "ONCE")
-    reg.load_checks([path, path])
-    assert [t.code for t in reg._CHECKS] == ["ONCE"]
-
-
-def test_reloading_a_file_is_a_no_op(fresh_registry: None, tmp_path: Path) -> None:
-    path = write_check_file(tmp_path, "checks.py", "AGAIN")
-    reg.load_checks([path])
-    reg.load_checks([path])
-    assert [t.code for t in reg._CHECKS] == ["AGAIN"]
-
-
-def test_two_files_of_the_same_name_in_different_directories_both_load(
+def test_a_file_named_twice_in_one_call_or_reloaded_is_loaded_once(
     fresh_registry: None, tmp_path: Path
 ) -> None:
-    left = tmp_path / "left"
-    right = tmp_path / "right"
-    left.mkdir()
-    right.mkdir()
-    reg.load_checks([
-        write_check_file(left, "checks.py", "LEFT"),
-        write_check_file(right, "checks.py", "RIGHT"),
-    ])
-    assert sorted(t.code for t in reg._CHECKS) == ["LEFT", "RIGHT"]
+    path = write_check_file(tmp_path, "checks.py", "AGAIN")
+    reg.load_checks([path, path])
+    reg.load_checks([path])
+    assert [t.code for t in reg._CHECKS] == ["AGAIN"]
 
 
 def test_every_file_of_one_name_gets_its_own_module(
@@ -117,6 +79,7 @@ def test_every_file_of_one_name_gets_its_own_module(
     reg.load_checks(paths)
     names = [name for name in sys.modules if name.startswith("jobcheck_check_file_checks_")]
     assert len(names) == 3
+    assert [t.code for t in reg._CHECKS] == ["A", "B", "C"]
 
 
 def test_a_missing_path_raises_and_registers_nothing(fresh_registry: None, tmp_path: Path) -> None:
@@ -124,17 +87,6 @@ def test_a_missing_path_raises_and_registers_nothing(fresh_registry: None, tmp_p
     with pytest.raises(ValueError, match="No check file at"):
         reg.load_checks([good, str(tmp_path / "absent.py")])
     assert reg._CHECKS == []
-
-
-
-
-
-def test_a_file_that_raises_on_import_propagates(fresh_registry: None, tmp_path: Path) -> None:
-    path = tmp_path / "broken.py"
-    path.write_text("raise RuntimeError('boom')\n")
-    with pytest.raises(RuntimeError, match="boom"):
-        reg.load_checks([str(path)])
-    assert reg._LOADED_FILES == []
 
 
 def test_a_prerequisite_may_live_in_another_file_of_the_same_call(
@@ -153,41 +105,15 @@ def test_a_prerequisite_may_live_in_another_file_of_the_same_call(
     assert sorted(t.code for t in reg._CHECKS) == ["BASE", "DEPENDENT"]
 
 
-def test_a_dangling_prerequisite_raises_at_the_end_of_the_call(
+def test_a_file_loaded_by_path_registers_its_checks_and_they_run(
     fresh_registry: None, tmp_path: Path
 ) -> None:
-    path = tmp_path / "dependent.py"
-    path.write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('DEPENDENT', 'DEPENDENT failed', depends_on=['ABSENT'])\n"
-        "def rule(row):\n"
-        "    return OK\n"
-    )
-    with pytest.raises(ValueError, match="ABSENT"):
-        reg.load_checks([str(path)])
-
-
-def test_clear_registry_forgets_loaded_files(fresh_registry: None, tmp_path: Path) -> None:
-    path = write_check_file(tmp_path, "checks.py", "FORGOTTEN")
-    reg.load_checks([path])
-    reg.clear_registry()
-    assert reg._LOADED_FILES == []
-
-
-def test_a_file_can_be_loaded_again_after_clear_registry(fresh_registry: None, tmp_path: Path) -> None:
-    path = write_check_file(tmp_path, "checks.py", "RELOADED")
-    reg.load_checks([path])
-    reg.clear_registry()
-    reg.load_checks([path])
-    assert [t.code for t in reg._CHECKS] == ["RELOADED"]
-
-
-def test_path_loaded_checks_run(fresh_registry: None, tmp_path: Path) -> None:
     import pandas as pd
 
     from conftest import failures
 
     reg.load_checks([write_check_file(tmp_path, "checks.py", "RUNS")])
+    assert [t.code for t in reg._CHECKS] == ["RUNS"]
     assert [f.code for f in failures(pd.Series({"value": 2}))] == ["RUNS"]
 
 
@@ -196,14 +122,6 @@ def test_no_bytecode_is_left_beside_a_loaded_file(fresh_registry: None, tmp_path
     # was read rather than somewhere this library may write to.
     reg.load_checks([write_check_file(tmp_path, "checks.py", "NO_PYC")])
     assert not (tmp_path / "__pycache__").exists()
-
-
-def test_the_process_bytecode_setting_is_restored(fresh_registry: None, tmp_path: Path) -> None:
-    import sys
-
-    before = sys.dont_write_bytecode
-    reg.load_checks([write_check_file(tmp_path, "checks.py", "RESTORED")])
-    assert sys.dont_write_bytecode is before
 
 
 def test_a_file_python_cannot_import_says_so(fresh_registry: None, tmp_path: Path) -> None:
@@ -233,19 +151,6 @@ def test_the_loaded_module_is_registered_under_its_generated_name(
     module = sys.modules[names[0]]
     assert module is not None
     assert module.__file__ == str((tmp_path / "checks.py").resolve())
-
-
-def test_clear_registry_drops_the_check_file_modules(fresh_registry: None,
-                                                    tmp_path: Path) -> None:
-    """Each load names its modules afresh, so one left behind is only a leak:
-    a process that reloads in a loop would keep every copy."""
-
-    import sys
-
-    reg.load_checks([write_check_file(tmp_path, "checks.py", "EVICTED")])
-    name = next(n for n in sys.modules if n.startswith("jobcheck_check_file_"))
-    reg.clear_registry()
-    assert name not in sys.modules
 
 
 def test_a_module_that_registered_by_plain_import_stays_imported(
@@ -311,9 +216,6 @@ def test_a_file_that_registers_nothing_can_still_be_loaded_again(fresh_registry:
     reg.clear_registry()
     assert name not in sys.modules
     assert reg._LOADED_FILES == []
-
-
-
 
 
 def test_a_file_that_raises_is_not_rolled_back_and_clear_registry_recovers(
@@ -403,15 +305,6 @@ def test_a_bundle_loads_the_files_it_names(fresh_registry: None, tmp_path: Path)
     ]
 
 
-def test_a_member_is_not_loaded_twice_when_the_caller_names_it_too(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    member = write_check_file(tmp_path, "check_first.py", "FIRST")
-    bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py"])
-    reg.load_checks([member, bundle])
-    assert [t.code for t in reg._CHECKS] == ["FIRST"]
-
-
 def test_a_prerequisite_may_arrive_after_the_bundle_that_needs_it(
     fresh_registry: None, tmp_path: Path
 ) -> None:
@@ -496,21 +389,6 @@ def test_a_bundle_that_names_itself_is_skipped_rather_than_recursing(
     reg.load_checks([bundle])
     assert [t.code for t in reg._CHECKS] == ["FIRST"]
     assert len(reg._LOADED_FILES) == 2
-
-
-def test_two_bundles_that_name_each_other_both_load(fresh_registry: None,
-                                                    tmp_path: Path) -> None:
-    for name, code, other in (("left.py", "LEFT", "right.py"),
-                              ("right.py", "RIGHT", "left.py")):
-        (tmp_path / name).write_text(
-            "import os\n"
-            "from jobcheck import OK, load_checks, register_check\n"
-            f"@register_check({code!r}, 'from {name}')\n"
-            "def check(row): return OK\n"
-            f"load_checks([{other!r}], base_dir=os.path.dirname(os.path.abspath(__file__)))\n"
-        )
-    reg.load_checks([str(tmp_path / "left.py")])
-    assert sorted(t.code for t in reg._CHECKS) == ["LEFT", "RIGHT"]
 
 
 def test_a_bundle_and_a_member_of_one_name_get_different_module_names(
@@ -612,23 +490,12 @@ def test_setup_paths_are_relative_to_the_setup_file_not_the_caller(
     assert [check.code for check in reg._CHECKS] == ["A_CODE"]
 
 
-def test_a_setup_file_without_rules_registers_the_checks_and_returns_none(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    (tmp_path / "check_one.py").write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('A_CODE', 'm')\n"
-        "def one(row): return OK\n",
-        encoding="utf-8",
-    )
-    assert reg.load_setup(_setup(tmp_path, "checks: [check_one.py]\n")) == []
-
-
 def test_a_key_given_twice_in_a_setup_file_is_refused(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     """PyYAML keeps the second `checks:`, so the files the first one named would
-    never load, and nothing would say so."""
+    never load, and nothing would say so. The only test that a reader error names
+    the setup file rather than a rule file."""
 
     path = _setup(tmp_path, "checks: [one.py]\nrules: [r.yaml]\nchecks: [two.py]\n")
     with pytest.raises(ValueError) as raised:
@@ -638,13 +505,6 @@ def test_a_key_given_twice_in_a_setup_file_is_refused(
         "YAML would keep only the last; remove one.")
 
 
-def test_a_setup_file_that_is_not_utf8_names_itself(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    path = tmp_path / "setup.yaml"
-    path.write_bytes(b"checks: [caf\xe9.py]\n")
-    with pytest.raises(ValueError, match=r"setup\.yaml: not UTF-8 text: 'utf-8' codec"):
-        reg.load_setup(str(path))
 def test_a_setup_file_that_is_not_a_mapping_says_so(
     fresh_registry: None, tmp_path: Path
 ) -> None:
@@ -656,18 +516,6 @@ def test_a_setup_file_that_is_not_a_mapping_says_so(
         reg.load_setup(path)
     assert str(raised.value) == (
         f"{path}: a setup file is a mapping of 'checks' and 'rules', got list.")
-
-
-def test_an_unknown_setup_key_is_refused_and_lists_the_two(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    """A misspelled `rule:` would otherwise apply no rules and say nothing."""
-
-    path = _setup(tmp_path, "checks: [x.py]\nrule: [y.yaml]\n")
-    with pytest.raises(ValueError) as raised:
-        reg.load_setup(path)
-    assert str(raised.value) == (
-        f"{path}: unknown key(s) 'rule'. A setup file holds 'checks', 'rules'.")
 
 
 def test_a_setup_key_yaml_reads_as_a_number_is_named_rather_than_crashing(
@@ -744,13 +592,3 @@ def test_a_missing_setup_file_says_where_it_looked(fresh_registry: None) -> None
     assert "load_setup() names files explicitly" in str(raised.value)
 
 
-def test_the_shipped_setup_file_loads_the_demo(fresh_registry: None) -> None:
-    """`examples/setup.yaml` is the worked example, so the suite runs it."""
-
-    rules = reg.load_setup(os.path.join(PROJECT_ROOT, "examples/setup.yaml"))
-    assert len(reg._LOADED_FILES) == 5
-    assert [rule.name for rule in rules] == [
-        "enable_legacy_integer_check",
-        "suppress_email_checks_for_test_accounts",
-        "disable_age_integer_check_globally",
-    ]
