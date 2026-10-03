@@ -27,7 +27,7 @@ lists refused by the summary, a `functools.partial` no longer evicting `functool
 `load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
 refusing a name that matches nothing, five untested contracts and four unpinned messages
 closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.71. Each is either loud already, or needs the owner's decision.
+left is open below, from F.72. Each is either loud already, or needs the owner's decision.
 F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
 on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
 same day: a second positional parameter with a default other than `None` is refused at
@@ -80,20 +80,15 @@ does. F.69 was built on 2026-10-03, in jobchain: its two unknown-key messages
 Python's list of the keys sorted by value, so a YAML key read as a bool or a number
 beside a misspelled text key raised `TypeError` instead of the error. They now use
 `core.key_names`, a copy of `paths._key_names`, so both projects word the mistake the
-same way. Lost: the brackets around the key lists.
-
-**Every interface in `interfaces.md` gets a brief example in its own section** (F.71,
-raised by the owner on 2026-09-28). Each function or type's definition block in
-`docs/interfaces.md` should show a short piece of real code that uses it, not only the
-signature and prose. Today the document has one `python` block, under `load_checks`.
-The other documented names -- `Status`, `Verdict`, `CheckOutcome`,
-`Outcome`, `RowContext`, `Rule`, `register_check`, `clear_registry`, `load_rules`,
-`load_setup`, `explain_row`, `validate_row`, `root_causes`, the three `warn_*`
-functions, `validate`, `build_report`, `row_explanation`, `summarize_outcomes`,
-`registry_table`, `rules_table` and `is_null` -- have none there. F.37's
-examples live in `reporting.md` and `writing-checks.md`, grouped by use. Every `python`
-block in `docs/` runs under the fast suite, so each example must execute against the
-documented world (`tests/doc_files.py`). Not yet surveyed.
+same way. Lost: the brackets around the key lists. F.71 was built the same day, in
+its smaller form: of the 21 sections `interfaces.md` gives a public name, only
+`load_checks` showed code. Fifteen now end with an `Example:` link to the section of
+another document whose example already uses the name, and the five names no
+document used -- `CheckOutcome`, `Rule`, `clear_registry`, `warn_shadowed_rules`,
+`warn_blocking_rules` -- got a block of their own. The blocks show no output, so a change
+to a table's shape does not rewrite this document too. Not done: an inline block in every
+section, which would have doubled the examples of about sixteen names and the output to
+regenerate.
 
 **Every interface is used realistically in the example scripts** (F.72, raised by the
 owner on 2026-09-28). Each name `interfaces.md` defines should appear in a script under
