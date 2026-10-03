@@ -155,6 +155,18 @@ returning None in `test_pathological.py` is the only test of that path through t
 engine, and without it a mutant passing no code to the message survived. Coverage and the
 47 surviving mutants are the same before and after.
 
+F.76c was done on 2026-10-03 (1,098 tests to 1,032). `test_integration.py` keeps the four
+tests nothing else makes in process: the shipped rule files on a whole frame, the split
+files matching the single file, precedence in both orders, and a row's explanation
+matching its lines of the full report. Its CSV export and round-trip tests repeated
+`test_golden_output.py`, and its runtime-written files repeated the loader unit tests.
+The golden bytes-on-disk test went: it never ran `main.py --write`, and a `\r\n` already
+fails the string comparison. The catalog's level check folded into the documents-itself
+test, and its two floors into one test. Cutting the root-cause agreement test let one
+mutant survive (`break` for `continue` in the `root_causes` filter): the unit test of
+that level now puts a non-root failure first in each row and kills it, so coverage and
+the 47 surviving mutants are the same before and after.
+
 **A run file cannot explain a row** (F.88, medium; from the friction log written while
 building the complex catalog cases, triaged 2026-10-02). `examples/run_from_config.py`
 offers the registry, rules, report and summary tables, but not the row
@@ -935,7 +947,7 @@ are worth keeping.
 seven cases over `customers_large.csv` are 328 KB of it, 28% — not 1.1 MB of 1.6. Beyond
 that, volume is the only thing those cases demonstrate (every other case runs 24 or 49
 rows), and two of them are `complex/`, a level with exactly 10 cases against a floor of 10
-in `test_the_catalog_has_enough_of_each_level`, so dropping either fails that test.
+in `test_the_catalogs_keep_their_floors`, so dropping either fails that test.
 Truncating the recorded output was rejected for a different reason: a catalog case pins
 every byte the entry point prints, and a case that stops comparing part of its output
 stops being evidence about that part.

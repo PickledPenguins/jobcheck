@@ -523,10 +523,13 @@ def test_an_unknown_include_level_names_the_levels(two_layers: None) -> None:
 
 
 def test_the_root_causes_level_keeps_only_the_flagged_lines(fresh_registry: None) -> None:
-    make_check("SHALLOW_A", passes=False)
-    make_check("SHALLOW_B", passes=False)
+    """The deep failure comes first in each row, so a row's remaining lines are
+    still read after a line that is not a root cause."""
+
     make_check("ROOT", passes=True)
     make_check("DEEP", passes=False, depends_on=["ROOT"])
+    make_check("SHALLOW_A", passes=False)
+    make_check("SHALLOW_B", passes=False)
     frame = pd.DataFrame([{"a": 1}, {"a": 2}])
     outcomes = validate(frame)
     roots = build(outcomes, df=frame, include="root_causes")
