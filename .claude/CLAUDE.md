@@ -25,11 +25,11 @@ describes the current code.
 tests/run-tests.sh          # fast: unit, interface, regression, cheap pathological, plus ruff and mypy
 tests/run-tests.sh long     # integration, load, concurrency, faults, scaling, catalogs, then the profile
 tests/run-tests.sh all      # both, plus ruff, mypy and the profile
-tests/run-tests.sh cov      # the fast suite with coverage, gated at 95%
+tests/run-tests.sh cov      # the fast suite with coverage, gated at 99%
 tests/run-tests.sh perf     # timing against this machine's baseline (its own gate)
 tests/run-tests.sh memory   # peak-memory ceilings (its own gate)
 tests/run-tests.sh profile  # where the example runs spend their time
-tests/run-tests.sh mutation # a clean mutmut run, gated at 94% (~4 min)
+tests/run-tests.sh mutation # a clean mutmut run, gated at 97% (~3 min)
 tests/run-tests.sh types    # ruff and mypy alone (ruff lints; nothing auto-formats)
 scripts/install-hooks.sh
 scripts/new_catalog_case.py <kind> <path> ...       # add one catalog case, output and all

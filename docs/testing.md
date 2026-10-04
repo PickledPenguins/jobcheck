@@ -18,11 +18,11 @@ pip install -e ".[dev]"
 | `./tests/run-tests.sh fast` | 665 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then ruff and mypy | 18s |
 | `./tests/run-tests.sh long` | 199 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
 | `./tests/run-tests.sh all` | 864 tests, then ruff, mypy and the profile | 120s |
-| `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 99%) | 23s |
+| `./tests/run-tests.sh cov` | fast suite under coverage, gated at 99% lines and branches (it runs at 99.5%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 3s |
 | `./tests/run-tests.sh profile` | the example profile alone | 3s |
-| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 97.8%) | 200s |
+| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 97% (it runs at 97.8%) | 200s |
 | `./tests/run-tests.sh types` | ruff and mypy alone | 8s |
 
 Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
@@ -46,9 +46,9 @@ There is no CI. The pre-commit hook and the release gates below are what run the
   `.git/hooks/pre-commit`. Bypass with git's own `--no-verify`; there is no custom flag.
   Verified to block: breaking the code a fast test covers and committing stops at the hook.
 - **Pre-release** — `./tests/run-tests.sh all`, `./tests/run-tests.sh cov`, `./tests/run-tests.sh memory`,
-  `./tests/run-tests.sh perf` and `./tests/run-tests.sh mutation`. Coverage below 95% fails
+  `./tests/run-tests.sh perf` and `./tests/run-tests.sh mutation`. Coverage below 99% fails
   through `coverage report --fail-under`; a memory ceiling or a timing baseline exceeded
-  fails its own run; a mutation score below 94% (set in `tests/run-tests.sh`)
+  fails its own run; a mutation score below 97% (set in `tests/run-tests.sh`)
   fails the mutation run, and so does a run that left any mutant unchecked. Run mutation
   last and alone: it contends with the timing tests.
 
@@ -170,18 +170,21 @@ notice the line being wrong. `mutmut` answers that by changing the code and chec
 test fails.
 
 ```sh
-./tests/run-tests.sh mutation   # clean run + score against the 94% floor (the gate)
+./tests/run-tests.sh mutation   # clean run + score against the 97% floor (the gate)
 python -c "import pandas; import sys; sys.argv=['mutmut','run']; from mutmut.__main__ import cli; cli()"
-python scripts/mutation_score.py --floor 94   # score the results a run left
+python scripts/mutation_score.py --floor 97   # score the results a run left
 mutmut results      # survived / killed, per mutant
 mutmut show <name>  # the diff for one survivor
 ```
 
-**The floor is 94%, set 2026-09-26 against a measured 95.7%.** The score is detected over
-total: killed, caught by the type check, or timed out. The 97.8% of `cc22f4b` is 3.8
-points, about 56 of its 1,479 mutants, above the floor -- room for a change that adds a
-few untested lines, not for a module losing its tests. Raise it when the score rises and stays there; lower it only with the survivors read
-and recorded below, never to make a run pass.
+**The floor is 97%, set 2026-10-03 against a measured 97.8%** (it was 94% from
+2026-09-26, against 95.7%). The score is detected over total: killed, caught by the type
+check, or timed out. The 97.8% of `cc22f4b` is 0.8 points, about 11 of its 1,479
+mutants, above the floor -- room for a change that adds a few untested lines, not for a
+module losing its tests. 32 of the 33 survivors cannot be killed (below), so new code
+keeps the score only with nearly all of its own mutants killed. Raise the floor when the
+score rises and stays there; lower it only with the survivors read and recorded below,
+never to make a run pass. The coverage floor follows the same rule: 99%, against 99.5%.
 
 **That incantation is not decoration.** Plain `mutmut run` fails during stats collection
 here: mutmut runs pytest in its own process, and importing pandas inside that run trips
