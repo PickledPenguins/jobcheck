@@ -6,8 +6,8 @@ dist/
 *.egg-info/
 
 # Every generated artifact lives under .build/ so the project root shows only
-# files a reader is looking for: the coverage data, the pytest and mypy caches,
-# the hypothesis database, the profile and the performance baseline.
+# files a reader is looking for: the coverage data, the pytest, ruff and mypy
+# caches, the hypothesis database, the profile and the performance baseline.
 .build/
 
 # mutmut hardcodes Path('mutants') relative to the working directory, so this

@@ -72,7 +72,12 @@ def test_explain_prints_one_row_and_stops(fresh_registry: None, capsys: Any) -> 
     assert "== Registry" not in out
 
 
-def test_explain_past_the_end_exits_two(fresh_registry: None, capsys: Any) -> None:
+def test_explain_past_the_end_exits_two_before_validating(
+    fresh_registry: None, capsys: Any, monkeypatch: Any,
+) -> None:
+    """Regression: the range was checked only after the whole frame was validated."""
+
+    monkeypatch.setattr(main, "validate", lambda *args, **kwargs: pytest.fail("validated"))
     with pytest.raises(SystemExit) as raised:
         main.main(["--explain", "99"])
     assert raised.value.code == 2
