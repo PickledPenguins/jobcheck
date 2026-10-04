@@ -164,7 +164,7 @@ def test_a_required_keyword_argument_says_how_to_fix_it(fresh_registry: None) ->
 
 
 def test_a_defaulted_second_parameter_names_both_fixes(fresh_registry: None) -> None:
-    """`limit` would be handed the context and every row would error (F.48)."""
+    """`limit` would be handed the context and every row would error."""
 
     with pytest.raises(ValueError) as raised:
         @reg.register_check(code="AGE_BELOW", message="m")
