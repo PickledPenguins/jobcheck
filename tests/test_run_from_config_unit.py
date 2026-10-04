@@ -65,9 +65,6 @@ def test_the_shipped_run_prints_its_four_tables_in_order(fresh_registry: None,
     assert "could_be_overridden_by" in out
 
 
-
-
-
 def test_paths_resolve_against_the_run_file_not_the_working_directory(
     fresh_registry: None, capsys: Any, tmp_path: Path, monkeypatch: Any
 ) -> None:

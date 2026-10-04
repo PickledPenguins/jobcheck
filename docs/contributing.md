@@ -47,6 +47,7 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | Timing has not regressed against this machine's baseline | `./tests/run-tests.sh perf` |
 | Peak memory stays under its ceilings | `./tests/run-tests.sh memory` |
 | The tests notice at least 94% of mutations to the code | `./tests/run-tests.sh mutation`, through `scripts/mutation_score.py` |
+| No unused or undefined names, and two blank lines between top-level definitions | `ruff check` (lint only, never `--fix` or `ruff format`), run by `./tests/run-tests.sh fast`, `all` and `types` |
 | Types check | `mypy`, run by `./tests/run-tests.sh fast`, `all` and `types` |
 
 ## Style

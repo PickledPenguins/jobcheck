@@ -27,8 +27,6 @@ from jobcheck.rules import _MatchCriterion
 pytestmark = pytest.mark.long
 
 
-
-
 def frame(rows: int) -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -80,9 +78,6 @@ def test_topological_order_is_not_recomputed_per_row(fresh_registry: None) -> No
     finally:
         reg._topological_order = original  # type: ignore[assignment]
     assert calls == monkeyed, "the sort ran inside the per-row loop"
-
-
-
 
 
 def test_many_rules_resolve_within_the_ceiling(fresh_registry: None) -> None:

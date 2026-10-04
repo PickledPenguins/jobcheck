@@ -41,7 +41,7 @@ def test_every_tool_the_suite_relies_on_is_declared() -> None:
 
     pyproject = (Path(validation.__file__).parent.parent.parent / "pyproject.toml")
     declared = pyproject.read_text(encoding="utf-8")
-    for tool in ("pytest", "coverage", "mypy", "types-PyYAML", "hypothesis", "mutmut"):
+    for tool in ("pytest", "coverage", "mypy", "types-PyYAML", "hypothesis", "mutmut", "ruff"):
         assert f'"{tool}' in declared, f"{tool} is used by the suite but not declared"
 
 

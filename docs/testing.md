@@ -15,15 +15,15 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 665 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then mypy | 18s |
+| `./tests/run-tests.sh fast` | 665 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then ruff and mypy | 18s |
 | `./tests/run-tests.sh long` | 199 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 864 tests, then mypy and the profile | 120s |
-| `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 100%) | 23s |
+| `./tests/run-tests.sh all` | 864 tests, then ruff, mypy and the profile | 120s |
+| `./tests/run-tests.sh cov` | fast suite under coverage, gated at 95% lines and branches (it runs at 99%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 3s |
 | `./tests/run-tests.sh profile` | the example profile alone | 3s |
-| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 96.9%) | 300s |
-| `./tests/run-tests.sh types` | mypy alone | 8s |
+| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 94% (it runs at 97.8%) | 200s |
+| `./tests/run-tests.sh types` | ruff and mypy alone | 8s |
 
 Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
 `./tests/run-tests.sh long tests/test_load.py`. Each mode exits non-zero on any failure and
@@ -203,7 +203,7 @@ in `[tool.mutmut]`:
   `pyproject.toml`.
 
 **`mutants/` is the one artifact in the project root.** Every other generated file lives
-under `.build/` — the coverage data, the pytest and mypy caches, the hypothesis database,
+under `.build/` — the coverage data, the pytest, ruff and mypy caches, the hypothesis database,
 the profile and the performance baseline. `mutmut` hardcodes `Path('mutants')` relative to
 the working directory and takes no setting for it, so that tree appears beside the project
 and is gitignored. It is transient: `rm -rf mutants .mutmut-cache` when a run is finished,

@@ -2,16 +2,16 @@
 # Test entry point. One mode per gate:
 #
 #   tests/run-tests.sh fast    unit, interface, regression, cheap
-#                              pathological plus mypy -- the pre-commit gate
+#                              pathological plus ruff and mypy -- the pre-commit gate
 #   tests/run-tests.sh long    integration, load, concurrency, faults, scaling,
 #                              end-to-end catalogs, then the example profile
-#   tests/run-tests.sh all     both, plus mypy
+#   tests/run-tests.sh all     both, plus ruff and mypy
 #   tests/run-tests.sh cov     fast suite with a coverage report, gated at 95%
 #   tests/run-tests.sh perf    timing against this machine's baseline (own gate)
 #   tests/run-tests.sh memory  peak-memory ceilings under tracemalloc (own gate)
 #   tests/run-tests.sh profile the example profile alone, without the tests
 #   tests/run-tests.sh mutation a clean mutmut run, gated at MUTATION_MIN (~4 min)
-#   tests/run-tests.sh types   mypy alone, for a CI step that ran the tests
+#   tests/run-tests.sh types   ruff and mypy alone, for a CI step that ran the tests
 #
 # Extra arguments are passed through to pytest.
 #
@@ -31,9 +31,11 @@ COVERAGE_MIN=95
 # Set 2026-09-26 against a measured 95.7% (1,310 of 1,369): room for a change that
 # adds a handful of untested mutants, not for a regression the size of a module.
 MUTATION_MIN=94
-# Targets come from [tool.mypy] in pyproject.toml.
+# Targets come from [tool.ruff] and [tool.mypy] in pyproject.toml.
 
-run_mypy() {
+run_static_checks() {
+    echo "== ruff =="
+    "$PYTHON" -m ruff check --quiet || return 1
     echo "== mypy =="
     "$PYTHON" -m mypy || return 1
 }
@@ -59,7 +61,7 @@ run_profile() {
 case "$MODE" in
     fast)
         "$PYTHON" -m pytest -m fast "$@" || exit 1
-        run_mypy || exit 1
+        run_static_checks || exit 1
         ;;
     long)
         require_hypothesis || exit 1
@@ -67,12 +69,12 @@ case "$MODE" in
         run_profile || exit 1
         ;;
     types)
-        run_mypy || exit 1
+        run_static_checks || exit 1
         ;;
     all)
         require_hypothesis || exit 1
         "$PYTHON" -m pytest -m "fast or long" "$@" || exit 1
-        run_mypy || exit 1
+        run_static_checks || exit 1
         run_profile || exit 1
         ;;
     cov)
