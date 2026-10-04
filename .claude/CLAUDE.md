@@ -22,15 +22,15 @@ describes the current code.
 ## Commands
 
 ```sh
-tests/run-tests.sh          # fast: unit, interface, regression, cheap pathological, plus mypy
+tests/run-tests.sh          # fast: unit, interface, regression, cheap pathological, plus ruff and mypy
 tests/run-tests.sh long     # integration, load, concurrency, faults, scaling, catalogs, then the profile
-tests/run-tests.sh all      # both, plus mypy and the profile
+tests/run-tests.sh all      # both, plus ruff, mypy and the profile
 tests/run-tests.sh cov      # the fast suite with coverage, gated at 95%
 tests/run-tests.sh perf     # timing against this machine's baseline (its own gate)
 tests/run-tests.sh memory   # peak-memory ceilings (its own gate)
 tests/run-tests.sh profile  # where the example runs spend their time
 tests/run-tests.sh mutation # a clean mutmut run, gated at 94% (~4 min)
-tests/run-tests.sh types    # mypy alone
+tests/run-tests.sh types    # ruff and mypy alone (ruff lints; nothing auto-formats)
 scripts/install-hooks.sh
 scripts/new_catalog_case.py <kind> <path> ...       # add one catalog case, output and all
 scripts/regen_catalog.py, scripts/regen_golden.py   # regenerate committed fixtures
@@ -41,7 +41,7 @@ scripts/profile_examples.py                         # the profile, alone
 ```
 
 Every mode runs from the project root whichever directory it is invoked from. Generated
-files go under `.build/` -- coverage data, the pytest and mypy caches, the hypothesis
+files go under `.build/` -- coverage data, the pytest, ruff and mypy caches, the hypothesis
 storage, the example profile, the machine's performance baseline -- except `mutants/`,
 which `mutmut` hardcodes beside the project and which is transient.
 
@@ -51,10 +51,11 @@ only, deliberately.
 
 The long suite needs `hypothesis` and refuses to run without it rather than skipping the
 property tests quietly; `PYTHON=/path/to/python` picks the interpreter, and the conda
-`pytesting` environment is the one here that has `hypothesis` and `mutmut`.
+`pytesting` environment is the one here that has `hypothesis` and `mutmut`. `ruff` lints
+only: the gate never runs `--fix` or `ruff format`, and neither should an agent.
 
 Python 3.10+ (`X | None` syntax throughout), pandas 2.1+ and PyYAML at runtime;
-`pip install -e .[dev]` for the suite, which needs pytest, coverage, mypy, hypothesis and
+`pip install -e .[dev]` for the suite, which needs pytest, coverage, mypy, ruff, hypothesis and
 mutmut. Tests are split by pytest markers (`fast`, `long`), not by directory.
 
 ## jobchain

@@ -78,9 +78,6 @@ def test_the_messy_file_exercises_every_shipped_check(example_checks: None) -> N
     assert expected <= failed
 
 
-
-
-
 def test_the_messy_file_still_holds_the_awkward_values_the_catalog_relies_on() -> None:
     """Named individually: each is a case some example exists to demonstrate."""
 

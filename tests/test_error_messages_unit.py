@@ -291,9 +291,6 @@ def test_a_check_returning_nonsense_says_what_it_may_return(fresh_registry: None
         "bare comparison.")
 
 
-
-
-
 def test_a_frame_that_is_not_a_frame_says_how_to_make_one(fresh_registry: None) -> None:
     make_check("CODE")
     with pytest.raises(TypeError) as raised:
@@ -301,9 +298,6 @@ def test_a_frame_that_is_not_a_frame_says_how_to_make_one(fresh_registry: None) 
     assert message_of(raised) == (
         "validate takes a DataFrame, got Series; for one row, pass row.to_frame().T."
     )
-
-
-
 
 
 # --- reporting --------------------------------------------------------------

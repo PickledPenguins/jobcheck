@@ -20,6 +20,7 @@ from jobcheck import registry as reg
 
 pytestmark = pytest.mark.fast
 
+
 def test_the_entry_point_prints_the_registry_with_each_check_s_file(
     fresh_registry: None, capsys: Any
 ) -> None:

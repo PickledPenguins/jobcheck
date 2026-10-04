@@ -123,9 +123,6 @@ def run_child(source: str) -> subprocess.CompletedProcess[str]:
                           text=True, timeout=120, cwd=PROJECT_ROOT)
 
 
-
-
-
 def test_many_processes_loading_the_same_file_all_succeed(tmp_path: Path) -> None:
     """No lock file, no shared cache: the loader writes nothing another process reads."""
 

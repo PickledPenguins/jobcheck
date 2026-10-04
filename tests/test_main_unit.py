@@ -182,9 +182,6 @@ def test_rules_with_no_paths_loads_none(fresh_registry: None, capsys: Any) -> No
     assert "(disable)" not in out.split("== Registry")[1].split("== Report")[0]
 
 
-
-
-
 def test_the_rules_table_prints_one_row_per_rule_not_per_code(fresh_registry: None,
                                                               capsys: Any) -> None:
     """The registry table below it is one row per code, so a rule touching two
@@ -229,9 +226,6 @@ def test_write_uses_the_report_format_rather_than_the_extension(fresh_registry: 
     run(capsys, "--data", SMALL, "--write", str(target))
     assert target.read_text(encoding="utf-8").startswith("== Report ==\n")
     assert "id,code" not in target.read_text(encoding="utf-8")
-
-
-
 
 
 def test_write_into_a_missing_directory_exits_two_before_doing_the_work(
