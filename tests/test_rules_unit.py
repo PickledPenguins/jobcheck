@@ -291,7 +291,7 @@ def test_a_key_repeated_on_one_line_is_refused_too(one_code: None, tmp_path: Pat
 def test_a_rule_file_that_is_not_utf8_names_itself(one_code: None, tmp_path: Path) -> None:
     """Regression: a Latin-1 file let the codec's own error through, which says
     where in the bytes but not which file -- the one thing every other load
-    error says first. Found by the text fuzz in `test_fuzz.py` (F.59)."""
+    error says first. Found by the text fuzz in `test_fuzz.py`."""
 
     path = tmp_path / "r.yaml"
     path.write_bytes(b"- name: caf\xe9\n")

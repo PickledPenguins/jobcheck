@@ -2,7 +2,7 @@
 
 Back to the [README](../README.md).
 
-Known gaps, work that is planned, and — the part that earns this document its place —
+Open gaps when there are any, and — the part that earns this document its place —
 what was **considered and deliberately not done**, with the reason. Without the last
 section every review re-proposes the same rejected idea and every session re-derives the
 same answer.
@@ -12,302 +12,9 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-Every item raised by the reviews of 2026-09-15, 2026-09-21, 2026-09-23, 2026-09-24 and
-2026-09-25 has been worked through: what was built is in the git log, and what was
-decided against is in the section below, with the reason. An entry there is closed, not
-pending.
-
-F.46 was decided on 2026-09-28 and moved to the section below.
-
-The three reviews of 2026-09-27 are worked through in part. Every silent finding —
-anything that goes wrong with no sign a user could see — was built the same day:
-duplicate YAML keys and unknown `match` keys refused, the shared empty context made to
-refuse attributes, `warn_blocking_rules`, `rules` read once as a list, incomplete outcome
-lists refused by the summary, a `functools.partial` no longer evicting `functools`,
-`load_checks` serialized, terminal control characters shown as escapes, `regen_docs.py`
-refusing a name that matches nothing, five untested contracts and four unpinned messages
-closed, and the false docstrings, comments and catalog descriptions corrected. What was
-left is open below, from F.76. Each is either loud already, or needs the owner's decision.
-F.46, F.47, F.49, F.50, F.51, F.64 and F.68 were decided on 2026-09-28, and F.52 and F.53
-on 2026-09-29, and F.54 to F.56 on 2026-10-02; they are in the section below. F.48 was built the
-same day: a second positional parameter with a default other than `None` is refused at
-registration, for a check and for a context builder alike, naming `functools.partial` and
-a keyword-only parameter as the two ways to write it. F.57 was built on 2026-10-02:
-`paths.resolve_input_file` became `_resolve_input_file`, and `test_api_contract.py`
-no longer exempts `paths` from the rule that a public function is exported. F.58 and
-F.70 were done on 2026-10-02: a `creadme` audit of `docs/` found 14 drifts the doc tests could
-not see, all corrected, three of them tables split by a blank line, which
-`test_docs_structure_unit.py` now refuses; `caddressreview` then cleared every resolved
-report from `.agent/reviews/`. F.59 was built the same day: `test_fuzz.py` also writes rule
-files as YAML text. Probing the shapes it now generates found a file not saved as UTF-8
-raising the codec's own error, naming no file -- and, for a run file, a traceback with exit 1. Both now say
-`<file>: not UTF-8 text: ...` (exit 2 for the run file).
-F.61 was done on 2026-10-02: the built-in `/code-review` ran once over the branch and
-returned ten findings. Seven repeated decisions already recorded below (comment freezing,
-the `shared` status, module eviction, the load lock, `render`'s escaping, `validate`
-keeping every outcome, `--explain` reading the report). One was rejected: the run-file
-example's one-line `key_names` copies `paths._key_names` so it imports no private name.
-Two were real and fixed: `_settle` rebuilt the set of checks that do not repeat on every
-row under `repeat_key`, and a line of `RowContext`'s docstring was not indented. The owner
-chose not to make the built-in pass part of `creview`. F.62's two tentative traps were
-tried the same day. Sorting `registry._CHECKS` changes nothing: the cached order holds the
-check objects, not positions in the list. A bundle that catches its member's exception
-and loads it again does hit "Duplicate check code", and the message names that case and
-says to call `clear_registry()` first, as `load_checks` documents. F.63 was built the
-same day: the row explanation's `detail` had been the first non-empty of the reason,
-the rendered comments and the message, then `-`, where the report's is only the reason.
-No one name fit that blend, so `explain_row` now has the report's columns without
-`row`, built by the same `views._line`, and `is_root_cause` with them. Lost: the
-compact five-column table (it is about 120 characters wide for the README's rows), and
-the `-` on a line with nothing to say. `--explain` reads its root-cause line from the
-explanation instead of building a report. F.65 was built the same day: an `errored`
-outcome's `detail` already carried the exception's type and text, but not where it was
-raised, so finding the line meant re-running with `on_error="raise"`. It now ends with
-`(file.py:line)`, the innermost line in the check's own file (through a helper in
-another file, the check's call to it), and an exception with no text drops the colon.
-Lost: an exact match on the old text; the full traceback is still only under
-`on_error="raise"`. F.67 was built on 2026-10-02: the engine named a rule only when it
-disabled a check, in `detail`, so a check a rule switched on left no trace of the rule,
-and an enable of a default-on check could not be found at all. `CheckOutcome` now has a
-`rule` field, last, and the report and explanation a `rule` column before
-`is_root_cause`: the last matching rule's name, enable or disable, on every outcome, or
-empty where the default stood. `detail` is unchanged, `disabled by rule 'name'`
-included. Lost: the old column set and CSV header, so a reader indexing columns by
-position shifts by one, and `rule` is now refused as an `add_columns` or `key_column`
-name. Declined on 2026-10-03: naming the rule in a dependent's `prerequisite disabled:
-X` too. Every view that shows that line shows X's own `disabled by rule` line for the
-same row (`include: blocked` keeps both, and the explanation lists X first), and
-`warn_blocking_rules` names the rule and what it stops at load, so the copy would say one
-fact twice. F.69 was built on 2026-10-03, in jobchain: its two unknown-key messages
-(`reject_unknown_keys` in `core.py`, the stage check in `pipeline.py`) printed
-Python's list of the keys sorted by value, so a YAML key read as a bool or a number
-beside a misspelled text key raised `TypeError` instead of the error. They now use
-`core.key_names`, a copy of `paths._key_names`, so both projects word the mistake the
-same way. Lost: the brackets around the key lists. F.71 was built the same day, in
-its smaller form: of the 21 sections `interfaces.md` gives a public name, only
-`load_checks` showed code. Fifteen now end with an `Example:` link to the section of
-another document whose example already uses the name, and the five names no
-document used -- `CheckOutcome`, `Rule`, `clear_registry`, `warn_shadowed_rules`,
-`warn_blocking_rules` -- got a block of their own. The blocks show no output, so a change
-to a table's shape does not rewrite this document too. Not done: an inline block in every
-section, which would have doubled the examples of about sixteen names and the output to
-regenerate. F.72 was closed the same day as already met: 20 of the 22 public names are
-used in `examples/` (`CheckOutcome` and `Rule` as the type hints an entry point
-writes). `RowContext` is used the way a real caller would, in the catalog case
-`complex/job-manifest-with-per-row-paths` (`validate_jobs.py`) and by jobchain
-(`checks.py`). `clear_registry` has no honest call in a one-shot entry point: its
-callers are long-lived processes, jobchain between runs among them, and F.71 gave it
-a block in `interfaces.md`. A call added to an example only to be counted is what the
-item ruled out. Not done: moving the job-manifest case into `examples/`, the one honest
-way to show a context there.
-
-
-
-**A full pass over the tests** (F.76, raised by the owner on 2026-09-29). About 6,600
-executable test lines against about 1,100 in `src/`. Several files test the tooling
-rather than the library (`test_mutation_score_unit.py`, `test_perf_baseline_unit.py`,
-`test_regen_docs_unit.py`), and many pin behavior the simplicity principle has since
-removed or would remove. The pass should apply the same rule as the code review: each
-test earns its place by guarding core behavior a user relies on, and what it costs to
-keep is weighed. Done on 2026-10-03, in the nine steps below: 1,150 tests to 863.
-
-Surveyed 2026-10-03: 7,212 executable test lines against 1,161 in `src/` and 864 in
-`examples/` and `scripts/`. Overlap is already visible: `test_main_unit.py` and
-`test_interface_cli.py` assert the same demo behavior in process and by subprocess,
-`test_smoke.py` repeats both, every message is pinned word for word in
-`test_error_messages_unit.py` and again by `pytest.raises(match=)` at 63 sites, and output
-is pinned three ways (goldens, the catalog, the documents' shown output). Decided: the
-pass goes one group at a time, each surveyed test by test (keep, merge or cut, with the
-reason) and approved before anything is cut, with `cov` and `mutation` rerun after each
-cut so a gate shows a cut that went too far. One test per behavior stays, on the path
-that can catch it: a subprocess test for exit codes, stream separation and the working
-directory, the cheaper in-process test for the rest. A test recording an owner's
-decision keeps that decision somewhere. Order, most overlap for least risk:
-
-| Step | Group | Files | Lines |
-|---|---|---|---|
-| F.76a | demo entry points | main_unit, run_from_config, interface_cli, shipped_examples, bundle_main, smoke | 666 |
-| F.76b | message pinning | error_messages, and the `match=` sites | 324 |
-| F.76c | output pinning | integration, e2e_catalogs, catalog, golden_output, golden_fixture | 427 |
-| F.76d | performance | load, scaling, perf, memory, perf_baseline, concurrency | 425 |
-| F.76e | library unit | rules, load_files, report, explain, registry, repeat, validate, tables, paths, context, results | 2,963 |
-| F.76f | documents | docs_api, docs_structure, readme, docs_messages, docs_cli, docs_references, docs_blocks, doc_files | 884 |
-| F.76g | adversarial | pathological, fuzz, properties, safety, faults | 751 |
-| F.76h | tooling | regen_docs_unit, perf_baseline_unit, mutation_score_unit | 204 |
-| F.76i | contract | api_contract, differential_jobchain, packaging | 477 |
-
-The tooling tests are expected to stay: a broken scoring script would make its gate pass
-silently. The jobchain differential is the only guard on that contract from this side.
-
-F.76a was done on 2026-10-03: the demo entry points' tests went from 666 to 498
-lines and from 1,150 tests to 1,116. `test_smoke.py` went; `test_interface_cli.py` keeps
-the parser's defaults and what only a subprocess shows (the working directory, exit 0 with
-stderr empty, an error as one stderr line with stdout clean); everything else it ran is in
-`test_main_unit.py` in process and in the catalogs byte for byte. The five unreadable data
-files are one parametrized test. Coverage of the three entry points and the 47 surviving
-mutants are the same before and after.
-
-F.76b was done on 2026-10-03: `test_error_messages_unit.py` stays the one place a
-message is pinned word for word, and 17 unit tests that drove the same input to the same
-message, asserting nothing more, went (1,116 tests to 1,098). Kept: a test with a
-different input (the frame shorter than the outcomes, the duplicated-label regressions, an
-empty-string prerequisite) or one that asserts more (no check ran, nothing registered).
-The position pin moved the other way: `test_report_unit.py` already compared the whole
-string for -1 and 3, so the error_messages copy went. One cut was restored: the check
-returning None in `test_pathological.py` is the only test of that path through the
-engine, and without it a mutant passing no code to the message survived. Coverage and the
-47 surviving mutants are the same before and after.
-
-F.76c was done on 2026-10-03 (1,098 tests to 1,032). `test_integration.py` keeps the four
-tests nothing else makes in process: the shipped rule files on a whole frame, the split
-files matching the single file, precedence in both orders, and a row's explanation
-matching its lines of the full report. Its CSV export and round-trip tests repeated
-`test_golden_output.py`, and its runtime-written files repeated the loader unit tests.
-The golden bytes-on-disk test went: it never ran `main.py --write`, and a `\r\n` already
-fails the string comparison. The catalog's level check folded into the documents-itself
-test, and its two floors into one test. Cutting the root-cause agreement test let one
-mutant survive (`break` for `continue` in the `root_causes` filter): the unit test of
-that level now puts a non-root failure first in each row and kills it, so coverage and
-the 47 surviving mutants are the same before and after.
-
-F.76d was done on 2026-10-03. `test_load.py` keeps one absolute ceiling (5,000 rows
-validated, reported and summarized), the many-rules ceiling and the guard that the
-topological sort stays out of the row loop; the 20,000-row and 500-check ceilings went to
-the scaling ratios and the perf gate, and its volume and registry-leak checks to the
-thread tests. `test_memory.py` lost the per-row peak, which `test_scaling.py`'s growth
-bound covers more strictly (verified by holding every outcome: it fails).
-`test_concurrency.py` merged its two row-level thread tests and dropped the two that
-proved processes do not share memory, which is the operating system's guarantee; the
-test that several processes load one file and write nothing to disk stays. Accepted
-loss: a 10-20x constant slowdown now passes `all` and is caught only by `perf`.
-
-F.76e goes in three steps, by the module the tests drive: e1 rules, load_files and paths;
-e2 report, tables and results; e3 explain, registry, repeat, validate and context. e1 was
-done on 2026-10-03 (141 tests to 105, 1,024 to 988 in all). The loader tests repeated the
-resolver's own (`base_dir`, the missing-file messages) and the reader's (a repeated key,
-bytes that are not UTF-8, once through rules and again through setup), and several were
-weaker copies of a neighbor: the bytecode flag restored where another test pins `is False`,
-clear-and-reload where three longer tests clear and reload. The checks that the shipped
-`error_rules.yaml` warns exactly so and `setup.yaml` loads went to the catalog, which
-prints both. One cut was restored: the setup file's repeated key is the only test that a
-reader error names the setup file, and without it two mutants passing another name
-survived. Coverage and the 47 surviving mutants are the same before and after.
-
-e2 was done on 2026-10-03 (104 tests to 77, 988 to 961 in all; 582 executable lines to
-465). `test_report_unit.py` repeated `validate`'s own tests (one list per row, rules
-passed through) and the context test in `test_context_unit.py`, held two pairs of
-identical tests (rows numbered by position, added columns following `row`), and had
-tests the multi-index tests already cover (the key level's name, extra columns in the
-CSV and without a key column, the empty report's columns). A test that a single key
-column may hold the separator went: nothing joins keys any more. Five root-cause tests
-became one, and the comment-rendering and title tests one each. In `test_tables_unit.py`
-the base columns were pinned twice, and the rules table's `source_file` and `message`
-joined its one-row-per-rule test; in `test_results_unit.py` the `OK` test joined the
-truthiness test, a wrapped condition repeated the bool test, and `'MISSING'` joined the
-out-of-vocabulary parametrize. The owner's decision that the key level is named after
-`key_column` (`f53890f`) moved to the empty-report test's docstring. Lost: the CSV
-header line with an added column, pinned only through the data lines now. Coverage and
-the 47 surviving mutants are the same before and after.
-
-e3 was done on 2026-10-03 (151 tests to 113, 961 to 923 in all; 1,109 executable lines
-to 942). `test_explain_unit.py` held tests whose names claimed more than they asserted
-(evaluation order, the first root cause), a wrapped condition and a named status the
-results tests already pin, the clean-row root cause twice, layer zero inside the
-deepest-chain test, and a "did not pass" detail asserted identically twice. Its
-off-by-default and rule-disabled tests each joined the test giving the reason, the three
-`_root_causes` tests became one, the integer check's two halves one, and a passing
-prerequisite joined the mixed-blockers test. In `test_registry_unit.py` the captured code
-and defaults joined the bare-call test (the defaults test went through `make_check`,
-which passes `default_enabled` itself), the two `exec` tests became one, clearing joined
-clear-and-reload, and the 2-node cycle, the satisfied-dependency and the dropped-cache
-tests went to their neighbors. In `test_repeat_unit.py` the shared outcome's layer and
-the errored detail joined the shared-outcome test; in `test_validate_unit.py` the shape
-and index-label tests joined the positional test, and the skipped-kept, rules-reach and
-one-argument-builder tests went. In `test_context_unit.py` the attribute refusal joined
-the caching test and the None-returning builder the no-builder test. The owner's
-reasons moved with the tests that absorbed them (the disabled prerequisite, the load
-stack left out of `SavedRegistry`, the refused attribute). Lost: the shipped example
-checks with `AGE_PRESENT` disabled (the chain under a failing `AGE_PRESENT` is still
-pinned), a 2-node cycle's message, and a named one-argument builder. Coverage and the 47
-surviving mutants are the same before and after.
-
-F.76f was done on 2026-10-03 (923 tests to 912). Little repeats here: each test holds
-one document to one fact of the code. `test_readme.py`'s pasted-in-order test ran the
-same session as the byte-for-byte test, and joined it; its guard that the README carries
-examples joined the one test that loops over them with nothing else noticing an empty
-list; the check files the README names are loaded by that session from the project root.
-In `test_docs_structure_unit.py` the outcome-name test went: the names are `passed`,
-`failed` and the like, which prose in either document it read always contains, and
-`interfaces.md` is required to name every `Outcome` member already. The width gate's
-own-directories test joined the gate. In `test_docs_api_unit.py` the exported-name test
-went, since the At a glance rows, in the same document, must equal `__all__`. Kept on
-the owner's word: the three README prose-claim tests (`Verdict(condition)`, one line
-per failure, rules cannot define codes), whose behavior is pinned elsewhere but which
-are the only tie between the sentence and the code. The shared `doc-errors`,
-`doc-examples`, `doc-refs` and `doc-counts` tools overlap the message, block, reference
-and count tests, and are no reason to cut them: the tools are outside the repository and
-outside the gate. For the same reason `pyproject.toml` has no `[tool.doc-errors]` table,
-so `doc-errors --owners` refuses to run: the table would repeat the test's two owner
-maps, by file and by function, in a second place free to drift, and the test already fails when
-an owning document stops quoting a message (declined 2026-10-03).
-
-F.76g was done on 2026-10-03 (912 tests to 885). `test_pathological.py` kept four tests:
-the YAML error naming its file, which took over the NUL-byte fault test, and the three
-that pin an errored outcome's file and line. The rest repeated a unit test or tested
-Python: comment-only and `null` files joined the empty-file test, the empty and unrelated
-rows became parameters of the shipped-example test, duplicate labels and the `None`
-return already had unit tests (which took their reasons), a typo'd column is any raised
-exception, and the unicode, long-string, 1000-rule, 200-deep and 1000-column probes
-asserted nothing a regex, `test_load.py` or `test_scaling.py` does not. From
-`test_safety.py` the frame-mutation test went (the README session checks it through
-`validate`), the module-name test joined the missing-check-file test, and the ndarray
-regression moved to the call site, `_cell_text`. From `test_faults.py` the directory and
-dangling-symlink tests went (one branch in `paths.py` with the missing file), the
-list-of-two joined the unreadable-file test, and the failed-call test's last assertion
-joined the not-rolled-back test. `test_fuzz.py` and `test_properties.py` stay whole: only
-the fuzz runs the shipped checks on hostile values and pins the tie-break. Lost: a
-NUL-byte file (PyYAML's reader, not its scanner), dangling symlinks by name, the large
-inputs without a time ceiling, unicode in a pattern, and the `None` return on Python
-3.10, whose only engine-level test is skipped below 3.11 for `add_note`. The faults row
-in `docs/testing.md` had claimed a full disk and a read-only output directory, which no
-test ever covered.
-
-F.76h was done on 2026-10-03 (885 tests to 878). Only `test_perf_baseline_unit.py`
-repeated itself: the four one-call tolerance tests became one, the second-measurement
-and ratio tests joined the stored-baseline test, and the load and save tests went, since
-the first-run test starts with no file and reads what was saved, and the stored-baseline
-test loads a file it wrote. That file is outside the coverage and mutation gates, so each
-merge was checked by breaking the code on purpose: the tolerance cap, `save`, `load` of a
-stored file and `load` with none all fail a remaining test. `test_regen_docs_unit.py`
-stays whole -- its two raising-block tests go through `docs_printed` and `readme_printed`,
-which catch separately -- and so does `test_mutation_score_unit.py`, one test per exit
-path. The mutation score `docs/testing.md` quoted, 97.1%, was a day old; 96.9% is today's.
-
-F.76i was done on 2026-10-03 (878 tests to 863). In `test_api_contract.py`, the
-exported-names, sorted and outcome-text tests became asserts in the export-list and
-outcome-names tests, and the report index, registry columns, `load_checks` needing a
-path, `validate` returning `CheckOutcome` and the five public-defaults cases went:
-`test_report_unit.py` and `test_tables_unit.py` pin the columns, and
-`test_docs_api_unit.py` compares every documented signature and default with the code.
-What that gives up: a default changed in the code and in `docs/interfaces.md` together
-now passes without a second edit to a test, and `jobcheck.OK` is no longer asserted to be
-`results.OK` (the pass-through half moved to `test_results_unit.py`). In
-`test_packaging.py`, the examples-outside-the-package test went (every catalog and the
-golden fixture load them), as did the misspelled-path test (its message is asserted
-in-process by `test_paths_unit.py` and does not depend on the working directory); the
-null-is-truthy test moved to `test_tables_unit.py`, in-process, where it is the only
-test of `is_null` returning true. `test_differential_jobchain.py` stays whole: it is the
-record of what jobchain relies on, and its overlap with the unit suites is the point.
-
-
-
-On 2026-09-25 the last eight were closed. Built: F.29 (the run file, as a third
-demonstration entry point), F.31 (`format_table` renders by position), F.32 (a context
-builder's required keyword-only parameter is refused at setup), F.33 (two exports with
-no caller made private, and the export list written down), F.36 (`list_rule_codes`
-replaced by a `codes` column) and F.37 (an example for every exported name). Declined:
-F.34 (merging the column validators) and F.35 (moving the setup schema out of the
-registry).
+None open on 2026-10-03. Every item raised so far was either built, and the git log has
+it (`git log -p docs/future-work.md` shows the paragraph that described each while it was
+open), or decided against, in the section below.
 
 ## Considered and deliberately not done
 
@@ -316,6 +23,85 @@ The friction log written while building the complex catalog cases
 already closed (root causes, F.47; a raising builder, F.46; `warn_blocking_rules`; the
 counts `doc-counts` now rewrites; F.55) were dropped; what was built is in the git log;
 the rest was declined, below.
+
+**Naming the rule in a dependent's `prerequisite disabled: X`** (the rest of F.67;
+declined 2026-10-03). F.67 gave every outcome a `rule` column, the last matching rule's
+name. Copying that name into a dependent's `prerequisite disabled: X` too would say one
+fact twice: every view that shows that line shows X's own `disabled by rule` line for the
+same row (`include: blocked` keeps both, and the explanation lists X first), and
+`warn_blocking_rules` names the rule and what it stops at load.
+
+**Losses accepted with built changes** (2026-10-02 and 2026-10-03). Each was weighed when
+the change was made; none is a defect to fix later. F.63: the compact five-column row
+explanation (now the report's columns, about 120 characters wide for the README's rows),
+and the `-` on a line with nothing to say. F.65: an exact match on an `errored` detail's
+old text; the full traceback is still only under `on_error="raise"`. F.67: the old column
+set and CSV header, so a reader indexing columns by position shifts by one, and `rule` is
+refused as an `add_columns` or `key_column` name. F.69, in jobchain: the brackets around
+the unknown-key lists.
+
+**An example block in every section of `interfaces.md`** (the larger form of F.71;
+declined 2026-10-03). Fifteen sections link to another document's example of the name
+instead, and the five names no document used have a block of their own. A block in every
+section would double the examples of about sixteen names and the output to regenerate.
+The blocks show no output, so a change to a table's shape does not rewrite this document
+too.
+
+**Moving the job-manifest catalog case into `examples/`** (F.72, closed 2026-10-03 as
+already met). 20 of the 22 public names are used in `examples/`. `RowContext` is used the
+way a real caller would, in `complex/job-manifest-with-per-row-paths` (`validate_jobs.py`)
+and by jobchain (`checks.py`). `clear_registry` has no honest call in a one-shot entry
+point: its callers are long-lived processes, jobchain between runs among them, and
+`interfaces.md` gives it a block. A call added to an example only to be counted is what
+the item ruled out. Moving the case would be the one honest way to show a context in
+`examples/`, and was not done.
+
+**The built-in `/code-review` as part of `creview`** (F.61; declined by the owner
+2026-10-02). It ran once over the branch and returned ten findings: seven repeated
+decisions recorded here, two were fixed, and one was rejected -- the run-file example's
+one-line `key_names` copies `paths._key_names` so that it imports no private name.
+
+**Two traps that turned out not to be** (F.62, tried 2026-10-02). Sorting
+`registry._CHECKS` changes nothing: the cached order holds the check objects, not
+positions in the list. A bundle that catches its member's exception and loads it again
+does hit "Duplicate check code", and the message names that case and says to call
+`clear_registry()` first, as `load_checks` documents.
+
+**What the test pass kept on purpose, and what it gave up** (F.76, done 2026-10-03, 1,150
+tests to 863). The rule: one test per behavior, on the path that can catch it -- a
+subprocess test for exit codes, stream separation and the working directory, the cheaper
+in-process test for the rest -- and a test recording an owner's decision keeps that
+decision somewhere. Kept, and not to be cut by the next pass:
+
+- `test_error_messages_unit.py` as the one place a message is pinned word for word; a
+  unit test driving the same input to the same message, asserting nothing more, went.
+
+- The three README prose-claim tests (`Verdict(condition)`, one line per failure, rules
+  cannot define codes), on the owner's word: their behavior is pinned elsewhere, but they
+  are the only tie between the sentence and the code.
+- The document tests the shared `doc-errors`, `doc-examples`, `doc-refs` and `doc-counts`
+  tools overlap: the tools are outside the repository and outside the gate. For the same
+  reason `pyproject.toml` has no `[tool.doc-errors]` table, so `doc-errors --owners`
+  refuses to run: the table would repeat the test's two owner maps, by file and by
+  function, in a second place free to drift.
+- The tooling tests (`test_regen_docs_unit.py`, `test_mutation_score_unit.py`, one test
+  per exit path, and what is left of `test_perf_baseline_unit.py`): a broken scoring
+  script would make its gate pass silently.
+- `test_differential_jobchain.py` whole: it is the record of what jobchain relies on, and
+  its overlap with the unit suites is the point. `test_fuzz.py` and `test_properties.py`
+  whole: only the fuzz runs the shipped checks on hostile values and pins the tie-break.
+- Two cuts restored because a mutant survived without them: the check returning `None` in
+  `test_pathological.py` (the only test of that path through the engine), and the setup
+  file's repeated key (the only test that a reader error names the setup file).
+
+Given up: a 10-20x constant slowdown passes `all` and is caught only by `perf`; the CSV
+header line with an added column is pinned only through the data lines; the shipped
+example checks with `AGE_PRESENT` disabled, a 2-node cycle's message and a named
+one-argument builder are no longer tested; a NUL-byte file, dangling symlinks by name,
+large inputs without a time ceiling, unicode in a pattern, and the `None` return on Python
+3.10 (its engine-level test is skipped below 3.11 for `add_note`); a default changed in
+the code and in `interfaces.md` together passes without a second edit to a test; and
+`jobcheck.OK` is no longer asserted to be `results.OK`.
 
 **Deleting `scripts/regen_docs.py` for skills `bin/doc-examples`** (F.54, from the
 2026-09-27 commit review; declined 2026-10-02). doc-examples was written to replace the
