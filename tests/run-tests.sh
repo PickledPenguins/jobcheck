@@ -6,7 +6,7 @@
 #   tests/run-tests.sh long    integration, load, concurrency, faults, scaling,
 #                              end-to-end catalogs, then the example profile
 #   tests/run-tests.sh all     both, plus ruff and mypy
-#   tests/run-tests.sh cov     fast suite with a coverage report, gated at 95%
+#   tests/run-tests.sh cov     fast suite with a coverage report, gated at 99%
 #   tests/run-tests.sh perf    timing against this machine's baseline (own gate)
 #   tests/run-tests.sh memory  peak-memory ceilings under tracemalloc (own gate)
 #   tests/run-tests.sh profile the example profile alone, without the tests
@@ -27,10 +27,11 @@ MODE="${1:-fast}"
 shift || true
 
 PYTHON="${PYTHON:-python3}"
-COVERAGE_MIN=95
-# Set 2026-09-26 against a measured 95.7% (1,310 of 1,369): room for a change that
-# adds a handful of untested mutants, not for a regression the size of a module.
-MUTATION_MIN=94
+# Both floors set 2026-10-03 against what the suite achieves: 99.5% coverage (8 of
+# 1,598 lines and branches missed) and a 97.8% mutation score (1,446 of 1,479). Room
+# for a change that adds a few untested lines, not for a module losing its tests.
+COVERAGE_MIN=99
+MUTATION_MIN=97
 # Targets come from [tool.ruff] and [tool.mypy] in pyproject.toml.
 
 run_static_checks() {

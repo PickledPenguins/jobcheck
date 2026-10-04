@@ -32,7 +32,7 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | Rule | Enforced by |
 |---|---|
 | The fast suite passes before every commit | `.git/hooks/pre-commit`, installed by `scripts/install-hooks.sh` |
-| 95% statements and branches | `./tests/run-tests.sh cov`, through `coverage report --fail-under` |
+| 99% statements and branches | `./tests/run-tests.sh cov`, through `coverage report --fail-under` |
 | Every public function and class is exported, sorted, and documented in `interfaces.md` — each function with its real signature, each type with its fields or members | `tests/test_api_contract.py`, `tests/test_docs_api_unit.py` |
 | Every flag and argument of the three entry points has a section in `docs/cli.md` and every documented one exists; the usage lines, the run-file table and the exit codes are the real ones | `tests/test_docs_cli_unit.py` |
 | Every Python block in `docs/` runs and prints the output shown after it, and every call shown matches the real signature | `tests/test_docs_blocks_unit.py`, `tests/test_docs_api_unit.py` |
@@ -46,7 +46,7 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 | The example data is what its generator produces | `tests/test_shipped_examples_unit.py` |
 | Timing has not regressed against this machine's baseline | `./tests/run-tests.sh perf` |
 | Peak memory stays under its ceilings | `./tests/run-tests.sh memory` |
-| The tests notice at least 94% of mutations to the code | `./tests/run-tests.sh mutation`, through `scripts/mutation_score.py` |
+| The tests notice at least 97% of mutations to the code | `./tests/run-tests.sh mutation`, through `scripts/mutation_score.py` |
 | No unused or undefined names, and two blank lines between top-level definitions | `ruff check` (lint only, never `--fix` or `ruff format`), run by `./tests/run-tests.sh fast`, `all` and `types` |
 | Types check | `mypy`, run by `./tests/run-tests.sh fast`, `all` and `types` |
 
