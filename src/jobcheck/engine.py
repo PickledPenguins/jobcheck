@@ -262,6 +262,9 @@ def validate(
 
     if repeat_key is not None:
         _check_repeat_key(df, repeat_key)
+    # Before the row loop: a registry mistake, a prerequisite nothing registered,
+    # is no row's fault, and inside the loop it would gain a row's note.
+    _get_topo_order()
     shared = {check.code for check in _CHECKS if not check.repeats}
 
     # Read once per row: a generator would apply to the first row only.

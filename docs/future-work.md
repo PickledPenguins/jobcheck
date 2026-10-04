@@ -12,9 +12,23 @@ middle of lives in `.agent/HANDOFF.md`. This file is for questions that are clos
 
 ## Known gaps
 
-None open on 2026-10-03. Every item raised so far was either built, and the git log has
-it (`git log -p docs/future-work.md` shows the paragraph that described each while it was
-open), or decided against, in the section below.
+One open on 2026-10-04. Every other item raised so far was either built, and the git log
+has it (`git log -p docs/future-work.md` shows the paragraph that described each while it
+was open), or decided against, in the section below.
+
+**`DATES_PRESENT` reports an unparseable date as missing** (F.98, from the 2026-10-04
+review). `_date()` in `examples/checks/check_dates.py` returns `None` for an absent
+column, a null and a string `pd.Timestamp` cannot parse alike, and `dates_present` turns
+every `None` into `MISSING`. A `start_date` of `2024-13-45` or `yesterday` reports
+`DATES_PRESENT MISSING (1)`, "Both start_date and end_date are needed",
+`columns=start_date`: the field is there, and the message asks for what was supplied. It
+breaks the vocabulary the docs teach (`docs/writing-checks.md`: `MALFORMED` is
+unparseable; a presence check asks only whether the field is there), and the age checks
+in the same catalog already show the right split. The fix: `DATES_PRESENT` checks presence
+only; a new check that depends on it returns `MALFORMED` for an unparseable date, named
+like `AGE_NOT_A_NUMBER`; `DATES_OUT_OF_ORDER` depends on the new check; then regenerate
+the catalog, the golden files and the docs output (`scripts/regen_catalog.py`,
+`regen_golden.py`, `regen_docs.py`). Example output changes and a check code is added.
 
 ## Considered and deliberately not done
 

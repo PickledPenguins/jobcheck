@@ -197,10 +197,15 @@ def main(argv: list[str] | None = None) -> None:
 
     df = load_frame(args.data)
     # Before validating, for the reason --write is checked early: the report labels
-    # every row by this column. --explain names a row by position and needs none.
+    # every row by this column. --explain names a row by position and needs none,
+    # only a position inside the frame.
     if args.explain is None and KEY_COLUMN not in df.columns:
         print(f"error: {args.data} has no {KEY_COLUMN!r} column, which labels each row "
               f"of the report (columns: {', '.join(str(name) for name in df.columns)})",
+              file=sys.stderr)
+        raise SystemExit(2)
+    if args.explain is not None and not 0 <= args.explain < len(df):
+        print(f"error: --explain {args.explain} is outside the frame's {len(df)} row(s)",
               file=sys.stderr)
         raise SystemExit(2)
     for warning in warn_missing_rule_columns(df, rules):
@@ -209,10 +214,6 @@ def main(argv: list[str] | None = None) -> None:
     outcomes = validate(df, rules=rules)
 
     if args.explain is not None:
-        if not 0 <= args.explain < len(df):
-            print(f"error: --explain {args.explain} is outside the frame's {len(df)} row(s)",
-                  file=sys.stderr)
-            raise SystemExit(2)
         explanation = explain_row(outcomes, args.explain)
         print(table_text(explanation))
         causes = explanation.loc[explanation["is_root_cause"], "code"]

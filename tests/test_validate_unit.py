@@ -229,3 +229,14 @@ def test_a_raising_builder_and_a_bad_return_name_the_row_too(fresh_registry: Non
         validate(frame(2))
     assert _notes(raised_type.value) == [
         "validate: raised on the row at position 0 (index label 0)."]
+
+
+@pytest.mark.skipif(not hasattr(Exception, "add_note"), reason="add_note is Python 3.11+")
+def test_a_broken_registry_is_not_blamed_on_a_row(fresh_registry: None) -> None:
+    """A prerequisite nothing registered is the check author's mistake, and no
+    row would fix it: the note must not send the reader to row 0."""
+
+    make_check("DANGLING", depends_on=["NOT_A_REAL_CODE"])
+    with pytest.raises(ValueError, match="which is not registered") as raised:
+        validate(frame(2))
+    assert _notes(raised.value) == []
