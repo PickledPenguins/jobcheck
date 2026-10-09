@@ -2,7 +2,7 @@
 # Test entry point. One mode per gate:
 #
 #   tests/run-tests.sh fast    unit, interface, regression, cheap
-#                              pathological plus ruff and mypy -- the pre-commit gate
+#                              pathological plus ruff and mypy -- the pre-push gate
 #   tests/run-tests.sh long    integration, load, concurrency, faults, scaling,
 #                              end-to-end catalogs, then the example profile
 #   tests/run-tests.sh all     both, plus ruff and mypy

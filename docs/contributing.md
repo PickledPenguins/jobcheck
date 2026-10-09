@@ -31,7 +31,7 @@ Nothing here relies on remembering. Each rule below fails a run when it is broke
 
 | Rule | Enforced by |
 |---|---|
-| The fast suite passes before every commit | `.git/hooks/pre-commit`, installed by `scripts/install-hooks.sh` |
+| The fast suite passes on every pushed commit | `.git/hooks/pre-push` (`scripts/pre-push`), installed by `scripts/install-hooks.sh` |
 | 99% statements and branches | `./tests/run-tests.sh cov`, through `coverage report --fail-under` |
 | Every public function and class is exported, sorted, and documented in `interfaces.md` — each function with its real signature, each type with its fields or members | `tests/test_api_contract.py`, `tests/test_docs_api_unit.py` |
 | Every flag and argument of the three entry points has a section in `docs/cli.md` and every documented one exists; the usage lines, the run-file table and the exit codes are the real ones | `tests/test_docs_cli_unit.py` |
