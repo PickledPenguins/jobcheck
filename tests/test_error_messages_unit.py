@@ -280,9 +280,7 @@ def test_a_check_returning_nonsense_says_what_it_may_return(fresh_registry: None
     with pytest.raises(TypeError) as raised:
         _normalize_verdict(object(), "CODE")
     assert message_of(raised).startswith("Check 'CODE' returned ")
-    assert message_of(raised).endswith(
-        "A check must return OK or a Verdict; Verdict(condition) wraps a "
-        "bare comparison.")
+    assert message_of(raised).endswith(". A check must return OK or a Verdict.")
 
 
 def test_a_frame_that_is_not_a_frame_names_its_type(fresh_registry: None) -> None:
@@ -393,7 +391,7 @@ def test_a_duplicated_key_column_names_the_count_and_the_fix(fresh_registry: Non
 # --- messages the pins above left partly open ---------------------------------
 
 
-def test_a_rule_without_a_message_says_where_the_message_is_shown(
+def test_a_rule_without_a_message_is_refused(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     make_check("CODE")
@@ -402,9 +400,7 @@ def test_a_rule_without_a_message_says_where_the_message_is_shown(
                     encoding="utf-8")
     with pytest.raises(ValueError) as raised:
         load_rules([str(path)])
-    assert message_of(raised) == (
-        f"rule 'r' in {path}: 'message' must be the text saying why the rule exists, "
-        "got None. It is printed beside the rule wherever the rules are listed.")
+    assert message_of(raised) == f"rule 'r' in {path}: 'message' must be a non-empty string, got None."
 
 
 def test_a_builder_of_the_wrong_arity_is_named(fresh_registry: None) -> None:

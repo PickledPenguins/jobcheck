@@ -20,14 +20,14 @@ from .tables import _format_cell, is_null
 
 # Every key a rule may carry. Anything else is a typo, and rejected as one.
 _RULE_KEYS = {"name", "action", "codes", "match", "message"}
+
 # The same for one criterion in a rule's `match`.
 _CRITERION_KEYS = {"column", "pattern"}
 
 
 @dataclass
 class _MatchCriterion:
-    """One ``{column, pattern}`` filter inside a rule's ``match``."""
-
+    """One `{column, pattern}` filter inside a rule's `match`."""
     column: str
     pattern: str
     regex: re.Pattern[str]
@@ -35,14 +35,12 @@ class _MatchCriterion:
 
 @dataclass
 class Rule:
-    """A non-developer instruction to enable or disable codes for matching rows.
+    """Instruction to enable or disable codes for matching rows.
 
     `match_all` is a flag rather than "empty criteria list" so an accidentally
     empty list can never be mistaken for a deliberate match-everything rule.
-    `message` is required, and printed, because a rule nobody can justify is a
-    rule nobody dares delete.
+    `message` is required, and printed.
     """
-
     name: str
     action: str
     codes: list[str]
@@ -56,8 +54,7 @@ def _parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[_Matc
     """Parse a rule's `match` value into criteria plus a match-everything flag.
 
     `match: all` is the only wildcard: an empty or missing `match` is rejected
-    rather than read as "every row", since it is far likelier to be an omission,
-    and getting that wrong disables checks across a whole dataset silently.
+    rather than read as "every row".
     """
 
     where = f"rule {rule_name!r} in {source_file}"
@@ -67,26 +64,21 @@ def _parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[_Matc
     if isinstance(raw, str):
         if raw != "all":
             raise ValueError(
-                f"{where}: 'match' must be a list of criteria or the literal 'all', "
-                f"got {raw!r}.")
+                f"{where}: 'match' must be a list of criteria or the literal 'all', got {raw!r}.")
         return [], True
     if not isinstance(raw, list):
         raise ValueError(
-            f"{where}: 'match' must be a list of criteria or the literal 'all', "
-            f"got {type(raw).__name__}.")
+            f"{where}: 'match' must be a list of criteria or the literal 'all', got {type(raw).__name__}.")
     if not raw:
         raise ValueError(
-            f"{where}: 'match' is an empty list. Use 'match: all' if you really mean "
-            "every row.")
+            f"{where}: 'match' is an empty list. Use 'match: all' if you really mean every row.")
 
     criteria: list[_MatchCriterion] = []
     for entry in raw:
         if not isinstance(entry, dict):
             raise ValueError(
-                f"{where}: each 'match' entry must be a mapping with 'column' and "
-                "'pattern'.")
-        # Refused like a rule's unknown key: `negate: true` read as nothing would
-        # disable the checks on exactly the rows the author meant to exempt.
+                f"{where}: each 'match' entry must be a mapping with 'column' and 'pattern'.")
+        # An unknown key is refused, as in a rule.
         unknown = set(entry) - _CRITERION_KEYS
         if unknown:
             raise ValueError(
@@ -109,34 +101,31 @@ def _parse_match(raw: Any, rule_name: str, source_file: str) -> tuple[list[_Matc
 
 
 def _parse_rule(raw: Any, source_file: str, known_codes: set[str], position: int) -> Rule:
-    """Validate and build one rule, failing at load time rather than part-way
-    through a long run.
+    """Validate and build one rule, failing at load time rather than part-way through a long run.
 
-    An unrecognized key is refused too: in a hand-edited file, a misspelled key
-    is a setting that silently does nothing. *position* is the rule's place in
+    An unrecognized key is refused too. *position* is the rule's place in
     its file, counted from 1.
     """
 
     if not isinstance(raw, dict):
         raise ValueError(f"{source_file}: each rule must be a mapping, got {type(raw).__name__}.")
+
     name = raw.get("name")
     if not isinstance(name, str) or not name:
         # No name to show, so the rule's place in the file identifies it.
         raise ValueError(
-            f"{source_file}: rule {position}: every rule needs a non-empty string 'name', "
-            f"got {name!r}.")
+            f"{source_file}: rule {position}: every rule needs a non-empty string 'name', got {name!r}.")
 
     unknown = set(raw) - _RULE_KEYS
     if unknown:
         raise ValueError(
             f"rule {name!r} in {source_file}: unknown key(s) {_key_names(unknown)}. "
-            f"Allowed: {_key_names(_RULE_KEYS)}."
-        )
+            f"Allowed: {_key_names(_RULE_KEYS)}.")
 
     action = raw.get("action")
     if action not in ("enable", "disable"):
         raise ValueError(
-            f"rule {name!r} in {source_file}: 'action' must be exactly 'enable' or "
+            f"rule {name!r} in {source_file}: 'action' must be 'enable' or "
             f"'disable', got {action!r}.")
 
     codes = raw.get("codes")
@@ -149,17 +138,13 @@ def _parse_rule(raw: Any, source_file: str, known_codes: set[str], position: int
         if code not in known_codes:
             raise ValueError(
                 f"rule {name!r} in {source_file}: unknown code {code!r}. "
-                "Load the check file that defines it before loading rules, or fix the code."
-            )
+                "Load the check file that defines it before loading rules, or fix the code.")
 
     criteria, match_all = _parse_match(raw.get("match"), name, source_file)
     message = raw.get("message")
     if not isinstance(message, str) or not message:
         raise ValueError(
-            f"rule {name!r} in {source_file}: 'message' must be the text saying why the "
-            f"rule exists, got {message!r}. It is printed beside the rule wherever the "
-            "rules are listed."
-        )
+            f"rule {name!r} in {source_file}: 'message' must be a non-empty string, got {message!r}.")
 
     return Rule(
         name=name,
@@ -175,19 +160,16 @@ def _parse_rule(raw: Any, source_file: str, known_codes: set[str], position: int
 def _parse_file(path: str, resolved: Path, known_codes: set[str]) -> list[Rule]:
     """Parse one YAML file into rules. The file is a flat top-level list.
 
-    The rules record the path as the caller wrote it, relative or not: it is
-    printed beside a rule wherever the rules are listed, and an absolute path
-    there would be this machine's, not the one the caller would recognize.
+    The rules record the path as the caller wrote it, relative or not. The path is
+    printed beside a rule wherever the rules are listed.
     """
-
     raw = _read_yaml(resolved, path)
     if raw is None:
         return []
     if not isinstance(raw, list):
         raise ValueError(
             f"{path}: rule files must contain a flat top-level list of rules "
-            f"(no 'rules:' key), got {type(raw).__name__}."
-        )
+            f"(no 'rules:' key), got {type(raw).__name__}.")
     return [_parse_rule(entry, path, known_codes, position)
             for position, entry in enumerate(raw, start=1)]
 
@@ -197,11 +179,10 @@ def _load_rule_files(paths: list[str], known_codes: set[str],
     """Parse the named YAML files into rules, in the order given, which is also
     their precedence: for a given row, the last matching rule wins.
 
-    Duplicate names are caught across the whole load, not per file -- the name is
-    how a person refers to a rule, so two sharing one is ambiguous wherever they
-    came from. *base_dir* anchors relative paths, as in `registry.load_checks`.
+    Duplicate names are caught across the whole load, not per file, since two rules
+    sharing one are ambiguous wherever they came from. *base_dir* anchors relative paths,
+    as in `registry.load_checks`.
     """
-
     if isinstance(paths, str):
         raise TypeError(f"load_rules takes a list of paths, not one string: pass [{paths!r}].")
     seen: dict[str, str] = {}
@@ -216,17 +197,16 @@ def _load_rule_files(paths: list[str], known_codes: set[str],
             if rule.name in seen:
                 raise ValueError(
                     f"Duplicate rule name {rule.name!r}: defined in "
-                    f"{seen[rule.name]} and again in {rule.source_file}."
-                )
+                    f"{seen[rule.name]} and again in {rule.source_file}.")
             seen[rule.name] = rule.source_file
             loaded.append(rule)
     return loaded
 
 
 def _cell_text(row: "pd.Series[Any]", column: str) -> str | None:
-    """Row value as text for regex matching, rendered as the report prints it;
-    ``None`` when absent or null."""
-
+    """Row value as text for regex matching, rendered as the report prints it.
+    `None` when absent or null.
+    """
     if column not in row.index:
         return None
     value = row[column]
@@ -236,11 +216,7 @@ def _cell_text(row: "pd.Series[Any]", column: str) -> str | None:
 
 
 def _rule_matches(rule: Rule, row: "pd.Series[Any]") -> bool:
-    """Whether every criterion of *rule* matches *row* (AND semantics).
-
-    An absent or null value cannot satisfy a pattern, so it does not match.
-    """
-
+    """Whether every criterion of *rule* matches *row* (AND semantics)."""
     if rule.match_all:
         return True
     for criterion in rule.criteria:
@@ -257,9 +233,8 @@ def warn_missing_rule_columns(df: pd.DataFrame, rules: list[Rule]) -> list[str]:
     silently never applies, and the loader cannot catch it because it has no data
     to compare against. It warns rather than raises: one rule file may
     deliberately cover several data shapes. `warn_shadowed_rules` is the other
-    half -- a rule that can never apply whatever the data says.
+    half (a rule that can never apply whatever the data says).
     """
-
     present = set(df.columns)
     warnings: list[str] = []
     for rule in list(rules):
@@ -276,13 +251,12 @@ def warn_shadowed_rules(rules: list[Rule]) -> list[str]:
     """Warn about rules a later rule overrules for every row.
 
     The last matching rule wins, so a rule touching a code can never apply to it
-    once a *later* rule touches the same code with `match: all`. Only that case:
+    once a *later* rule touches the same code with `match: all`. Otherwise,
     whether two conditional rules overlap depends on their patterns, and is not
     guessed. Reported per code, since a rule with several codes can be overruled
     for one and decisive for another. Warns rather than raises, because a
     shadowed rule can be deliberate (`examples/rules/error_rules.yaml` has one).
     """
-
     # Read more than once below, so a generator is made a list first.
     rules = list(rules)
     warnings: list[str] = []
@@ -300,6 +274,5 @@ def warn_shadowed_rules(rules: list[Rule]) -> list[str]:
         for rule in touching[:unconditional[-1]]:
             warnings.append(
                 f"rule {rule.name!r} is overruled for {code} by the later rule "
-                f"{winner.name!r}, which matches every row: it can never apply to {code}"
-            )
+                f"{winner.name!r}, which matches every row: it can never apply to {code}")
     return warnings

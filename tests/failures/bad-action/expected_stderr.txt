@@ -1,1 +1,1 @@
-error: rule 'wrong_action' in tests/failures/bad-action/rules.yaml: 'action' must be exactly 'enable' or 'disable', got 'skip'.
+error: rule 'wrong_action' in tests/failures/bad-action/rules.yaml: 'action' must be 'enable' or 'disable', got 'skip'.
