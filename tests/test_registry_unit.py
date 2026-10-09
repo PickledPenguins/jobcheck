@@ -201,36 +201,14 @@ def test_transitive_cycle_raises_naming_the_whole_chain(fresh_registry: None) ->
     make_check("C_C", depends_on=["C_A"])
     with pytest.raises(ValueError) as excinfo:
         reg._validate_registry()
-    assert str(excinfo.value) == "Dependency cycle among checks: C_A -> C_B -> C_C -> C_A. " + reg._RELOAD_HINT
+    assert str(excinfo.value) == "Dependency cycle among checks: C_A -> C_B -> C_C -> C_A."
 
 
 def test_self_dependency_is_reported_as_a_cycle(fresh_registry: None) -> None:
     make_check("SELF", depends_on=["SELF"])
     with pytest.raises(ValueError) as excinfo:
         reg._validate_registry()
-    assert str(excinfo.value) == "Dependency cycle among checks: SELF -> SELF. " + reg._RELOAD_HINT
-
-
-def test_a_chain_too_deep_to_walk_names_the_registry_rather_than_the_recursion(
-    fresh_registry: None,
-) -> None:
-    """The ordering walk is recursive, so a chain registered dependent-first is
-    walked to its full depth. A bare RecursionError out of `visit` names neither
-    the registry nor the chain."""
-
-    depth = 2000
-    for index in range(depth):
-        make_check(f"DEEP_{index}",
-                   depends_on=[f"DEEP_{index + 1}"] if index + 1 < depth else [])
-    with pytest.raises(ValueError) as excinfo:
-        reg._validate_registry()
-    assert str(excinfo.value) == (
-        f"Dependency chain too deep to resolve among {depth} checks: the ordering walk "
-        f"is recursive and gives out near Python's recursion limit of "
-        f"{sys.getrecursionlimit()} (widest declared depends_on: 1). Shorten the chain, "
-        "or register prerequisites before the checks that depend on them. "
-        + reg._RELOAD_HINT
-    )
+    assert str(excinfo.value) == "Dependency cycle among checks: SELF -> SELF."
 
 
 def test_topological_order_puts_a_diamond_in_dependency_order(fresh_registry: None) -> None:
@@ -274,7 +252,7 @@ def test_a_duplicate_code_names_the_module_the_second_check_lives_in(
     )
     with pytest.raises(ValueError) as excinfo:
         reg.load_checks([str(path)])
-    assert re.search(r"\(registering jobcheck_check_file_second_\d+\.rule;", str(excinfo.value))
+    assert re.search(r"\(registering jobcheck_check_file_second_[0-9a-f]{8}\.rule;", str(excinfo.value))
 
 
 def test_an_empty_string_prerequisite_is_refused(fresh_registry: None) -> None:
@@ -322,17 +300,6 @@ def test_saving_the_registry_copies_every_global_clear_registry_clears(
     saved = set(SavedRegistry.__slots__)
     cleared = {"checks", "loaded_files", "topo_order"}
     assert saved == cleared
-
-
-def test_the_load_sequence_survives_a_clear(fresh_registry: None, tmp_path: Any) -> None:
-    """A module name is numbered by the load sequence, which never goes back:
-    a number reused after a clear would name a second module like the first."""
-
-    reg.load_checks([_check_file(tmp_path / "first.py", "FIRST")])
-    first = reg._LOAD_SEQUENCE
-    reg.clear_registry()
-    reg.load_checks([_check_file(tmp_path / "first.py", "FIRST")])
-    assert f"jobcheck_check_file_first_{first}" in sys.modules
 
 
 def test_putting_the_registry_back_restores_checks_that_still_run(

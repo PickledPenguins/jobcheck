@@ -31,8 +31,8 @@ print the same bytes; `tests/test_e2e_catalogs.py::test_no_two_cases_record_the_
 catches those whatever route they came in by, including a hand-made directory
 and a regeneration after a behavior change.
 
-A case that carries its own input files -- a rule file, a run file, a bundle and
-its members -- is made by putting those files in the case directory first and
+A case that carries its own input files -- a rule file, a run file, check
+files -- is made by putting those files in the case directory first and
 then running this: a directory that exists is accepted as long as it holds none
 of the files a case is made of (`cmd`, `README.md`, the expected output and the
 exit code). One that already holds any of them is a case, and is refused.

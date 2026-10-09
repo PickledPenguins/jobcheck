@@ -79,8 +79,7 @@ return values and what each does, one line apiece -- see
 | `src/jobcheck/__init__.py` | Re-exports the public surface. Registers no checks, and ships none. |
 | `examples/checks/` | The example checks. Outside the package on purpose: nothing of ours should register in an adopter's registry. |
 | `examples/main.py` | Demo entry point and end-to-end driver: registry tables, the report, explanations, summaries. |
-| `examples/bundle_main.py` | Second demo entry point: loads one bundle and prints the registry with each check's source file. `examples/checks/all_checks.py` is the bundle it loads by default. |
-| `examples/run_from_config.py` | Third demo entry point: one run file names the setup, the data and the tables to print; `examples/run.yaml` is the shipped one. The run-file format is this script's, not the library's. |
+| `examples/run_from_config.py` | Second demo entry point: one run file names the setup, the data and the tables to print; `examples/run.yaml` is the shipped one. The run-file format is this script's, not the library's. |
 | `tests/` | pytest suites, split `fast`/`long` by marker, plus the example and failure catalogs and `run-tests.sh`, the entry point for every gate. |
 | `scripts/install-hooks.sh` | Installs the pre-commit hook that runs the fast suite. |
 | `scripts/make_example_data.py` | Writes `examples/data/*.csv`, the same bytes every run. |
@@ -168,15 +167,13 @@ registered by a module not yet imported, so the check belongs at the end of
 dependent: otherwise which checks ran would change with an unrelated CLI flag, with no
 diagnostic.
 
-**A check file may call `load_checks` itself, and the outermost call owns the
-validation.** That is a bundle: one path in the caller's list, the files it collects
-behind it. Validating at the end of every call would refuse a bundle whose prerequisite
-the caller names after it — a constraint on the order of a list, for no gain, since the
-whole load is still one moment. A file that raises is not rolled back: the error ends
-the run, and a process that loads again calls `clear_registry()` first, as jobchain
-does before every load. A file already being imported further up the call is
-skipped like one already loaded, which is what makes a bundle that names itself, or two
-that name each other, finish instead of exhausting the stack.<sup>[4](writing-checks.md#bundles-one-file-that-loads-the-rest)</sup>
+**One `load_checks` call is one moment.** The graph is validated once every file of the
+call is imported, so a prerequisite may live in any file of the call, in any order, or in
+a file an earlier call loaded. A file listed twice or already loaded raises before
+anything is imported. A file that raises is not rolled back: the error ends the run, and
+a process that loads again calls `clear_registry()` first, as jobchain does before every
+load. Bundles, check files calling `load_checks`, were removed (2026-10-09): one call
+already links files in both directions.<sup>[4](writing-checks.md#check-files-that-depend-on-each-other)</sup>
 
 **A disabled prerequisite counts as "did not pass", not as vacuously satisfied.** A check
 that did not run confirmed nothing about the row. The alternative would let a rule
@@ -318,6 +315,9 @@ development-only.
 - A check reading a column the frame lacks raises `KeyError`, which lands as an `ERROR`
   outcome per row rather than being caught once before the run; nothing declares which
   columns a check reads, so nothing can check them up front.
+- Checks and rules load from one thread: `load_checks`, `load_rules`, `load_setup` and
+  `clear_registry` take no lock. `validate` may run on several threads once loading is done,
+  since it only reads the registry.
 - `validate` keeps an object per check per row, so it costs memory proportional to
   checks x rows; a larger frame is validated in chunks, one report appended per chunk.<sup>[14](reporting.md#cost)</sup>
 
@@ -328,7 +328,7 @@ development-only.
 | 1 | [writing-checks.md: Codes are permanent](writing-checks.md#codes-are-permanent) | the rule as an author meets it |
 | 2 | [writing-checks.md: Which checks an entry point loads](writing-checks.md#which-checks-an-entry-point-loads) | naming check files from an entry point |
 | 3 | [writing-checks.md: Per-row context](writing-checks.md#per-row-context) | writing a context and its builder |
-| 4 | [writing-checks.md: Bundles](writing-checks.md#bundles-one-file-that-loads-the-rest) | writing one |
+| 4 | [writing-checks.md: Check files that depend on each other](writing-checks.md#check-files-that-depend-on-each-other) | what one call allows |
 | 5 | [configuration.md: Disabling a check](configuration.md#disabling-a-check-disables-what-depends-on-it) | what a rule author sees, and the warning |
 | 6 | [configuration.md: Matching](configuration.md#matching) | the matching rules in full |
 | 7 | [configuration.md: Precedence](configuration.md#precedence-last-rule-wins) | the ordering each loader uses |

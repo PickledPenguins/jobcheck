@@ -1,1 +1,0 @@
-error: No check file at 'check_absent.py': nothing at <project>/tests/failures/bundle-member-missing/check_absent.py, where a relative path is resolved against base_dir <project>/tests/failures/bundle-member-missing. load_checks() names files explicitly; nothing is discovered.

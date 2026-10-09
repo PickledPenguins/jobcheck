@@ -60,12 +60,12 @@ reason several obvious-looking shortcuts are absent:
   review comment.
 - **No dense one-liners.** A comprehension with two conditions, or one indexing
   into a nested structure, gets unpacked into a named value or a plain loop.
-- **Lines stay under 100 characters** in `src/`, `examples/` and `scripts/`, and a
-  test enforces it there, naming the file, the line and its width. There is no
-  linter here; the check is twenty lines in `tests/test_docs_structure_unit.py`, beside the
-  others that keep a document honest about the code. A long error message is
-  wrapped as adjacent string literals rather than run out to 120. `tests/` is
-  exempt: its long lines are table rows, pinned messages and parametrize entries,
+- **Lines stay at most 115 characters** in `src/`, `examples/` and `scripts/`, and a
+  test enforces it there, naming the file, the line and its width. 115 is a ceiling,
+  not a target: wrap a block of prose or comment narrower where that reads better, and
+  let a long error message stay on one line up to the limit. The check is twenty lines
+  in `tests/test_docs_structure_unit.py`, beside the others that keep a document honest
+  about the code. `tests/` is exempt: its long lines are table rows, pinned messages and parametrize entries,
   where wrapping costs more than it buys.
 - **A line is either obvious or carries a brief comment saying what it does.**
   Docstrings say what a function is for and why it exists, in less space than the

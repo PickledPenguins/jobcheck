@@ -1,12 +1,11 @@
 # CLI reference
 
-Three demo entry points. `examples/main.py` is the one to read first: it imports `jobcheck`
+Two demo entry points. `examples/main.py` is the one to read first: it imports `jobcheck`
 from the clone it lives in and names its own check files and its default rule file
 relative to that clone, so it runs the same from any directory; a path *you* pass —
 `--data`, `--rules` — is relative to where you are standing. It loads the example checks,
 prints the registry table and the failure report, and can explain one row or summarize the
-frame. `examples/bundle_main.py` loads a single bundle instead, and is what the bundle
-cases in the catalog drive. `examples/run_from_config.py` takes one run file naming the
+frame. `examples/run_from_config.py` takes one run file naming the
 setup, the data and the tables to print, and nothing else.
 
 It is not the product: the library does the work, and this exists to demonstrate it and to
@@ -171,39 +170,6 @@ prints `error: cannot write <path>: <reason>` after the report and exits 2.
 ### `-h`, `--help`
 
 Prints usage and exits 0.
-
-## `examples/bundle_main.py`
-
-Loads one bundle — a check file that loads check files — and prints the registry it
-produced, with each check's `source_file`: the member file the bundle pulled it in from,
-not the bundle. One optional argument names the bundle, and without it the
-shipped `examples/checks/all_checks.py` is loaded. A bundle is one file that names the
-rest, so there is one path and no more: a second argument is an error rather than a
-second bundle.
-
-```
-usage: bundle_main.py [-h] [PATH]
-```
-
-```sh
-python3 examples/bundle_main.py
-python3 examples/bundle_main.py path/to/all_checks.py
-python3 examples/bundle_main.py --help
-```
-
-### `PATH`
-
-Optional, default the shipped `examples/checks/all_checks.py`. The bundle to load. A path
-that is not a file exits 2 with the loader's own message on an `error:` line, which names
-what it looked for; a command line argparse rejects — a surplus argument, an unknown flag — exits 2.
-
-### `-h`, `--help`
-
-Prints usage and exits 0.
-
-The `source_file` column is the point: each member is a loaded file in its own right, so
-four files show behind the one path. See [writing-checks.md](writing-checks.md) for what
-a bundle is and what a failure leaves.
 
 ## `examples/run_from_config.py`
 

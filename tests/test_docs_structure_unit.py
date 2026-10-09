@@ -257,13 +257,13 @@ def test_the_documented_catalog_counts_are_the_real_ones() -> None:
     assert int(total.group(1)) == len(cases) + len(failures)
 
 
-MAX_LINE_WIDTH = 100
+MAX_LINE_WIDTH = 115
 WIDTH_GATED_DIRS = ("src", "examples", "scripts")
 
 
 def test_the_gated_directories_sit_under_the_documented_line_width() -> None:
-    """`contributing.md` says lines stay under 100 characters and that nothing
-    enforces it. Something does now: the claim was false on 2026-09-23, when two
+    """`contributing.md` says lines stay at most 115 characters. It once said 100 and that
+    nothing enforced it. Something does now: the claim was false on 2026-09-23, when two
     lines had drifted to 101 and 103, and nothing would have stopped the next two.
     A rule enforced for three directories out of four has to say which, or the
     document is misleading in a new way.

@@ -61,10 +61,7 @@ def test_a_duplicate_code_names_what_registered_it(fresh_registry: None) -> None
         reg.register_check(code="TAKEN", message="m")(lambda row: True)
     assert "Duplicate check code 'TAKEN' (registering " in message_of(raised)
     assert "; already registered from " in message_of(raised)
-    assert message_of(raised).endswith(
-        "Codes are permanent identifiers and must be unique. If both are the same file, "
-        "an earlier load of it failed part-way and left its checks registered: call "
-        "clear_registry() before loading it again.")
+    assert message_of(raised).endswith("conftest.py).")
 
 
 _HALF = '''
@@ -78,11 +75,11 @@ def half_a(row):
 '''
 
 
-def test_reloading_a_file_that_failed_part_way_names_it_and_the_remedy(
+def test_reloading_a_file_that_failed_part_way_names_it(
     fresh_registry: None, tmp_path: Path,
 ) -> None:
     """The retry a notebook user makes after fixing the file: the first check is
-    still registered, so the message must say where from and what to do."""
+    still registered, so the message must say where it came from."""
 
     path = tmp_path / "check_half.py"
     path.write_text(_HALF.format(second="raise RuntimeError('typo')"), encoding="utf-8")
@@ -92,13 +89,12 @@ def test_reloading_a_file_that_failed_part_way_names_it_and_the_remedy(
     with pytest.raises(ValueError) as raised:
         reg.load_checks([str(path)])
     assert f"already registered from {path}" in message_of(raised)
-    assert "call clear_registry() before loading it again" in message_of(raised)
     reg.clear_registry()
     reg.load_checks([str(path)])
     assert [check.code for check in reg._CHECKS] == ["HALF_A"]
 
 
-def test_reloading_a_fixed_cycle_says_the_file_is_skipped(
+def test_a_cycle_names_its_chain_and_a_fixed_file_loads_after_a_clear(
     fresh_registry: None, tmp_path: Path,
 ) -> None:
     path = tmp_path / "check_loop.py"
@@ -110,15 +106,14 @@ def test_reloading_a_fixed_cycle_says_the_file_is_skipped(
     path.write_text(cycle.format(deps='["LOOP_A"]'), encoding="utf-8")
     with pytest.raises(ValueError) as raised:
         reg.load_checks([str(path)])
-    assert message_of(raised) == (
-        "Dependency cycle among checks: LOOP_A -> LOOP_B -> LOOP_A. " + reg._RELOAD_HINT)
+    assert message_of(raised) == "Dependency cycle among checks: LOOP_A -> LOOP_B -> LOOP_A."
     path.write_text(cycle.format(deps="[]"), encoding="utf-8")
     reg.clear_registry()
     reg.load_checks([str(path)])
     assert sorted(check.code for check in reg._CHECKS) == ["LOOP_A", "LOOP_B"]
 
 
-def test_a_string_depends_on_explains_why_it_is_wrong(fresh_registry: None) -> None:
+def test_a_string_depends_on_names_the_value(fresh_registry: None) -> None:
     """Regression: register_check used to do list(depends_on or []) before the guard
     could see it, so a mistyped bare string became its characters and the failure
     arrived later as a missing prerequisite called 'O'."""
@@ -127,9 +122,7 @@ def test_a_string_depends_on_explains_why_it_is_wrong(fresh_registry: None) -> N
         reg.register_check(code="CODE", message="m", depends_on="OTHER")(  # type: ignore[arg-type]
             lambda row: True)
     assert message_of(raised) == (
-        "Check 'CODE': depends_on must be a list of check codes, got 'OTHER'. "
-        "A bare string is a list of its characters, which is never what you meant."
-    )
+        "Check 'CODE': depends_on must be a list of check codes, got 'OTHER'.")
 
 
 def test_a_non_boolean_default_enabled_names_the_value(fresh_registry: None) -> None:
@@ -203,28 +196,31 @@ def test_a_dangling_prerequisite_lists_the_loaded_files(fresh_registry: None) ->
     assert message_of(raised) == (
         "Check 'DEPENDENT' depends on 'ABSENT', which is not registered. "
         "Either the code is a typo, or it lives in a check file that was not loaded "
-        "(currently loaded: []). Loading the missing file works; correcting an "
-        "already-loaded one does not, because load_checks skips a path it has already "
-        "read -- call clear_registry() first."
-    )
+        "(currently loaded: []).")
+
+
+def test_a_rule_file_listed_twice_names_it(fresh_registry: None, tmp_path: Path) -> None:
+    """An empty file, which defines no rule whose name could repeat."""
+
+    path = tmp_path / "rules.yaml"
+    path.write_text("", encoding="utf-8")
+    with pytest.raises(ValueError) as raised:
+        load_rules([str(path), str(path)])
+    assert message_of(raised) == f"Rule file listed twice: {path.resolve()}."
 
 
 def test_a_bare_string_path_is_refused_by_both_loaders(fresh_registry: None) -> None:
     """A string is a list of its characters, so iterating one loads nothing and
-    reports a missing file named 'c'. Say what to pass instead."""
+    reports a missing file named 'c'."""
 
     with pytest.raises(TypeError) as raised:
         reg.load_checks("checks.py")  # type: ignore[arg-type]
     assert message_of(raised) == (
-        "load_checks takes a list of paths, not one string: pass ['checks.py']. "
-        "A bare string would be read as a list of its characters."
-    )
+        "load_checks takes a list of paths, not one string: pass ['checks.py'].")
     with pytest.raises(TypeError) as raised:
         load_rules("rules.yaml")  # type: ignore[arg-type]
     assert message_of(raised) == (
-        "load_rules takes a list of paths, not one string: pass ['rules.yaml']. "
-        "A bare string would be read as a list of its characters."
-    )
+        "load_rules takes a list of paths, not one string: pass ['rules.yaml'].")
 
 
 def test_a_missing_check_file_says_nothing_is_discovered(fresh_registry: None) -> None:
@@ -269,10 +265,8 @@ def test_duplicate_column_labels_say_what_a_check_would_receive(fresh_registry: 
     with pytest.raises(ValueError) as raised:
         validate(row.to_frame().T)
     assert message_of(raised) == (
-        "Row has duplicate column labels ['age']: a check reading one of them would "
-        "be handed a Series instead of a value. Rename or drop the duplicate columns "
-        "before validating."
-    )
+        "Row has duplicate column labels ['age']. Rename or drop the duplicate columns "
+        "before validating.")
 
 
 def test_an_unknown_on_error_names_the_two_that_work(fresh_registry: None) -> None:
@@ -291,13 +285,11 @@ def test_a_check_returning_nonsense_says_what_it_may_return(fresh_registry: None
         "bare comparison.")
 
 
-def test_a_frame_that_is_not_a_frame_says_how_to_make_one(fresh_registry: None) -> None:
+def test_a_frame_that_is_not_a_frame_names_its_type(fresh_registry: None) -> None:
     make_check("CODE")
     with pytest.raises(TypeError) as raised:
         validate(FRAME.iloc[0])  # type: ignore[arg-type]
-    assert message_of(raised) == (
-        "validate takes a DataFrame, got Series; for one row, pass row.to_frame().T."
-    )
+    assert message_of(raised) == "validate takes a DataFrame, got Series"
 
 
 # --- reporting --------------------------------------------------------------
@@ -452,5 +444,4 @@ def test_a_setup_file_s_rules_errors_name_the_setup_file(
     with pytest.raises(ValueError) as raised:
         reg.load_setup(str(path))
     assert message_of(raised) == (
-        f"{path}: 'rules' must be a list of paths, got str. Write it as a list even "
-        "for one file.")
+        f"{path}: 'rules' must be a list of paths, got str.")

@@ -34,7 +34,6 @@ OWNERS = {
     "src/jobcheck/rules.py": "configuration.md",
     "src/jobcheck/tables.py": "interfaces.md",
     "examples/main.py": "cli.md",
-    "examples/bundle_main.py": "cli.md",
     "examples/run_from_config.py": "cli.md",
 }
 
@@ -185,7 +184,7 @@ def test_the_scan_finds_messages_in_every_form_they_are_written() -> None:
 
     owned = messages_by_owner()
     found = {message.label.split(":")[0] for messages in owned.values() for message in messages}
-    assert set(OWNERS) - found == {"examples/bundle_main.py"} or set(OWNERS) - found == set()
+    assert set(OWNERS) - found == set()
     texts = [" ".join(m.pieces) for messages in owned.values() for m in messages]
     assert any("on_error must be" in text for text in texts)  # a raise
     assert any("a run prints at least one" in text for text in texts)  # fail(...)

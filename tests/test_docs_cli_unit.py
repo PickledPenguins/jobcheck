@@ -18,7 +18,6 @@ from typing import Any
 
 import pytest
 
-import bundle_main
 import main
 import run_from_config
 from doc_files import ROOT
@@ -27,7 +26,7 @@ pytestmark = pytest.mark.fast
 
 CLI = ROOT / "docs" / "cli.md"
 ENTRY_POINTS: dict[str, ModuleType] = {
-    "main": main, "bundle_main": bundle_main, "run_from_config": run_from_config,
+    "main": main, "run_from_config": run_from_config,
 }
 
 

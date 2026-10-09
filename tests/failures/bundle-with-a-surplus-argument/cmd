@@ -1,1 +1,0 @@
-python3 examples/bundle_main.py examples/checks/all_checks.py examples/checks/check_age.py
