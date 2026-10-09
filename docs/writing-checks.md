@@ -156,51 +156,17 @@ files in a package that is installed or on `PYTHONPATH`, and import it from ther
 directory stays off `sys.path` on purpose: a helper named like a real module
 (`csv.py`, `types.py`) would shadow it for the whole process.
 
-## Bundles: one file that loads the rest
+## Check files that depend on each other
 
-Ten check files means ten paths in every entry point that wants them, and a
-forgotten one is a check that silently does not run. A **bundle** is a check file
-whose job is to load the others, so a caller names one path:
+A check may depend on a check in another file. `load_checks` validates the dependency
+graph once every file it was given is imported, so within one call the order of the list
+does not matter: `load_checks(["check_dependent.py", "check_base.py"])` works. A later
+call may depend on a file an earlier call loaded, but an earlier call raises at once for a
+prerequisite only a later call would bring. A setup file's `checks` list is one call.
 
-```python
-# my_checks/all_checks.py -- inside the file, HERE is os.path.dirname(os.path.abspath(__file__))
-import os
-from jobcheck import load_checks
-
-HERE = os.path.join(os.getcwd(), "my_checks")
-load_checks(["check_age.py", "check_email.py"], base_dir=HERE)
-```
-
-The caller then names one path, `my_checks/all_checks.py`, and gets all of them.
-The members are loaded files like any other: each check's `source_file` is its
-member rather than the bundle, and naming one directly as well loads it once. A bundle may register checks of its own, and may load other bundles.
-`examples/checks/all_checks.py` is a shipped one; `examples/bundle_main.py` is an
-entry point that loads nothing else.
-
-Two things are worth knowing before you build one:
-
-- **Prerequisites may point anywhere in the whole load.** The dependency graph is
-  validated as the outermost call returns, so a check in a bundle may depend on a
-  code from another bundle, or from a file the caller names *after* it.
-- **A failure ends the load.** If one member raises, the error reaches your script
-  unchanged and nothing is rolled back. Fix the member and run the script again; a
-  process that loads again without restarting calls `clear_registry()` first.
-
-Importing the members instead of loading them works too, and costs you the
-guarantees above:
-
-```python
-# my_checks/all_checks.py -- works, but see below
-import os, sys
-sys.path.insert(0, os.path.join(os.getcwd(), "my_checks"))
-import check_age, check_email     # noqa: F401
-```
-
-Those are ordinary modules, so a second bundle holding its own `check_age.py`
-imports nothing — the name is already in `sys.modules` — and its checks are
-silently missing. For the same reason, after `clear_registry()` a reload registers
-none of them again. Prefer the nested `load_checks`, and register checks only in the
-files it is given.
+A failure ends the load. If one file raises, the error reaches your script unchanged and
+nothing is rolled back. Loading a file already loaded raises, so a process that loads
+again without restarting calls `clear_registry()` first.
 
 `examples/checks/` is the worked example — four files outside the library, loaded
 by `examples/main.py` from the list it names in `CHECK_FILES`.

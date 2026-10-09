@@ -1,1 +1,0 @@
-bundle_main.py: error: unrecognized arguments: examples/checks/check_age.py

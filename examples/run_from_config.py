@@ -104,7 +104,7 @@ class StrictLoader(yaml.SafeLoader):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """One positional argument and nothing else, as `bundle_main.py` has."""
+    """One positional argument and nothing else."""
 
     parser = argparse.ArgumentParser(
         description="Run the whole of one validation from a run file: the setup, "

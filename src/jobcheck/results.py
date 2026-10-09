@@ -76,8 +76,6 @@ class Verdict:
     `OK`'s one dict is shared by every passing outcome.
     """
 
-    __test__ = False  # not a pytest check class, despite the name
-
     status: int = Status.PASS
     comments: Mapping[str, Any] = field(default_factory=dict)
 
@@ -140,8 +138,6 @@ class CheckOutcome:
     `detail` says why: the rule that disabled it, the prerequisites that blocked
     it, or what it raised. `rule` names the rule that switched the check on or
     off for this row, whatever the outcome, and is "" where the default stood."""
-
-    __test__ = False  # not a pytest check class, despite the name
 
     code: str
     outcome: Outcome

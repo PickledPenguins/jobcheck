@@ -172,8 +172,7 @@ def _parse_rule(raw: Any, source_file: str, known_codes: set[str], position: int
     )
 
 
-def _parse_file(path: str, known_codes: set[str],
-               base_dir: str | Path | None = None) -> list[Rule]:
+def _parse_file(path: str, resolved: Path, known_codes: set[str]) -> list[Rule]:
     """Parse one YAML file into rules. The file is a flat top-level list.
 
     The rules record the path as the caller wrote it, relative or not: it is
@@ -181,7 +180,7 @@ def _parse_file(path: str, known_codes: set[str],
     there would be this machine's, not the one the caller would recognize.
     """
 
-    raw = _read_yaml(_resolve_input_file(path, "rule file", "load_rules()", base_dir), path)
+    raw = _read_yaml(resolved, path)
     if raw is None:
         return []
     if not isinstance(raw, list):
@@ -204,14 +203,16 @@ def _load_rule_files(paths: list[str], known_codes: set[str],
     """
 
     if isinstance(paths, str):
-        raise TypeError(
-            f"load_rules takes a list of paths, not one string: pass [{paths!r}]. "
-            "A bare string would be read as a list of its characters."
-        )
+        raise TypeError(f"load_rules takes a list of paths, not one string: pass [{paths!r}].")
     seen: dict[str, str] = {}
+    files: set[Path] = set()
     loaded: list[Rule] = []
     for path in list(paths):
-        for rule in _parse_file(path, known_codes, base_dir):
+        resolved = _resolve_input_file(path, "rule file", "load_rules()", base_dir)
+        if resolved in files:
+            raise ValueError(f"Rule file listed twice: {resolved}.")
+        files.add(resolved)
+        for rule in _parse_file(path, resolved, known_codes):
             if rule.name in seen:
                 raise ValueError(
                     f"Duplicate rule name {rule.name!r}: defined in "

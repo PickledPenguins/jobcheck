@@ -19,6 +19,7 @@ from conftest import PROJECT_ROOT
 pytestmark = pytest.mark.fast
 
 EXAMPLES = Path(PROJECT_ROOT) / "examples"
+CHECK_FILES = ["check_row_shape.py", "check_age.py", "check_dates.py", "check_email.py"]
 
 
 def write_run(tmp_path: Path, body: str) -> str:
@@ -26,7 +27,7 @@ def write_run(tmp_path: Path, body: str) -> str:
     rules by absolute path, so *body* can say `setup: setup.yaml`."""
 
     (tmp_path / "setup.yaml").write_text(
-        f"checks: [{EXAMPLES / 'checks/all_checks.py'}]\n"
+        f"checks: [{', '.join(str(EXAMPLES / 'checks' / name) for name in CHECK_FILES)}]\n"
         f"rules: [{EXAMPLES / 'rules/error_rules.yaml'}]\n")
     (tmp_path / "data.csv").write_text(
         "id,name,age,email,start_date,end_date,source_system,record_type\n"

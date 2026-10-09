@@ -15,9 +15,9 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 666 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then ruff and mypy | 18s |
-| `./tests/run-tests.sh long` | 199 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 865 tests, then ruff, mypy and the profile | 120s |
+| `./tests/run-tests.sh fast` | 651 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then ruff and mypy | 18s |
+| `./tests/run-tests.sh long` | 191 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
+| `./tests/run-tests.sh all` | 842 tests, then ruff, mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 99% lines and branches (it runs at 99.5%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 3s |
@@ -65,7 +65,7 @@ Fast:
 | File | Covers |
 |---|---|
 | `tests/test_registry_unit.py` | Registration and its duplicate guard, `clear_registry`, dependency validation, cycle detection, topological order and its cache. |
-| `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads skipped, unique module names, prerequisites across files in one call, that a broken file's error propagates and `clear_registry` recovers, and that no `__pycache__` appears beside the caller's file. Bundles -- a check file that loads check files -- have a section of their own: deferred validation, a failing member's error reaching the caller, and the guard that stops a bundle naming itself from recursing. |
+| `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads refused, module names unique per path and the same every load, prerequisites across files in one call and from an earlier call, that a broken file's error propagates and `clear_registry` recovers, and that no `__pycache__` appears beside the caller's file while a module it imports still gets one. |
 | `tests/test_validate_unit.py` | The whole-frame entry point: one list of outcomes per row **in its own position**, rules and the context builder passed through, and both `on_error` modes. |
 | `tests/test_repeat_unit.py` | Copies of a row under `validate(repeat_key=...)`: a check that does not repeat runs on the first copy only and is recorded `shared` on the rest, with status `PASS` and a `detail` saying where; `repeat=True` and its dependents run on every copy, each with its own context, reading a shared prerequisite's result from the first copy; rules match every copy, a copy disabling a check records `disabled`, and a check disabled on the first copy runs on the next copy that enables it; copies need not be adjacent; a shared failure is reported and counted once; every refused `repeat_key` and `repeat` value. |
 | `tests/test_rules_unit.py` | Every rule-file rejection (24 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
@@ -74,7 +74,6 @@ Fast:
 | `tests/test_report_unit.py` | The failure table and its columns, row keys and added data columns, `include` levels, titles, explanations and summaries. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_run_from_config_unit.py` | The run-file entry point in this process: the shipped run's tables in order, paths resolved against the run file, repeated tables, every rejection of a malformed run file word for word, and that a table the library refuses prints none of the run. |
-| `tests/test_bundle_main_unit.py` | The bundle entry point in this process, and the shipped bundle it loads: the registry it prints with each member's file, and the argument that names another bundle. |
 | `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artifact: the rule files load together, which refuses a duplicate rule name or an unknown code, every rule matches a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
 | `tests/test_differential_jobchain.py` | What jobchain's own suite asserted of the pre-rename engine, restated against this one — layering, root cause, cross-row context, crashes, rule-driven disabling. |
 | `tests/test_error_messages_unit.py` | Every message the library raises, compared word for word rather than by keyword: registration, loading, per-row evaluation, reporting and the whole-frame entry point. |
@@ -84,7 +83,7 @@ Fast:
 | `tests/test_docs_blocks_unit.py` | Every Python block under `docs/` runs, in a working directory holding the demo frame, its outcomes, the rules and the check files the blocks name, and prints byte for byte the output shown after it. One collected test per block, plus the fence rule the blocks are read by. |
 | `tests/test_regen_docs_unit.py` | `scripts/regen_docs.py`: a stale shown output rewritten and nothing else touched, a right one left alone, a raising block named with its output kept, the world the documents assume, the README run as one session, and the document filter. |
 | `tests/test_docs_cli_unit.py` | `docs/cli.md` against the three entry points, both directions: a heading for every flag and argument each parser takes and none for anything else, the usage line argparse prints, every exit code the scripts can return and no other, the run-file table and keys, and the null markers `--data` lists against the ones pandas applies. |
-| `tests/test_docs_structure_unit.py` | The documents as a set: the README stays an index and links every document, no internal link or anchor is dead, the rule and setup keys and statuses are documented where they belong, what a document copies from the code matches it -- the shipped rule file, a row in `architecture.md` for every module, entry point and script, a row here for every test module, every list of the summary columns -- and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. It also gates line width: no Python line in `src/`, `examples/` or `scripts/` exceeds the 100 characters `contributing.md` claims, and that document names the three directories the gate covers. |
+| `tests/test_docs_structure_unit.py` | The documents as a set: the README stays an index and links every document, no internal link or anchor is dead, the rule and setup keys and statuses are documented where they belong, what a document copies from the code matches it -- the shipped rule file, a row in `architecture.md` for every module, entry point and script, a row here for every test module, every list of the summary columns -- and the suite sizes and catalog case counts stated in this document and in the README are the ones a collection and the case directories actually give. It also gates line width: no Python line in `src/`, `examples/` or `scripts/` exceeds the 115 characters `contributing.md` claims, and that document names the three directories the gate covers. |
 | `tests/test_mutation_score_unit.py` | `scripts/mutation_score.py`: detected over total across every `.meta` file, the floor boundary, an unfinished run refused, no results refused. |
 | `tests/test_docs_messages_unit.py` | Every message a user can meet is quoted in the document that owns it: each exception raised with a message in `src/` and `examples/`, each `error:` line an example script prints, and each warning line, read from the source rather than a list. `interfaces.md`, `configuration.md` and `cli.md` own them, by source file; a new source file that speaks to a user must be given an owner. |
 | `tests/test_docs_references_unit.py` | The superscript cross-references agree with each document's `## References` table: every citation is a row, every row is cited, rows are numbered 1, 2, 3 and point to distinct places, and the table is the last section. |
@@ -121,10 +120,10 @@ Own gates:
 
 ## The example catalog
 
-`tests/examples/` holds 52 cases at three levels — 20 simple, 17 moderate, 15 complex —
-and `tests/failures/` holds 26, each asserting the exact message and exit code a user
+`tests/examples/` holds 50 cases at three levels — 19 simple, 16 moderate, 15 complex —
+and `tests/failures/` holds 24, each asserting the exact message and exit code a user
 sees. Both run through a real entry point in a subprocess — `examples/main.py`,
-`examples/bundle_main.py` for the bundle cases, `examples/run_from_config.py` for the
+`examples/run_from_config.py` for the
 run-file cases, or a script inside the case where no entry point reaches the feature (a
 context builder) — so the documentation cannot drift from the behavior.
 
@@ -146,14 +145,14 @@ regeneration defeats the catalog.
 
 Add a case with `scripts/new_catalog_case.py`, which writes the directory, the `cmd` and
 the README, then records the output by running it. A case that carries its own input
-files — a rule file, a run file, a bundle — gets them put in its directory first; the
+files — a rule file, a run file, check files — gets them put in its directory first; the
 script accepts a directory that holds no case files yet and refuses one that does. It refuses a command another case
 already uses: two cases with one command are one case filed twice, and the duplicate is
 invisible in a directory listing because the names differ — three got in that way when the
 catalog was rebuilt by hand.
 
 **Paths are rendered through a fixed-length root.** A case like
-`bundles/one-path-loads-four` prints absolute paths in a table whose column
+`rules/rules-table-one-row-per-rule` prints absolute paths in a table whose column
 widths are computed *before* `<project>` replaces them, so a clone at a longer path would
 produce the same words with different padding and fail for no reason anybody could act
 on. `tests/catalog.py` therefore runs every case through a symlink at

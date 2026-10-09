@@ -238,55 +238,23 @@ Example: [writing-checks.md: The shape of a check](writing-checks.md#the-shape-o
 Imports the named `.py` files by path so their checks register themselves. A list
 of paths, always — a bare string is refused, since it would otherwise be read as a
 list of its characters. **Nothing is discovered**, which is what lets two entry
-points in one codebase run different sets of checks. A file already loaded, or listed twice,
-is skipped. The dependency graph is validated once the whole call has been imported,
-so a prerequisite may live in any of the files. A relative path is resolved against
+points in one codebase run different sets of checks. A file listed twice, or already
+loaded, raises before any file is imported; a process that loads again calls
+`clear_registry()` first. The dependency graph is validated once the whole call has been
+imported, so a prerequisite may live in any of the files, in any order, or in a file an
+earlier call loaded.<sup>[7](writing-checks.md#check-files-that-depend-on-each-other)</sup> A relative path is resolved against
 `base_dir` when one is given and against the working directory otherwise; an
 absolute path ignores both. Raises `ValueError` for a path that is not a file,
 naming the absolute path it tried, and for a file without a `.py` suffix
 (`Cannot import '<path>' as a Python file.`), and propagates whatever a file raises
 while importing. A file that raises is not rolled back: the checks registered before
-the failing line stay, and the file is not recorded as loaded.<sup>[7](configuration.md#errors)</sup>
+the failing line stay, and the file is not recorded as loaded.<sup>[8](configuration.md#errors)</sup>
 
-Each file is given a unique module name, so two directories that each hold a
-`checks.py` both load, a bundle and a member of the same name included. No
+Each file's module name comes from its path (`jobcheck_check_file_<stem>_<8 hex digits>`),
+the same every run, so two directories that each hold a `checks.py` both load. No
 `__pycache__` is written beside the file: a check file comes from wherever the
 caller names, which is a record of what was read rather than somewhere to write
-to. That is `sys.dont_write_bytecode`, which is the interpreter's flag rather
-than this import's, so for the length of the import no thread writes bytecode
-for anything it imports either.
-
-A check file may call `load_checks` itself — a **bundle**, one path standing for
-the files it collects:<sup>[8](writing-checks.md#bundles-one-file-that-loads-the-rest)</sup>
-
-```python
-# my_checks/all_checks.py -- inside the file, base_dir is
-# os.path.dirname(os.path.abspath(__file__))
-import os
-from jobcheck import load_checks
-
-load_checks(["check_age.py", "check_email.py"],
-            base_dir=os.path.join(os.getcwd(), "my_checks"))
-```
-
-The members are loaded files in their own right: each check's `source_file` is
-its member, and each is skipped if the caller also names it. The dependency graph
-is validated as the *outermost* call returns, so a prerequisite may live in a bundle, in another bundle, or in a file
-the caller names after the bundle. A file already being imported further up the
-call is skipped, so a bundle naming itself, or two naming each other, finish
-rather than recursing. A file that raises is not rolled back: the error propagates,
-the checks registered before it stay, and the failing file is not recorded as
-loaded. Loading again in the same process starts with `clear_registry()`.
-
-Load from one thread. The registry and `sys.dont_write_bytecode` are process-wide,
-and `load_checks` and `clear_registry` take no lock; validating from many threads
-once loading is done is fine, since validation reads the registry and never changes it.
-
-Importing the members instead — `sys.path.insert` and `import check_age` — also
-registers them, but they are then ordinary modules: two bundles holding a
-same-named member silently load only the first, since the second import finds the
-name in `sys.modules` and does nothing. Nesting `load_checks` has no such
-collision, and records every member.
+to. Only the check file goes without bytecode; a module it imports is cached as usual.
 
 ### When the dependency graph is validated
 
@@ -294,10 +262,9 @@ The dependency graph is validated when `load_checks` returns, and otherwise when
 something first needs the evaluation order (`validate` on a frame with rows,
 `registry_table`). Every `depends_on` edge is checked, cycles detected, layers
 computed. An unregistered prerequisite raises — including one living in a check
-file that was not loaded, deliberately as loud as a typo. A chain too deep for the
-ordering walk — it is recursive, so it gives out near Python's own recursion limit,
-around 900 links deep at the default 1000 — raises `ValueError` naming the registry
-size and that limit, rather than a bare `RecursionError` naming nothing.<sup>[9](writing-checks.md#layering-one-problem-one-error)</sup>
+file that was not loaded, deliberately as loud as a typo. The ordering walk is
+recursive, so a chain about 900 links deep (Python's default recursion limit is 1000)
+raises a plain `RecursionError` from `_topological_order`.<sup>[9](writing-checks.md#layering-one-problem-one-error)</sup>
 
 ### `clear_registry() -> None`
 
@@ -349,7 +316,8 @@ files it names.
 
 ```yaml
 checks:
-  - checks/all_checks.py        # a bundle, or list the files
+  - checks/check_age.py
+  - checks/check_email.py
 rules:
   - rules/01_age.yaml           # in precedence order; optional
 ```
@@ -369,8 +337,7 @@ refuse.<sup>[11](configuration.md#setup-files-naming-the-checks-and-the-rules-at
 Rules are named by path rather than written inline: a rule file is a flat top-level
 list *without* a `rules:` key, which a setup file would contradict, and rule files
 are meant to be shared between runs. `load_checks` and `load_rules` stay public —
-this composes them, a bundle calls `load_checks` from inside a check file, and a
-caller holding paths of its own has no file to write. `examples/setup.yaml` is the
+this composes them, and a caller holding paths of its own has no file to write. `examples/setup.yaml` is the
 worked example.
 
 Example: [configuration.md: Setup files](configuration.md#setup-files-naming-the-checks-and-the-rules-at-once).
@@ -463,7 +430,7 @@ shape raises `ValueError` naming what it takes, before any row is read.
 
 An `on_error` that is neither `"record"` nor `"raise"` raises `ValueError` before
 any row is read, an empty frame included; anything but a `DataFrame` raises
-`TypeError`, and for one row says to pass `row.to_frame().T`. A frame with duplicate
+`TypeError`. A frame with duplicate
 column labels raises `ValueError` on its first row, before any check runs.<sup>[4](#error-messages)</sup>
 
 An exception that escapes while a row is checked -- the builder's, a check's under
@@ -602,21 +569,21 @@ the call named.
 |---|---|
 | `register_check` | `Check code must be a non-empty string, got <code>.` |
 | `register_check` | `Check '<code>': message must be the text a person sees on failure.` |
-| `register_check` | `Duplicate check code '<code>' (registering <module>.<function>; already registered from <path>). Codes are permanent identifiers and must be unique. If both are the same file, an earlier load of it failed part-way and left its checks registered: call clear_registry() before loading it again.` |
-| `register_check` | `Check '<code>': depends_on must be a list of check codes, got '<text>'. A bare string is a list of its characters, which is never what you meant.` |
+| `register_check` | `Duplicate check code '<code>' (registering <module>.<function>; already registered from <path>).` |
+| `register_check` | `Check '<code>': depends_on must be a list of check codes, got '<text>'.` |
 | `register_check` | `Check '<code>': default_enabled must be True or False, got <value>.` |
 | `register_check` | `Check '<code>': repeat must be True or False, got <value>.` |
 | `register_check` | `Check '<code>': <function>(<parameters>) must take (row) or (row, context), not 3 positional argument(s).` |
 | `register_check` | `Check '<code>': <function>(<parameters>) needs keyword argument(s) <names> that the engine cannot supply. Give them defaults, or read them from the row or the context.` |
 | `register_check` | `Check '<code>': age_below(row, limit=130) has a default on its second parameter, 'limit', which would be handed the row's context. Bind the value with functools.partial, or make it keyword-only by putting it after a *.` |
-| `load_checks` | `load_checks takes a list of paths, not one string: pass ['<path>']. A bare string would be read as a list of its characters.` |
+| `load_checks` | `load_checks takes a list of paths, not one string: pass ['<path>'].` |
+| `load_checks` | `Check file listed twice or already loaded: <path>.` |
 | `load_checks` | `Cannot import '<path>' as a Python file.` |
-| `load_checks`, and the first run after a registration | `Check '<code>' depends on '<prerequisite>', which is not registered. Either the code is a typo, or it lives in a check file that was not loaded (currently loaded: <files>). Loading the missing file works; correcting an already-loaded one does not, because load_checks skips a path it has already read -- call clear_registry() first.` |
-| the same | `Dependency cycle among checks: A -> B -> A. Correcting an already-loaded file does not take effect, because load_checks skips a path it has already read -- call clear_registry() first, then load again.` |
-| the same | `Dependency chain too deep to resolve among <n> checks: the ordering walk is recursive and gives out near Python's recursion limit of <limit> (widest declared depends_on: <n>). Shorten the chain, or register prerequisites before the checks that depend on them. Correcting an already-loaded file does not take effect, because load_checks skips a path it has already read -- call clear_registry() first, then load again.` |
+| `load_checks`, and the first run after a registration | `Check '<code>' depends on '<prerequisite>', which is not registered. Either the code is a typo, or it lives in a check file that was not loaded (currently loaded: <files>).` |
+| the same | `Dependency cycle among checks: A -> B -> A.` |
 | `validate` | `on_error must be 'record' or 'raise', got '<value>'.` |
-| `validate` | `Row has duplicate column labels <labels>: a check reading one of them would be handed a Series instead of a value. Rename or drop the duplicate columns before validating.` |
-| `validate` | `validate takes a DataFrame, got <type>; for one row, pass row.to_frame().T.` |
+| `validate` | `Row has duplicate column labels <labels>. Rename or drop the duplicate columns before validating.` |
+| `validate` | `validate takes a DataFrame, got <type>` |
 | `validate` | `repeat_key '<name>' is not in the data. Available columns: <columns>.` |
 | `validate` | `repeat_key '<name>' appears 2 times in the data. Rename or drop the duplicate columns.` |
 | `validate` | `repeat_key '<name>' is blank at position <n>: every row needs a value to say which rows are its copies.` |
@@ -651,8 +618,8 @@ schema, since data written against them outlives the code.
 | 4 | [Error messages](#error-messages) | each message, quoted |
 | 5 | [reporting.md: Diagnosing one row](reporting.md#diagnosing-one-row) | the outcomes as a row's explanation shows them |
 | 6 | [writing-checks.md: Per-row context](writing-checks.md#per-row-context) | writing a context and its builder |
-| 7 | [configuration.md: Errors](configuration.md#errors) | the file-not-found messages, and the rule file's |
-| 8 | [writing-checks.md: Bundles](writing-checks.md#bundles-one-file-that-loads-the-rest) | writing one, and the traps |
+| 7 | [writing-checks.md: Check files that depend on each other](writing-checks.md#check-files-that-depend-on-each-other) | what one call allows |
+| 8 | [configuration.md: Errors](configuration.md#errors) | the file-not-found messages, and the rule file's |
 | 9 | [writing-checks.md: Layering](writing-checks.md#layering-one-problem-one-error) | why checks depend on each other at all |
 | 10 | [configuration.md: Precedence](configuration.md#precedence-last-rule-wins) | last rule wins, with an example |
 | 11 | [configuration.md: Setup files](configuration.md#setup-files-naming-the-checks-and-the-rules-at-once) | the setup messages, quoted |

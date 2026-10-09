@@ -22,15 +22,7 @@ from jobcheck import registry as reg
 
 
 class SavedRegistry:
-    """Every registry global `clear_registry` clears, copied.
-
-    The in-progress load stack (`registry._LOADING`) is not copied. It belongs
-    to the `load_checks` call that is running rather than to the registry: a
-    frame put back from a load that has since finished would make `load_checks`
-    skip that file as already being loaded, and, with the stack never empty,
-    never validate the dependency graph. Capturing from inside a load is
-    unsupported.
-    """
+    """Every registry global `clear_registry` clears, copied."""
 
     __slots__ = ("checks", "loaded_files", "topo_order")
 

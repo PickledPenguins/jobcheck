@@ -13,7 +13,7 @@ from dataclasses import dataclass
 class RowContext:
     """Metadata for one row
 
-    Intenionally bare, subclass it and add the fields your checks read
+    Intentionally bare, subclass it and add the fields your checks read.
     See `writing-checks.md` for how a pipeline builds one and hands it to
     `validate(context_builder=...)`.
 

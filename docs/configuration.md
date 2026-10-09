@@ -231,7 +231,8 @@ text means YAML read an unquoted `yes`, `no`, `on` or `off` as a boolean, so quo
 | no `message` | `'message' must be the text saying why the rule exists, got None. It is printed beside the rule wherever the rules are listed.` |
 | a criterion that is not a mapping | `each 'match' entry must be a mapping with 'column' and 'pattern'.` |
 | a criterion value that is not text | `'column' and 'pattern' must both be strings in {'column': 'country', 'pattern': False}.` |
-| `load_rules("rules.yaml")` | `load_rules takes a list of paths, not one string: pass ['rules.yaml']. A bare string would be read as a list of its characters.` |
+| `load_rules("rules.yaml")` | `load_rules takes a list of paths, not one string: pass ['rules.yaml'].` |
+| `load_rules(["rules.yaml", "rules.yaml"])` | `Rule file listed twice: /abs/path/rules.yaml.` |
 
 An "unknown code" that you know exists usually means its check file was not loaded by this
 entry point — see [writing-checks.md](writing-checks.md#troubleshooting).
@@ -276,7 +277,8 @@ lists are a file you can commit beside a bug report rather than arguments typed 
 
 ```yaml
 checks:
-  - checks/all_checks.py        # a bundle, or list the files
+  - checks/check_age.py
+  - checks/check_email.py
 rules:
   - rules/error_rules.yaml      # precedence order; optional
 ```
@@ -310,8 +312,7 @@ file is meant to be shared between runs -- inline rules would be copied into eve
 that wanted them and drift apart. `examples/setup.yaml` is the shipped example.
 
 `load_checks` and `load_rules` stay: this composes them and does nothing they do not. A
-bundle calls `load_checks` from inside a check file, and a caller that computed its paths
-itself -- jobchain reads them from its own run configuration -- has no file to write.
+caller that computed its paths itself -- jobchain reads them from its own run configuration -- has no file to write.
 
 A setup file configures the library; it does not say what data to read or what to print.
 `examples/run_from_config.py` shows one way to put those beside it: a run file naming a

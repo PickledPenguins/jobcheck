@@ -18,8 +18,8 @@ Back to the [README](../README.md).
   more than its deepest prerequisite. Computed, never declared.
 - **registry** — every check loaded in this process, in one process-global list.
   `load_checks` fills it, `clear_registry` empties it, `registry_table` shows it.<sup>[3](interfaces.md#the-registry)</sup>
-- **check file**, **bundle** — a `.py` file `load_checks` imports by path; a bundle is a
-  check file that loads other check files, so a caller names one path for all of them.<sup>[4](writing-checks.md#bundles-one-file-that-loads-the-rest)</sup>
+- **check file** — a `.py` file `load_checks` imports by path. A check may depend on one in
+  another file of the same call.<sup>[4](writing-checks.md#check-files-that-depend-on-each-other)</sup>
 
 ## What a check says, and what the engine records
 
@@ -87,7 +87,7 @@ as well: the status says something only beside a failure.<sup>[9](reporting.md#d
 | 1 | [writing-checks.md: Codes are permanent](writing-checks.md#codes-are-permanent) | what a reused code would break |
 | 2 | [writing-checks.md: Layering](writing-checks.md#layering-one-problem-one-error) | how prerequisites keep one blank field to one error |
 | 3 | [interfaces.md: The registry](interfaces.md#the-registry) | what each registered check holds |
-| 4 | [writing-checks.md: Bundles](writing-checks.md#bundles-one-file-that-loads-the-rest) | writing one, and where its paths resolve |
+| 4 | [writing-checks.md: Check files that depend on each other](writing-checks.md#check-files-that-depend-on-each-other) | what one call allows |
 | 5 | [writing-checks.md: What to return](writing-checks.md#what-to-return) | every form a check may return, and what is refused |
 | 6 | [writing-checks.md: Statuses](writing-checks.md#statuses) | which status to choose for a failure |
 | 7 | [interfaces.md: CheckOutcome](interfaces.md#checkoutcome) | the recorded fields, and `Outcome`'s members |

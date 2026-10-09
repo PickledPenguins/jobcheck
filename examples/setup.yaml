@@ -7,8 +7,10 @@
 # paths in it travel together.
 
 checks:
-  # A bundle: one path, four check files behind it.
-  - checks/all_checks.py
+  - checks/check_row_shape.py
+  - checks/check_age.py
+  - checks/check_dates.py
+  - checks/check_email.py
 
 rules:
   # In precedence order -- the last matching rule wins.

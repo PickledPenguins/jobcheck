@@ -6,9 +6,11 @@ validation, ordering and layers)
 
 from __future__ import annotations
 
+import importlib.machinery
 import importlib.util
 import inspect
 import sys
+import zlib
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -30,8 +32,6 @@ RunnerFn = Callable[["pd.Series[Any]", RowContext | None], Any]
 class _Check:
     """One registered check: its code, its message and the function that runs it"""
 
-    __test__ = False  # not a pytest check class, despite the name
-
     code: str  # `code` is permanent: never renumbered, or reused
     message: str
     fn: RunnerFn
@@ -50,25 +50,11 @@ _LOADED_FILES: list[str] = []
 
 # The prefix of the module name load_checks gives each check file it runs;
 # clear_registry drops those modules from sys.modules, and no others.
-_CHECK_FILE_PREFIX = "check_file_"
-
-# Check files mid-import, innermost last: how a nested load_checks call (a
-# bundle) knows it is nested, and how a bundle naming itself is skipped.
-_LOADING: list[str] = []
+_CHECK_FILE_PREFIX = "jobcheck_check_file_"
 
 # Cached topological order over depends_on edges, recomputed only when the
 # registry changes, never inside the per-row loop.
 _TOPO_ORDER: list[_Check] | None = None
-
-# Import attempts so far, which makes each load's module name unique. Not
-# len(_LOADED_FILES): a bundle is named before its members finish, so the two
-# would share a number.
-_LOAD_SEQUENCE = 0
-
-# For an error found after a file was recorded as loaded: the file is fixed, but
-# loading it again is a no-op, so the old error comes back until this is followed.
-_RELOAD_HINT = ("`load_checks` skips a path it has already read. Call "
-                "clear_registry() first, then load again.")
 
 
 def _name_of(fn: CheckFn) -> str:
@@ -158,7 +144,8 @@ def _reject_bad_registration(
         # A file whose import failed part-way is not recorded as loaded, but the
         # checks it registered first stay: loading it again will duplicate the codes.
         raise ValueError(
-            f"Duplicate check code {code!r} (registering {where}; already registered from {existing.source_file}).")
+            f"Duplicate check code {code!r} (registering {where}; "
+            f"already registered from {existing.source_file}).")
     if (not isinstance(prerequisites, list) or
         not all(isinstance(prerequisite, str) and prerequisite
                 for prerequisite in prerequisites)
@@ -193,8 +180,7 @@ def register_check(
         global _TOPO_ORDER
 
         module = getattr(fn, "__module__", None)
-        # depends_on is inspected before it is copied to assert its
-        # shape and content before copy (as a result of list())
+        # Checked before list() copies it: a bare string would become its characters
         prerequisites = [] if depends_on is None else depends_on
         _reject_bad_registration(
             code, message, default_enabled, prerequisites, repeat,
@@ -223,8 +209,7 @@ def clear_registry() -> None:
     For a process validating several runs in turn, each with its own check
     files. The next `load_checks` runs each file again; a module a check file
     merely imports is cached by Python and does not, so checks register only in
-    the files `load_checks` is given. The in-progress load stack is not touched,
-    it belongs to a running `load_checks` call rather than to the registry.
+    the files `load_checks` is given.
     """
     global _TOPO_ORDER
     _CHECKS.clear()
@@ -234,18 +219,21 @@ def clear_registry() -> None:
     _TOPO_ORDER = None
 
 
+class _NoBytecodeLoader(importlib.machinery.SourceFileLoader):
+    """Imports a check file without writing a .pyc beside it (it may sit in a run's input directory)"""
+    def set_data(self, path: str, data: Any, *, _mode: int = 0o666) -> None:
+        pass
+
+
 def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     """Import the named check files so their checks register themselves.
 
     Every file is named explicitly and nothing is discovered, so two entry points
     in one codebase can run different sets of checks without interfering. A file
-    listed twice, already loaded, or already being loaded further up the call is
-    skipped.
+    listed twice or already loaded raises before any file is imported.
 
-    A check file may call this itself (a bundle file naming the files it
-    collects, so a caller loads one path instead of ten). The dependency graph is
-    then validated once, as the outermost call returns, since a prerequisite may
-    arrive in any file of any of the calls.
+    The dependency graph is validated once every file is imported, so a check may
+    depend on one in any file of the same call, and on any file an earlier call loaded.
 
     A file that raises is not rolled back: the error propagates, and whatever
     was registered before it stays. Loading again in the same process must start
@@ -256,49 +244,31 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     """
 
     if isinstance(paths, str):
-        raise TypeError(
-            f"load_checks takes a list of paths, not one string: pass [{paths!r}]. ")
+        raise TypeError(f"load_checks takes a list of paths, not one string: pass [{paths!r}].")
 
-    global _LOAD_SEQUENCE
     resolved: list[str] = []
     for path in list(paths):
         name = str(_resolve_input_file(path, "check file", "load_checks()", base_dir))
-        # A file mid-import is skipped, so a bundle naming itself, or two naming
-        # each other, finish instead of recursing.
-        if name not in _LOADED_FILES and name not in resolved and name not in _LOADING:
-            resolved.append(name)
+        if name in _LOADED_FILES or name in resolved:
+            raise ValueError(f"Check file listed twice or already loaded: {name}.")
+        if Path(name).suffix != ".py":
+            raise ValueError(f"Cannot import {name!r} as a Python file.")
+        resolved.append(name)
 
     for name in resolved:
-        # A unique module name per load. Two run directories can each hold a
-        # checks.py, and each needs its own sys.modules entry (sharing one, the
-        # second would replace the first there, so the first could no longer be
-        # imported).
-        module_name = f"{_CHECK_FILE_PREFIX}{Path(name).stem}_{_LOAD_SEQUENCE}"
-        _LOAD_SEQUENCE += 1
-        spec = importlib.util.spec_from_file_location(module_name, name)
-        if spec is None or spec.loader is None:
-            raise ValueError(f"Cannot import {name!r} as a Python file.")
+        # One module name per path, the same every run. Two run directories can each
+        # hold a checks.py, and each needs its own sys.modules entry.
+        module_name = f"{_CHECK_FILE_PREFIX}{Path(name).stem}_{zlib.crc32(name.encode()):08x}"
+        loader = _NoBytecodeLoader(module_name, name)
+        spec = importlib.util.spec_from_file_location(module_name, name, loader=loader)
+        assert spec is not None  # None only when no loader is given
         module = importlib.util.module_from_spec(spec)
         # Registered before execution so a check file that imports itself finds
         # the module rather than importing it twice.
         sys.modules[module_name] = module
-        # No __pycache__ beside a check file. It may sit in a run's input
-        # directory, and the unique module name means a .pyc is never reused.
-        # The flag is process-wide for the length of the exec.
-        writing_bytecode = sys.dont_write_bytecode
-        sys.dont_write_bytecode = True
-        _LOADING.append(name)
-        try:
-            spec.loader.exec_module(module)
-        finally:
-            _LOADING.pop()
-            sys.dont_write_bytecode = writing_bytecode
+        loader.exec_module(module)
         _LOADED_FILES.append(name)
-
-    # Nested calls leave it to the outermost one. A bundle's members may depend
-    # on each other in any order, and on files the caller names after the bundle.
-    if not _LOADING:
-        _validate_registry()
+    _validate_registry()
 
 
 def _topological_order() -> list[_Check]:
@@ -320,8 +290,7 @@ def _topological_order() -> list[_Check]:
         # Raise when a code is found twice in one path (a cycle)
         if code in visiting_set:
             cycle = visiting[visiting.index(code):] + [code]
-            raise ValueError(
-                "Dependency cycle among checks: -> ".join(cycle) + ". " + _RELOAD_HINT)
+            raise ValueError("Dependency cycle among checks: " + " -> ".join(cycle) + ".")
         visiting.append(code)
         visiting_set.add(code)
         for prerequisite in by_code[code].depends_on:
@@ -354,17 +323,7 @@ def _validate_registry() -> None:
                     f"Check {check.code!r} depends on {prerequisite!r}, which is not registered. "
                     "Either the code is a typo, or it lives in a check file that was not loaded "
                     f"(currently loaded: {_LOADED_FILES}).")
-    try:
-        order = _topological_order()
-    except RecursionError:
-        # The walk is recursive, so a long enough chain exhausts the stack. The
-        # chain's length is unknown here, so the message names the limit instead.
-        widest = max((len(check.depends_on) for check in _CHECKS), default=0)
-        raise ValueError(
-            f"Dependency chain too deep to resolve, {len(_CHECKS)} checks: "
-            f"Reached recursion limit {sys.getrecursionlimit()} "
-            f"(widest declared depends_on: {widest}). "
-        ) from None
+    order = _topological_order()
     by_code = {check.code: check for check in _CHECKS}
     for check in order:
         check.layer = (
@@ -385,7 +344,8 @@ def _get_topo_order() -> list[_Check]:
 
 def load_rules(paths: list[str], base_dir: str | Path | None = None) -> list[Rule]:
     """Load rules from the named YAML files, in precedence order. Load
-    the check files first: a rule naming an unregistered code is an error.
+    the check files first: a rule naming an unregistered code is an error. A file
+    listed twice raises.
 
     *base_dir* anchors relative paths exactly as it does in `load_checks`."""
     return rules._load_rule_files(paths, {check.code for check in _CHECKS}, base_dir)
@@ -404,28 +364,19 @@ def warn_blocking_rules(rules: list[Rule]) -> list[str]:
     """
 
     order = _get_topo_order()
-    dependents: dict[str, list[str]] = {check.code: [] for check in order}
-    for check in order:
-        for prerequisite in check.depends_on:
-            dependents[prerequisite].append(check.code)
     rank = {check.code: (check.layer, check.code) for check in order}
-
-    def below(code: str) -> set[str]:
-        """Every check depending on *code*, directly or through others."""
-        found: set[str] = set()
-        waiting = list(dependents.get(code, []))
-        while waiting:
-            dependent = waiting.pop()
-            if dependent not in found:
-                found.add(dependent)
-                waiting.extend(dependents[dependent])
-        return found
+    # Every check depending on each code, directly or through others. Reversed, the
+    # order reaches each check before its prerequisites, so its set is complete when read.
+    below: dict[str, set[str]] = {check.code: set() for check in order}
+    for check in reversed(order):
+        for prerequisite in check.depends_on:
+            below[prerequisite] |= {check.code} | below[check.code]
 
     warnings: list[str] = []
     for rule in list(rules):
         if rule.action != "disable":
             continue
-        reach = {code: below(code) for code in rule.codes}
+        reach = {code: below.get(code, set()) for code in rule.codes}
         for code in rule.codes:
             # A code below another one the rule disables is silent either way;
             # naming it again would repeat that code's warning.
@@ -472,7 +423,7 @@ def load_setup(path: str) -> list[Rule]:
 
     The file holds `checks` and, optionally, `rules`, each a list of paths:
         checks:
-          - checks/all_checks.py
+          - checks/check_age.py
         rules:
           - rules/01_age.yaml
 
@@ -486,7 +437,7 @@ def load_setup(path: str) -> list[Rule]:
     setup_file = _resolve_input_file(path, "setup file", "load_setup()")
     document = _read_yaml(setup_file, str(setup_file))
     if not isinstance(document, dict):
-        key_str = {' and '.join(repr(key) for key in SETUP_KEYS)}
+        key_str = ' and '.join(repr(key) for key in SETUP_KEYS)
         raise ValueError(
             f"{setup_file}: a setup file is a mapping of "
             f"{key_str}, got {type(document).__name__}.")

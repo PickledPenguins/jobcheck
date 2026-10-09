@@ -38,6 +38,34 @@ already closed (root causes, F.47; a raising builder, F.46; `warn_blocking_rules
 counts `doc-counts` now rewrites; F.55) were dropped; what was built is in the git log;
 the rest was declined, below.
 
+**Bundles removed, and a repeated check or rule file raises** (owner's review, done
+2026-10-09). The owner kept bundles for one reason, check files whose checks depend on each
+other, and one `load_checks` call already gives that in both directions, since it validates
+the graph after every file of the call is imported. A setup file's `checks` list is one
+call. A file listed twice or already loaded now raises before anything is imported instead
+of being skipped, and a rule file listed twice raises too (an empty one used to pass
+silently). Lost: one path standing for many files with the list computed in Python
+(`examples/bundle_main.py`, `examples/checks/all_checks.py`, the `bundles/` catalog cases);
+overlapping lists across calls; the skip that let a corrected file be loaded without
+`clear_registry()`. F.17's installed-location case is now a setup file there, which resolves
+its paths against its own directory.
+
+**A chain too deep for the ordering walk raises Python's own `RecursionError`** (owner's
+review, done 2026-10-09). `_validate_registry` caught it and raised a `ValueError` naming
+the registry size and the recursion limit. The handler, its test and its documented
+message are gone: no real suite reaches about 900 links (the example suite's deepest layer
+is 2), and the traceback points at `_topological_order`. An iterative walk was declined
+again as more code for no real case. Lost: the message naming the limit and widest fan-in;
+a cycle longer than the limit is also reported as `RecursionError` rather than as a cycle.
+
+**No bytecode beside a check file, without the process-wide flag** (owner's review, done
+2026-10-09). `load_checks` set `sys.dont_write_bytecode` for the length of each import, so
+a module a check file imported for the first time was not cached either, and the flag
+needed a thread caveat. A loader whose `set_data` writes nothing now does it for the check
+file alone. Module names come from the path (stem plus a CRC-32 of the resolved path) in
+place of a load counter, so a name is the same every run. A `.pyc` is keyed by the source
+path, not the module name, so names never governed caching.
+
 **Naming the rule in a dependent's `prerequisite disabled: X`** (the rest of F.67;
 declined 2026-10-03). F.67 gave every outcome a `rule` column, the last matching rule's
 name. Copying that name into a dependent's `prerequisite disabled: X` too would say one
@@ -78,8 +106,8 @@ one-line `key_names` copies `paths._key_names` so that it imports no private nam
 **Two traps that turned out not to be** (F.62, tried 2026-10-02). Sorting
 `registry._CHECKS` changes nothing: the cached order holds the check objects, not
 positions in the list. A bundle that catches its member's exception and loads it again
-does hit "Duplicate check code", and the message names that case and says to call
-`clear_registry()` first, as `load_checks` documents.
+did hit "Duplicate check code". Both are moot since 2026-10-09: bundles are gone, and
+loading a file twice raises "Check file listed twice or already loaded" before any import.
 
 **What the test pass kept on purpose, and what it gave up** (F.76, done 2026-10-03, 1,150
 tests to 863). The rule: one test per behavior, on the path that can catch it -- a
@@ -317,9 +345,7 @@ Built from that review: the load lock removed, every table returned whole with
 `build_report(add_columns=)` kept, `scripts/read_bytecode_api.py` deleted, and
 `Verdict`'s comment freezing and key check dropped; F.73 to F.75 went to the open list.
 Declined, so no later review proposes them again:
-- *Bundles*, a check file calling `load_checks` (`_LOADING`, the self-naming skip, and
-  validating once as the outermost call returns). A second way to group check files
-  beside the plain list and `load_setup`.
+- *Bundles*, a check file calling `load_checks`. Declined then, removed 2026-10-09 (above).
 - *`load_setup` and its setup-file format* (`registry.py`, about 37 lines).
 - *One call shape for a context builder*, `(row)` only, dropping `context_args` and
   `engine._context_caller`; and one shape, `(row, context)`, for every check.
@@ -622,9 +648,10 @@ bypasses rules, dependencies and error recording.
 anchors a relative path to one directory the caller names. What it does not serve is the
 deployment case: check files installed in a shared location, named bare by a run
 configuration that does not know where they went. A list of directories tried in order,
-first match wins, was the obvious answer and is refused. **A bundle is the answer
-instead**: the installed location ships one check file that names its own members, the
-run configuration names that file, and where the members live is the bundle's business
+first match wins, was the obvious answer and is refused. **A setup file is the answer
+instead** (a bundle was, until bundles were removed on 2026-10-09): the installed location
+ships one setup file that names its own members, resolved against its own directory, the
+run configuration names that file, and where the members live is the setup file's business
 rather than a search order's. One path still means one file, which a search path gives
 up -- two files of one name in two entries means the wrong checks run and nothing says
 so, and an environment variable makes a run irreproducible from its command line. It

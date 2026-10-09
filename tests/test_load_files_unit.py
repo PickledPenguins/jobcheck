@@ -1,8 +1,8 @@
 """Unit checks: loading check files by path, the only way checks are loaded.
 
 The behavior a pipeline depends on is that a file written into a run directory
-can be loaded without being importable as a package, that loading it twice does
-nothing, and that a bad path is loud rather than silently empty.
+can be loaded without being importable as a package, that loading it twice
+raises, and that a bad path is loud rather than silently empty.
 """
 
 from __future__ import annotations
@@ -58,21 +58,27 @@ def test_loaded_files_records_resolved_paths_in_order(fresh_registry: None, tmp_
     assert reg._LOADED_FILES == [str(Path(first).resolve()), str(Path(second).resolve())]
 
 
-def test_a_file_named_twice_in_one_call_or_reloaded_is_loaded_once(
+def test_a_file_named_twice_in_one_call_or_reloaded_raises(
     fresh_registry: None, tmp_path: Path
 ) -> None:
+    """Before anything is imported: the repeat is the caller's mistake to fix."""
+
     path = write_check_file(tmp_path, "checks.py", "AGAIN")
-    reg.load_checks([path, path])
+    with pytest.raises(ValueError) as raised:
+        reg.load_checks([path, path])
+    assert str(raised.value) == (
+        f"Check file listed twice or already loaded: {Path(path).resolve()}.")
+    assert reg._CHECKS == []
     reg.load_checks([path])
+    with pytest.raises(ValueError, match="listed twice or already loaded"):
+        reg.load_checks([path])
     assert [t.code for t in reg._CHECKS] == ["AGAIN"]
 
 
 def test_every_file_of_one_name_gets_its_own_module(
     fresh_registry: None, tmp_path: Path
 ) -> None:
-    """Three, not two: a sequence stuck at one still names the first two apart,
-    and only the third collides. Sharing a name, the later file would replace the
-    earlier one in sys.modules."""
+    """Sharing a name, the later file would replace the earlier one in sys.modules."""
 
     paths = []
     for side in ("a", "b", "c"):
@@ -82,6 +88,19 @@ def test_every_file_of_one_name_gets_its_own_module(
     names = [name for name in sys.modules if name.startswith("jobcheck_check_file_checks_")]
     assert len(names) == 3
     assert [t.code for t in reg._CHECKS] == ["A", "B", "C"]
+
+
+def test_a_file_gets_the_same_module_name_every_time_it_is_loaded(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    path = write_check_file(tmp_path, "checks.py", "SAME")
+    reg.load_checks([path])
+    first = [name for name in sys.modules if name.startswith("jobcheck_check_file_checks_")]
+    reg.clear_registry()
+    reg.load_checks([path])
+    again = [name for name in sys.modules if name.startswith("jobcheck_check_file_checks_")]
+    assert len(first) == 1
+    assert again == first
 
 
 def test_a_missing_path_raises_and_registers_nothing(fresh_registry: None, tmp_path: Path) -> None:
@@ -123,9 +142,11 @@ def test_a_file_loaded_by_path_registers_its_checks_and_they_run(
     assert [f.code for f in failures(pd.Series({"value": 2}))] == ["RUNS"]
 
 
-def test_no_bytecode_is_left_beside_a_loaded_file(fresh_registry: None, tmp_path: Path) -> None:
+def test_no_bytecode_is_left_beside_a_loaded_file(fresh_registry: None, tmp_path: Path,
+                                                  monkeypatch: Any) -> None:
     # The file comes from a caller's data directory, which is a record of what
     # was read rather than somewhere this library may write to.
+    monkeypatch.setattr(sys, "dont_write_bytecode", False)
     reg.load_checks([write_check_file(tmp_path, "checks.py", "NO_PYC")])
     assert not (tmp_path / "__pycache__").exists()
 
@@ -184,32 +205,30 @@ def test_a_module_that_registered_by_plain_import_stays_imported(
         sys.modules.pop("shared_checks_by_import", None)
 
 
-def test_the_bytecode_setting_is_restored_to_its_exact_value(fresh_registry: None,
-                                                             tmp_path: Path) -> None:
-    """`is False`, not merely falsy: a mutant setting it to None passed a
-    truthiness check while leaving the interpreter in a state nobody chose."""
+def test_a_module_a_check_file_imports_still_writes_its_bytecode(
+    fresh_registry: None, tmp_path: Path, monkeypatch: Any
+) -> None:
+    """Only the check file goes without a .pyc: nothing process-wide is switched off."""
 
-    import sys
-
-    assert sys.dont_write_bytecode is False
-    reg.load_checks([write_check_file(tmp_path, "checks.py", "EXACT")])
-    assert sys.dont_write_bytecode is False
-
-
-def test_the_bytecode_setting_is_restored_when_a_file_raises(fresh_registry: None,
-                                                             tmp_path: Path) -> None:
-    import sys
-
-    path = tmp_path / "broken.py"
-    path.write_text("raise RuntimeError('boom')\n")
-    with pytest.raises(RuntimeError):
+    monkeypatch.setattr(sys, "dont_write_bytecode", False)
+    library = tmp_path / "library"
+    library.mkdir()
+    (library / "bytecode_helper_module.py").write_text("LIMIT = 1\n")
+    monkeypatch.syspath_prepend(str(library))
+    path = tmp_path / "checks.py"
+    path.write_text("import bytecode_helper_module\n")
+    try:
         reg.load_checks([str(path)])
+    finally:
+        sys.modules.pop("bytecode_helper_module", None)
+    assert list((library / "__pycache__").glob("bytecode_helper_module.*.pyc"))
+    assert not (tmp_path / "__pycache__").exists()
     assert sys.dont_write_bytecode is False
 
 
 def test_a_file_that_registers_nothing_can_still_be_loaded_again(fresh_registry: None,
                                                                  tmp_path: Path) -> None:
-    """A file with no checks, such as a bundle, is still dropped and run again."""
+    """A file with no checks is still dropped and run again."""
 
     import sys
 
@@ -245,7 +264,6 @@ def test_a_file_that_raises_is_not_rolled_back_and_clear_registry_recovers(
         reg.load_checks([good, str(broken)])
     assert [t.code for t in reg._CHECKS] == ["KEPT", "A"]
     assert reg._LOADED_FILES == [str(Path(good).resolve())]
-    assert reg._LOADING == []
     # And what registered runs: the failure path must leave the evaluation order
     # recomputed, not a stale cache that would validate a row against nothing.
     assert [o.code for o in engine._explain(pd.Series({"value": 1}))] == ["KEPT", "A"]
@@ -261,191 +279,58 @@ def test_a_file_that_raises_is_not_rolled_back_and_clear_registry_recovers(
     assert [t.code for t in reg._CHECKS] == ["KEPT", "A"]
 
 
-def test_an_interrupted_import_unwinds_the_load_stack(
+NEEDS_BASE = (
+    "from jobcheck import OK, register_check\n"
+    "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
+    "def needs_base(row): return OK\n"
+)
+
+
+def test_a_later_call_may_depend_on_a_file_an_earlier_call_loaded(
     fresh_registry: None, tmp_path: Path
 ) -> None:
-    """KeyboardInterrupt is not an Exception. The in-progress stack must still
-    unwind, or the next load_checks would believe it is nested and never
-    validate the dependency graph."""
-
-    path = tmp_path / "check_interrupted.py"
-    path.write_text("raise KeyboardInterrupt('ctrl-c during the import')\n")
-    with pytest.raises(KeyboardInterrupt):
-        reg.load_checks([str(path)])
-    assert reg._LOADING == []
-
-
-# --- bundles: a check file that loads check files ----------------------------
-#
-# One path in the caller's list, ten files behind it. What this has to get right
-# is the boundary between the bundle and its members: when the dependency graph
-# is validated, and whose checks a failure drops.
-
-
-BUNDLE = '''
-import os
-from jobcheck import load_checks
-
-load_checks({members!r}, base_dir=os.path.dirname(os.path.abspath(__file__)))
-'''
-
-
-def write_bundle(directory: Path, name: str, members: list[str]) -> str:
-    """A check file whose whole job is to load the files beside it."""
-
-    path = directory / name
-    path.write_text(BUNDLE.format(members=members))
-    return str(path)
-
-
-def test_a_bundle_loads_the_files_it_names(fresh_registry: None, tmp_path: Path) -> None:
-    write_check_file(tmp_path, "check_first.py", "FIRST")
-    write_check_file(tmp_path, "check_second.py", "SECOND")
-    bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py", "check_second.py"])
-
-    reg.load_checks([bundle])
-
-    assert [t.code for t in reg._CHECKS] == ["FIRST", "SECOND"]
-    # The members are loaded files in their own right, and they finish first.
-    assert reg._LOADED_FILES == [
-        str((tmp_path / "check_first.py").resolve()),
-        str((tmp_path / "check_second.py").resolve()),
-        str(Path(bundle).resolve()),
-    ]
-
-
-def test_a_prerequisite_may_arrive_after_the_bundle_that_needs_it(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    """Validation waits for the outermost call, so the order the caller wrote
-    its list in is not a constraint on where a prerequisite lives."""
-
-    dependent = tmp_path / "check_dependent.py"
-    dependent.write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
-        "def needs_base(row): return OK\n"
-    )
-    bundle = write_bundle(tmp_path, "all_checks.py", ["check_dependent.py"])
     base = write_check_file(tmp_path, "check_base.py", "BASE")
-
-    reg.load_checks([bundle, base])
-
+    dependent = tmp_path / "check_dependent.py"
+    dependent.write_text(NEEDS_BASE)
+    reg.load_checks([base])
+    reg.load_checks([str(dependent)])
     assert sorted(t.code for t in reg._CHECKS) == ["BASE", "NEEDS_BASE"]
 
 
-def test_a_prerequisite_nothing_provides_still_fails_the_whole_load(
+def test_an_earlier_call_may_not_depend_on_a_file_a_later_call_loads(
     fresh_registry: None, tmp_path: Path
 ) -> None:
-    """Deferring the validation must not lose it: the outermost call runs it."""
+    """Each call validates the graph as it returns."""
 
     dependent = tmp_path / "check_dependent.py"
-    dependent.write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
-        "def needs_base(row): return OK\n"
-    )
-    bundle = write_bundle(tmp_path, "all_checks.py", ["check_dependent.py"])
+    dependent.write_text(NEEDS_BASE)
     with pytest.raises(ValueError, match="depends on 'BASE', which is not registered"):
-        reg.load_checks([bundle])
+        reg.load_checks([str(dependent)])
 
 
-def test_a_dangling_prerequisite_names_the_way_out_of_the_load_it_leaves_behind(
+def test_a_file_fixed_after_a_dangling_prerequisite_loads_after_clear_registry(
     fresh_registry: None, tmp_path: Path
 ) -> None:
-    """F.30. The validation runs after the files are recorded, so the file holding
-    the bad depends_on is already loaded and the next call skips it -- correcting
-    the typo in it changes nothing. The message is the only thing that says so, and
-    clear_registry is the only way through."""
+    """The validation runs after the files are recorded, so the file holding the bad
+    depends_on is already loaded: loading it again raises until the registry is cleared."""
 
     path = tmp_path / "check_dependent.py"
-    path.write_text(
-        "from jobcheck import OK, register_check\n"
-        "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
-        "def needs_base(row): return OK\n"
-    )
-    with pytest.raises(ValueError) as raised:
+    path.write_text(NEEDS_BASE)
+    with pytest.raises(ValueError, match="depends on 'BASE', which is not registered"):
         reg.load_checks([str(path)])
-    assert "call clear_registry() first" in str(raised.value)
     assert reg._LOADED_FILES == [str(path.resolve())]
 
-    # The author fixes the file. It is skipped as already loaded, so the broken
-    # check is still there and the same error comes back.
     path.write_text(
         "from jobcheck import OK, register_check\n"
         "@register_check('BASE', 'base')\n"
-        "def base(row): return OK\n"
-        "@register_check('NEEDS_BASE', 'needs base', depends_on=['BASE'])\n"
-        "def needs_base(row): return OK\n"
+        "def base(row): return OK\n" + NEEDS_BASE.split("\n", 1)[1]
     )
-    with pytest.raises(ValueError, match="depends on 'BASE', which is not registered"):
+    with pytest.raises(ValueError, match="already loaded"):
         reg.load_checks([str(path)])
 
-    # What the message told them to do.
     reg.clear_registry()
     reg.load_checks([str(path)])
     assert sorted(check.code for check in reg._CHECKS) == ["BASE", "NEEDS_BASE"]
-
-
-def test_a_bundle_that_names_itself_is_skipped_rather_than_recursing(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    """Without the in-progress guard this is a RecursionError, which says
-    nothing about the file that caused it."""
-
-    write_check_file(tmp_path, "check_first.py", "FIRST")
-    bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py", "all_checks.py"])
-    reg.load_checks([bundle])
-    assert [t.code for t in reg._CHECKS] == ["FIRST"]
-    assert len(reg._LOADED_FILES) == 2
-
-
-def test_a_bundle_and_a_member_of_one_name_get_different_module_names(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    """Written against a defect: the module name counted loaded files, and a
-    bundle's name is computed before its members run, so a bundle and a member
-    both called ``checks.py`` were given one name and the member's module
-    replaced the bundle's in ``sys.modules`` -- where the bundle's own dataclass
-    annotations, ``get_type_hints`` and ``pickle`` would have looked for it."""
-
-    import sys
-
-    inner = tmp_path / "inner"
-    inner.mkdir()
-    write_check_file(inner, "checks.py", "INNER")
-    bundle = tmp_path / "checks.py"
-    bundle.write_text(
-        "import os, sys\n"
-        "from jobcheck import OK, load_checks, register_check\n"
-        "load_checks([os.path.join(os.path.dirname(os.path.abspath(__file__)),\n"
-        "                          'inner', 'checks.py')])\n"
-        "MARKER = 'the bundle'\n"
-        "@register_check('OUTER', 'from the bundle itself')\n"
-        "def own(row): return OK\n"
-        "assert sys.modules[__name__].MARKER == 'the bundle', sys.modules[__name__]\n"
-    )
-
-    reg.load_checks([str(bundle)])
-
-    assert sorted(t.code for t in reg._CHECKS) == ["INNER", "OUTER"]
-    names = [name for name in sys.modules if name.startswith("jobcheck_check_file_")]
-    assert len(names) == 2, names
-
-
-def test_a_member_that_raises_propagates_through_its_bundle(
-    fresh_registry: None, tmp_path: Path
-) -> None:
-    """The member's error reaches the caller unchanged, and every level of the
-    in-progress stack unwinds on the way out."""
-
-    write_check_file(tmp_path, "check_first.py", "FIRST")
-    (tmp_path / "check_broken.py").write_text("raise RuntimeError('boom in a member')\n")
-    bundle = write_bundle(tmp_path, "all_checks.py", ["check_first.py", "check_broken.py"])
-    with pytest.raises(RuntimeError, match="boom in a member"):
-        reg.load_checks([bundle])
-    assert reg._LOADING == []
-    assert reg._LOADED_FILES == [str((tmp_path / "check_first.py").resolve())]
 
 
 # --- load_setup: one file, one call -----------------------------------------
@@ -520,7 +405,7 @@ def test_a_setup_file_that_is_not_a_mapping_says_so(
     """A flat list is the rule file's shape, and the mistake somebody makes having
     written one of those first."""
 
-    path = _setup(tmp_path, "- checks/all_checks.py\n")
+    path = _setup(tmp_path, "- checks/check_age.py\n")
     with pytest.raises(ValueError) as raised:
         reg.load_setup(path)
     assert str(raised.value) == (
@@ -561,8 +446,7 @@ def test_a_string_where_a_list_belongs_is_refused(
     with pytest.raises(ValueError) as raised:
         reg.load_setup(path)
     assert str(raised.value) == (
-        f"{path}: 'checks' must be a list of paths, got str. "
-        "Write it as a list even for one file.")
+        f"{path}: 'checks' must be a list of paths, got str.")
 
 
 def test_an_empty_checks_list_is_refused(fresh_registry: None, tmp_path: Path) -> None:
