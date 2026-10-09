@@ -1,8 +1,7 @@
 """What happens to one row: which checks run, in what order, and why.
 
 The registry says what checks *exist*; this module says what they *did*.
-`_explain` is the one algorithm, run once per row by `validate`; what to show of
-its result is `views.py`'s business.
+`_explain` is the one algorithm, run once per row by `validate`.
 """
 
 from __future__ import annotations
@@ -25,26 +24,25 @@ from .results import (
 from .rules import Rule, _rule_matches
 from .tables import _format_cell, is_null
 
-#: A builder takes `(row)` or `(row, context_args)`, the way a check takes
-#: `(row)` or `(row, context)`, and returns the row's context.
+# A builder takes `(row)` or `(row, context_args)`, the way a check takes
+# `(row)` or `(row, context)`, and returns the row's context.
 ContextBuilder = Callable[..., RowContext | None]
 
-# What a check is handed when there is no context. One shared object: the base
+# Default empty context for checks that require one. One shared object: the base
 # class has no fields, and its empty __slots__ refuses a new attribute, so no
-# check can leave a value on it for a later row to find.
+# check add anything to it.
 _EMPTY_CONTEXT = RowContext()
 
 
 def _resolve_enabled_state(
     row: "pd.Series[Any]", rules: list[Rule]
 ) -> dict[str, tuple[bool, str]]:
-    """Whether every registered code is on or off for one row, and the name of
+    """Whether each registered code is on or off for the row, and the name of
     the rule that decided it, or "" where the default stands.
 
-    Precedence is positional -- there is no priority field -- so the last
+    Precedence is positional (there is no priority field) so the last
     matching rule wins, which is why the order rule files load in matters.
     """
-
     enabled_by_code = {check.code: (check.default_enabled, "") for check in _CHECKS}
     for rule in rules:
         if not _rule_matches(rule, row):
@@ -57,7 +55,7 @@ def _resolve_enabled_state(
 
 
 # What the copies of one row have settled so far: for each check that does not
-# repeat, the outcome to share and where it came from.
+# repeat, the `shared` detail a later copy records (built by `_settle`) and the outcome.
 _Settled = dict[str, tuple[str, CheckOutcome]]
 
 
@@ -70,20 +68,18 @@ def _explain(
     """Run the checks against one row and report what *every* check did.
 
     The single implementation of the per-row algorithm. Outcomes come back in
-    evaluation order: a check runs only once every check it depends on has
-    passed. The first failure is not necessarily the shallowest -- an
-    independent chain registered earlier can fail deeper.
+    evaluation order. A check runs only once every check it depends on has
+    passed. The first failure is not necessarily the shallowest (an
+    independent chain registered earlier can fail deeper).
 
-    "Did not pass" covers a prerequisite that was *disabled* or *errored* as well
-    as one that failed -- a check that never ran confirmed nothing about the row,
-    so it must not unlock a dependent.
+    "Did not pass" includes a prerequisite that was *disabled* or *errored* as well
+    as one that failed (a check that never ran confirmed nothing about the row).
+    A check that did not pass will block a dependent check from running.
 
-    A `context` of `None` becomes an empty `RowContext`, the type a check taking
-    `(row, context)` is always handed.
+    A `context` of `None` becomes an empty `RowContext`
     """
-
-    outcomes, _ = _explain_with_off_here(row, context, rules, on_error, None)
-    return outcomes
+    check_outcomes, _ = _explain_with_off_here(row, context, rules, on_error, None)
+    return check_outcomes
 
 
 def _explain_with_off_here(
@@ -94,19 +90,17 @@ def _explain_with_off_here(
     settled: _Settled | None,
 ) -> tuple[list[CheckOutcome], set[str]]:
     """`_explain` for a row under `repeat_key`, which also returns the codes that
-    were off on the row: disabled here, or below a check that is. `_settle` needs
-    that set and must not work it out a second time.
+    were off on the row (disabled here, or below a check that is).
 
-    With *settled*, the row is a copy: a check that does not repeat, and that an
-    earlier copy settled, is not run, and records that copy's result as `shared`
-    -- unless a rule disables it on this copy, which wins.
+    With *settled*, the row is a copy. A check that does not repeat and that an
+    earlier copy settled is not run. Record that copy's result as `shared`
+    (unless a rule disables the check on this copy, which wins).
     """
 
     if row.index.has_duplicates:
         duplicated = sorted({str(label) for label in row.index[row.index.duplicated()]})
         raise ValueError(
-            f"Row has duplicate column labels {duplicated}: a check reading one of them "
-            "would be handed a Series instead of a value. Rename or drop the duplicate "
+            f"Row has duplicate column labels {duplicated}. Rename or drop the duplicate "
             "columns before validating."
         )
 
@@ -125,13 +119,13 @@ def _explain_with_off_here(
         if not enabled or any(code in off_here for code in check.depends_on):
             off_here.add(check.code)
         elif settled is not None and not check.repeats and check.code in settled:
-            where, original = settled[check.code]
+            detail, original = settled[check.code]
             # A dependent that repeats reads the settled result. The status
             # stays PASS: a copy is not a failure, and detail says where.
             passed[check.code] = original.outcome is Outcome.PASSED
             outcomes.append(
                 CheckOutcome(check.code, Outcome.SHARED, layer=check.layer,
-                             detail=f"{original.outcome.value} {where}", rule=rule)
+                             detail=detail, rule=rule)
             )
             continue
         if not enabled:
@@ -236,19 +230,18 @@ def validate(
     context_args: Any = None,
     repeat_key: Any = None,
 ) -> list[list[CheckOutcome]]:
-    """Run every check against every row: one list of outcomes per row, in frame
-    order.
+    """Run every check against every row: one list of outcomes per row, in frame order.
 
-    Keeps every check's outcome on every row, the ones that did not run too:
-    the views in `views.py` pick what to show from it.
+    Keeps every check's outcome on every row, including the ones that did not run.
+    The views in `views.py` pick what to show.
 
     `context_builder` takes `(row)` or `(row, context_args)` and is called once
-    per row. `context_args` is whatever every row's context is built from -- the
-    parsed command line, a configuration -- passed through untouched.
+    per row. `context_args` is whatever every row's context is built from (the
+    parsed command line, a configuration) passed through untouched.
 
-    `repeat_key` names the column that marks copies of one row, as `explode`
-    makes them. The first row with each value runs every check; a later one runs
-    only the checks that repeat, and records the others as `shared`. Rules are
+    `repeat_key` names the column that marks copies of one row (as `explode`
+    makes them). The first row for each value runs every check: a later one runs
+    only the checks that repeat and records the others as `shared`. Rules are
     matched on every copy: a copy that disables a check records `disabled`, and
     a check disabled on the first copy runs on the first copy that enables it.
     """
@@ -256,14 +249,12 @@ def validate(
     if on_error not in ("record", "raise"):
         raise ValueError(f"on_error must be 'record' or 'raise', got {on_error!r}.")
     if not isinstance(df, pd.DataFrame):
-        raise TypeError(
-            f"validate takes a DataFrame, got {type(df).__name__}; for one row, pass "
-            "row.to_frame().T.")
+        raise TypeError(f"validate takes a DataFrame, got {type(df).__name__}")
 
     if repeat_key is not None:
         _check_repeat_key(df, repeat_key)
-    # Before the row loop: a registry mistake, a prerequisite nothing registered,
-    # is no row's fault, and inside the loop it would gain a row's note.
+    # Validate the registry before the row loop: a registry mistake (E.g., a prerequisite
+    # no check registered) would raise inside the loop then carry a row's note.
     _get_topo_order()
     shared = {check.code for check in _CHECKS if not check.repeats}
 
@@ -290,10 +281,8 @@ def validate(
             add_note(f"validate: raised on the row at position {position} "
                      f"(index label {label!r}).")
             raise
-        where = f"at position {position}, the first row with {repeat_key} {_format_cell(value)}"
-        if settled is not None:
-            where += " to enable it"
-        settled_by_value[value] = _settle(row_outcomes, off_here, shared, settled or {}, where)
+        settled_by_value[value] = _settle(row_outcomes, off_here, shared, settled,
+                                          position, repeat_key, value)
         frame_outcomes.append(row_outcomes)
     return frame_outcomes
 
@@ -301,8 +290,8 @@ def validate(
 def _describe_error(exc: Exception) -> str:
     """`Type: message (file.py:line)` for an exception a check raised.
 
-    The line is the innermost one in the file the check was called in -- through a
-    helper in another file, the check's line that called it -- so a reader can open
+    The line is the innermost one in the file the check was called in (through a
+    helper in another file, the check's line that called it) so a reader can open
     the check where it broke without re-running with `on_error="raise"`. Frames in
     this package (the engine's call, the runner `register_check` may wrap a
     one-argument check in) are left out. A message that is empty drops its colon.
@@ -321,18 +310,26 @@ def _describe_error(exc: Exception) -> str:
 
 def _settle(
     row_outcomes: list[CheckOutcome], off_here: set[str], shared: set[str],
-    settled: _Settled, where: str
+    settled: _Settled | None, position: int, repeat_key: Any, value: Any
 ) -> _Settled:
     """Add to *settled* what this copy settled: each check in *shared* (those that
     do not repeat) that had no result yet, unless it was off here (*off_here*,
     from `_explain_with_off_here`). A later copy whose rules enable that chain
     runs it instead.
-    """
 
+    Each settled check carries the `detail` every later copy records for it, built
+    here and nowhere else: `failed at position 0, the first row with id J1`, ending
+    ` to enable it` when this is not the first copy (*settled* is not None), so the
+    earlier copies had the check off.
+    """
+    origin = f"at position {position}, the first row with {repeat_key} {_format_cell(value)}"
+    if settled is not None:
+        origin += " to enable it"
+    settled = {} if settled is None else settled
     for outcome in row_outcomes:
         if (outcome.code in shared and outcome.code not in off_here
                 and outcome.code not in settled):
-            settled[outcome.code] = (where, outcome)
+            settled[outcome.code] = (f"{outcome.outcome.value} {origin}", outcome)
     return settled
 
 
