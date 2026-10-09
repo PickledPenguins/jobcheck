@@ -84,22 +84,11 @@ class StrictLoader(yaml.SafeLoader):
     """
 
     def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> Any:
-        seen: dict[Any, int] = {}
-        for key_node, _ in node.value:
-            if key_node.tag == "tag:yaml.org,2002:merge":
-                continue  # `<<` may repeat a key on purpose; the explicit one wins
-            key = self.construct_object(key_node, deep=deep)
-            line = key_node.start_mark.line + 1
-            try:
-                earlier = seen.get(key)
-            except TypeError:  # unhashable: SafeLoader refuses it itself
-                continue
-            if earlier is not None:
-                raise yaml.constructor.ConstructorError(
-                    None, None,
-                    f"key {key!r} appears twice in one mapping, on lines {earlier} and "
-                    f"{line}; YAML would keep only the last", key_node.start_mark)
-            seen[key] = line
+        # Keys as written (tag and text), before a `<<` merge adds its own
+        keys = [(key.tag, key.value) for key, _ in node.value if isinstance(key, yaml.ScalarNode)]
+        if len(keys) != len(set(keys)):
+            raise yaml.constructor.ConstructorError(
+                None, None, "a key appears twice in this mapping", node.start_mark)
         return super().construct_mapping(node, deep=deep)
 
 

@@ -268,7 +268,7 @@ listed in [configuration.md](configuration.md#errors) and
 | Problem | Message |
 |---|---|
 | the file is not there | `error: run.yaml: cannot read it: No such file or directory` |
-| not YAML, or a key given twice | `error: run.yaml: not valid YAML: key 'setup' appears twice in one mapping, on lines 1 and 2; YAML would keep only the last ...` |
+| not YAML, or a key given twice | `error: run.yaml: not valid YAML: a key appears twice in this mapping in "/home/me/run/run.yaml", line 1, column 1` |
 | not saved as UTF-8 | `error: run.yaml: not UTF-8 text: 'utf-8' codec can't decode byte 0xe9 in position 10: invalid continuation byte. Save the file as UTF-8.` |
 | not a mapping | `error: run.yaml: a run file is a mapping of 'data', 'setup', 'tables', got list.` |
 | an unknown key | `error: run.yaml: unknown key(s) 'extra'. A run file holds 'data', 'setup', 'tables'.` |

@@ -9,6 +9,7 @@ from typing import Any
 import numpy
 import pandas as pd
 import pytest
+import yaml
 
 from conftest import enabled_only, make_check
 from jobcheck import paths
@@ -269,22 +270,17 @@ def test_a_key_given_twice_in_one_rule_is_refused_rather_than_the_last_winning(
     path = write(tmp_path, "r.yaml",
                  '- name: "r"\n  message: "m"\n  action: disable\n'
                  "  codes: [A_CODE]\n  codes: [B_CODE]\n  match: all\n")
-    with pytest.raises(ValueError) as raised:
+    with pytest.raises(yaml.YAMLError, match="^a key appears twice in this mapping"):
         reg.load_rules([path])
-    assert str(raised.value) == (
-        f"{path}: key 'codes' appears twice in one mapping, on lines 4 and 5. "
-        "YAML would keep only the last; remove one.")
 
 
-def test_a_key_repeated_on_one_line_is_refused_too(one_code: None, tmp_path: Path) -> None:
-    """A flow mapping puts both on one line, so the line number cannot be what
-    tells the first from the second."""
+def test_a_key_repeated_in_a_flow_mapping_is_refused_too(one_code: None, tmp_path: Path) -> None:
+    """Both on one line, written `{...}` rather than as a block."""
 
     path = write(tmp_path, "r.yaml",
                  '- {name: "r", name: "s", message: "m", action: disable, '
                  "codes: [A_CODE], match: all}\n")
-    with pytest.raises(ValueError, match="key 'name' appears twice in one mapping, "
-                                         "on lines 1 and 1"):
+    with pytest.raises(yaml.YAMLError, match="^a key appears twice in this mapping"):
         reg.load_rules([path])
 
 

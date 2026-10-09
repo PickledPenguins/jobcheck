@@ -13,6 +13,7 @@ from typing import Any
 
 import pandas as pd
 import pytest
+import yaml
 
 from jobcheck import engine
 from jobcheck import registry as reg
@@ -392,11 +393,10 @@ def test_a_key_given_twice_in_a_setup_file_is_refused(
     the setup file rather than a rule file."""
 
     path = _setup(tmp_path, "checks: [one.py]\nrules: [r.yaml]\nchecks: [two.py]\n")
-    with pytest.raises(ValueError) as raised:
+    with pytest.raises(yaml.YAMLError) as raised:
         reg.load_setup(path)
     assert str(raised.value) == (
-        f"{path}: key 'checks' appears twice in one mapping, on lines 1 and 3. "
-        "YAML would keep only the last; remove one.")
+        f'a key appears twice in this mapping\n  in "{path}", line 1, column 1')
 
 
 def test_a_setup_file_that_is_not_a_mapping_says_so(

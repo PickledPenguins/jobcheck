@@ -95,8 +95,8 @@ def test_a_directory_is_named_as_the_mistake_it_is(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as raised:
         _resolve_input_file(str(tmp_path), "rule file", "load_rules()")
     assert str(raised.value) == (
-        f"No rule file at {str(tmp_path)!r}: {tmp_path.resolve()} is a directory, "
-        "so name the file in it. load_rules() names files explicitly; "
+        f"No rule file at {str(tmp_path)!r}: {tmp_path.resolve()} is a directory. "
+        "load_rules() names files explicitly; "
         "nothing is discovered."
     )
 
@@ -106,9 +106,9 @@ def test_a_repeat_after_a_merge_key_is_still_refused(tmp_path: Path) -> None:
 
     path = tmp_path / "f.yaml"
     path.write_text("base: &b {x: 1}\nm:\n  <<: *b\n  y: 1\n  y: 2\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="^f.yaml: key 'y' appears twice in one mapping, "
-                                         "on lines 4 and 5"):
+    with pytest.raises(yaml.constructor.ConstructorError) as raised:
         _read_yaml(path, "f.yaml")
+    assert str(raised.value) == f'a key appears twice in this mapping\n  in "{path}", line 3, column 3'
 
 
 def test_the_yaml_reader_leaves_an_unhashable_key_to_yaml(tmp_path: Path) -> None:

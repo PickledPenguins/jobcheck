@@ -294,9 +294,9 @@ exactly as `load_checks` does, and returns `list[Rule]` in the order given — w
 the precedence order, since the last matching rule wins.<sup>[10](configuration.md#precedence-last-rule-wins)</sup> It raises `ValueError` at
 load time for every malformed rule, and for a rule name used twice anywhere in the
 call; a path that is not a file raises `ValueError` naming it, the way
-`load_checks` does, and a file that is not valid YAML raises `yaml.YAMLError`, as
-the file layer reports it. A rule's `source_file` is the path as the caller wrote
-it, relative or not: it is printed beside the rule, where an absolute path
+`load_checks` does, and a file that is not valid YAML, a key written twice in one
+mapping included, raises `yaml.YAMLError`, as the file layer reports it. A rule's
+`source_file` is the path as the caller wrote it, relative or not: it is printed beside the rule, where an absolute path
 resolved out of `base_dir` would name a directory only this machine has.
 It is a thin wrapper over `jobcheck.rules`, which holds the format and its
 parser and is handed the codes that exist rather than reaching into the registry.
