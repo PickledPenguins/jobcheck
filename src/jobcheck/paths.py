@@ -50,45 +50,25 @@ def _where(named: Path, candidate: Path, anchor: Path | None) -> str:
 
 
 def _key_names(keys: Iterable[Any]) -> str:
-    """Mapping keys as a message lists them: `'codez', True`, sorted as text. Each is
-    shown as Python writes it, so a key YAML read as a bool or a number
-    (`on:`, `1:` shows as `True` or `1`, not as the text it looked like in the file)."""
+    """*keys* for an error message: each one's repr, sorted as text, joined by commas
+    (`'codez', True`). repr shows what YAML read, so `on:` lists as `True`."""
     return ", ".join(repr(key) for key in sorted(keys, key=str))
 
 
-class _DuplicateKey(Exception):
-    """A mapping named one key twice; `_read_yaml` adds the file to the message."""
-
-
 class _StrictLoader(yaml.SafeLoader):
-    """`SafeLoader`, except that a mapping holding one key twice is refused.
-
-    PyYAML keeps the last of two identical keys and says nothing, so a second
-    `codes:` appended to a rule, or a second `checks:` in a setup file, would
-    quietly replace the first.
-    """
+    """`SafeLoader` refusing a key written twice in one mapping (PyYAML keeps the last silently)."""
     def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> Any:
-        first_line: dict[Any, int] = {}
-        for key_node, _ in node.value:
-            # A `<<` merge may repeat a key on purpose: the explicit one overrides it
-            if key_node.tag == "tag:yaml.org,2002:merge":
-                continue
-            key = self.construct_object(key_node, deep=deep)
-            line = key_node.start_mark.line + 1
-            try:
-                earlier = first_line.get(key)
-            except TypeError:  # unhashable: SafeLoader refuses it with its own message
-                continue
-            if earlier is not None:
-                raise _DuplicateKey(
-                    f"key {key!r} appears twice in one mapping, on lines {earlier} and {line}.")
-            first_line[key] = line
+        # Keys as written (tag and text), before a `<<` merge adds its own
+        keys = [(key.tag, key.value) for key, _ in node.value if isinstance(key, yaml.ScalarNode)]
+        if len(keys) != len(set(keys)):
+            raise yaml.constructor.ConstructorError(
+                None, None, "a key appears twice in this mapping", node.start_mark)
         return super().construct_mapping(node, deep=deep)
 
 
 def _read_yaml(file: Path, shown: str) -> Any:
-    """The YAML document in *file*. A repeated key, or bytes that are not UTF-8,
-    raise `ValueError`, starting with *shown*: the path as the caller should see it."""
+    """The YAML document in *file*. Bytes that are not UTF-8 raise `ValueError`, starting
+    with *shown*: the path as the caller should see it. A repeated key is invalid YAML."""
 
     with open(file, encoding="utf-8") as handle:
         try:
@@ -99,7 +79,5 @@ def _read_yaml(file: Path, shown: str) -> Any:
                 return loader.get_single_data()
             finally:
                 loader.dispose()
-        except _DuplicateKey as exc:
-            raise ValueError(f"{shown}: {exc}") from None
         except UnicodeDecodeError as exc:
             raise ValueError(f"{shown}: not UTF-8 text: {exc}. Save the file as UTF-8.") from None

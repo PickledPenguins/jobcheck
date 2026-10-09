@@ -76,8 +76,9 @@ is allowed: in a file edited by hand, a key that is silently ignored is a settin
 quietly does nothing.
 
 A key written twice in one mapping — a second `codes:` appended to a rule — is refused
-too, naming both lines. YAML itself would keep the last and drop the first without a word,
-so the rule would say something other than it appears to.<sup>[1](#errors)</sup>
+too, as invalid YAML (`yaml.YAMLError`) giving the line where that mapping starts. YAML
+itself would keep the last and drop the first without a word, so the rule would say
+something other than it appears to.<sup>[1](#errors)</sup>
 
 ## Matching
 
@@ -216,7 +217,7 @@ text means YAML read an unquoted `yes`, `no`, `on` or `off` as a boolean, so quo
 | `match: al` | `'match' must be a list of criteria or the literal 'all', got 'al'.` |
 | criterion missing a key | `'match' entry {'column': 'email'} needs both 'column' and 'pattern'.` |
 | criterion with another key | `'match' entry {'column': 'email', 'pattern': 'x', 'negate': True} has unknown key(s) 'negate'. A criterion holds only 'column' and 'pattern'.` |
-| a key given twice | `key 'codes' appears twice in one mapping, on lines 4 and 5. YAML would keep only the last; remove one.` |
+| a key given twice | `a key appears twice in this mapping`, then `in "/home/me/run/r.yaml", line 1, column 3` (a `yaml.YAMLError`) |
 | a file not saved as UTF-8 | `not UTF-8 text: 'utf-8' codec can't decode byte 0xe9 in position 11: invalid continuation byte. Save the file as UTF-8.` |
 | bad regex | `invalid regex '([unclosed' for column 'email': unterminated character set at position 1` |
 | bad action | `'action' must be exactly 'enable' or 'disable', got 'turn_on'.` |
@@ -244,7 +245,7 @@ setup file alike, naming the path it tried:
 |---|---|
 | relative path, nothing there | `No rule file at 'rules/missing.yaml': nothing at /home/me/run/rules/missing.yaml, where a relative path is resolved against the working directory. load_rules() names files explicitly; nothing is discovered.` |
 | the same, with `base_dir` | `No rule file at 'missing.yaml': nothing at /srv/run/missing.yaml, where a relative path is resolved against base_dir /srv/run. load_rules() names files explicitly; nothing is discovered.` |
-| a directory | `No rule file at 'rules': /home/me/run/rules is a directory, so name the file in it. load_rules() names files explicitly; nothing is discovered.` |
+| a directory | `No rule file at 'rules': /home/me/run/rules is a directory. load_rules() names files explicitly; nothing is discovered.` |
 | absolute path, nothing there | `No rule file at '/srv/missing.yaml'. load_rules() names files explicitly; nothing is discovered.` |
 
 A check file reads `No check file at` and `load_checks()`; a setup file, `No setup file
