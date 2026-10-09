@@ -220,7 +220,7 @@ text means YAML read an unquoted `yes`, `no`, `on` or `off` as a boolean, so quo
 | a key given twice | `a key appears twice in this mapping`, then `in "/home/me/run/r.yaml", line 1, column 3` (a `yaml.YAMLError`) |
 | a file not saved as UTF-8 | `not UTF-8 text: 'utf-8' codec can't decode byte 0xe9 in position 11: invalid continuation byte. Save the file as UTF-8.` |
 | bad regex | `invalid regex '([unclosed' for column 'email': unterminated character set at position 1` |
-| bad action | `'action' must be exactly 'enable' or 'disable', got 'turn_on'.` |
+| bad action | `'action' must be 'enable' or 'disable', got 'turn_on'.` |
 | unknown code | `unknown code 'NO_SUCH_CODE'. Load the check file that defines it before loading rules, or fix the code.` |
 | duplicate name | `Duplicate rule name 'same_name': defined in a.yaml and again in b.yaml.` |
 | nested under a key | `rule files must contain a flat top-level list of rules (no 'rules:' key), got dict.` |
@@ -229,7 +229,7 @@ text means YAML read an unquoted `yes`, `no`, `on` or `off` as a boolean, so quo
 | an entry that is not a mapping | `each rule must be a mapping, got str.` |
 | no `name`, or not text (`name: off`, second in the file) | `rule 2: every rule needs a non-empty string 'name', got False.` |
 | `codes` not a list of text (`codes: [ON]`) | `'codes' must be a non-empty list of code strings, got [True].` |
-| no `message` | `'message' must be the text saying why the rule exists, got None. It is printed beside the rule wherever the rules are listed.` |
+| no `message` | `'message' must be a non-empty string, got None.` |
 | a criterion that is not a mapping | `each 'match' entry must be a mapping with 'column' and 'pattern'.` |
 | a criterion value that is not text | `'column' and 'pattern' must both be strings in {'column': 'country', 'pattern': False}.` |
 | `load_rules("rules.yaml")` | `load_rules takes a list of paths, not one string: pass ['rules.yaml'].` |

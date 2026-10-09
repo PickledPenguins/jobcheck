@@ -591,8 +591,8 @@ the call named.
 | `validate` | `context_builder '<name>' must take (row) or (row, context_args), not 3 positional argument(s).` |
 | `validate` | `context_builder '<name>' needs keyword argument(s) <names> that validate cannot supply. Give them defaults, or read them from context_args.` |
 | `validate` | `context_builder 'build' has a default on its second parameter, 'strict', which would be handed context_args. Read the value from context_args, or make it keyword-only by putting it after a *.` |
-| a check's return, as the engine reads it | `Check '<code>' returned None. A check must return OK or a Verdict; Verdict(condition) wraps a bare comparison.` |
-| `Verdict` | `Unknown status 7. Use one of: Status.PASS, Status.MISSING, Status.MALFORMED, Status.INVALID, Status.ERROR.` |
+| a check's return, as the engine reads it | `Check '<code>' returned None. A check must return OK or a Verdict.` |
+| `Verdict` | `Unknown status 7.` |
 | `Verdict` | `Status.ERROR is the engine's, not a check's: it marks a check that raised. Raise the exception, or return a failure kind that describes the data.` |
 | `Verdict` | `Verdict comments must be a mapping, got <value>.` |
 | `build_report` | `outcomes cover 1 row(s) but the frame has 2: pass the same frame the outcomes were collected from.` |

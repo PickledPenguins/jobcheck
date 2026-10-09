@@ -167,12 +167,12 @@ def test_base_dir_anchors_a_relative_rule_path_and_the_rule_records_it_as_writte
         ),
         pytest.param(
             '- name: "r"\n  message: \"why the rule exists\"\n  action: turn_on\n  codes: [A_CODE]\n  match: all\n',
-            "'action' must be exactly 'enable' or 'disable', got 'turn_on'.",
+            "'action' must be 'enable' or 'disable', got 'turn_on'.",
             id="bad-action",
         ),
         pytest.param(
             '- name: "r"\n  message: \"why the rule exists\"\n  codes: [A_CODE]\n  match: all\n',
-            "'action' must be exactly 'enable' or 'disable', got None.",
+            "'action' must be 'enable' or 'disable', got None.",
             id="missing-action",
         ),
         pytest.param(
@@ -218,20 +218,24 @@ def test_base_dir_anchors_a_relative_rule_path_and_the_rule_records_it_as_writte
             id="name-an-unquoted-yaml-boolean-in-the-second-rule",
         ),
         pytest.param(
-            # A rule nobody can justify is a rule nobody dares delete, so say why.
             '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n',
-            "'message' must be the text saying why the rule exists",
+            "'message' must be a non-empty string",
             id="missing-message",
         ),
         pytest.param(
             '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n  message: 7\n',
-            "'message' must be the text saying why the rule exists, got 7.",
+            "'message' must be a non-empty string, got 7.",
             id="message-not-a-string",
         ),
         pytest.param(
             '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n  message: yes\n',
-            "'message' must be the text saying why the rule exists, got True.",
+            "'message' must be a non-empty string, got True.",
             id="message-an-unquoted-yaml-boolean",
+        ),
+        pytest.param(
+            '- name: "r"\n  action: disable\n  codes: [A_CODE]\n  match: all\n  message: ""\n',
+            "'message' must be a non-empty string, got ''.",
+            id="message-empty",
         ),
         pytest.param(
             "- just_a_string\n",
