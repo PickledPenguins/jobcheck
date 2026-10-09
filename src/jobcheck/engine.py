@@ -190,11 +190,11 @@ def _context_caller(
 ) -> Callable[["pd.Series[Any]", Any], RowContext | None]:
     """Settle how a context builder is called, once per `validate` rather than
     per row: `(row)` or `(row, context_args)`, with `*args` counting as the
-    second. The same rule as `registry._make_runner` applies to a check; change
+    second. The same rule as `registry._make_runner` applies to a check, change
     the two together.
     """
 
-    # A functools.partial has no __name__, so it is shown as itself.
+    # A functools.partial has no __name__, so it is shown as itself
     name = getattr(builder, "__name__", builder)
     parameters = list(inspect.signature(builder).parameters.values())
     positional = [p for p in parameters
@@ -275,12 +275,11 @@ def validate(
             row_outcomes, off_on_row = _explain_with_off_on_row(row, context, rules, on_error,
                                                                 settled)
         except Exception as exc:
-            # Whatever escapes -- the builder, on_error="raise", a check returning
-            # something that is not a Verdict -- keeps its type, and gains the row.
+            # Whatever escapes (the builder, on_error="raise", a check returning
+            # something that is not a Verdict) keeps its type, and gains the row.
             # add_note is Python 3.11+; on 3.10 the stand-in drops the note.
             add_note = getattr(exc, "add_note", lambda note: None)
-            add_note(f"validate: raised on the row at position {position} "
-                     f"(index label {label!r}).")
+            add_note(f"validate: raised on the row at position {position} (index label {label!r}).")
             raise
         _settle(row_outcomes, off_on_row, run_once, settled, is_first_copy, position,
                 repeat_key, value)
@@ -297,7 +296,6 @@ def _describe_error(exc: Exception) -> str:
     this package (the engine's call, the runner `register_check` may wrap a
     one-argument check in) are left out. A message that is empty drops its colon.
     """
-
     text = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
     package = Path(__file__).parent
     frames = [frame for frame in traceback.extract_tb(exc.__traceback__)
@@ -323,18 +321,17 @@ def _settle(
     ` to enable it` when this is not the first copy, so the earlier copies had the
     check off.
     """
-    origin = f"at position {position}, the first row with {repeat_key} {_format_cell(value)}"
+    detail_part = f"at position {position}, the first row with {repeat_key} {_format_cell(value)}"
     if not is_first_copy:
-        origin += " to enable it"
+        detail_part += " to enable it"
     for outcome in row_outcomes:
         if (outcome.code in run_once and outcome.code not in off_on_row
                 and outcome.code not in settled):
-            settled[outcome.code] = (f"{outcome.outcome.value} {origin}", outcome)
+            settled[outcome.code] = (f"{outcome.outcome.value} {detail_part}", outcome)
 
 
 def _check_repeat_key(df: pd.DataFrame, repeat_key: Any) -> None:
     """Refuse a `repeat_key` that is not exactly one column of *df*."""
-
     if repeat_key not in df.columns:
         raise ValueError(
             f"repeat_key {repeat_key!r} is not in the data. Available columns: "
@@ -348,7 +345,6 @@ def _check_repeat_key(df: pd.DataFrame, repeat_key: Any) -> None:
 
 def _repeat_value(row: "pd.Series[Any]", repeat_key: Any, position: int) -> Any:
     """The row's `repeat_key` value, refused when it cannot say whose copy the row is."""
-
     value = row[repeat_key]
     if is_null(value):
         raise ValueError(
