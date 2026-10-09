@@ -1,10 +1,7 @@
-"""The registry: what checks exist, how they depend on each other, and loading.
+"""The registry: what checks exist, how they depend on each other
 
-Everything about the *set* of checks -- registration, file loading, dependency
-validation, ordering and layers -- and nothing about running them, which is
-`engine.py`. `load_setup` and its two-key schema live here too, because the setup
-file composes `load_checks` and `load_rules` and this is the module that has both;
-so does `warn_blocking_rules`, the one rule warning that reads the dependencies.
+Everything about the *set* of checks (registration, file loading, dependency
+validation, ordering and layers)
 """
 
 from __future__ import annotations
@@ -31,49 +28,38 @@ RunnerFn = Callable[["pd.Series[Any]", RowContext | None], Any]
 
 @dataclass
 class _Check:
-    """One registered check: its code, its message and the function that runs it.
-
-    `code` is permanent: never renumbered, never reused even after the check it
-    named is deleted, because rule files and saved reports refer to codes.
-
-    There is no `column` field -- a check reads whatever columns it needs from
-    the row, and many weigh several together.
-    """
+    """One registered check: its code, its message and the function that runs it"""
 
     __test__ = False  # not a pytest check class, despite the name
 
-    code: str
+    code: str  # `code` is permanent: never renumbered, or reused
     message: str
     fn: RunnerFn
     source_file: str
     default_enabled: bool = True
     depends_on: list[str] = field(default_factory=list)
-    repeat: bool = False
-    """Declared: run on every copy of a row, not only the first. See `repeats`."""
-    repeats: bool = False
-    """Whether this check runs on every copy: declared with `repeat`, or inherited
-    from a prerequisite that repeats. Computed by :func:`_validate_registry`."""
-    layer: int = 0
-    """How deep in the dependency graph this check sits: 0 with no prerequisites,
-    otherwise one more than its deepest prerequisite. Computed by
-    :func:`_validate_registry`, never set by hand. A low layer means a
-    fundamental check, which is what makes it a root cause."""
+    repeat: bool = False  # Run on every copy of a row, not only the first
+    repeats: bool = False  # Whether this check runs on every copy
+    layer: int = 0  # How deep in the dependency graph this check sits
 
 
 _CHECKS: list[_Check] = []
 
-# Check files imported by path through load_checks(), resolved and in load
-# order.
+# Check files imported by path through load_checks(), resolved and in load order
 _LOADED_FILES: list[str] = []
+
 # The prefix of the module name load_checks gives each check file it runs;
 # clear_registry drops those modules from sys.modules, and no others.
-_CHECK_FILE_PREFIX = "jobcheck_check_file_"
+_CHECK_FILE_PREFIX = "check_file_"
+
 # Check files mid-import, innermost last: how a nested load_checks call (a
 # bundle) knows it is nested, and how a bundle naming itself is skipped.
 _LOADING: list[str] = []
+
 # Cached topological order over depends_on edges, recomputed only when the
 # registry changes, never inside the per-row loop.
 _TOPO_ORDER: list[_Check] | None = None
+
 # Import attempts so far, which makes each load's module name unique. Not
 # len(_LOADED_FILES): a bundle is named before its members finish, so the two
 # would share a number.
@@ -81,22 +67,16 @@ _LOAD_SEQUENCE = 0
 
 # For an error found after a file was recorded as loaded: the file is fixed, but
 # loading it again is a no-op, so the old error comes back until this is followed.
-_RELOAD_HINT = ("Correcting an already-loaded file does not take effect, because "
-                "load_checks skips a path it has already read -- call clear_registry() "
-                "first, then load again.")
+_RELOAD_HINT = ("`load_checks` skips a path it has already read. Call "
+                "clear_registry() first, then load again.")
 
 
 def _name_of(fn: CheckFn) -> str:
-    """What to call the thing being registered, in a message. A plain function
-    carries `__name__`; a `functools.partial` or a callable object does not."""
-
     return getattr(fn, "__name__", type(fn).__name__)
 
 
 def _source_file_of(fn: CheckFn) -> str:
-    """The file a check was written in, or `<unknown>` for the shapes
-    `inspect.getsourcefile` refuses (a partial, a callable object)."""
-
+    """The file a check was written in, or `<unknown>` (partial, callable object)."""
     try:
         return inspect.getsourcefile(fn) or "<unknown>"
     except TypeError:
@@ -104,10 +84,9 @@ def _source_file_of(fn: CheckFn) -> str:
 
 
 def _defaulted_second(positional: list[inspect.Parameter]) -> inspect.Parameter | None:
-    """The second of two positional parameters, when it has a default other than
-    None: `def f(row, limit=130)` reads as `(row, context)`, so `limit` would be
-    handed the context. Shared by `_make_runner` and `engine._context_caller`."""
-
+    """The second of two positional parameters, when it has a default other than None
+    E.g. `def f(row, limit=130)` reads as `(row, context)`, so `limit` would be
+    handed the context."""
     if len(positional) != 2:
         return None
     second = positional[1]
@@ -117,9 +96,9 @@ def _defaulted_second(positional: list[inspect.Parameter]) -> inspect.Parameter 
 
 
 def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
-    """Wrap an author's function so the engine can always call `fn(row, context)`.
+    """Wrap Check function so the engine can always call `fn(row, context)`.
 
-    The shape is settled once, at registration, rather than inspected per row.
+    The shape is settled once at registration.
     `engine._context_caller` applies the same rule to a context builder; change
     the two together.
     """
@@ -142,8 +121,7 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
             f"Check {code!r}: {_name_of(fn)}{signature} has a default on its second "
             f"parameter, {defaulted.name!r}, which would be handed the row's context. "
             "Bind the value with functools.partial, or make it keyword-only by "
-            "putting it after a *."
-        )
+            "putting it after a *.")
 
     def call_with_context(row: "pd.Series[Any]", context: RowContext | None) -> Any:
         return fn(row, context)
@@ -151,24 +129,23 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
     def call_with_row_only(row: "pd.Series[Any]", context: RowContext | None) -> Any:
         return fn(row)
 
-    # *args counts as taking the context: the author's function will accept it.
+    # *args counts as taking the context, the Check function will accept it
     if any(p.kind is p.VAR_POSITIONAL for p in parameters) or len(positional) == 2:
         return call_with_context
     if len(positional) == 1:
         return call_with_row_only
     raise ValueError(
         f"Check {code!r}: {_name_of(fn)}{signature} must take (row) or (row, context), "
-        f"not {len(positional)} positional argument(s)."
-    )
+        f"not {len(positional)} positional argument(s).")
 
 
 def _reject_bad_registration(
     code: Any, message: Any, default_enabled: Any, prerequisites: Any, repeat: Any, where: str
 ) -> None:
-    """Everything a `register_check` call can get wrong, in one place.
+    """Everything the `register_check` call specifically can get wrong.
 
     `depends_on` is checked for shape here and for existence in
-    `_validate_registry`: a prerequisite may live in a module not yet imported, so
+    `_validate_registry`. A prerequisite may live in a module not yet imported, so
     only its shape can be judged this early.
     """
 
@@ -179,20 +156,15 @@ def _reject_bad_registration(
     existing = next((check for check in _CHECKS if check.code == code), None)
     if existing is not None:
         # A file whose import failed part-way is not recorded as loaded, but the
-        # checks it registered first stay: loading it again meets its own codes.
+        # checks it registered first stay: loading it again will duplicate the codes.
         raise ValueError(
-            f"Duplicate check code {code!r} (registering {where}; already registered "
-            f"from {existing.source_file}). Codes are permanent identifiers and must be "
-            "unique. If both are the same file, an earlier load of it failed part-way "
-            "and left its checks registered: call clear_registry() before loading it again."
-        )
-    if not isinstance(prerequisites, list) or not all(
-        isinstance(prerequisite, str) and prerequisite for prerequisite in prerequisites
+            f"Duplicate check code {code!r} (registering {where}; already registered from {existing.source_file}).")
+    if (not isinstance(prerequisites, list) or
+        not all(isinstance(prerequisite, str) and prerequisite
+                for prerequisite in prerequisites)
     ):
         raise ValueError(
-            f"Check {code!r}: depends_on must be a list of check codes, got {prerequisites!r}. "
-            "A bare string is a list of its characters, which is never what you meant."
-        )
+            f"Check {code!r}: depends_on must be a list of check codes, got {prerequisites!r}.")
     if not isinstance(default_enabled, bool):
         raise ValueError(
             f"Check {code!r}: default_enabled must be True or False, got {default_enabled!r}.")
@@ -207,24 +179,22 @@ def register_check(
     depends_on: list[str] | None = None,
     repeat: bool = False,
 ) -> Callable[[CheckFn], CheckFn]:
-    """Register one validation function: a function in a `check_*.py` file, and
+    """Register one validation function: a function in a check file, and
     no central list to edit.
 
     `repeat=True` runs the check, and every check that depends on it, on each
     copy of a row when `validate` is given a `repeat_key`; the other checks run
     on the first copy whose rules enable them, and are shared by the rest.
 
-    Everything that can be wrong fails at import, where the author is looking at
-    the file with the mistake in it.
+    Everything that can be wrong fails at import.
     """
 
     def decorator(fn: CheckFn) -> CheckFn:
         global _TOPO_ORDER
 
         module = getattr(fn, "__module__", None)
-        # depends_on is inspected before it is copied: list("CODE") would turn a
-        # mistyped bare string into its characters, and the prerequisite check
-        # downstream would then complain about a check called 'C'.
+        # depends_on is inspected before it is copied to assert its
+        # shape and content before copy (as a result of list())
         prerequisites = [] if depends_on is None else depends_on
         _reject_bad_registration(
             code, message, default_enabled, prerequisites, repeat,
@@ -253,10 +223,9 @@ def clear_registry() -> None:
     For a process validating several runs in turn, each with its own check
     files. The next `load_checks` runs each file again; a module a check file
     merely imports is cached by Python and does not, so checks register only in
-    the files `load_checks` is given. The in-progress load stack is not touched:
+    the files `load_checks` is given. The in-progress load stack is not touched,
     it belongs to a running `load_checks` call rather than to the registry.
     """
-
     global _TOPO_ORDER
     _CHECKS.clear()
     _LOADED_FILES.clear()
@@ -273,27 +242,22 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
     listed twice, already loaded, or already being loaded further up the call is
     skipped.
 
-    A check file may call this itself -- a bundle file naming the files it
-    collects, so a caller loads one path instead of ten. The dependency graph is
+    A check file may call this itself (a bundle file naming the files it
+    collects, so a caller loads one path instead of ten). The dependency graph is
     then validated once, as the outermost call returns, since a prerequisite may
     arrive in any file of any of the calls.
 
     A file that raises is not rolled back: the error propagates, and whatever
-    was registered before it stays. Loading again in the same process starts
+    was registered before it stays. Loading again in the same process must start
     with `clear_registry()`.
 
     A relative path is resolved against *base_dir* when one is given and
     against the working directory otherwise.
-
-    Load from one thread: the registry and `sys.dont_write_bytecode` are
-    process-wide, and nothing guards them.
     """
 
     if isinstance(paths, str):
         raise TypeError(
-            f"load_checks takes a list of paths, not one string: pass [{paths!r}]. "
-            "A bare string would be read as a list of its characters."
-        )
+            f"load_checks takes a list of paths, not one string: pass [{paths!r}]. ")
 
     global _LOAD_SEQUENCE
     resolved: list[str] = []
@@ -305,20 +269,20 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
             resolved.append(name)
 
     for name in resolved:
-        # A unique module name per load: two run directories can each hold a
-        # checks.py, and each needs its own sys.modules entry -- sharing one, the
+        # A unique module name per load. Two run directories can each hold a
+        # checks.py, and each needs its own sys.modules entry (sharing one, the
         # second would replace the first there, so the first could no longer be
-        # imported or pickled by name.
+        # imported).
         module_name = f"{_CHECK_FILE_PREFIX}{Path(name).stem}_{_LOAD_SEQUENCE}"
         _LOAD_SEQUENCE += 1
         spec = importlib.util.spec_from_file_location(module_name, name)
         if spec is None or spec.loader is None:
             raise ValueError(f"Cannot import {name!r} as a Python file.")
         module = importlib.util.module_from_spec(spec)
-        # Registered before execution so a check file that imports itself, or is
-        # pickled by a worker, finds the module rather than importing it twice.
+        # Registered before execution so a check file that imports itself finds
+        # the module rather than importing it twice.
         sys.modules[module_name] = module
-        # No __pycache__ beside a check file: it may sit in a run's input
+        # No __pycache__ beside a check file. It may sit in a run's input
         # directory, and the unique module name means a .pyc is never reused.
         # The flag is process-wide for the length of the exec.
         writing_bytecode = sys.dont_write_bytecode
@@ -331,7 +295,7 @@ def load_checks(paths: list[str], base_dir: str | Path | None = None) -> None:
             sys.dont_write_bytecode = writing_bytecode
         _LOADED_FILES.append(name)
 
-    # Nested calls leave it to the outermost one: a bundle's members may depend
+    # Nested calls leave it to the outermost one. A bundle's members may depend
     # on each other in any order, and on files the caller names after the bundle.
     if not _LOADING:
         _validate_registry()
@@ -351,12 +315,13 @@ def _topological_order() -> list[_Check]:
     visiting_set: set[str] = set()
 
     def visit(code: str) -> None:
-        if code in done:
+        if code in done:  # Path below code has been fully explored, return early
             return
+        # Raise when a code is found twice in one path (a cycle)
         if code in visiting_set:
             cycle = visiting[visiting.index(code):] + [code]
-            raise ValueError("Dependency cycle among checks: " + " -> ".join(cycle) + ". "
-                             + _RELOAD_HINT)
+            raise ValueError(
+                "Dependency cycle among checks: -> ".join(cycle) + ". " + _RELOAD_HINT)
         visiting.append(code)
         visiting_set.add(code)
         for prerequisite in by_code[code].depends_on:
@@ -377,9 +342,7 @@ def _validate_registry() -> None:
     the per-row loop.
 
     An unregistered prerequisite raises, including one that lives in a file
-    this entry point did not load. The message names `clear_registry` because
-    the file holding the bad `depends_on` is already recorded, so loading it
-    again after the fix is skipped until the registry is emptied.
+    this entry point did not load.
     """
 
     global _TOPO_ORDER
@@ -390,10 +353,7 @@ def _validate_registry() -> None:
                 raise ValueError(
                     f"Check {check.code!r} depends on {prerequisite!r}, which is not registered. "
                     "Either the code is a typo, or it lives in a check file that was not loaded "
-                    f"(currently loaded: {_LOADED_FILES}). Loading the missing file "
-                    "works; correcting an already-loaded one does not, because load_checks "
-                    "skips a path it has already read -- call clear_registry() first."
-                )
+                    f"(currently loaded: {_LOADED_FILES}).")
     try:
         order = _topological_order()
     except RecursionError:
@@ -401,11 +361,9 @@ def _validate_registry() -> None:
         # chain's length is unknown here, so the message names the limit instead.
         widest = max((len(check.depends_on) for check in _CHECKS), default=0)
         raise ValueError(
-            f"Dependency chain too deep to resolve among {len(_CHECKS)} checks: the "
-            f"ordering walk is recursive and gives out near Python's recursion limit "
-            f"of {sys.getrecursionlimit()} (widest declared depends_on: {widest}). "
-            "Shorten the chain, or register prerequisites before the checks that "
-            "depend on them. " + _RELOAD_HINT
+            f"Dependency chain too deep to resolve, {len(_CHECKS)} checks: "
+            f"Reached recursion limit {sys.getrecursionlimit()} "
+            f"(widest declared depends_on: {widest}). "
         ) from None
     by_code = {check.code: check for check in _CHECKS}
     for check in order:
@@ -419,20 +377,17 @@ def _validate_registry() -> None:
 
 def _get_topo_order() -> list[_Check]:
     """The cached evaluation order, computed if the registry has changed since."""
-
     if _TOPO_ORDER is None:
         _validate_registry()
     order: list[_Check] = _TOPO_ORDER or []
     return order
 
 
-def load_rules(paths: list[str],
-                   base_dir: str | Path | None = None) -> list[Rule]:
+def load_rules(paths: list[str], base_dir: str | Path | None = None) -> list[Rule]:
     """Load rules from the named YAML files, in precedence order. Load
     the check files first: a rule naming an unregistered code is an error.
 
     *base_dir* anchors relative paths exactly as it does in `load_checks`."""
-
     return rules._load_rule_files(paths, {check.code for check in _CHECKS}, base_dir)
 
 
@@ -441,9 +396,9 @@ def warn_blocking_rules(rules: list[Rule]) -> list[str]:
 
     A check runs only once its prerequisites passed, so disabling one skips
     everything that depends on it, directly or not, on every row the rule
-    matches -- and a skipped check reports nothing. One line per rule and
-    disabled code, naming the dependents the rule does not itself disable:
-    listing them in the rule says the silence is meant, and ends the warning.
+    matches (a skipped check reports nothing). One line per rule and
+    disabled code, naming the dependents the rule does not itself disable.
+    Listing them in the rule says the silence is intentional, and ends the warning.
     Needs the registry, which is why it lives here rather than beside
     `warn_shadowed_rules` in `rules.py`.
     """
@@ -457,7 +412,6 @@ def warn_blocking_rules(rules: list[Rule]) -> list[str]:
 
     def below(code: str) -> set[str]:
         """Every check depending on *code*, directly or through others."""
-
         found: set[str] = set()
         waiting = list(dependents.get(code, []))
         while waiting:
@@ -482,23 +436,17 @@ def warn_blocking_rules(rules: list[Rule]) -> list[str]:
                 warnings.append(
                     f"rule {rule.name!r} disables {code}, which also stops "
                     f"{', '.join(blocked)} on the rows it matches: a check whose "
-                    "prerequisite is off is skipped, and reports nothing"
-                )
+                    "prerequisite is off is skipped, and reports nothing")
     return warnings
 
 
-#: The only two keys a setup file holds. Named so the rejection can list them,
-#: and so a reader sees the whole schema in one line.
+# The only two keys a setup file holds. Named so the rejection can list them,
+# and so a reader sees the whole schema in one line.
 SETUP_KEYS = ("checks", "rules")
 
 
 def _setup_paths(document: Any, key: str, path: Path, required: bool) -> list[str]:
-    """One key of a setup file, validated as a list of paths.
-
-    Refuses a string where a list belongs. `checks: checks.py` is the shape
-    somebody writes first, and YAML reads it as a string, which would otherwise
-    load a file per character.
-    """
+    """One key of a setup file, validated as a list of paths."""
 
     value = document.get(key)
     if value is None:
@@ -508,8 +456,7 @@ def _setup_paths(document: Any, key: str, path: Path, required: bool) -> list[st
         return []
     if not isinstance(value, list):
         raise ValueError(
-            f"{path}: {key!r} must be a list of paths, got {type(value).__name__}. "
-            f"Write it as a list even for one file.")
+            f"{path}: {key!r} must be a list of paths, got {type(value).__name__}.")
     for position, entry in enumerate(value, 1):
         if not isinstance(entry, str):
             raise ValueError(
@@ -521,30 +468,28 @@ def _setup_paths(document: Any, key: str, path: Path, required: bool) -> list[st
 
 
 def load_setup(path: str) -> list[Rule]:
-    """Load the check files and rule files one YAML file names, and return the
-    rules -- the whole of configuring this library, in one call.
+    """Load the check files and rule files from one YAML setup file. Returns the rules.
 
-    The file holds `checks` and, optionally, `rules`, each a list of paths::
-
+    The file holds `checks` and, optionally, `rules`, each a list of paths:
         checks:
           - checks/all_checks.py
         rules:
           - rules/01_age.yaml
 
     Both are resolved against the **setup file's own directory**, so the file and
-    the paths in it travel together; the setup file's own path is relative to where
+    the paths in it travel together. The setup file's own path is relative to where
     the caller stands, like any path a user types. `checks` is required, because a
-    setup naming only rules configures nothing -- rules switch checks on and off.
-    It composes `load_checks` and `load_rules` and does nothing they do not.
+    setup naming only rules configures nothing (rules switch checks on and off).
+    It composes `load_checks` and `load_rules`.
     """
 
     setup_file = _resolve_input_file(path, "setup file", "load_setup()")
     document = _read_yaml(setup_file, str(setup_file))
     if not isinstance(document, dict):
+        key_str = {' and '.join(repr(key) for key in SETUP_KEYS)}
         raise ValueError(
             f"{setup_file}: a setup file is a mapping of "
-            f"{' and '.join(repr(key) for key in SETUP_KEYS)}, "
-            f"got {type(document).__name__}.")
+            f"{key_str}, got {type(document).__name__}.")
     unknown = set(document) - set(SETUP_KEYS)
     if unknown:
         raise ValueError(
