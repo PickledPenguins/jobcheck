@@ -1092,7 +1092,7 @@ byte — while mutmut cannot run either, because both shell out.
 from different angles are two references, and the catalog is read by people looking for
 something close to their own case. It is judged on variety, not on coverage.
 
-**A CI workflow.** Not wanted. The pre-commit hook and the release gates in
+**A CI workflow.** Not wanted. The pre-push hook and the release gates in
 [testing.md](testing.md#gates) are what run the suites; an absent workflow is not
 outstanding work.
 

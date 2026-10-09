@@ -81,7 +81,8 @@ return values and what each does, one line apiece -- see
 | `examples/main.py` | Demo entry point and end-to-end driver: registry tables, the report, explanations, summaries. |
 | `examples/run_from_config.py` | Second demo entry point: one run file names the setup, the data and the tables to print; `examples/run.yaml` is the shipped one. The run-file format is this script's, not the library's. |
 | `tests/` | pytest suites, split `fast`/`long` by marker, plus the example and failure catalogs and `run-tests.sh`, the entry point for every gate. |
-| `scripts/install-hooks.sh` | Installs the pre-commit hook that runs the fast suite. |
+| `scripts/install-hooks.sh` | Links `scripts/pre-push`, the pre-push hook that runs the fast suite on each pushed commit. |
+| `scripts/pre-push` | The pre-push hook: the fast suite in a clean checkout of each commit being pushed. |
 | `scripts/make_example_data.py` | Writes `examples/data/*.csv`, the same bytes every run. |
 | `scripts/new_catalog_case.py` | Adds one catalog case: directory, command, README and recorded output. |
 | `scripts/regen_catalog.py` | Re-records the catalogs' expected output after an intended change. |

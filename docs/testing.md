@@ -8,7 +8,7 @@ framework.
 
 ```sh
 pip install -e ".[dev]"
-./scripts/install-hooks.sh          # once per clone: installs the pre-commit gate
+./scripts/install-hooks.sh          # once per clone: installs the pre-push gate
 ```
 
 ## Commands
@@ -38,13 +38,14 @@ fails rather than silently selecting nothing.
 as a pass, and it is the one category that finds cases nobody wrote down, so its absence
 fails the gate with a message naming the interpreter rather than printing `1 skipped`.
 
-There is no CI. The pre-commit hook and the release gates below are what run these.
+There is no CI. The pre-push hook and the release gates below are what run these.
 
 ## Gates
 
-- **Pre-commit** — `./tests/run-tests.sh fast`, installed by `./scripts/install-hooks.sh` into
-  `.git/hooks/pre-commit`. Bypass with git's own `--no-verify`; there is no custom flag.
-  Verified to block: breaking the code a fast test covers and committing stops at the hook.
+- **Pre-push** — `./tests/run-tests.sh fast` on each commit being pushed, in a clean checkout
+  of it, so uncommitted edits neither fail nor pass it. `scripts/pre-push`, linked into
+  `.git/hooks/pre-push` by `./scripts/install-hooks.sh`. Bypass with git's own `--no-verify`;
+  there is no custom flag. Commits are never gated: work in progress can be committed.
 - **Pre-release** — `./tests/run-tests.sh all`, `./tests/run-tests.sh cov`, `./tests/run-tests.sh memory`,
   `./tests/run-tests.sh perf` and `./tests/run-tests.sh mutation`. Coverage below 99% fails
   through `coverage report --fail-under`; a memory ceiling or a timing baseline exceeded
