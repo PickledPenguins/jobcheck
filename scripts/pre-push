@@ -1,10 +1,12 @@
 #!/bin/sh
 # Pre-push gate: the tests on each commit being pushed, in a clean
 # checkout of it, so neither uncommitted edits nor untracked files decide
-# the result.  A failure stops the push.  Installed by
+# the result.  A failure stops the push.  Installed switched off, as
+# .git/hooks/pre-push.off, by
 #   ./scripts/install-hooks.sh
-# Skip it once with git push --no-verify.  The checkout runs its own copy of
-# this file with --test, so the tests are the ones the pushed commit has.
+# Rename it to .git/hooks/pre-push to switch it on.  Skip it once with
+# git push --no-verify.  The checkout runs its own copy of this file with
+# --test, so the tests are the ones the pushed commit has.
 set -eu
 if [ "${1-}" = --test ]; then
     exec ./tests/run-tests.sh fast -q

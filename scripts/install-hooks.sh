@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Install the pre-push gate (scripts/pre-push). Run once per clone:  ./scripts/install-hooks.sh
+# Install the pre-push gate (scripts/pre-push), switched off: rename the link
+# to .git/hooks/pre-push to switch it on. Run once per clone:  ./scripts/install-hooks.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-hook=".git/hooks/pre-push"
+hook=".git/hooks/pre-push.off"
 target="../../scripts/pre-push"
 
 # Never clobber someone else's hook silently: keep a copy and say so.
@@ -19,4 +20,4 @@ if [ -e "$hook" ] && [ "$(readlink "$hook")" != "$target" ]; then
 fi
 
 ln -sfn "$target" "$hook"
-echo "installed $hook -> scripts/pre-push"
+echo "installed $hook -> scripts/pre-push, switched off; rename it to .git/hooks/pre-push to switch it on"

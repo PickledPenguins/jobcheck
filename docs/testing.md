@@ -8,7 +8,7 @@ framework.
 
 ```sh
 pip install -e ".[dev]"
-./scripts/install-hooks.sh          # once per clone: installs the pre-push gate
+./scripts/install-hooks.sh          # once per clone: installs the pre-push gate, switched off
 ```
 
 ## Commands
@@ -44,7 +44,8 @@ There is no CI. The pre-push hook and the release gates below are what run these
 
 - **Pre-push** — `./tests/run-tests.sh fast` on each commit being pushed, in a clean checkout
   of it, so uncommitted edits neither fail nor pass it. `scripts/pre-push`, linked into
-  `.git/hooks/pre-push` by `./scripts/install-hooks.sh`. Bypass with git's own `--no-verify`;
+  `.git/hooks/pre-push.off` (switched off) by `./scripts/install-hooks.sh`; renaming the link
+  to `pre-push` switches it on. Bypass with git's own `--no-verify`;
   there is no custom flag. Commits are never gated: work in progress can be committed.
 - **Pre-release** — `./tests/run-tests.sh all`, `./tests/run-tests.sh cov`, `./tests/run-tests.sh memory`,
   `./tests/run-tests.sh perf` and `./tests/run-tests.sh mutation`. Coverage below 99% fails
