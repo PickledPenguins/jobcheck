@@ -80,7 +80,6 @@ def test_reloading_a_file_that_failed_part_way_names_it(
 ) -> None:
     """The retry a notebook user makes after fixing the file: the first check is
     still registered, so the message must say where it came from."""
-
     path = tmp_path / "check_half.py"
     path.write_text(_HALF.format(second="raise RuntimeError('typo')"), encoding="utf-8")
     with pytest.raises(RuntimeError):
@@ -117,7 +116,6 @@ def test_a_string_depends_on_names_the_value(fresh_registry: None) -> None:
     """Regression: register_check used to do list(depends_on or []) before the guard
     could see it, so a mistyped bare string became its characters and the failure
     arrived later as a missing prerequisite called 'O'."""
-
     with pytest.raises(ValueError) as raised:
         reg.register_check(code="CODE", message="m", depends_on="OTHER")(  # type: ignore[arg-type]
             lambda row: True)
@@ -158,7 +156,6 @@ def test_a_required_keyword_argument_says_how_to_fix_it(fresh_registry: None) ->
 
 def test_a_defaulted_second_parameter_names_both_fixes(fresh_registry: None) -> None:
     """`limit` would be handed the context and every row would error."""
-
     with pytest.raises(ValueError) as raised:
         @reg.register_check(code="AGE_BELOW", message="m")
         def age_below(row, limit=130):  # type: ignore[no-untyped-def]
@@ -201,7 +198,6 @@ def test_a_dangling_prerequisite_lists_the_loaded_files(fresh_registry: None) ->
 
 def test_a_rule_file_listed_twice_names_it(fresh_registry: None, tmp_path: Path) -> None:
     """An empty file, which defines no rule whose name could repeat."""
-
     path = tmp_path / "rules.yaml"
     path.write_text("", encoding="utf-8")
     with pytest.raises(ValueError) as raised:
@@ -212,7 +208,6 @@ def test_a_rule_file_listed_twice_names_it(fresh_registry: None, tmp_path: Path)
 def test_a_bare_string_path_is_refused_by_both_loaders(fresh_registry: None) -> None:
     """A string is a list of its characters, so iterating one loads nothing and
     reports a missing file named 'c'."""
-
     with pytest.raises(TypeError) as raised:
         reg.load_checks("checks.py")  # type: ignore[arg-type]
     assert message_of(raised) == (
@@ -234,7 +229,6 @@ def test_a_missing_check_file_says_nothing_is_discovered(fresh_registry: None) -
 
 def test_a_missing_rule_file_says_it_the_same_way(fresh_registry: None) -> None:
     """The two loaders are one mistake apart, so they are one message apart."""
-
     with pytest.raises(ValueError) as raised:
         load_rules(["/no/such/rules.yaml"])
     assert message_of(raised) == (
@@ -246,7 +240,6 @@ def test_a_missing_rule_file_says_it_the_same_way(fresh_registry: None) -> None:
 def test_a_missing_relative_path_prints_where_it_looked(fresh_registry: None) -> None:
     """A relative path that is not there is unreadable without the directory it
     was joined to: the reader cannot see the process's working directory."""
-
     with pytest.raises(ValueError) as raised:
         reg.load_checks(["checks.py"])
     assert message_of(raised) == (
@@ -334,7 +327,6 @@ def test_an_ambiguous_data_column_is_refused_with_the_frame_columns(
 
 def test_a_data_column_clashing_with_a_report_column_is_refused(fresh_registry: None) -> None:
     """Silently overwriting the report's own column would hide the failure."""
-
     make_check("CODE", passes=False)
     frame = pd.DataFrame([{"id": 1, "code": "x"}])
     with pytest.raises(ValueError) as raised:
@@ -361,7 +353,6 @@ def test_a_builder_with_a_required_keyword_argument_says_how_to_fix_it(
     path did not, so the builder failed on the first row with a bare TypeError.
     Refused at setup, so an empty frame -- where the builder is never called --
     reports it too, rather than passing until the first real row arrives."""
-
     make_check("CODE")
 
     def build(row, *, mode):  # type: ignore[no-untyped-def]
@@ -415,7 +406,6 @@ def test_a_nameless_builder_needing_two_keywords_is_shown_as_itself(
 ) -> None:
     """A partial has no __name__, so the message shows the object; and two
     missing keywords are listed with a comma between."""
-
     import functools
 
     def build(row, *, mode, level):  # type: ignore[no-untyped-def]

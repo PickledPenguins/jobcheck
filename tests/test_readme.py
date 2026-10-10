@@ -28,7 +28,6 @@ pytestmark = pytest.mark.fast
 
 def python_blocks() -> list[DocsBlock]:
     """Each Python block of the README, with the output it shows, if any."""
-
     return docs_blocks([README])
 
 
@@ -68,7 +67,6 @@ def test_the_readme_session_runs_and_prints_exactly_what_it_shows(
 def test_the_writing_a_check_block_registers_a_working_check(fresh_registry: None) -> None:
     """The template block is checked on its own: it produces a check that runs, not
     just one that imports."""
-
     import pandas as pd
 
     source = next(block.source for block in python_blocks() if is_template(block.source))
@@ -91,7 +89,6 @@ def test_the_example_code_does_not_collide_with_the_shipped_checks(
 ) -> None:
     """A README example that duplicated a shipped code would fail on import for
     anyone who pasted it into a project with the example suites loaded."""
-
     reg.load_checks(EXAMPLE_CHECK_FILES)
     shipped = {check.code for check in reg._CHECKS}
     # A guard on the guard: a README without examples would pass the loop empty.
@@ -118,7 +115,6 @@ def declared_dependencies() -> list[str]:
     tomllib arrived in 3.11 and the declared floor is 3.10, so the suite has to
     read this the hard way or it stops running on the version it promises.
     """
-
     text = (README.parent / "pyproject.toml").read_text(encoding="utf-8")
     block = re.search(r"^dependencies = \[(.*?)\]", text, re.M | re.S)
     assert block, "pyproject.toml has no [project] dependencies list"
@@ -135,7 +131,6 @@ def test_the_stated_runtime_dependencies_are_the_real_ones() -> None:
     One place, not two: a requirements.txt beside the project metadata is a
     second list to keep in step, and it was the one that drifted.
     """
-
     declared = declared_dependencies()
     assert [name.split(">=")[0] for name in declared] == ["pandas", "PyYAML"]
     text = readme_text()
@@ -145,7 +140,6 @@ def test_the_stated_runtime_dependencies_are_the_real_ones() -> None:
 def test_the_package_installs_the_way_the_readme_says() -> None:
     """The README tells people to pip install it; pyproject.toml is what makes that
     true, and it must agree with the package that ships."""
-
     text = (README.parent / "pyproject.toml").read_text(encoding="utf-8")
     assert "pip install -e ." in readme_text()
     assert 'name = "jobcheck"' in text
@@ -185,7 +179,6 @@ def test_the_report_is_one_line_per_failure_as_claimed(fresh_registry: None) -> 
 
 def test_the_scope_limits_the_readme_states_hold(fresh_registry: None) -> None:
     """"it does not fix, coerce, or drop rows" -- validation leaves the frame alone."""
-
     import pandas as pd
 
     from jobcheck import validate, load_checks
@@ -201,7 +194,6 @@ def test_the_scope_limits_the_readme_states_hold(fresh_registry: None) -> None:
 def test_rule_files_can_only_switch_existing_codes(fresh_registry: None, tmp_path: Any) -> None:
     """"the rule files can only switch existing checks on or off ...
     never define new ones"."""
-
     from jobcheck import load_rules, load_checks
 
     assert "they cannot define new ones" in readme_text()

@@ -24,7 +24,6 @@ from jobcheck import (  # noqa: E402
 
 def expand(jobs: pd.DataFrame) -> pd.DataFrame:
     """One row per listed name; `dirname` numbers the second and later uses of a name."""
-
     runs = jobs.assign(basedirname=jobs["basedirname"].str.split(","))
     runs = runs.explode("basedirname", ignore_index=True)
     # dropna=False: a job listing no names keeps a blank row for NAMES_PRESENT.

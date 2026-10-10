@@ -27,7 +27,6 @@ CLEAN = "examples/data/customers_clean.csv"
 @pytest.fixture(autouse=True)
 def in_the_project_root(monkeypatch: Any) -> None:
     """Every path in the entry point's defaults is relative to the project root."""
-
     monkeypatch.chdir(PROJECT_ROOT)
 
 
@@ -37,7 +36,6 @@ def run(capsys: Any, *argv: str) -> str:
     Checks that care about stderr call ``main.main`` themselves: one
     ``readouterr()`` consumes both streams, so a second call sees nothing.
     """
-
     main.main(list(argv))
     return capsys.readouterr().out
 
@@ -76,7 +74,6 @@ def test_explain_past_the_end_exits_two_before_validating(
     fresh_registry: None, capsys: Any, monkeypatch: Any,
 ) -> None:
     """Regression: the range was checked only after the whole frame was validated."""
-
     monkeypatch.setattr(main, "validate", lambda *args, **kwargs: pytest.fail("validated"))
     with pytest.raises(SystemExit) as raised:
         main.main(["--explain", "99"])
@@ -86,7 +83,6 @@ def test_explain_past_the_end_exits_two_before_validating(
 
 def test_a_run_where_a_check_raised_warns_and_exits_three(capsys: Any) -> None:
     """Counted over every row: the warning says how many check runs broke."""
-
     broken = CheckOutcome("BROKEN", Outcome.ERRORED, status=Status.ERROR)
     passed = CheckOutcome("FINE", Outcome.PASSED)
     with pytest.raises(SystemExit) as raised:
@@ -140,7 +136,6 @@ def test_a_file_without_the_key_column_exits_two_before_validating(
 ) -> None:
     """Regression: the report found the missing `id` column only after the whole
     frame was validated and the registry printed, and exited 1 with a traceback."""
-
     no_key = tmp_path / "no_key.csv"
     no_key.write_text("name,age\nann,41\n")
     monkeypatch.setattr(main, "validate", lambda *args, **kwargs: pytest.fail("validated"))
@@ -155,7 +150,6 @@ def test_a_file_without_the_key_column_exits_two_before_validating(
 def test_explain_needs_no_key_column(fresh_registry: None, capsys: Any,
                                     tmp_path: Path) -> None:
     """--explain names a row by position, so a file without `id` is fine for it."""
-
     no_key = tmp_path / "no_key.csv"
     no_key.write_text("name,age\nann,41\n")
     out = run(capsys, "--data", str(no_key), "--explain", "0")
@@ -167,7 +161,6 @@ def test_a_rule_naming_a_column_the_data_lacks_warns_on_stderr(fresh_registry: N
                                                                capsys: Any,
                                                                tmp_path: Path) -> None:
     """The rule still loads: it simply cannot fire, which is a warning, not an error."""
-
     rules = tmp_path / "rules.yaml"
     rules.write_text("- name: needs_a_missing_column\n  message: \"why the rule exists\"\n  action: disable\n"
                      "  codes: [AGE_NEGATIVE]\n  match:\n"
@@ -191,7 +184,6 @@ def test_the_rules_table_prints_one_row_per_rule_not_per_code(fresh_registry: No
                                                               capsys: Any) -> None:
     """The registry table below it is one row per code, so a rule touching two
     codes is two lines there and one line here."""
-
     out = run(capsys, "--rules-table")
     rules = out.split("== Rules")[1].split("== Registry")[0]
     assert "code_count" in rules
@@ -212,7 +204,6 @@ def test_write_puts_the_printed_report_in_a_file(fresh_registry: None, capsys: A
                                                  tmp_path: Path) -> None:
     """The file and the terminal come from one report frame, so a difference
     between them would be a defect rather than a formatting choice."""
-
     target = tmp_path / "report.csv"
     out = run(capsys, "--data", SMALL, "--report", "csv", "--write", str(target))
     written = target.read_text(encoding="utf-8")
@@ -226,7 +217,6 @@ def test_write_uses_the_report_format_rather_than_the_extension(fresh_registry: 
                                                                 tmp_path: Path) -> None:
     """`--report table --write out.csv` writes the titled table. The flag
     chooses the format; the file name is just a name."""
-
     target = tmp_path / "report.csv"
     run(capsys, "--data", SMALL, "--write", str(target))
     assert target.read_text(encoding="utf-8").startswith("== Report ==\n")
@@ -239,7 +229,6 @@ def test_write_into_a_missing_directory_exits_two_before_doing_the_work(
     """Checked up front: validating the frame and only then finding there is
     nowhere to put the report wastes the run and prints what the file was
     supposed to hold."""
-
     target = tmp_path / "nope" / "report.csv"
     with pytest.raises(SystemExit) as excinfo:
         main.main(["--write", str(target)])
@@ -254,7 +243,6 @@ def test_a_write_that_fails_at_the_last_moment_still_exits_two(
 ) -> None:
     """The up-front check cannot see everything -- a directory can go away, a
     disk can fill -- so the write itself stays guarded."""
-
     def refuse(*args: Any, **kwargs: Any) -> None:
         raise OSError(28, "No space left on device")
 

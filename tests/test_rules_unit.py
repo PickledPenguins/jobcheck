@@ -83,7 +83,6 @@ def test_a_key_yaml_reads_as_a_bool_is_named_rather_than_crashing(
     YAML 1.1 reads `on:` as True and `2:` as an int. Joining them raised a bare
     TypeError once; now each shows as Python writes it, so the unquoted `True`
     says YAML read a bool where the file said `on`."""
-
     path = write(tmp_path, "r.yaml", GLOBAL_DISABLE + "  on: 1\n  2: x\n")
     with pytest.raises(ValueError) as excinfo:
         reg.load_rules([path])
@@ -103,7 +102,6 @@ def test_base_dir_anchors_a_relative_rule_path_and_the_rule_records_it_as_writte
 ) -> None:
     """source_file is printed beside the rule, so it stays the caller's own
     text: an absolute path resolved out of base_dir would be this machine's."""
-
     write(tmp_path, "rules.yaml", GLOBAL_DISABLE)
     started_in = tmp_path / "started-in"
     started_in.mkdir()
@@ -268,7 +266,6 @@ def test_a_key_given_twice_in_one_rule_is_refused_rather_than_the_last_winning(
 ) -> None:
     """PyYAML keeps the second `codes:` and says nothing, so a rule written for A
     with `codes: [B]` appended later would load as a rule about B alone."""
-
     make_check("A_CODE")
     make_check("B_CODE")
     path = write(tmp_path, "r.yaml",
@@ -280,7 +277,6 @@ def test_a_key_given_twice_in_one_rule_is_refused_rather_than_the_last_winning(
 
 def test_a_key_repeated_in_a_flow_mapping_is_refused_too(one_code: None, tmp_path: Path) -> None:
     """Both on one line, written `{...}` rather than as a block."""
-
     path = write(tmp_path, "r.yaml",
                  '- {name: "r", name: "s", message: "m", action: disable, '
                  "codes: [A_CODE], match: all}\n")
@@ -292,7 +288,6 @@ def test_a_rule_file_that_is_not_utf8_names_itself(one_code: None, tmp_path: Pat
     """Regression: a Latin-1 file let the codec's own error through, which says
     where in the bytes but not which file -- the one thing every other load
     error says first. Found by the text fuzz in `test_fuzz.py`."""
-
     path = tmp_path / "r.yaml"
     path.write_bytes(b"- name: caf\xe9\n")
     with pytest.raises(ValueError) as raised:
@@ -305,7 +300,6 @@ def test_a_rule_file_that_is_not_utf8_names_itself(one_code: None, tmp_path: Pat
 def test_a_merge_key_may_restate_a_key_it_merges(one_code: None, tmp_path: Path) -> None:
     """`<<: *base` then `name:` overrides the merged name, which is what YAML
     merge keys are for rather than a repeated key."""
-
     loaded = reg.load_rules([write(tmp_path, "r.yaml", """
 - &base
   name: "first"
@@ -349,7 +343,6 @@ def test_load_rules_keeps_the_given_order_not_alphabetical(
 def rule(name: str, action: str, codes: list[str], criteria: list[tuple[str, str]] | None,
          ) -> reg.Rule:
     """Build a rule directly, bypassing YAML, to isolate matching behavior."""
-
     import re
 
     made = [_MatchCriterion(c, p, re.compile(p)) for c, p in (criteria or [])]
@@ -401,7 +394,6 @@ def test_a_whole_number_is_matched_as_the_report_prints_it(fresh_registry: None)
     column is numeric. The report prints both as `41`, so `^41$` must match.
     Through `validate`, because a hand-built Series never goes through either.
     """
-
     from io import StringIO
 
     make_check("A_CODE")
@@ -486,7 +478,6 @@ def test_a_null_cell_never_matches_a_rule(fresh_registry: None) -> None:
     became ``and``, which makes a NaN cell render as the text "nan" and match a
     pattern meant for real values.
     """
-
     row = pd.Series({"email": None, "age": float("nan"), "name": "real"})
     assert rules._cell_text(row, "email") is None
     assert rules._cell_text(row, "age") is None
@@ -517,7 +508,6 @@ def test_a_rule_a_later_unconditional_rule_overrules_is_reported(
     last match on every row, so anything before it touching the same code can
     never decide. Nothing else says so: the registry table lists both loaded and
     answers "depends on row", which is right in general and wrong here."""
-
     loaded = _rules(tmp_path, """
 - name: "narrow_enable"
   message: "only legacy rows"
@@ -539,7 +529,6 @@ def test_a_rule_after_the_unconditional_one_is_not_reported(
 ) -> None:
     """The same two loaded the other way round is the pattern that works: off for
     every row, back on for the rows that match."""
-
     loaded = _rules(tmp_path, GLOBAL_DISABLE + """
 - name: "narrow_enable"
   message: "only legacy rows"
@@ -669,7 +658,6 @@ def test_the_rule_warnings_take_a_generator(one_code: None, tmp_path: Path) -> N
 @pytest.fixture
 def age_chain(fresh_registry: None) -> None:
     """AGE_PRESENT <- AGE_NUMBER <- AGE_NEGATIVE, with EMAIL_PRESENT beside them."""
-
     make_check("AGE_PRESENT")
     make_check("AGE_NUMBER", depends_on=["AGE_PRESENT"])
     make_check("AGE_NEGATIVE", depends_on=["AGE_NUMBER"])
@@ -685,7 +673,6 @@ def test_a_disable_rule_on_a_prerequisite_names_every_check_it_silences(
 ) -> None:
     """The rule says AGE_PRESENT; on its rows AGE_NUMBER and AGE_NEGATIVE never
     run either, and report nothing -- the dependents, deepest last."""
-
     assert reg.warn_blocking_rules([disabling("AGE_PRESENT")]) == [
         "rule 'excuse' disables AGE_PRESENT, which also stops AGE_NUMBER, AGE_NEGATIVE "
         "on the rows it matches: a check whose prerequisite is off is skipped, and "
@@ -703,7 +690,6 @@ def test_naming_the_dependents_in_the_rule_says_the_silence_is_meant(
 def test_a_chain_partly_named_is_reported_once_from_its_top(age_chain: None) -> None:
     """AGE_NUMBER is below AGE_PRESENT, so its own warning would repeat the one
     for AGE_PRESENT."""
-
     # The lower code listed first: skipping it must not end the rule's other codes.
     assert reg.warn_blocking_rules(
         [disabling("AGE_NUMBER", "AGE_PRESENT")]) == [
@@ -730,13 +716,11 @@ def test_a_rule_naming_a_code_no_longer_registered_warns_about_nothing(
     age_chain: None,
 ) -> None:
     """Rules loaded, then the registry cleared and a different set loaded."""
-
     assert reg.warn_blocking_rules([disabling("GONE_CODE")]) == []
 
 
 def test_a_check_reached_by_two_paths_is_named_once(fresh_registry: None) -> None:
     """A diamond: TOTAL depends on QTY and PRICE, which both depend on LINE."""
-
     make_check("LINE")
     make_check("QTY", depends_on=["LINE"])
     make_check("PRICE", depends_on=["LINE"])

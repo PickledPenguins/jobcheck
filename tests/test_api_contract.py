@@ -38,7 +38,6 @@ def test_every_tool_the_suite_relies_on_is_declared() -> None:
     tests/test_properties.py skipped everywhere but one machine and the summary
     line still read green. A tool the suite imports has to be a declared
     dependency, or its absence is invisible."""
-
     pyproject = (Path(validation.__file__).parent.parent.parent / "pyproject.toml")
     declared = pyproject.read_text(encoding="utf-8")
     for tool in ("pytest", "coverage", "mypy", "types-PyYAML", "hypothesis", "mutmut", "ruff"):
@@ -47,14 +46,12 @@ def test_every_tool_the_suite_relies_on_is_declared() -> None:
 
 def test_the_package_states_a_version() -> None:
     """Anyone depending on this needs to be able to say which behavior they have."""
-
     assert re.fullmatch(r"\d+\.\d+\.\d+", validation.__version__)
 
 
 def test_the_rule_parser_does_not_import_the_registry() -> None:
     """The seam that keeps rules.py a file about a file format: the registry hands
     it the codes that exist, and it never reaches back."""
-
     code = [
         line for line in Path(rules.__file__).read_text(encoding="utf-8").splitlines()
         if not line.lstrip().startswith("#")
@@ -67,7 +64,6 @@ def test_the_rule_parser_does_not_import_the_registry() -> None:
 def test_every_public_function_is_exported() -> None:
     """Regression: a function was documented but never re-exported, so importing
     it from the package raised."""
-
     exported = set(validation.__all__)
     unexported: list[str] = []
     for module in MODULES:
@@ -106,7 +102,6 @@ PUBLIC_NAMES = {
 def test_the_export_list_is_the_one_written_down() -> None:
     """The direction the test above cannot give: it derives the surface from
     whatever is public, which is how two names with no caller got exported."""
-
     exported = set(validation.__all__)
     assert sorted(exported - PUBLIC_NAMES) == [], "exported but not chosen"
     assert sorted(PUBLIC_NAMES - exported) == [], "chosen but not exported"
@@ -118,7 +113,6 @@ def test_the_export_list_is_the_one_written_down() -> None:
 
 def test_status_values_are_permanent() -> None:
     """Reports and saved data refer to these numbers; they never move."""
-
     assert {member.name: int(member) for member in res.Status} == {
         "PASS": 0, "MISSING": 1, "MALFORMED": 2, "INVALID": 3, "ERROR": 9
     }
@@ -126,7 +120,6 @@ def test_status_values_are_permanent() -> None:
 
 def test_outcome_names_are_permanent() -> None:
     """The values are what reports and CSV files carry, so they outlive the code."""
-
     assert {member.name: member.value for member in res.Outcome} == {
         "PASSED": "passed", "FAILED": "failed", "DISABLED": "disabled",
         "SKIPPED": "skipped", "ERRORED": "errored", "SHARED": "shared",
@@ -141,7 +134,6 @@ def test_a_misspelled_outcome_is_refused() -> None:
 
 def test_report_columns_are_stable() -> None:
     """Anything reading the CSV depends on these names and this order."""
-
     assert views._REPORT_COLUMNS == (
         "row", "code", "status", "layer", "outcome", "message", "detail", "comments",
         "rule", "is_root_cause",

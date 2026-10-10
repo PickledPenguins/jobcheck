@@ -42,7 +42,6 @@ unwritable_as_root = pytest.mark.skipif(
 
 def unreadable(path: Path) -> Path:
     """Strip every read bit from *path*, restored by tmp_path's own cleanup."""
-
     path.chmod(0)
     return path
 
@@ -54,7 +53,6 @@ def unreadable(path: Path) -> Path:
 def test_an_unreadable_rule_file_stops_the_whole_load_naming_itself(fresh_registry: None,
                                                                    tmp_path: Path) -> None:
     """Half a list of rules is not a smaller set of rules; it is the wrong set."""
-
     make_check("A_CODE")
     good = tmp_path / "01.yaml"
     good.write_text(RULE)

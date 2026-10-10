@@ -31,7 +31,6 @@ def write_meta(directory: Path, name: str, codes: dict[str, int | None]) -> None
 
 def test_the_score_is_detected_over_total_across_every_file(tmp_path: Path) -> None:
     """Killed, caught by the type check and timed out all count as detected."""
-
     write_meta(tmp_path, "a", {"m1": 1, "m2": 0, "m3": 37})
     write_meta(tmp_path, "b", {"m4": 36, "m5": 1, "m6": 5, "m7": 3, "m8": 1})
     module = scorer()
@@ -53,7 +52,6 @@ def test_at_the_floor_passes_and_below_it_fails(tmp_path: Path,
 def test_an_unfinished_run_has_no_score(tmp_path: Path,
                                         capsys: pytest.CaptureFixture[str]) -> None:
     """A mutant still unchecked is an interrupted run; any score would be a guess."""
-
     write_meta(tmp_path, "a", {"m1": 1, "m2": None})
     assert scorer().main(["--mutants", str(tmp_path), "--floor", "0"]) == 2
     assert "1 mutant(s) not checked" in capsys.readouterr().err

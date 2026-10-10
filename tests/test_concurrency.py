@@ -38,7 +38,6 @@ ROWS = 400
 
 def frame(rows: int) -> pd.DataFrame:
     """Rows whose failures differ, so a mixed-up result is visible."""
-
     return pd.DataFrame(
         {
             "age": [34, -5, 200, None] * (rows // 4),
@@ -51,7 +50,6 @@ def frame(rows: int) -> pd.DataFrame:
 
 def test_threads_validating_rows_agree_with_one_thread(example_checks: None) -> None:
     """Each row's failures and its root cause, the same whichever thread ran it."""
-
     def codes_and_cause(row: "pd.Series[Any]") -> tuple[list[str], str | None]:
         found = failures(row)
         return [outcome.code for outcome in found], first_cause(found)
@@ -125,7 +123,6 @@ def run_child(source: str) -> subprocess.CompletedProcess[str]:
 
 def test_many_processes_loading_the_same_file_all_succeed(tmp_path: Path) -> None:
     """No lock file, no shared cache: the loader writes nothing another process reads."""
-
     src = str(Path(PROJECT_ROOT) / "src")
     shared = tmp_path / "shared.py"
     shared.write_text(CHECK_FILE.format(code="SHARED"))

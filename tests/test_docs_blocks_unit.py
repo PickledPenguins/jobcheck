@@ -38,7 +38,6 @@ def test_every_docs_block_runs_in_the_world_it_assumes(
 ) -> None:
     """Regression for the output half: reporting.md showed three outputs no frame
     produces, one of them against rules its code did not pass."""
-
     monkeypatch.chdir(tmp_path)
     namespace = documented_world(tmp_path)
     try:
@@ -56,14 +55,12 @@ def test_every_docs_block_runs_in_the_world_it_assumes(
 def test_the_documents_show_output_for_their_blocks() -> None:
     """A guard on the guard: output blocks that stopped being recognized would
     turn the comparison above into a no-op."""
-
     assert sum(block.shown_output is not None for block in docs_blocks()) >= 6
 
 
 def test_a_fence_is_read_only_at_the_start_of_a_line(tmp_path: Path) -> None:
     """The fence rule `bin/doc-examples` uses: an info string after the language is
     allowed, and three backticks inside a line of prose open nothing."""
-
     path = tmp_path / "doc.md"
     path.write_text("Prose quoting ```python\nis not a block.\n\n"
                     "```python title\nprint(1)\n```\n\n```\n1\n```\n", encoding="utf-8")

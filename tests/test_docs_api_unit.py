@@ -37,7 +37,6 @@ CALLABLES = {name: value for name, value in PUBLIC.items() if inspect.isroutine(
 
 def python_blocks(path: Path) -> list[str]:
     """Every ```python block in one document."""
-
     return re.findall(r"```python\n(.*?)```", path.read_text(encoding="utf-8"), re.S)
 
 
@@ -90,7 +89,6 @@ def known_names() -> set[str]:
     time one was mentioned in prose. No public name here shadows a builtin, so
     allowing them all hides nothing this package could remove.
     """
-
     import pandas as pd
 
     methods = {name for value in PUBLIC.values() if inspect.isclass(value)
@@ -102,7 +100,6 @@ def known_names() -> set[str]:
 
 def called_names(text: str) -> list[str]:
     """Names shown as `name(` that nothing provides, sorted."""
-
     return sorted({name for name in re.findall(r"`([a-z_][a-z0-9_]*)\(", text)
                    if name not in known_names() and not name.startswith("_")})
 
@@ -110,7 +107,6 @@ def called_names(text: str) -> list[str]:
 @pytest.mark.parametrize("path", DOCS + [README], ids=lambda p: p.name)
 def test_no_document_names_a_public_function_that_is_gone(path: Path) -> None:
     """A name in backticks with a call after it is a promise the reader will try."""
-
     text = path.read_text(encoding="utf-8")
     known = known_names()
     for name in set(re.findall(r"`([a-z_][a-z0-9_]*)\(", text)):
@@ -130,7 +126,6 @@ NO_DEFAULT = object()
 def documented_parameters(form: str) -> list[tuple[str, object]] | None:
     """(name, default) for each parameter of one documented call form, or None when
     the form is a call with arguments rather than a signature."""
-
     try:
         arguments = ast.parse(f"def _({form}): pass").body[0].args  # type: ignore[attr-defined]
         positional = [*arguments.posonlyargs, *arguments.args]
@@ -155,7 +150,6 @@ def test_interfaces_shows_every_exported_function_s_real_signature(name: str) ->
     """Regression: `row_explanation` and `summarize_outcomes`, among others, had
     no signature anywhere, and the name check passed on one mention in a list.
     Parameter names, order and defaults must all match."""
-
     text = INTERFACES.read_text(encoding="utf-8")
     forms = re.findall(rf"`{name}\(([^`]*)\)(?: -> [^`]*)?`", text)
     real = real_parameters(PUBLIC[name])
@@ -166,7 +160,6 @@ def test_interfaces_shows_every_exported_function_s_real_signature(name: str) ->
 
 def section_of(text: str, name: str) -> str:
     """One `### \\`name\\`` section of interfaces.md, up to the next heading."""
-
     match = re.search(rf"^### `{name}`\n(.*?)(?=^##)", text, re.M | re.S)
     assert match, f"interfaces.md has no section headed `{name}`"
     return match.group(1)
@@ -196,7 +189,6 @@ def test_interfaces_does_not_document_names_that_are_gone() -> None:
 
 def glance_rows() -> dict[str, list[str]]:
     """The cells of each row of interfaces.md's "At a glance" tables, by name."""
-
     text = INTERFACES.read_text(encoding="utf-8")
     match = re.search(r"^## At a glance\n(.*?)(?=^## )", text, re.M | re.S)
     assert match, "interfaces.md has no `## At a glance` section"
@@ -211,7 +203,6 @@ def glance_rows() -> dict[str, list[str]]:
 def test_at_a_glance_has_one_row_per_exported_name() -> None:
     """The summary tables exist so a reader never has to hunt: a name missing from
     them is exactly the scattering they replace."""
-
     rows = glance_rows()
     assert sorted(rows) == sorted(prv.__all__), (
         f"missing: {sorted(set(prv.__all__) - set(rows))}; "
@@ -223,7 +214,6 @@ def test_at_a_glance_has_one_row_per_exported_name() -> None:
 def test_at_a_glance_shows_each_function_s_real_arguments(name: str) -> None:
     """Required cell: the parameters without a default; optional cell: the rest as
     `name=default`. Both in the real order, both with the real defaults."""
-
     _, required, optional, *_ = glance_rows()[name]
     documented = [(argument, NO_DEFAULT) for argument in re.findall(r"`(\w+)`", required)]
     for argument, default in re.findall(r"`(\w+)=([^`]*)`", optional):
@@ -235,7 +225,6 @@ def test_at_a_glance_shows_each_function_s_real_arguments(name: str) -> None:
 
 def _main() -> Any:
     """The demo entry point, imported the way the catalog runs it."""
-
     import main
 
     return main
@@ -245,7 +234,6 @@ def variables_read() -> set[str]:
     """Every environment variable the code or the suite reads or sets, and every
     variable the suite runner expands. Upper-case and underscored like a code, and
     documented by name, so they are derived here rather than listed."""
-
     names: set[str] = set()
     for path in [*ROOT.glob("src/jobcheck/*.py"), *ROOT.glob("examples/*.py"),
                  *ROOT.glob("scripts/*.py"), *ROOT.glob("tests/*.py")]:
@@ -294,7 +282,6 @@ def test_every_check_code_a_document_shows_is_a_real_one(
 ) -> None:
     """Regression: a document showed `AGE_IN_RANGE`, which no check ever defined,
     and a reader writing a rule file for it would meet an unknown-code error."""
-
     real = set(prv.registry_table()["code"]) | {
         # Codes the documents invent to show a reader writing their own check.
         "AGE_ABOVE_LIMIT", "THREADS_INT", "BRAND_NEW_CODE", "ADDED_AT_RUNTIME",
@@ -312,7 +299,6 @@ def test_the_public_name_check_allows_a_builtin_and_refuses_an_invention(tmp_pat
     Regression: the builtins were a hand-written list of eight, so writing
     `exec(...)` in a document failed a check that means to allow any builtin.
     """
-
     assert called_names("call `exec()` and `zip()` and `validate()` here") == []
     assert called_names("call `frobnicate()` here") == ["frobnicate"]
 
@@ -320,7 +306,6 @@ def test_the_public_name_check_allows_a_builtin_and_refuses_an_invention(tmp_pat
 def test_no_document_says_a_bare_bool_or_status_is_converted() -> None:
     """A check returning `True` or `Status.MISSING` raises; two documents once said
     it was converted, and nothing executable can read a prose table."""
-
     for value in (True, False, prv.Status.MISSING):
         with pytest.raises(TypeError):
             _normalize_verdict(value, "X")

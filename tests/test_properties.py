@@ -43,7 +43,6 @@ def dependency_graphs(draw: st.DrawFn) -> list[tuple[str, list[str], bool]]:
     acyclic by construction -- a cycle is `_topological_order`'s job to catch,
     not this generator's job to produce.
     """
-
     # A small alphabet of codes, so generated graphs overlap instead of each
     # check being an island -- overlap is where the invariants can break.
     size = draw(st.integers(min_value=1, max_value=6))
@@ -179,7 +178,6 @@ def run_copies(case: CopyCase, repeat_key: str | None = "key") -> tuple[
 
 def chain_enabled(case: CopyCase, code: str, row: int) -> bool:
     """No rule disables *code*, or any check it depends on, on *row*."""
-
     depends_by_code = {c: depends_on for c, depends_on, _ in case.graph}
     return ((code, row) not in case.disabled
             and all(chain_enabled(case, d, row) for d in depends_by_code[code]))
@@ -259,5 +257,4 @@ def test_when_every_check_repeats_copies_change_nothing(
 
 def _position(code: str) -> int:
     """Where *code*'s outcome is in each row's list: evaluation order."""
-
     return [check.code for check in reg._get_topo_order()].index(code)

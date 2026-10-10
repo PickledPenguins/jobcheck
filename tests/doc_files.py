@@ -60,7 +60,6 @@ def docs_blocks(documents: list[Path] | None = None) -> list[DocsBlock]:
     """Every ```python block in *documents*, all of docs/ by default, each with its
     shown output: a bare block straight after it, with nothing but blank lines
     between. A bare block anywhere else is a listing, not output."""
-
     found = []
     for path in DOCS if documents is None else documents:
         text = path.read_text(encoding="utf-8")
@@ -80,14 +79,12 @@ def docs_blocks(documents: list[Path] | None = None) -> list[DocsBlock]:
 
 def is_template(source: str) -> bool:
     """The README's "writing a check" block is a template, not part of its worked session."""
-
     return "AGE_ABOVE_LIMIT" in source
 
 
 def readme_session() -> list[DocsBlock]:
     """The README's Python blocks that read as one continuous session, in order:
     every one but the template, which `test_readme.py` checks on its own."""
-
     return [block for block in docs_blocks([README]) if not is_template(block.source)]
 
 

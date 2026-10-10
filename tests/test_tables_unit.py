@@ -29,7 +29,6 @@ def a_rule(name: str = "r", action: str = "disable", codes: list[str] | None = N
 def test_a_missing_value_is_null_although_it_is_truthy() -> None:
     """The pandas trap the docs warn about: a missing value arrives as NaN, which
     is truthy, so `if row["field"]` silently passes. is_null is the way through."""
-
     row = pd.DataFrame([{"field": "x"}, {"field": None}]).iloc[1]
     assert bool(row["field"]) is True
     assert tables.is_null(row["field"]) is True
@@ -53,7 +52,6 @@ def test_list_like_cells_are_not_treated_as_null(value: object) -> None:
 
     Regression for the ndarray case, which the old isinstance list did not cover:
     bool() on that array raised "truth value of an array is ambiguous"."""
-
     assert tables.is_null(value) is False
 
 
@@ -75,7 +73,6 @@ def test_registry_table_computes_layers_for_checks_registered_directly(
 ) -> None:
     """Layers are set when the order is computed, which load_checks does and a
     plain @register_check does not; the table showed every such check at 0."""
-
     make_check("BASE")
     make_check("DEPENDENT", depends_on=["BASE"])
     table = views.registry_table()
@@ -93,7 +90,6 @@ def test_registry_table_joins_dependencies_and_dashes_when_there_are_none(
 ) -> None:
     """A dash where a check has no prerequisites and does not repeat; and the
     message a check was registered with, which a renamed key would leave empty."""
-
     make_check("ROOT")
     make_check("OTHER")
     make_check("LEAF", depends_on=["ROOT", "OTHER"])
@@ -124,7 +120,6 @@ def test_could_be_overridden_by_names_each_rule_with_its_action_in_load_order(
 
 def test_could_be_overridden_by_is_a_dash_for_an_unreferenced_code(fresh_registry: None) -> None:
     """Without rules at all the column is still there, every cell a dash."""
-
     make_check("A_CODE")
     make_check("UNTOUCHED")
     table = views.registry_table([a_rule()]).set_index("code")
@@ -139,7 +134,6 @@ def test_could_be_overridden_by_is_a_dash_for_an_unreferenced_code(fresh_registr
 def test_rules_table_is_one_row_per_rule(fresh_registry: None) -> None:
     """With the file each came from, and the message that says why it exists: a
     rule nobody can justify is a rule nobody dares delete."""
-
     make_check("A_CODE")
     make_check("B_CODE")
     table = views.rules_table([a_rule("one", codes=["A_CODE", "B_CODE"]),

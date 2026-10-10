@@ -68,7 +68,6 @@ def test_split_files_produce_the_same_first_two_rules(example_checks: None) -> N
     sets can be loaded together, which a shared name makes impossible. What has
     to match is what the rules *do*.
     """
-
     from_dir = load_rules(SPLIT_BY_TOPIC)
     from_file = load_rules(["examples/rules/error_rules.yaml"])
     assert [r.action for r in from_dir] == [r.action for r in from_file[:2]]
@@ -81,7 +80,6 @@ def test_split_files_produce_the_same_first_two_rules(example_checks: None) -> N
 def test_file_order_decides_precedence_across_directories(example_checks: None) -> None:
     """The split files alone leave the legacy enable in force; a later global
     rule from another directory overrides it, and reversing the order undoes that."""
-
     assert codes(validated(load_rules(SPLIT_BY_TOPIC)))[1] == ["AGE_NOT_INTEGER"]
     paths = [
         "examples/rules/split_by_topic/01_age_rules.yaml",
@@ -98,7 +96,6 @@ def test_a_row_explanation_is_that_rows_lines_of_the_full_report(
         example_checks: None) -> None:
     """The explanation's columns mean what the report's do: every value on every
     line matches the row's lines of `build_report(include="all")`."""
-
     from jobcheck import explain_row
 
     outcomes = validate(DEMO)

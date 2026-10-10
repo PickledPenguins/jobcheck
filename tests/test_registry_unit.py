@@ -54,7 +54,6 @@ def test_a_partial_registers_and_is_named_by_its_own_kind(fresh_registry: None) 
     """Regression: `fn.__name__` was reached for before any of the library's own
     messages, so a functools.partial -- the obvious way to write a parameterized
     check factory -- died with a bare AttributeError naming nothing."""
-
     def above(limit: int, row: "pd.Series[Any]") -> Verdict:
         return Verdict(Status.INVALID) if row["age"] > limit else OK
 
@@ -70,7 +69,6 @@ def test_the_two_fixes_for_a_defaulted_second_parameter_both_register(
 ) -> None:
     """The refusal names two ways to write `age_below(row, limit=130)`, and a
     default of None on the context stays allowed: each one registers and runs."""
-
     def below(row: "pd.Series[Any]", limit: int) -> Verdict:
         return OK if row["age"] <= limit else Verdict(Status.INVALID)
 
@@ -91,7 +89,6 @@ def test_clearing_leaves_every_module_a_check_came_from_imported(fresh_registry:
     """Only the check-file modules `load_checks` made are dropped. Evicting the
     module of a partial, a callable object or an imported function would leave
     earlier importers holding a second copy of it."""
-
     import operator
 
     def above(limit: int, row: "pd.Series[Any]") -> Verdict:
@@ -111,7 +108,6 @@ def test_a_callable_object_of_the_wrong_shape_is_refused_with_a_message(
 ) -> None:
     """The same name lookup, on the path that rejects: the message has to name
     something, and a callable object has no __name__ either."""
-
     class TooManyArguments:
         def __call__(self, row: Any, context: Any, extra: Any) -> Verdict:
             return OK
@@ -129,7 +125,6 @@ def test_a_check_defined_by_exec_registers_and_its_duplicate_names_the_function(
 ) -> None:
     """Regression: a function from exec() has __module__ set to None, which the
     registration path must not assume is a string."""
-
     namespace: dict[str, Any] = {}
     source = (
         "from jobcheck import OK, register_check\n"
@@ -147,7 +142,6 @@ def test_a_check_defined_by_exec_registers_and_its_duplicate_names_the_function(
 def test_importing_the_package_alone_registers_nothing(fresh_registry: None) -> None:
     """Asserted through the public read path rather than the registry list, which
     is internal: `registry_table` is what a caller has."""
-
     import jobcheck
 
     assert jobcheck.registry_table().empty
@@ -188,7 +182,6 @@ def test_unregistered_prerequisite_raises_naming_both_codes(fresh_registry: None
 
 def test_prerequisite_in_an_unloaded_file_raises_rather_than_skipping(fresh_registry: None) -> None:
     """check_email.py is not loaded, so EMAIL_MISSING_AT is unknown and must be loud."""
-
     reg.load_checks([path for path in EXAMPLE_CHECK_FILES if "email" not in path])
     make_check("NEEDS_EMAIL", depends_on=["EMAIL_MISSING_AT"])
     with pytest.raises(ValueError, match="EMAIL_MISSING_AT"):
@@ -241,7 +234,6 @@ def test_a_duplicate_code_names_the_module_the_second_check_lives_in(
     sends the reader to the wrong one. Mutation found nothing asserting the
     module half: only the exec() case, where there is no module to name.
     """
-
     make_check("SHARED")
     path = tmp_path / "second.py"
     path.write_text(
@@ -258,7 +250,6 @@ def test_a_duplicate_code_names_the_module_the_second_check_lives_in(
 def test_an_empty_string_prerequisite_is_refused(fresh_registry: None) -> None:
     """`depends_on=[""]` is a typo, not a check with no name, and it would
     otherwise reach _validate_registry as a prerequisite nothing can satisfy."""
-
     with pytest.raises(ValueError, match="depends_on must be a list of check codes"):
         reg.register_check(code="CODE", message="m", depends_on=[""])(lambda row: True)
 
@@ -266,7 +257,6 @@ def test_an_empty_string_prerequisite_is_refused(fresh_registry: None) -> None:
 def test_two_required_keyword_arguments_are_both_named(fresh_registry: None) -> None:
     """The message lists them comma-separated; with one argument a broken
     separator is invisible."""
-
     with pytest.raises(ValueError) as excinfo:
         @reg.register_check(code="CODE", message="m")
         def check(row, *, low, high):  # type: ignore[no-untyped-def]
@@ -276,7 +266,6 @@ def test_two_required_keyword_arguments_are_both_named(fresh_registry: None) -> 
 
 def _check_file(path: Any, code: str) -> str:
     """A one-check file, for the tests that care which module it loads as."""
-
     path.write_text(
         "from jobcheck import OK, register_check\n"
         f"@register_check({code!r}, 'm')\n"
@@ -296,7 +285,6 @@ def test_saving_the_registry_copies_every_global_clear_registry_clears(
     The in-progress load stack is left out deliberately, not by oversight: it
     belongs to the `load_checks` call that is running, and a frame put back from
     a finished load would take the blame for the next file's checks."""
-
     saved = set(SavedRegistry.__slots__)
     cleared = {"checks", "loaded_files", "topo_order"}
     assert saved == cleared
@@ -307,7 +295,6 @@ def test_putting_the_registry_back_restores_checks_that_still_run(
 ) -> None:
     """The nesting case the suite relies on: an inner scope loads a file and
     hands back exactly what it found, checks included, runnable."""
-
     reg.load_checks([_check_file(tmp_path / "outer.py", "OUTER")])
     saved = SavedRegistry()
     reg.load_checks([_check_file(tmp_path / "inner.py", "INNER")])
@@ -323,7 +310,6 @@ def test_the_registry_list_is_not_part_of_the_public_surface() -> None:
     """It was exported until 2026-09-24, with `interfaces.md` asking callers not to
     mutate it and nothing enforcing that. Nothing outside this package ever read it:
     the read path is `registry_table`, which every legitimate use wanted."""
-
     import jobcheck
 
     assert "_CHECKS" not in jobcheck.__all__

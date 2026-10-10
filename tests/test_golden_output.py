@@ -38,7 +38,6 @@ def test_output_matches_its_golden_file(fresh_registry: None, name: str) -> None
 def test_every_golden_file_is_accounted_for() -> None:
     """A golden nobody compares is a file that rots quietly. README.md is the
     directory's own documentation, not an output."""
-
     on_disk = sorted(
         path.name for path in GOLDEN_DIR.iterdir()
         if path.is_file() and path.name != "README.md"
@@ -50,7 +49,6 @@ def test_the_golden_report_shows_every_outcome_the_report_can_carry(
     fresh_registry: None,
 ) -> None:
     """The fixture earns its place only if it exercises the whole shape."""
-
     text = read_golden("report_with_skipped.csv")
     for fragment in ("failed", "skipped", "disabled", "MISSING (1)", "MALFORMED (2)",
                      "INVALID (3)", "<no key>", "True", "False"):

@@ -37,7 +37,6 @@ def test_invalid_yaml_raises_a_yaml_error_naming_the_file(one_code: None, tmp_pa
     pinning rather than wrapping: it already carries the path and the offending
     character, which is more than a rewrapped message would say.
     """
-
     path = write(tmp_path, "bad.yaml", "- name: [unclosed\n  message: \"why the rule exists\"\n")
     with pytest.raises(yaml.YAMLError) as raised:
         reg.load_rules([path])
@@ -50,7 +49,6 @@ def test_invalid_yaml_raises_a_yaml_error_naming_the_file(one_code: None, tmp_pa
 def test_a_check_that_raises_is_recorded_as_an_error_not_a_pass(fresh_registry: None) -> None:
     """A broken check must never be mistaken for a happy one. Checks read the row
     themselves, so a typo in a column name surfaces here too, as a KeyError."""
-
     @reg.register_check(code="EXPLODES", message="m")
     def check(row: "pd.Series[Any]") -> bool:
         raise RuntimeError("check is broken")
@@ -96,7 +94,6 @@ def test_an_errored_detail_with_no_message_drops_its_colon(
         fresh_registry: None, make: Any) -> None:
     """`raise ValueError()` has no text: the type and the place, no dangling `: `.
     A `functools.partial` is located in the function it wraps."""
-
     def check(row: "pd.Series[Any]", context: Any) -> bool:
         raise ValueError()
 

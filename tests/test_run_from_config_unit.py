@@ -25,7 +25,6 @@ CHECK_FILES = ["check_row_shape.py", "check_age.py", "check_dates.py", "check_em
 def write_run(tmp_path: Path, body: str) -> str:
     """A run file in *tmp_path* beside a setup file naming the shipped checks and
     rules by absolute path, so *body* can say `setup: setup.yaml`."""
-
     (tmp_path / "setup.yaml").write_text(
         f"checks: [{', '.join(str(EXAMPLES / 'checks' / name) for name in CHECK_FILES)}]\n"
         f"rules: [{EXAMPLES / 'rules/error_rules.yaml'}]\n")
@@ -43,7 +42,6 @@ BASE = "setup: setup.yaml\ndata: data.csv\n"
 
 def refused(capsys: Any, run_file: str) -> str:
     """Run *run_file*, assert it exits 2 having printed nothing, return stderr."""
-
     with pytest.raises(SystemExit) as excinfo:
         run_from_config.main([run_file])
     assert excinfo.value.code == 2
@@ -163,7 +161,6 @@ def test_a_missing_run_file_names_itself(capsys: Any, tmp_path: Path) -> None:
 def test_a_run_file_that_is_not_utf8_is_one_error_line(capsys: Any, tmp_path: Path) -> None:
     """Regression: a Latin-1 run file escaped as a traceback and exit 1, where every
     other unreadable run file is one `error:` line and exit 2."""
-
     run_file = tmp_path / "run.yaml"
     run_file.write_bytes(b"setup: caf\xe9.yaml\n")
     err = refused(capsys, str(run_file))
@@ -176,7 +173,6 @@ def test_a_key_given_twice_is_refused_rather_than_the_last_winning(
     capsys: Any, tmp_path: Path
 ) -> None:
     """A second `tables:` would otherwise drop every table the first one listed."""
-
     run_file = write_run(tmp_path, BASE + "tables: [{table: summary}]\n"
                                           "tables: [{table: registry}]\n")
     err = refused(capsys, run_file)
@@ -188,7 +184,6 @@ def test_a_merge_key_and_an_unhashable_key_are_left_to_yaml(
     fresh_registry: None, capsys: Any, tmp_path: Path
 ) -> None:
     """`<<` may restate a key on purpose; a list as a key is refused by YAML itself."""
-
     merged = write_run(tmp_path, BASE + "tables:\n  - &t {table: summary}\n"
                                         "  - {<<: *t, table: summary}\n")
     run_from_config.main([merged])
@@ -214,7 +209,6 @@ def test_an_option_the_library_refuses_prints_none_of_the_run(
 ) -> None:
     """The first table is fine and would print; the second is refused, and the
     run prints neither, naming the table by position."""
-
     run_file = write_run(tmp_path, BASE + f"tables: [{{table: summary}}, {table}]\n")
     err = refused(capsys, run_file)
     name = table.split(",")[0].split(": ")[1]
@@ -227,7 +221,6 @@ def test_a_setup_file_the_library_refuses_exits_two_with_its_own_message(
     """The setup file is `load_setup`'s to judge, and its message is the one a
     reader of `docs/configuration.md` has seen, so it is passed on unchanged,
     after the run file's name, on one line rather than as a traceback."""
-
     run_file = write_run(tmp_path, "setup: absent.yaml\ndata: data.csv\n"
                                    "tables: [{table: summary}]\n")
     with pytest.raises(SystemExit) as exited:

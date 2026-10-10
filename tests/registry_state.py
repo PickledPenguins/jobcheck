@@ -41,7 +41,6 @@ class SavedRegistry:
         their runners are closures over the author's functions -- and
         `source_file` still names where each came from.
         """
-
         reg.clear_registry()
         reg._CHECKS.extend(self.checks)
         reg._LOADED_FILES.extend(self.loaded_files)

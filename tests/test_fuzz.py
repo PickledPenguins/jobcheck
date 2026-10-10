@@ -77,7 +77,6 @@ INVALID: dict[str, list[Any]] = {
 def random_rule(rng: random.Random) -> Any:
     """A rule-shaped mapping: every key valid four times in five, each key
     missing one time in twenty, an unknown key added one time in ten."""
-
     rule: dict[str, Any] = {}
     for key in VALID:
         if rng.random() < 0.05:
@@ -148,7 +147,6 @@ def random_rule_text(rng: random.Random, index: int) -> str:
     `TYPED_TEXT`; sometimes a key given twice, a key nobody defined, or the
     name left to YAML's typing. Nesting stays shallow: a deep one only
     reaches PyYAML's recursion limit, which is not this parser's to handle."""
-
     name = f"rule_{index}" if rng.random() < 0.9 else rng.choice(TYPED_TEXT)
     lines = [f"- name: {name}"]
     for key, valid in VALID_TEXT.items():
@@ -255,7 +253,6 @@ def test_the_report_survives_whatever_a_check_puts_in_its_comments(
 ) -> None:
     """Comments carry data, and data is hostile: building the report must not
     raise, and its CSV must read back with every row."""
-
     rng = random.Random(SEED + 1)
     for case in range(100):
         reg.clear_registry()

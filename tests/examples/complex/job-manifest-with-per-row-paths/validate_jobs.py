@@ -36,7 +36,6 @@ class JobContext(RowContext):
 def build_context(row: "pd.Series[str]", args: Namespace) -> JobContext:
     """Never raises on the data. A builder that raised would stop validate for every
     row, so a blank cell becomes None here and a check reports it as one failure."""
-
     run_dir = None if is_null(row["run_dir"]) else args.base / row["run_dir"]
     input_file = (None if run_dir is None or is_null(row["input"])
                   else run_dir / row["input"])

@@ -30,7 +30,6 @@ def one_code(fresh_registry: None) -> None:
 
 def test_yaml_cannot_construct_arbitrary_python_objects(one_code: None, tmp_path: Path) -> None:
     """A SafeLoader, not load: a !!python/object tag must be refused, not executed."""
-
     path = write(tmp_path, "evil.yaml", "- !!python/object/apply:os.system ['echo pwned']\n")
     with pytest.raises(Exception) as excinfo:
         reg.load_rules([path])
@@ -63,7 +62,6 @@ def test_a_catastrophic_regex_on_a_short_value_finishes_in_seconds(one_code: Non
     such a pattern. This pins that a cell-sized value is survivable, not that
     the matcher is safe.
     """
-
     rule = reg.Rule(
         name="redos", action="disable", codes=["A_CODE"],
         criteria=[_MatchCriterion("email", "(a+)+$", re.compile("(a+)+$"))], match_all=False,
@@ -80,7 +78,6 @@ def test_a_catastrophic_regex_on_a_short_value_finishes_in_seconds(one_code: Non
 
 def test_comments_are_never_evaluated(fresh_registry: None) -> None:
     """Comments are data all the way through: nothing formats or evals them."""
-
     from jobcheck.views import _render_comments
 
     rendered = _render_comments({"expr": "__import__('os').system('x')"})
@@ -91,7 +88,6 @@ def test_error_messages_quote_the_offending_value_not_the_whole_file(
     one_code: None, tmp_path: Path
 ) -> None:
     """A rule file may sit beside sensitive data; errors must stay local."""
-
     path = write(
         tmp_path, "r.yaml",
         '- name: "r"\n  message: \"why the rule exists\"\n  action: disable\n  codes: [NOT_A_CODE]\n  match: all\n'

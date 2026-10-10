@@ -41,7 +41,6 @@ def frame(rows: int = ROWS) -> pd.DataFrame:
 
 def gate(name: str, work: Callable[[], Any]) -> None:
     """Compare one measurement against the baseline, or record it the first time."""
-
     verdict, median, limit, ratio = compare(name, work)
     if verdict == "recorded":
         pytest.skip(f"baseline recorded for {name}: {median:.3f}s "

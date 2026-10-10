@@ -55,7 +55,6 @@ def test_a_stored_measurement_is_compared_against_its_median_plus_tolerance(
         baseline_file: Path) -> None:
     """The limit is the stored median plus its tolerance, and the ratio says how
     far the new measurement moved from that median."""
-
     baseline_file.write_text(json.dumps({
         "machine": pb.machine(),
         "measurements": {"thing": {"median": 1.0, "spread": 0.0, "repeats": 5.0}},
@@ -68,7 +67,6 @@ def test_a_stored_measurement_is_compared_against_its_median_plus_tolerance(
 
 def test_a_baseline_from_another_machine_is_discarded(baseline_file: Path) -> None:
     """Otherwise the first run on a new machine gates against numbers from an old one."""
-
     baseline_file.write_text(json.dumps({
         "machine": {"python": "1.0", "platform": "elsewhere", "processor": "other"},
         "measurements": {"thing": {"median": 1e-9, "spread": 0.0, "repeats": 5.0}},

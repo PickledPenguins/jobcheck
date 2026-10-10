@@ -33,7 +33,6 @@ ENTRY_POINTS: dict[str, ModuleType] = {
 def sections() -> dict[str, str]:
     """Each entry point's part of cli.md, from its `## examples/<name>.py` heading
     to the next `## ` heading, keyed by name."""
-
     parts = re.split(r"^## `examples/(\w+)\.py`\n", CLI.read_text(encoding="utf-8"),
                      flags=re.M)
     return {name: re.split(r"^## ", body, flags=re.M)[0]
@@ -46,7 +45,6 @@ def parser_for(name: str, monkeypatch: Any) -> argparse.ArgumentParser:
     argparse wraps usage to the terminal's width, and from Python 3.14 colors it
     when asked to, so both are pinned rather than inherited from the test run.
     """
-
     monkeypatch.setenv("COLUMNS", "80")
     monkeypatch.setenv("NO_COLOR", "1")
     parser: argparse.ArgumentParser = ENTRY_POINTS[name].build_parser()
@@ -56,7 +54,6 @@ def parser_for(name: str, monkeypatch: Any) -> argparse.ArgumentParser:
 
 def real_arguments(parser: argparse.ArgumentParser) -> set[str]:
     """Every option string, and each positional argument's metavar."""
-
     names: set[str] = set()
     for action in parser._actions:  # the parser's only view of its own arguments
         names.update(action.option_strings or [str(action.metavar or action.dest)])
@@ -65,7 +62,6 @@ def real_arguments(parser: argparse.ArgumentParser) -> set[str]:
 
 def documented_arguments(section: str) -> set[str]:
     """The first word of every backticked name in the section's `###` headings."""
-
     names: set[str] = set()
     for heading in re.findall(r"^### (.+)$", section, re.M):
         names.update(token.split()[0] for token in re.findall(r"`([^`]+)`", heading))
@@ -82,7 +78,6 @@ def test_every_argument_has_a_section_and_every_section_an_argument(
 ) -> None:
     """Regression: only `examples/main.py` was compared, so the other two
     sections could document anything."""
-
     real = real_arguments(parser_for(name, monkeypatch))
     documented = documented_arguments(sections()[name])
     assert sorted(real - documented) == [], f"{name}.py: not documented in docs/cli.md"
@@ -93,7 +88,6 @@ def test_every_argument_has_a_section_and_every_section_an_argument(
 def test_the_usage_shown_is_the_usage_argparse_prints(name: str, monkeypatch: Any) -> None:
     """Regression: cli.md showed `[--rules PATH [PATH ...]]` for a flag argparse
     prints as `[--rules [PATH ...]]`, and wrapped where argparse does not."""
-
     usage = parser_for(name, monkeypatch).format_usage()
     blocks = re.findall(r"^```\n(.*?)^```", sections()[name], re.M | re.S)
     assert usage in blocks, f"docs/cli.md has no block holding exactly:\n{usage}"
@@ -101,7 +95,6 @@ def test_the_usage_shown_is_the_usage_argparse_prints(name: str, monkeypatch: An
 
 def raised_exit_codes(path: Path) -> set[int]:
     """Every `raise SystemExit(<int>)` in one script."""
-
     source = ast.parse(path.read_text(encoding="utf-8"))
     return {
         int(node.exc.args[0].value)
@@ -117,7 +110,6 @@ def raised_exit_codes(path: Path) -> set[int]:
 
 def exit_code_section() -> str:
     """`## Exit codes` alone: the References table below it numbers its rows too."""
-
     text = CLI.read_text(encoding="utf-8")
     return text.split("\n## Exit codes\n", 1)[1].split("\n## ", 1)[0]
 
@@ -125,7 +117,6 @@ def exit_code_section() -> str:
 def test_every_exit_code_an_entry_point_can_return_is_documented() -> None:
     """The exit codes are the contract a scheduled job is written against, and all
     three entry points share one table; a code added without a row is invisible."""
-
     raised = set().union(*(raised_exit_codes(ROOT / "examples" / f"{name}.py")
                            for name in ENTRY_POINTS))
     # 0 for a clean run, 1 for an uncaught exception and 2 for a command line
@@ -140,7 +131,6 @@ def test_every_exit_code_an_entry_point_can_return_is_documented() -> None:
 
 def test_the_run_file_table_is_the_script_s_own() -> None:
     """Every table a run file can print, with exactly the options the script takes."""
-
     section = sections()["run_from_config"]
     rows = re.findall(r"^\| `(\w+)` \| ((?:`\w+`(?:, )?)+|none) \|", section, re.M)
     documented = {table: tuple(re.findall(r"`(\w+)`", options)) for table, options in rows}

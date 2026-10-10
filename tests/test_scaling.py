@@ -29,7 +29,6 @@ pytestmark = pytest.mark.long
 
 def frame(rows: int) -> pd.DataFrame:
     """A frame of *rows* rows, one in four failing, in a repeating pattern."""
-
     pattern = [
         {"age": 34, "email": "a@b.com", "start_date": "2024-01-01", "end_date": "2024-02-01"},
         {"age": -5, "email": "nope", "start_date": "2024-01-01", "end_date": "2024-02-01"},
@@ -41,7 +40,6 @@ def frame(rows: int) -> pd.DataFrame:
 
 def seconds(work: Callable[[], Any]) -> float:
     """Wall time for one call, with a floor so a ratio never divides by zero."""
-
     started = time.perf_counter()
     work()
     return max(time.perf_counter() - started, 1e-6)
@@ -69,7 +67,6 @@ def fastest(work: Callable[[], Any], repeats: int = 5) -> float:
     six seconds, and the other twenty that best-of-five costs would only pay off
     by tightening the bounds, which this file deliberately keeps loose.
     """
-
     work()
     return min(seconds(work) for _ in range(repeats))
 
@@ -101,7 +98,6 @@ def test_a_deep_dependency_chain_does_not_cost_more_than_a_flat_one(
     fresh_registry: None,
 ) -> None:
     """Layers are resolved once, not walked per row."""
-
     df = frame(500)
     for index in range(100):
         make_check(f"FLAT_{index}")
@@ -131,7 +127,6 @@ def test_building_a_report_scales_with_the_failures_not_the_rows(
     larger one. Both are the best of five runs now, and the bound is a ratio
     with room in it, like every other check in this file.
     """
-
     clean = pd.DataFrame([{"age": 34, "email": "a@b.com",
                            "start_date": "2024-01-01", "end_date": "2024-02-01"}] * 4_000)
     messy = frame(4_000)

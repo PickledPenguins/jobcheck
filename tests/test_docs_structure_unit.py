@@ -27,14 +27,12 @@ README_MAX_LINES = 300
 
 def test_the_readme_stays_an_index() -> None:
     """New material belongs in the document that owns the subject, not here."""
-
     lines = README.read_text(encoding="utf-8").splitlines()
     assert len(lines) <= README_MAX_LINES, f"README is {len(lines)} lines"
 
 
 def test_every_document_is_reachable_from_the_readme() -> None:
     """A document nobody links to is a document nobody reads."""
-
     linked = set(re.findall(r"\]\(docs/([a-z\-]+\.md)\)", README.read_text(encoding="utf-8")))
     assert {path.name for path in DOCS} - linked == set()
 
@@ -65,7 +63,6 @@ def test_no_internal_link_or_anchor_is_dead(path: Path) -> None:
 @pytest.mark.parametrize("path", DOCS, ids=lambda p: p.name)
 def test_every_document_says_how_to_get_back(path: Path) -> None:
     """The index links out; each document links back, or a reader is stranded."""
-
     assert "](../README.md)" in path.read_text(encoding="utf-8")
 
 
@@ -76,7 +73,6 @@ def test_no_table_is_split_by_a_blank_line(path: Path) -> None:
     A row that opens a table has a delimiter row under it; any other row has to
     follow a row, not a blank line.
     """
-
     lines = path.read_text(encoding="utf-8").splitlines()
     in_fence = False
     for number, line in enumerate(lines, start=1):
@@ -95,7 +91,6 @@ def test_no_table_is_split_by_a_blank_line(path: Path) -> None:
 
 def test_the_shipped_rule_keys_are_all_documented() -> None:
     """Configuration is the document that owns the rule-file format."""
-
     from jobcheck import rules
 
     configuration = (ROOT / "docs" / "configuration.md").read_text(encoding="utf-8")
@@ -113,7 +108,6 @@ def test_the_shipped_rule_keys_are_all_documented() -> None:
 def test_the_status_vocabulary_is_documented() -> None:
     """Status values are permanent identifiers; a new one nobody documents is a
     value that turns up in someone's report with no explanation."""
-
     from jobcheck.results import Status
 
     writing = (ROOT / "docs" / "writing-checks.md").read_text(encoding="utf-8")
@@ -123,7 +117,6 @@ def test_the_status_vocabulary_is_documented() -> None:
 
 def test_the_setup_keys_are_documented() -> None:
     """Configuration owns the setup-file format as it owns the rule-file format."""
-
     from jobcheck import registry
 
     configuration = (ROOT / "docs" / "configuration.md").read_text(encoding="utf-8")
@@ -134,7 +127,6 @@ def test_the_setup_keys_are_documented() -> None:
 def test_the_rule_file_shown_is_the_shipped_one() -> None:
     """Regression: configuration.md called its rule file the shipped one "verbatim"
     while a scripted rename had changed its pattern to one no demo row matches."""
-
     configuration = (ROOT / "docs" / "configuration.md").read_text(encoding="utf-8")
     shown = re.search(r"```yaml\n(.*?)```", configuration, re.S)
     assert shown, "configuration.md no longer shows a rule file"
@@ -147,7 +139,6 @@ def test_the_rule_file_shown_is_the_shipped_one() -> None:
 def test_testing_has_a_row_for_every_test_module() -> None:
     """Regression: `test_engine_repeat_unit.py` shipped with no row in the per-module
     table (F.81)."""
-
     testing = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
     rows = set(re.findall(r"^\| `(tests/[^`]+)` \|", testing, re.M))
     files = {path.relative_to(ROOT).as_posix() for path in ROOT.glob("tests/test_*.py")}
@@ -158,7 +149,6 @@ def test_every_list_of_the_summary_columns_names_them_all() -> None:
     """Regression: two lists left out `shared` when it was added (F.86). A list is
     a run of backticked names joined by commas that holds `root_cause_rows`.
     `future-work.md` is left out: it quotes old lists as history."""
-
     counts = set(summarize_outcomes([]).columns) - {"code", "layer"}
     run = re.compile(r"`\w+`(?:,\s+(?:and\s+)?`\w+`)+")
     short: dict[str, list[str]] = {}
@@ -176,7 +166,6 @@ def test_architecture_has_a_row_for_every_module_entry_point_and_script() -> Non
     """Regression: the table said report.py renders and the scripts row named four
     of eight scripts. A row per file is what keeps the list honest; a row naming a
     file that is gone fails too."""
-
     architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
     rows = set(re.findall(r"^\| `([^`]+)` \|", architecture, re.M))
     files = {
@@ -195,7 +184,6 @@ def collected(marker: str) -> int:
     session's own state rather than a clean one. ``-q --collect-only`` prints one
     ``path: count`` line per file, which is what is summed here.
     """
-
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-q", "-m", marker],
         cwd=ROOT, capture_output=True, text=True,
@@ -210,7 +198,6 @@ def test_the_documented_suite_sizes_are_the_real_ones() -> None:
     """The numbers in the suite table drifted by five, three and eight before
     anything compared them with a collection: they are the one documented
     surface nothing else gates."""
-
     # The long suite's size includes the property tests, which an interpreter
     # without hypothesis does not collect at all -- so on that interpreter the
     # documented number is right and the collection is short by all of them. The

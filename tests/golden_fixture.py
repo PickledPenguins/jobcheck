@@ -40,7 +40,6 @@ RULE_FILE = "examples/rules/error_rules.yaml"
 
 def frame() -> pd.DataFrame:
     """The rows every golden file is produced from."""
-
     return pd.DataFrame(
         [
             {"id": 101, "age": 34, "email": "alice@example.com", "start_date": "2024-01-01",

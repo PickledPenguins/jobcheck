@@ -77,7 +77,6 @@ def test_no_two_cases_record_the_same_output() -> None:
     misses a case that spells the same run differently -- passing the rule file
     `--rules` already defaults to, say, which is how one such pair got in.
     """
-
     seen: dict[str, str] = {}
     duplicates: list[frozenset[str]] = []
     for kind in ("examples", "failures"):
@@ -103,7 +102,6 @@ def test_the_catalogs_keep_their_floors() -> None:
     check replaces, because nothing there is under check on its own. Each failure
     case is a message a user will meet; its count keeps them coming.
     """
-
     counts = {"simple": 0, "moderate": 0, "complex": 0}
     for case in case_dirs("examples"):
         readme = (case / "README.md").read_text(encoding="utf-8")
@@ -125,7 +123,6 @@ def test_cases_run_through_a_root_of_a_fixed_length() -> None:
     generated it -- which is a failure nobody can act on. Proved by comparison:
     the stable root is the same length everywhere, the real one is not.
     """
-
     from catalog import STABLE_ROOT, stable_root
 
     root = stable_root()
@@ -142,7 +139,6 @@ def test_cases_run_through_a_root_of_a_fixed_length() -> None:
 def test_a_link_pointing_somewhere_else_is_replaced() -> None:
     """A clone that moved, or a link left by another checkout that shared the
     name, must not send this run's cases at the wrong tree."""
-
     from catalog import STABLE_ROOT, stable_root
 
     if stable_root() == ROOT:

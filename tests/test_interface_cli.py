@@ -44,7 +44,6 @@ def test_rules_takes_several_files_in_order_and_replaces_the_default() -> None:
 def test_the_entry_point_runs_from_any_directory(tmp_path: Any) -> None:
     """Its check files and its default rule file are named relative to the
     clone it lives in, not to wherever it was started."""
-
     result = run_cli(os.path.join(PROJECT_ROOT, "examples/main.py"), cwd=str(tmp_path))
     assert result.returncode == 0, result.stderr
     assert result.stdout.startswith("Loaded 3 rule(s) from 1 file(s)")
@@ -53,7 +52,6 @@ def test_the_entry_point_runs_from_any_directory(tmp_path: Any) -> None:
 
 def test_a_run_with_failing_rows_exits_zero_with_everything_on_stdout() -> None:
     """Validation failures are data, not a process error."""
-
     result = run_cli("examples/main.py")
     assert result.returncode == 0
     assert result.stdout.startswith("Loaded 3 rule(s) from 1 file(s)")

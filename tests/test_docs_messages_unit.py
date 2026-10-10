@@ -83,7 +83,6 @@ def _pieces(node: ast.expr) -> list[str] | None:
 
 def _message_argument(call: ast.Call) -> ast.expr | None:
     """The argument holding the text: the first with any literal in it."""
-
     for argument in call.args:
         pieces = _pieces(argument)
         if pieces and any(piece.strip() for piece in pieces):
@@ -158,7 +157,6 @@ def _code_spans(document: str) -> list[str]:
 
 def test_every_source_file_that_can_speak_to_a_user_has_an_owner() -> None:
     """A new module or example script must be given a document, not skipped."""
-
     speaking = {
         str(path.relative_to(ROOT))
         for directory in ("src/jobcheck", "examples")
@@ -181,7 +179,6 @@ def test_every_message_is_quoted_in_the_document_that_owns_it(document: str) -> 
 
 def test_the_scan_finds_messages_in_every_form_they_are_written() -> None:
     """Pinned so a scan that quietly finds nothing cannot pass the test above."""
-
     owned = messages_by_owner()
     found = {message.label.split(":")[0] for messages in owned.values() for message in messages}
     assert set(OWNERS) - found == set()

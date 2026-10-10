@@ -39,14 +39,12 @@ def test_all_shipped_rule_files_load_together(example_checks: None) -> None:
     fails with a duplicate-name error. Loading also refuses a rule naming a code
     no example check defines, naming the rule and its file.
     """
-
     assert len(rule_files()) >= 4
     load_rules([str(path) for path in rule_files()])
 
 
 def test_every_shipped_rule_matches_a_column_the_data_has(example_checks: None) -> None:
     """A rule filtering on a column the example data lacks can never fire."""
-
     rules = load_rules([str(path) for path in rule_files()])
     frame = pd.read_csv(DATA_DIR / "customers.csv", dtype=str)
     assert warn_missing_rule_columns(frame, rules) == []
@@ -67,7 +65,6 @@ def test_each_data_file_is_the_size_its_documentation_claims(name: str, rows: in
 
 def test_the_messy_file_exercises_every_shipped_check(example_checks: None) -> None:
     """Data that stopped failing anything would make the whole catalog vacuous."""
-
     frame = pd.read_csv(DATA_DIR / "customers.csv", dtype=str)
     failed = {outcome.code
               for outcomes in validate(frame)
@@ -80,7 +77,6 @@ def test_the_messy_file_exercises_every_shipped_check(example_checks: None) -> N
 
 def test_the_messy_file_still_holds_the_awkward_values_the_catalog_relies_on() -> None:
     """Named individually: each is a case some example exists to demonstrate."""
-
     text = (DATA_DIR / "customers.csv").read_text(encoding="utf-8")
     assert "=SUM(A1:A9)" in text, "the formula-injection row"
     assert "Karen Spärck Jones" in text, "the non-ASCII name"
