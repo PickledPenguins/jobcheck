@@ -31,7 +31,6 @@ def run_isolated(code: str, cwd: Path, extra_path: list[Path] | None = None) -> 
     nothing else unless the check says otherwise, so an accidental dependency on
     the working directory shows up as an ImportError.
     """
-
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join(str(path) for path in [SRC, *(extra_path or [])])
     return subprocess.run(
@@ -45,7 +44,6 @@ def run_isolated(code: str, cwd: Path, extra_path: list[Path] | None = None) -> 
 def test_the_package_ships_no_checks_of_its_own() -> None:
     """Regression: the example check files lived in the package, so they were in
     the wheel and registered our examples into every consumer's registry."""
-
     shipped = sorted(path.relative_to(PACKAGE).as_posix()
                      for path in PACKAGE.rglob("check_*.py"))
     assert shipped == []
@@ -53,7 +51,6 @@ def test_the_package_ships_no_checks_of_its_own() -> None:
 
 def test_the_annotations_are_advertised() -> None:
     """Without the marker, mypy treats an installed copy as untyped."""
-
     assert (PACKAGE / "py.typed").is_file()
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'jobcheck = ["py.typed"]' in pyproject
@@ -81,7 +78,6 @@ def test_importing_the_library_registers_nothing(tmp_path: Path) -> None:
 
 def adopter_package(tmp_path: Path) -> Path:
     """A minimal file of someone else's checks, in their own directory."""
-
     theirs = tmp_path / "their_checks"
     theirs.mkdir(parents=True)
     (theirs / "check_theirs.py").write_text(
@@ -96,7 +92,6 @@ def adopter_package(tmp_path: Path) -> Path:
 
 def test_an_adopter_gets_only_their_own_checks(tmp_path: Path) -> None:
     """Regression: a consumer's registry picked up ROW_ALL_NULL, our example."""
-
     home = adopter_package(tmp_path)
     result = run_isolated(
         "import pandas as pd\n"
@@ -186,7 +181,6 @@ def too_new_uses(tree: ast.AST) -> list[str]:
 def test_nothing_uses_a_stdlib_newer_than_the_declared_floor() -> None:
     """Regression: two checks imported tomllib, which is 3.11, while pyproject,
     the README and the CI matrix all said 3.10."""
-
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'requires-python = ">=3.10"' in pyproject
 
@@ -200,7 +194,6 @@ def test_nothing_uses_a_stdlib_newer_than_the_declared_floor() -> None:
 
 def test_the_floor_guard_catches_a_real_violation() -> None:
     """A guard nobody has seen fail is a guard nobody knows works."""
-
     assert too_new_uses(ast.parse("import tomllib")) == ["import tomllib (3.11)"]
     assert too_new_uses(ast.parse("from typing import Self")) == [
         "from typing import Self (3.11)"

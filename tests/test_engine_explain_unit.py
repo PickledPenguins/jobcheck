@@ -87,7 +87,6 @@ def test_a_two_argument_check_receives_the_context(fresh_registry: None) -> None
 def test_an_unnamed_context_is_an_empty_one_not_none(fresh_registry: None) -> None:
     """The per-row calls hand what `validate` hands: a check taking
     ``(row, context)`` sees a ``RowContext`` whichever entry point ran it."""
-
     seen: list[Any] = []
 
     @reg.register_check(code="NO_CTX", message="m")
@@ -251,7 +250,6 @@ def test_an_errored_outcome_carries_the_layer_and_a_pointer_to_detail(
     only its `detail` under test, and a check that raised at the wrong layer
     changes which code a row reports as its cause.
     """
-
     make_check("BASE")
     make_check("RAISES", depends_on=["BASE"], raises=RuntimeError("boom"))
     outcome = next(o for o in explain(ROW) if o.code == "RAISES")
@@ -345,7 +343,6 @@ def test_a_missing_field_reports_once_not_from_every_check_that_reads_it(
     example_checks: None,
 ) -> None:
     """The whole point of layering: one complaint about a blank age."""
-
     row = pd.Series({"age": None, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
     outcomes = explain(row)
@@ -368,7 +365,6 @@ def test_check_rule_columns_is_quiet_when_every_criterion_column_is_present(
     fresh_registry: None,
 ) -> None:
     """A match-all rule has no criterion columns, so it is never warned about."""
-
     make_check("CODE")
     rule = reg.Rule(
         name="on_age", action="disable", codes=["CODE"],
@@ -379,7 +375,6 @@ def test_check_rule_columns_is_quiet_when_every_criterion_column_is_present(
 
 def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: None) -> None:
     """A criterion on a missing column never matches, so the rule silently never fires."""
-
     make_check("CODE")
     rule = reg.Rule(
         name="legacy_only", action="disable", codes=["CODE"],
@@ -436,7 +431,6 @@ def test_the_off_by_default_integer_check_once_enabled(example_checks: None) -> 
 def test_a_child_blocked_by_a_disabled_parent_says_disabled(fresh_registry: None) -> None:
     """"Did not pass" reads as a failure; a chain switched off at its root is not one.
     A disabled prerequisite confirmed nothing, so it must not unlock anything."""
-
     calls: list[str] = []
     make_check("PARENT")
     make_check("CHILD", passes=False, depends_on=["PARENT"], calls=calls)
@@ -455,7 +449,6 @@ def test_a_mix_of_disabled_and_failed_prerequisites_says_did_not_pass(
 ) -> None:
     """Only when *every* blocker was disabled is "disabled" the whole truth. Every
     blocker is named, and only the blockers."""
-
     make_check("GOOD")
     make_check("OFF")
     make_check("BROKEN", passes=False)
@@ -471,7 +464,6 @@ def test_root_causes_are_every_failure_at_the_shallowest_layer(
     fresh_registry: None,
 ) -> None:
     """A deeper failure under a passing prerequisite is not one; a clean row has none."""
-
     make_check("A", passes=False)
     make_check("B", passes=False)
     make_check("OPEN")

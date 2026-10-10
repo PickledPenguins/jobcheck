@@ -27,7 +27,6 @@ HEADING = "## References"
 
 def _parts(path: Path) -> tuple[str, str | None]:
     """The document's body, and its References section if it has one."""
-
     # A fenced block shows the convention rather than using it, as contributing.md does.
     text = re.sub(r"^```.*?^```", "", path.read_text(encoding="utf-8"), flags=re.S | re.M)
     body, found, table = text.partition(f"\n{HEADING}\n")
@@ -60,7 +59,6 @@ def test_every_citation_is_a_row_of_the_references_table(path: Path) -> None:
 @pytest.mark.parametrize("path", DOCS + [README], ids=lambda p: p.name)
 def test_the_references_table_is_the_last_section(path: Path) -> None:
     """At the foot, where a reader looks for it; nothing hides below it."""
-
     _, table = _parts(path)
     if table is not None:
         assert not re.search(r"^#{1,6} ", table, re.M), (
@@ -75,7 +73,6 @@ def test_the_convention_is_written_down_where_contributors_read() -> None:
 
 def test_a_mismatched_citation_is_caught() -> None:
     """Pinned so a pattern that matches nothing cannot pass the tests above."""
-
     body = "A term<sup>[1](concepts.md#rows)</sup> and<sup>[2](cli.md)</sup>."
     table = "| # | Section | What it covers |\n|---|---|---|\n| 1 | [Rows](concepts.md#rows) | x |\n"
     assert CITATION.findall(body) == [("1", "concepts.md#rows"), ("2", "cli.md")]

@@ -26,7 +26,6 @@ pytestmark = pytest.mark.fast
 
 def copies() -> pd.DataFrame:
     """Job J1 in three copies, then J2 in one."""
-
     return pd.DataFrame({"id": ["J1", "J1", "J1", "J2"], "name": ["a", "a2", "b", "c"]})
 
 
@@ -55,7 +54,6 @@ def test_a_shared_outcome_passes_status_and_says_where(
     fresh_registry: None,
 ) -> None:
     """It keeps its check's layer, and says whether the first copy failed or errored."""
-
     make_check("BASE")
     make_check("ONCE", passes=False, status=Status.MALFORMED, comments={"v": 1},
                depends_on=["BASE"])
@@ -129,7 +127,6 @@ def test_a_repeated_check_reads_a_shared_prerequisite_from_the_first_copy(
     fresh_registry: None,
 ) -> None:
     """The prerequisite ran once, on the first copy; every copy is gated by that."""
-
     calls: list[str] = []
 
     @register_check("NAMES", "names blank")
@@ -145,7 +142,6 @@ def test_a_repeated_check_reads_a_shared_prerequisite_from_the_first_copy(
 
 def disable_on(name: str, codes: list[str]) -> Rule:
     """A rule disabling *codes* on the copy whose `name` is *name*."""
-
     pattern = f"^{name}$"
     return Rule(name=f"skip_{name}", action="disable", codes=codes,
                 criteria=[_MatchCriterion("name", pattern, re.compile(pattern))],
@@ -201,7 +197,6 @@ def test_a_dependent_is_settled_with_the_prerequisite_a_rule_disabled(
 ) -> None:
     """Skipped below a disabled check is not a result: the dependent runs on the
     copy that enables the chain, and is skipped on a copy that disables it."""
-
     calls: list[str] = []
     make_check("TOP")
     make_check("BELOW", depends_on=["TOP"], calls=calls)

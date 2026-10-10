@@ -46,7 +46,6 @@ def test_validating_reporting_and_summarizing_many_rows_stays_within_the_ceiling
     """Collecting outcomes keeps an object per check per row, so it is the report
     path that has to be watched at volume. The one absolute ceiling in the long
     suite: scaling's ratios catch growth, and the perf gate a small slowdown."""
-
     df = frame(5000)
     start = time.monotonic()
     outcomes = validate(df)

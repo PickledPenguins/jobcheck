@@ -104,7 +104,6 @@ class CountingContext:
 
 def counting_builder(frame: pd.DataFrame) -> Any:
     """A ``context_builder`` handing every row one context built from *frame*."""
-
     counts = {column: frame[column].value_counts().to_dict() for column in frame.columns}
     shared = CountingContext(counts=counts)
     return lambda row: shared
@@ -122,7 +121,6 @@ def frame(*records: dict[str, str]) -> pd.DataFrame:
 
 def failures(outcomes: list[CheckOutcome]) -> list[CheckOutcome]:
     """One row's reportable failures, which is what jobchain reads off a run."""
-
     return [outcome for outcome in outcomes if outcome.failed]
 
 

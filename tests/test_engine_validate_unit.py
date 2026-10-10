@@ -46,7 +46,6 @@ def test_each_row_gets_its_own_outcomes_in_its_own_position(fresh_registry: None
     only, so the position of the failure is the assertion. A filtered frame keeps
     its original labels; the outcomes are positional all the same.
     """
-
     @register_check(code="ODD_VALUE", message="value is odd")
     def odd_value(row: "pd.Series[Any]") -> Verdict:
         return Verdict(int(row["value"]) % 2 == 0)
@@ -66,7 +65,6 @@ def test_an_empty_frame_produces_no_outcomes(fresh_registry: None) -> None:
 def test_rules_given_as_a_generator_apply_to_every_row(fresh_registry: None) -> None:
     """A filtering generator is the idiomatic way to pass a subset. Read once per
     row as it came, it was empty from the second row on, and the check ran there."""
-
     make_check("A", passes=False)
     rules = [Rule(name="off", action="disable", codes=["A"], criteria=[], match_all=True,
                   message="why the rule exists")]
@@ -78,7 +76,6 @@ def test_rules_given_as_a_generator_apply_to_every_row(fresh_registry: None) -> 
 def test_the_context_builder_is_called_once_per_row(fresh_registry: None) -> None:
     """The context reaches the check unchanged, which is what lets one shared
     object carry the whole frame to a cross-row check."""
-
     seen: list[Any] = []
 
     @register_check(code="CTX", message="ctx")
@@ -107,7 +104,6 @@ def test_on_error_raise_stops_at_the_first_broken_check(fresh_registry: None) ->
 
 def test_a_bad_on_error_is_refused_even_on_an_empty_frame(fresh_registry: None) -> None:
     """The mode was only checked per row, so an empty frame let a typo through."""
-
     make_check("CODE")
     with pytest.raises(ValueError, match="on_error must be 'record' or 'raise'"):
         validate(pd.DataFrame(columns=["age"]), on_error="ignore")
@@ -141,7 +137,6 @@ def test_a_context_builder_taking_two_arguments_is_given_the_context_args(
 def test_a_builder_taking_neither_shape_says_so(fresh_registry: None) -> None:
     """The same message shape a check gets for the same mistake, and raised once
     per validate rather than once per row."""
-
     make_check("CODE")
     with pytest.raises(ValueError) as raised:
         validate(pd.DataFrame([{"a": 1}]),
@@ -171,7 +166,6 @@ def test_a_builder_that_raises_propagates_unchanged_under_record(
     checks, not the builder, so a builder must not raise on the data. Pinned so a
     change to it is a decision rather than an accident. Unchanged means the
     type and message; a note naming the row is added where Python has notes."""
-
     make_check("CODE")
 
     def build_context(row: Any) -> RowContext:
@@ -192,7 +186,6 @@ def test_an_exception_escaping_validate_names_the_row_and_keeps_its_type(
 ) -> None:
     """On a large frame, the row is what the reader needs to find; the type is
     what a caller's except clause matches, so it must not change."""
-
     @register_check("ROW_ONE", "row one is bad")
     def row_one(row: Any) -> Verdict:
         if row["id"] == 1:
@@ -235,7 +228,6 @@ def test_a_raising_builder_and_a_bad_return_name_the_row_too(fresh_registry: Non
 def test_a_broken_registry_is_not_blamed_on_a_row(fresh_registry: None) -> None:
     """A prerequisite nothing registered is the check author's mistake, and no
     row would fix it: the note must not send the reader to row 0."""
-
     make_check("DANGLING", depends_on=["NOT_A_REAL_CODE"])
     with pytest.raises(ValueError, match="which is not registered") as raised:
         validate(frame(2))

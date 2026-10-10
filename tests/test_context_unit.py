@@ -15,7 +15,6 @@ pytestmark = pytest.mark.fast
 
 def test_the_base_context_carries_no_fields() -> None:
     """Bare by design: the library defines the type and invents no fields."""
-
     import dataclasses
 
     assert [f.name for f in dataclasses.fields(RowContext)] == []
@@ -41,7 +40,6 @@ def test_a_check_caching_on_the_shared_context_errors_rather_than_reusing_a_row(
     The base refuses a new attribute because, without a builder, every row shares
     one bare context: a value cached on it would reach every later row, and later
     calls too."""
-
     from jobcheck import OK, Verdict, validate
     from jobcheck import registry as reg
     from jobcheck.results import Outcome
@@ -72,7 +70,6 @@ def test_validate_without_a_context_hands_every_row_a_bare_one(
 ) -> None:
     """The default path: no builder, or a builder returning None (``ContextBuilder``
     may), so a check that reads the context still gets one."""
-
     from jobcheck import OK, Verdict, validate
     from jobcheck import registry as reg
 
@@ -91,7 +88,6 @@ def test_validate_without_a_context_hands_every_row_a_bare_one(
 
 def test_a_caller_supplied_builder_is_what_reaches_the_checks(fresh_registry: None) -> None:
     """The documented replacement path, exercised rather than described."""
-
     from jobcheck import OK, Verdict, Status, validate
     from jobcheck import registry as reg
 

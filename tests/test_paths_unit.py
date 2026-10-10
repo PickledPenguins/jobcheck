@@ -32,7 +32,6 @@ def test_a_relative_path_is_resolved_against_the_working_directory(
 def test_a_symlink_comes_back_as_its_target(tmp_path: Path) -> None:
     """`resolve` follows the link, so the two paths to one file are one entry
     in the loaded-files list rather than two."""
-
     target = tmp_path / "real.py"
     target.write_text("")
     link = tmp_path / "link.py"
@@ -43,7 +42,6 @@ def test_a_symlink_comes_back_as_its_target(tmp_path: Path) -> None:
 def test_base_dir_anchors_a_relative_path(tmp_path: Path, monkeypatch: Any) -> None:
     """The point of the argument: the caller's directory decides, not the
     directory the process happens to have been started in."""
-
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     monkeypatch.chdir(elsewhere)
@@ -82,7 +80,6 @@ def test_a_missing_relative_path_says_what_it_looked_at(tmp_path: Path, monkeypa
 
 def test_a_missing_absolute_path_is_left_to_speak_for_itself() -> None:
     """An absolute path that is not there needs no second copy of itself."""
-
     with pytest.raises(ValueError) as raised:
         _resolve_input_file("/no/such/file.py", "check file", "load_checks()")
     assert str(raised.value) == (
@@ -103,7 +100,6 @@ def test_a_directory_is_named_as_the_mistake_it_is(tmp_path: Path) -> None:
 
 def test_a_repeat_after_a_merge_key_is_still_refused(tmp_path: Path) -> None:
     """The `<<` is skipped, not the rest of the mapping after it."""
-
     path = tmp_path / "f.yaml"
     path.write_text("base: &b {x: 1}\nm:\n  <<: *b\n  y: 1\n  y: 2\n", encoding="utf-8")
     with pytest.raises(yaml.constructor.ConstructorError) as raised:
@@ -114,7 +110,6 @@ def test_a_repeat_after_a_merge_key_is_still_refused(tmp_path: Path) -> None:
 def test_the_yaml_reader_leaves_an_unhashable_key_to_yaml(tmp_path: Path) -> None:
     """A list as a key cannot be looked up to find a repeat; SafeLoader refuses it
     with its own message rather than the reader failing with a TypeError."""
-
     path = tmp_path / "f.yaml"
     path.write_text("? [a, b]\n: 1\n", encoding="utf-8")
     with pytest.raises(yaml.constructor.ConstructorError, match="found unhashable key"):

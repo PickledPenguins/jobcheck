@@ -41,7 +41,6 @@ os.environ.setdefault(
 @pytest.fixture
 def fresh_registry() -> Iterator[None]:
     """Give the check an empty registry and put the previous one back afterwards."""
-
     saved = SavedRegistry()
     reg.clear_registry()
     yield
@@ -58,7 +57,6 @@ EXAMPLE_CHECK_FILES = [
 @pytest.fixture
 def example_checks(fresh_registry: None) -> None:
     """A registry holding the shipped example checks."""
-
     reg.load_checks(EXAMPLE_CHECK_FILES)
 
 
@@ -78,7 +76,6 @@ def make_check(
     ``calls`` is appended to on every invocation, which is how the checks tell
     "ran and passed" apart from "was skipped".
     """
-
     @reg.register_check(
         code=code,
         message=f"{code} failed",
@@ -111,7 +108,6 @@ def run_cli(*args: str, cwd: str = PROJECT_ROOT) -> CommandResult:
     *cwd* is what a test uses to show that a run does not depend on where it
     was started: the entry point's own paths are anchored to its clone.
     """
-
     completed = subprocess.run(
         [sys.executable, *args],
         cwd=cwd,
@@ -129,7 +125,6 @@ def first_cause(row_outcomes: list[Any]) -> str | None:
     failures at one depth are two causes. Tests that want a single label per row
     take the first, which is what this says in one place rather than thirty.
     """
-
     causes = _root_causes(row_outcomes)
     return causes[0] if causes else None
 
@@ -137,14 +132,12 @@ def first_cause(row_outcomes: list[Any]) -> str | None:
 def explain(row: pd.Series, context: Any = None, rules: Any = None,
             on_error: str = "record") -> list[res.CheckOutcome]:
     """One row's outcomes, as `validate` records them for a row with no copies."""
-
     return engine._explain(row, context, rules, on_error, {})[0]
 
 
 def failures(row: pd.Series, **kwargs: Any) -> list[res.CheckOutcome]:
     """One row's failed and errored outcomes, the checks that did not run left
     out: what most tests of the per-row algorithm assert on."""
-
     return [outcome for outcome in explain(row, **kwargs) if outcome.failed]
 
 
@@ -155,5 +148,4 @@ def enabled_only(state: dict[str, Any]) -> dict[str, bool]:
     prints the reason. A check that only cares which codes are on says so here
     rather than indexing ``[0]`` thirty times.
     """
-
     return {code: enabled for code, (enabled, _) in state.items()}

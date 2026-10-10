@@ -27,7 +27,6 @@ def regen() -> ModuleType:
 def document(tmp_path: Path, code: str, shown: str) -> Path:
     """A document holding one Python block, its shown output, and a listing that is
     not an output because a sentence separates it from the code."""
-
     path = tmp_path / "doc.md"
     path.write_text(f"# A document\n\nProse.\n\n```python\n{code}```\n\n```\n{shown}```\n\n"
                     "A listing, not an output:\n\n```\nkept as it is\n```\n", encoding="utf-8")
@@ -71,7 +70,6 @@ def test_a_block_runs_in_the_world_the_documents_assume(
     regen: ModuleType, fresh_registry: None, tmp_path: Path,
 ) -> None:
     """The demo frame and its outcomes are there, as they are for the docs test."""
-
     path = document(tmp_path, "print(len(df), len(outcomes), len(rules))\n", "stale\n")
     assert regen.regenerate([path]) == 0
     assert "```\n6 6 3\n```" in path.read_text(encoding="utf-8")
@@ -82,7 +80,6 @@ def test_the_readme_runs_as_one_session_and_stops_at_a_block_that_raises(
 ) -> None:
     """A later block reads a name an earlier one defined, as in test_readme.py; a
     block that raises keeps its output, and the blocks after it are not run."""
-
     path = tmp_path / "README.md"
     path.write_text("```python\nx = 2\n```\n\n```python\nprint(x * 3)\n```\n\n```\nstale\n```\n\n"
                     "```python\nraise ValueError('broken')\n```\n\n"
@@ -101,7 +98,6 @@ def test_a_name_on_the_command_line_selects_the_documents(
     regen: ModuleType, monkeypatch: Any,
 ) -> None:
     """Against a stand-in list, not docs/: mutmut's copy of the tree has no docs/."""
-
     chosen: list[list[Path]] = []
 
     def record(documents: list[Path]) -> int:
@@ -123,7 +119,6 @@ def test_a_name_matching_no_document_is_refused(
     regen: ModuleType, monkeypatch: Any, capsys: Any,
 ) -> None:
     """Exit 0 having done nothing is how a typo'd name passed for success."""
-
     monkeypatch.setattr(regen, "regenerate", lambda documents: pytest.fail("ran"))
     monkeypatch.setattr(regen, "DOCS", [Path("docs/cli.md"), Path("docs/reporting.md")])
     monkeypatch.setattr(regen, "README", Path("README.md"))

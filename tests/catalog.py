@@ -61,7 +61,6 @@ class CaseResult:
 
 def case_dirs(kind: str) -> list[Path]:
     """Every case directory under tests/<kind>, sorted for a stable test order."""
-
     return sorted(p.parent for p in (ROOT / "tests" / kind).rglob("cmd"))
 
 
@@ -81,7 +80,6 @@ def stable_root() -> Path:
     since two threads of one process share it -- and is never rendered into a
     case's output, so it does not disturb the fixed width the final name keeps.
     """
-
     try:
         if STABLE_ROOT.is_symlink() and STABLE_ROOT.readlink() == ROOT:
             return STABLE_ROOT
@@ -97,7 +95,6 @@ def stable_root() -> Path:
 
 def run_case(case: Path) -> CaseResult:
     """Run one case's command from the project root, through the stable link."""
-
     command = shlex.split((case / "cmd").read_text(encoding="utf-8").strip())
     if command and command[0] == "python3":
         command[0] = sys.executable
@@ -111,12 +108,10 @@ def run_case(case: Path) -> CaseResult:
 
 def normalize(text: str) -> str:
     """Replace whichever project root the run rendered, real or stable."""
-
     return text.replace(str(STABLE_ROOT), "<project>").replace(str(ROOT), "<project>")
 
 
 def stderr_tail(text: str) -> str:
     """The last non-blank line of stderr: the message a user actually reads."""
-
     lines = [line for line in text.splitlines() if line.strip()]
     return (lines[-1] if lines else "") + "\n"

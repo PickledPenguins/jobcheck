@@ -31,7 +31,6 @@ def rule(row):
 
 def write_check_file(directory: Path, name: str, code: str) -> str:
     """A one-check file on disk, named as a caller's pipeline would name it."""
-
     path = directory / name
     path.write_text(FILE_WITH_ONE_CHECK.format(code=code))
     return str(path)
@@ -42,7 +41,6 @@ def test_base_dir_anchors_the_relative_paths_of_one_call(fresh_registry: None,
                                                          monkeypatch: Any) -> None:
     """What an entry point beside its check files needs: the same run whatever
     directory it was started from."""
-
     write_check_file(tmp_path, "checks.py", "ANCHORED")
     started_in = tmp_path / "started-in"
     started_in.mkdir()
@@ -63,7 +61,6 @@ def test_a_file_named_twice_in_one_call_or_reloaded_raises(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     """Before anything is imported: the repeat is the caller's mistake to fix."""
-
     path = write_check_file(tmp_path, "checks.py", "AGAIN")
     with pytest.raises(ValueError) as raised:
         reg.load_checks([path, path])
@@ -80,7 +77,6 @@ def test_every_file_of_one_name_gets_its_own_module(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     """Sharing a name, the later file would replace the earlier one in sys.modules."""
-
     paths = []
     for side in ("a", "b", "c"):
         (tmp_path / side).mkdir()
@@ -106,7 +102,6 @@ def test_a_file_gets_the_same_module_name_every_time_it_is_loaded(
 
 def test_a_missing_path_raises_and_registers_nothing(fresh_registry: None, tmp_path: Path) -> None:
     """load_checks imports files, so a module name is a missing file, not an import."""
-
     good = write_check_file(tmp_path, "checks.py", "GOOD")
     with pytest.raises(ValueError, match="No check file at"):
         reg.load_checks([good, str(tmp_path / "absent.py")])
@@ -169,7 +164,6 @@ def test_the_loaded_module_is_registered_under_its_generated_name(
     Written against a surviving mutant: replacing the module object in
     ``sys.modules`` with ``None`` broke nothing any check asserted.
     """
-
     import sys
 
     reg.load_checks([write_check_file(tmp_path, "checks.py", "IN_SYS_MODULES")])
@@ -210,7 +204,6 @@ def test_a_module_a_check_file_imports_still_writes_its_bytecode(
     fresh_registry: None, tmp_path: Path, monkeypatch: Any
 ) -> None:
     """Only the check file goes without a .pyc: nothing process-wide is switched off."""
-
     monkeypatch.setattr(sys, "dont_write_bytecode", False)
     library = tmp_path / "library"
     library.mkdir()
@@ -230,7 +223,6 @@ def test_a_module_a_check_file_imports_still_writes_its_bytecode(
 def test_a_file_that_registers_nothing_can_still_be_loaded_again(fresh_registry: None,
                                                                  tmp_path: Path) -> None:
     """A file with no checks is still dropped and run again."""
-
     import sys
 
     path = tmp_path / "empty_checks.py"
@@ -302,7 +294,6 @@ def test_an_earlier_call_may_not_depend_on_a_file_a_later_call_loads(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     """Each call validates the graph as it returns."""
-
     dependent = tmp_path / "check_dependent.py"
     dependent.write_text(NEEDS_BASE)
     with pytest.raises(ValueError, match="depends on 'BASE', which is not registered"):
@@ -348,7 +339,6 @@ def test_a_setup_file_loads_the_checks_and_returns_the_rules(
 ) -> None:
     """The whole of configuring this library in one call: the check files are
     registered, the rules come back to hand to `validate`."""
-
     (tmp_path / "check_one.py").write_text(
         "from jobcheck import OK, register_check\n"
         "@register_check('A_CODE', 'm')\n"
@@ -371,7 +361,6 @@ def test_setup_paths_are_relative_to_the_setup_file_not_the_caller(
 ) -> None:
     """The file and the paths in it travel together: a setup file moved to another
     machine, or run from another directory, still finds its own check files."""
-
     (tmp_path / "check_one.py").write_text(
         "from jobcheck import OK, register_check\n"
         "@register_check('A_CODE', 'm')\n"
@@ -390,7 +379,6 @@ def test_a_key_given_twice_in_a_setup_file_is_refused(
 ) -> None:
     """PyYAML keeps the second `checks:`, so the files the first one named would
     never load, and nothing would say so."""
-
     path = _setup(tmp_path, "checks: [one.py]\nrules: [r.yaml]\nchecks: [two.py]\n")
     with pytest.raises(yaml.YAMLError) as raised:
         reg.load_setup(path)
@@ -415,7 +403,6 @@ def test_a_setup_file_that_is_not_a_mapping_says_so(
 ) -> None:
     """A flat list is the rule file's shape, and the mistake somebody makes having
     written one of those first."""
-
     path = _setup(tmp_path, "- checks/check_age.py\n")
     with pytest.raises(ValueError) as raised:
         reg.load_setup(path)
@@ -426,7 +413,6 @@ def test_a_setup_key_yaml_reads_as_a_number_is_named_rather_than_crashing(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     """An int key beside a text one cannot be sorted, which raised a bare TypeError."""
-
     path = _setup(tmp_path, "checks: [x.py]\n1: a\nextra: b\n")
     with pytest.raises(ValueError) as raised:
         reg.load_setup(path)
@@ -438,7 +424,6 @@ def test_a_setup_file_naming_only_rules_is_refused(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     """Rules switch checks on and off, so a setup with none configures nothing."""
-
     path = _setup(tmp_path, "rules: [r.yaml]\n")
     with pytest.raises(ValueError) as raised:
         reg.load_setup(path)
@@ -451,7 +436,6 @@ def test_a_string_where_a_list_belongs_is_refused(
 ) -> None:
     """YAML reads `checks: one.py` as a string, and a string is a list of
     characters -- without this it would try to load a file per character."""
-
     path = _setup(tmp_path, "checks: one.py\n")
     with pytest.raises(ValueError) as raised:
         reg.load_setup(path)
@@ -478,7 +462,6 @@ def test_a_setup_entry_that_is_not_a_path_names_its_position(
 def test_an_empty_rules_list_is_allowed(fresh_registry: None, tmp_path: Path) -> None:
     """`rules: []` is the baseline every rule file is a deviation from, the same
     reading `--rules` with no paths has."""
-
     (tmp_path / "check_one.py").write_text(
         "from jobcheck import OK, register_check\n"
         "@register_check('A_CODE', 'm')\n"

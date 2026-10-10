@@ -33,7 +33,6 @@ def test_a_failing_result_is_falsy() -> None:
 def test_a_check_cannot_return_status_error() -> None:
     """Regression: it recorded as a failure carrying ERROR (9), which broke the
     summary's split between broken checks and bad data."""
-
     with pytest.raises(ValueError) as raised:
         Verdict(Status.ERROR)
     assert str(raised.value) == (
@@ -45,7 +44,6 @@ def test_a_check_cannot_return_status_error() -> None:
 
 def test_the_engine_can_still_record_an_error_outcome() -> None:
     """The status stays usable where it belongs -- on an outcome, not a result."""
-
     outcome = res.CheckOutcome("CODE", res.Outcome.ERRORED, status=Status.ERROR)
     assert outcome.status_label == "ERROR (9)"
     assert outcome.failed is True
@@ -82,7 +80,6 @@ def test_a_result_passes_through() -> None:
 def test_a_bool_is_never_read_as_an_integer_status() -> None:
     """True == 1 == MISSING and False == 0 == OK: reading either as an integer
     would invert what the check said."""
-
     assert Verdict(True).status == Status.PASS
     assert Verdict(False).status == Status.INVALID
 
@@ -96,7 +93,6 @@ def test_a_verdict_status_is_a_plain_int() -> None:
 
 def test_numpy_scalars_are_accepted() -> None:
     """A comparison against a pandas value returns np.bool_, not bool."""
-
     import numpy
 
     assert bool(Verdict(numpy.bool_(True))) is True  # type: ignore[arg-type]
@@ -111,7 +107,6 @@ def test_numpy_scalars_are_accepted() -> None:
 )
 def test_anything_else_raises_naming_the_check(returned: object) -> None:
     """A check falling off the end must not be read as a pass."""
-
     with pytest.raises(TypeError, match=r"Check 'CODE' returned"):
         res._normalize_verdict(returned, "CODE")
 

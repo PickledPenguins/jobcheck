@@ -28,7 +28,6 @@ FRAME = pd.DataFrame(
 @pytest.fixture
 def two_layers(fresh_registry: None) -> None:
     """A root check that fails on some rows, and a dependent that it blocks."""
-
     @reg.register_check(code="AGE_PRESENT", message="Age is missing")
     def age_present(row: "pd.Series[Any]") -> Any:
         return OK if row["age"] is not None and not pd.isna(row["age"]) else Verdict(Status.MISSING)
@@ -51,13 +50,11 @@ def build(*args: Any, **kwargs: Any) -> pd.DataFrame:
     """The report with its index made columns again, the row key first: most
     tests read the key and `code` as columns. The index itself is tested on its
     own."""
-
     return views.build_report(*args, **kwargs).reset_index()
 
 
 def report_for(df: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
     """Build a report for a frame the test made up on the spot."""
-
     return build(validate(df), df=df, **kwargs)
 
 
@@ -85,7 +82,6 @@ def test_a_broken_check_never_takes_the_flag_from_a_data_failure(
 ) -> None:
     """Decided 2026-09-28 (F.47): data failures come first. The broken check sits on
     layer 0 and the real failure on layer 1, yet the real one is flagged."""
-
     make_check("BROKEN", raises=RuntimeError("bug"))
     make_check("PARENT")
     make_check("REAL", passes=False, depends_on=["PARENT"])
@@ -100,7 +96,6 @@ def test_a_row_whose_only_problem_is_a_broken_check_is_still_flagged(
     fresh_registry: None,
 ) -> None:
     """Otherwise a filter on is_root_cause would never show the row at all."""
-
     make_check("BROKEN", raises=RuntimeError("bug"))
     make_check("FINE")
     report = report_for(pd.DataFrame([{"age": 1}]))
@@ -143,7 +138,6 @@ def test_extra_columns_keep_the_order_they_were_given(two_layers: None) -> None:
 def test_data_column_values_render_like_the_row_key(two_layers: None) -> None:
     """Whole floats lose the .0, the key's included: an integer id column pandas
     widened to float still reads as 102. A missing value is blank rather than nan."""
-
     frame = pd.DataFrame([{"id": 102.0, "age": -5, "batch": 7.0, "region": None}])
     report = build(validate(frame), df=frame, key_column="id",
                               add_columns=["batch", "region"])
@@ -161,7 +155,6 @@ def test_a_duplicated_frame_column_is_rejected_rather_than_misread(two_layers: N
     """Regression: df[add_columns] returns one value per matching column, so a
     duplicated label produced more values than names and zip paired them by
     position -- the second 'batch' value printed under the 'age' heading."""
-
     frame = pd.DataFrame([[1, "A", "B", -5]], columns=["id", "batch", "batch", "age"])
     outs = validate(pd.DataFrame([{"id": 1, "age": -5}]))
     with pytest.raises(ValueError, match=r"add_columns \['batch'\] cannot be used"):
@@ -172,7 +165,6 @@ def test_a_duplicated_key_column_is_rejected_rather_than_misread(two_layers: Non
     """Regression: df[key_column] is a DataFrame when the label is repeated, so
     every row was labeled with the column *name* -- 'id' on every line -- and
     zip() then truncated the report to the number of labels produced."""
-
     frame = pd.DataFrame([[1, "A", 1], [2, "B", 2]], columns=["id", "batch", "id"])
     outs = validate(pd.DataFrame([{"id": 1, "age": -5}, {"id": 2, "age": -5}]))
     with pytest.raises(ValueError, match=r"key_column 'id' appears 2 times"):
@@ -191,7 +183,6 @@ def test_a_duplicate_elsewhere_in_the_frame_does_not_block_other_columns(
 def test_the_key_column_is_not_offered_again_as_a_data_column(two_layers: None) -> None:
     """It already heads the report under its own name; a second copy would be a
     level with the same name and the same values."""
-
     with pytest.raises(ValueError, match=r"add_columns \['id'\] cannot be used"):
         build(outcomes(), df=FRAME, key_column="id", add_columns=["id"])
 
@@ -233,7 +224,6 @@ def test_an_errored_check_appears_in_the_report(fresh_registry: None) -> None:
 
 def test_comments_render_in_the_order_the_check_wrote_them() -> None:
     """Keys of mixed types too: sorting them once raised `TypeError` in the report."""
-
     assert views._render_comments({"zebra": 1, "actual": 2}) == "zebra=1; actual=2"
     assert views._render_comments({1: "a", "b": 2}) == "1=a; b=2"
     assert views._render_comments({}) == ""
@@ -241,7 +231,6 @@ def test_comments_render_in_the_order_the_check_wrote_them() -> None:
 
 def test_every_table_carries_its_own_title(two_layers: None) -> None:
     """What lets a caller head each table without naming it."""
-
     assert views.build_report(outcomes(), df=FRAME).attrs["title"] == "Report"
     assert views.explain_row(outcomes(), 0).attrs["title"] == "Row explanation"
     assert views.summarize_outcomes(outcomes()).attrs["title"] == "Summary"
@@ -289,7 +278,6 @@ def test_the_summary_puts_the_worst_check_first(fresh_registry: None) -> None:
     Three checks with distinct failure counts, asserted as a list: a set of the
     first two codes in a two-check registry was true in any order.
     """
-
     make_check("RARE", passes=False)
     make_check("COMMON", passes=False)
     make_check("NEVER")
@@ -314,7 +302,6 @@ def test_the_summary_of_nothing_has_columns_and_no_rows(fresh_registry: None) ->
 def test_root_cause_rows_counts_the_rows_each_code_explains(fresh_registry: None) -> None:
     """Two codes failing at the same layer on the same row are both its root
     cause, so the row counts against each."""
-
     make_check("RARE", passes=False)
     make_check("COMMON", passes=False)
     frame = pd.DataFrame([{"age": 1}, {"age": 2}])
@@ -330,7 +317,6 @@ def test_the_summary_reads_a_generator_once_and_still_finds_the_root_causes(
 ) -> None:
     """The counts and the root causes come from one walk, so a generator of
     outcomes is not spent before the second."""
-
     table = views.summarize_outcomes(row for row in outcomes())
     assert table["root_cause_rows"].sum() == 2
 
@@ -338,7 +324,6 @@ def test_the_summary_reads_a_generator_once_and_still_finds_the_root_causes(
 def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> None:
     """A caller building a frame from several explanations needs the shape even
     when one row explained nothing."""
-
     assert list(views.explain_row([[]], 0).columns) == [
         "code", "status", "layer", "outcome", "message", "detail", "comments",
         "rule", "is_root_cause"]
@@ -349,7 +334,6 @@ def test_an_empty_explanation_still_has_its_columns(fresh_registry: None) -> Non
 
 def two_independent_failures(fresh: None) -> tuple[list[list[Any]], pd.DataFrame]:
     """A row failing two chains: one deep, one shallow, deep registered first."""
-
     make_check("P")
     make_check("Q", depends_on=["P"])
     make_check("DEEP", passes=False, depends_on=["Q"])
@@ -363,7 +347,6 @@ def test_every_failure_at_the_shallowest_layer_is_a_root_cause(fresh_registry: N
     """Two failures at the same depth are two root causes, not a race between them.
     A deeper failure is not one, and the root cause is not always the first line --
     the claim a docstring once made, pinned as false so it stays fixed."""
-
     outcomes, frame = two_independent_failures(fresh_registry)
     report = build(outcomes, df=frame)
     assert list(zip(report["code"], report["is_root_cause"])) == [
@@ -379,7 +362,6 @@ def test_an_unknown_include_level_names_the_levels(two_layers: None) -> None:
 def test_the_root_causes_level_keeps_only_the_flagged_lines(fresh_registry: None) -> None:
     """The deep failure comes first in each row, so a row's remaining lines are
     still read after a line that is not a root cause."""
-
     make_check("ROOT", passes=True)
     make_check("DEEP", passes=False, depends_on=["ROOT"])
     make_check("SHALLOW_A", passes=False)
@@ -397,7 +379,6 @@ def test_the_root_causes_level_keeps_only_the_flagged_lines(fresh_registry: None
 
 def test_the_report_hangs_a_rows_lines_from_its_first(two_layers: None) -> None:
     """Printed, a repeated row label shows once; written, every line keeps it."""
-
     report = views.build_report(outcomes(), df=FRAME, key_column="id", include="all",
                                 add_columns=["age"])
     assert list(report.index.names) == ["id", "age", "code"]
@@ -423,7 +404,6 @@ def test_an_empty_report_keeps_its_index_and_columns(two_layers: None) -> None:
 def test_a_frame_offering_no_extra_columns_says_so(fresh_registry: None) -> None:
     """Every column of this frame is one the report already uses, so there is
     nothing left to ask for, and the message says that rather than listing air."""
-
     make_check("FAILS", passes=False)
     frame = pd.DataFrame([{"code": "x", "status": "y"}])
     with pytest.raises(ValueError, match=r"be one of: \(none available\)"):
@@ -436,7 +416,6 @@ def test_a_frame_offering_no_extra_columns_says_so(fresh_registry: None) -> None
 def test_add_columns_reads_a_column_whose_label_is_a_number(fresh_registry: None) -> None:
     """Asked for by name as text, read by the frame's own label: `"5"` passed the
     check against the offered names and then raised KeyError on `df[["5"]]`."""
-
     make_check("ALWAYS", passes=False)
     frame = pd.DataFrame({5: ["five"], "id": [1]})
     report = build(validate(frame), df=frame, add_columns=["5"])
@@ -472,7 +451,6 @@ def test_root_cause_rows_count_rows_not_names() -> None:
 def test_a_null_index_label_is_named_no_key(two_layers: None) -> None:
     """Without a key column the index labels the rows, and an index can hold a
     null as easily as a column can -- a set_index on a column with blanks."""
-
     df = FRAME.copy()
     df.index = pd.Index(["a", "b", None])
     report = build(outcomes(df), df=df)

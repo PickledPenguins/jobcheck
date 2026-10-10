@@ -26,7 +26,6 @@ def test_report_memory_stays_bounded_for_a_large_frame(example_checks: None) -> 
     """validate keeps an object per check per row, so this is the number that
     decides how large a frame the report path can take. That the per-row path
     holds nothing between rows is `test_scaling.py`'s memory test."""
-
     df = frame(2000)
     tracemalloc.start()
     outcomes = validate(df)

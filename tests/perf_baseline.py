@@ -35,7 +35,6 @@ REPEATS = 5
 
 def machine() -> dict[str, str]:
     """What the numbers are numbers *for*: a baseline is not portable."""
-
     return {
         "python": sys.version.split()[0],
         "platform": platform.platform(),
@@ -45,7 +44,6 @@ def machine() -> dict[str, str]:
 
 def measure(work: Callable[[], Any], repeats: int = REPEATS) -> dict[str, float]:
     """Median and relative spread of *repeats* runs of *work*."""
-
     samples = []
     for _ in range(repeats):
         started = time.perf_counter()
@@ -58,13 +56,11 @@ def measure(work: Callable[[], Any], repeats: int = REPEATS) -> dict[str, float]
 
 def tolerance(entry: dict[str, float]) -> float:
     """How much slower than the baseline is still noise on this machine."""
-
     return min(max(entry.get("spread", 0.0) * 2, MIN_TOLERANCE), MAX_TOLERANCE)
 
 
 def load() -> dict[str, Any]:
     """The stored baseline, or an empty one on a machine that has none yet."""
-
     if not BASELINE.exists():
         return {"machine": machine(), "measurements": {}}
     stored = json.loads(BASELINE.read_text(encoding="utf-8"))
@@ -84,7 +80,6 @@ def compare(name: str, work: Callable[[], Any]) -> tuple[str, float, float, floa
     The verdict is ``"recorded"`` the first time and ``"compared"`` afterwards,
     so a fresh clone reports what it stored rather than passing silently.
     """
-
     data = load()
     now = measure(work)
     stored = data["measurements"].get(name)
