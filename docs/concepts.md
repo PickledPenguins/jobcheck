@@ -35,11 +35,12 @@ Three questions, and three types that answer them:
   `failed`, `errored` (it raised), `disabled` (a rule or its default switched it off),
   `skipped` (a prerequisite did not pass) or `shared` (the row is a copy, and the check
   ran on an earlier copy instead). The engine records one `CheckOutcome` per
-  check per row: code, outcome, status, layer, message, detail and comments.<sup>[7](interfaces.md#checkoutcome)</sup>
+  check per row: code, outcome, status, layer, message, detail, comments and rule.<sup>[7](interfaces.md#checkoutcome)</sup>
 - **comments** — the evidence a check attaches to its verdict, a mapping the report
   prints as `key=value; key=value`.<sup>[8](writing-checks.md#comments)</sup>
 - **detail** — why a check gave no verdict: the rule that disabled it, the prerequisite
-  that blocked it, or the exception it raised.
+  that blocked it, the exception it raised, or, on a copy under `repeat_key`, what it
+  did on the first copy and where.
 
 "Fine" has three names, one per question: a check returns `OK`, the engine records
 `Outcome.PASSED`, and the status is `Status.PASS`. That is why a table shows

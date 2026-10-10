@@ -24,7 +24,7 @@ dev = [
     "mypy>=1.0",
     "types-PyYAML",
     "hypothesis>=6.0",
-    "mutmut>=3.0",
+    "mutmut>=3.8",
     "ruff>=0.15",
 ]
 
@@ -100,7 +100,7 @@ explicit-preview-rules = true
 select = ["F", "E301", "E302", "E303", "E304", "E305", "E306"]
 
 [tool.mutmut]
-paths_to_mutate = ["src/jobcheck/"]
+source_paths = ["src/jobcheck/"]
 # The entry point, the example check files and the example data the tests load live
 # here; scripts/ comes too because a test regenerates the data files from the
 # generator and compares, which needs the generator inside the mutants tree.

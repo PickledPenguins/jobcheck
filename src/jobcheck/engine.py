@@ -22,7 +22,7 @@ from .results import (
     _normalize_verdict,
 )
 from .rules import Rule, _rule_matches
-from .tables import _format_cell, is_null
+from .tables import _format_cell, _require_one_column, is_null
 
 # A builder takes `(row)` or `(row, context_args)`, the way a check takes
 # `(row)` or `(row, context)`, and returns the row's context.
@@ -30,7 +30,7 @@ ContextBuilder = Callable[..., RowContext | None]
 
 # Default empty context for checks that require one. One shared object: the base
 # class has no fields, and its empty __slots__ refuses a new attribute, so no
-# check add anything to it.
+# check adds anything to it.
 _EMPTY_CONTEXT = RowContext()
 
 
@@ -61,48 +61,29 @@ _Settled = dict[str, tuple[str, CheckOutcome]]
 
 def _explain(
     row: "pd.Series[Any]",
-    context: RowContext | None = None,
-    rules: list[Rule] | None = None,
-    on_error: str = "record",
-) -> list[CheckOutcome]:
-    """Run the checks against one row and report what *every* check did.
+    context: RowContext | None,
+    rules: list[Rule] | None,
+    on_error: str,
+    settled: _Settled,
+) -> tuple[list[CheckOutcome], set[str]]:
+    """Run the checks against one row and report what *every* check did, plus the
+    codes that were off on the row (disabled on it, or below a check that is).
 
-    The single implementation of the per-row algorithm. Outcomes come back in
-    evaluation order. A check runs only once every check it depends on has
-    passed. The first failure is not necessarily the shallowest (an
+    Outcomes come back in evaluation order. A check runs only once every check it
+    depends on has passed. The first failure is not necessarily the shallowest (an
     independent chain registered earlier can fail deeper).
 
     "Did not pass" includes a prerequisite that was *disabled* or *errored* as well
     as one that failed (a check that never ran confirmed nothing about the row).
     A check that did not pass will block a dependent check from running.
 
-    A `context` of `None` becomes an empty `RowContext`
+    Under `repeat_key`, a check that does not repeat and that an earlier copy
+    settled (it is in *settled*) is not run. That copy's result is recorded as
+    `shared` (unless a rule disables the check on this copy, which wins). A row
+    with no earlier copy passes an empty *settled*.
+
+    A `context` of `None` becomes an empty `RowContext`.
     """
-    check_outcomes, _ = _explain_with_off_on_row(row, context, rules, on_error, {})
-    return check_outcomes
-
-
-def _explain_with_off_on_row(
-    row: "pd.Series[Any]",
-    context: RowContext | None,
-    rules: list[Rule] | None,
-    on_error: str,
-    settled: _Settled,
-) -> tuple[list[CheckOutcome], set[str]]:
-    """`_explain` for a row under `repeat_key`, which also returns the codes that
-    were off on the row (disabled on it, or below a check that is).
-
-    A check that does not repeat and that an earlier copy settled (it is in *settled*)
-    is not run. Record that copy's result as `shared` (unless a rule disables the
-    check on this copy, which wins).
-    """
-
-    if row.index.has_duplicates:
-        duplicated = sorted({str(label) for label in row.index[row.index.duplicated()]})
-        raise ValueError(
-            f"Row has duplicate column labels {duplicated}. Rename or drop the duplicate "
-            "columns before validating."
-        )
 
     if context is None:
         context = _EMPTY_CONTEXT
@@ -249,10 +230,15 @@ def validate(
     if on_error not in ("record", "raise"):
         raise ValueError(f"on_error must be 'record' or 'raise', got {on_error!r}.")
     if not isinstance(df, pd.DataFrame):
-        raise TypeError(f"validate takes a DataFrame, got {type(df).__name__}")
+        raise TypeError(f"validate takes a DataFrame, got {type(df).__name__}.")
 
     if repeat_key is not None:
-        _check_repeat_key(df, repeat_key)
+        _require_one_column(df, "repeat_key", repeat_key)
+    if df.columns.has_duplicates:
+        duplicated = sorted({str(label) for label in df.columns[df.columns.duplicated()]})
+        raise ValueError(
+            f"Data has duplicate column labels {duplicated}. Rename or drop the duplicate "
+            "columns before validating.")
     # Validate the registry before the row loop: a registry mistake (E.g., a prerequisite
     # no check registered) would raise inside the loop then carry a row's note.
     _get_topo_order()
@@ -268,12 +254,11 @@ def validate(
         try:
             context = None if build is None else build(row, context_args)
             if repeat_key is None:
-                frame_outcomes.append(_explain(row, context, rules, on_error))
+                frame_outcomes.append(_explain(row, context, rules, on_error, {})[0])
                 continue
             is_first_copy = value not in settled_by_value
             settled = settled_by_value.setdefault(value, {})
-            row_outcomes, off_on_row = _explain_with_off_on_row(row, context, rules, on_error,
-                                                                settled)
+            row_outcomes, off_on_row = _explain(row, context, rules, on_error, settled)
         except Exception as exc:
             # Whatever escapes (the builder, on_error="raise", a check returning
             # something that is not a Verdict) keeps its type, and gains the row.
@@ -313,8 +298,7 @@ def _settle(
 ) -> None:
     """Add to *settled* what this copy settled: each check in *run_once* (those that
     do not repeat) that had no result yet, unless it was off on the row (*off_on_row*,
-    from `_explain_with_off_on_row`). A later copy whose rules enable that chain
-    runs it instead.
+    from `_explain`). A later copy whose rules enable that chain runs it instead.
 
     Each settled check carries the `detail` every later copy records for it, built
     here and nowhere else: `failed at position 0, the first row with id J1`, ending
@@ -328,19 +312,6 @@ def _settle(
         if (outcome.code in run_once and outcome.code not in off_on_row
                 and outcome.code not in settled):
             settled[outcome.code] = (f"{outcome.outcome.value} {detail_part}", outcome)
-
-
-def _check_repeat_key(df: pd.DataFrame, repeat_key: Any) -> None:
-    """Refuse a `repeat_key` that is not exactly one column of *df*."""
-    if repeat_key not in df.columns:
-        raise ValueError(
-            f"repeat_key {repeat_key!r} is not in the data. Available columns: "
-            f"{', '.join(str(c) for c in df.columns)}.")
-    repeated = list(df.columns).count(repeat_key)
-    if repeated > 1:
-        raise ValueError(
-            f"repeat_key {repeat_key!r} appears {repeated} times in the data. "
-            "Rename or drop the duplicate columns.")
 
 
 def _repeat_value(row: "pd.Series[Any]", repeat_key: Any, position: int) -> Any:

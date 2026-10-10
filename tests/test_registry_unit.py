@@ -10,10 +10,10 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import EXAMPLE_CHECK_FILES, failures, make_check
+from conftest import EXAMPLE_CHECK_FILES, explain, failures, make_check
 from registry_state import SavedRegistry
 from jobcheck import registry as reg
-from jobcheck import engine
+
 from jobcheck.results import Verdict, OK, Status
 
 pytestmark = pytest.mark.fast
@@ -315,7 +315,7 @@ def test_putting_the_registry_back_restores_checks_that_still_run(
 
     saved.restore()
     assert [c.code for c in reg._CHECKS] == ["OUTER"]
-    outcomes = engine._explain(pd.Series({"a": 1}))
+    outcomes = explain(pd.Series({"a": 1}))
     assert [o.code for o in outcomes] == ["OUTER"]
 
 

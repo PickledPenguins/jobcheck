@@ -85,7 +85,7 @@ Every table is a DataFrame titled in `attrs["title"]`; pandas prints any of them
 | [`Verdict`](#verdict) | `status=Status.PASS`, `comments={}` | What a check returns. A bool status is accepted: True passes, False is an `INVALID` failure. `comments` is the detail printed with a failure. True in a boolean test when it passed. |
 | `OK` | – | The shared passing `Verdict`. |
 | [`Status`](#status) | `PASS` 0, `MISSING` 1, `MALFORMED` 2, `INVALID` 3, `ERROR` 9 | `IntEnum` of failure kinds. `ERROR` is the engine's, for a check that raised; a check never returns it. |
-| [`CheckOutcome`](#checkoutcome) | `code`, `outcome`, `status`, `layer`, `message`, `detail`, `comments`, `rule` | What the engine recorded for one check on one row. `.failed` covers failed and errored; `detail` says why a check did not run or what it raised; `rule` names the rule that switched it on or off. |
+| [`CheckOutcome`](#checkoutcome) | `code`, `outcome`, `status`, `layer`, `message`, `detail`, `comments`, `rule` | What the engine recorded for one check on one row. `.failed` covers failed and errored; `detail` says why a check did not run, what it raised, or, on a copy under `repeat_key`, what it did on the first copy and where; `rule` names the rule that switched it on or off. |
 | [`Outcome`](#outcome) | `PASSED`, `FAILED`, `DISABLED`, `SKIPPED`, `ERRORED`, `SHARED` | `str` enum of what happened to a check on a row. |
 | [`RowContext`](#rowcontext) | none; subclass to add | Per-row state the frame does not carry, handed to `(row, context)` checks. Built by `validate`'s `context_builder`. |
 | [`Rule`](#rule) | `name`, `action`, `codes`, `criteria`, `match_all`, `message`, `source_file` | One loaded rule, as `load_rules` returns it. |
@@ -430,8 +430,8 @@ shape raises `ValueError` naming what it takes, before any row is read.
 
 An `on_error` that is neither `"record"` nor `"raise"` raises `ValueError` before
 any row is read, an empty frame included; anything but a `DataFrame` raises
-`TypeError`. A frame with duplicate
-column labels raises `ValueError` on its first row, before any check runs.<sup>[4](#error-messages)</sup>
+`TypeError`. A frame with duplicate column labels raises `ValueError` before any row is
+read, an empty frame included.<sup>[4](#error-messages)</sup>
 
 An exception that escapes while a row is checked -- the builder's, a check's under
 `"raise"`, or the `TypeError` for a check that returned no result -- keeps its type and
@@ -568,7 +568,7 @@ the call named.
 | Raised by | Message |
 |---|---|
 | `register_check` | `Check code must be a non-empty string, got <code>.` |
-| `register_check` | `Check '<code>': message must be the text a person sees on failure.` |
+| `register_check` | `Check '<code>': message must be a non-empty string, got <message>.` |
 | `register_check` | `Duplicate check code '<code>' (registering <module>.<function>; already registered from <path>).` |
 | `register_check` | `Check '<code>': depends_on must be a list of check codes, got '<text>'.` |
 | `register_check` | `Check '<code>': default_enabled must be True or False, got <value>.` |
@@ -582,8 +582,8 @@ the call named.
 | `load_checks`, and the first run after a registration | `Check '<code>' depends on '<prerequisite>', which is not registered. Either the code is a typo, or it lives in a check file that was not loaded (currently loaded: <files>).` |
 | the same | `Dependency cycle among checks: A -> B -> A.` |
 | `validate` | `on_error must be 'record' or 'raise', got '<value>'.` |
-| `validate` | `Row has duplicate column labels <labels>. Rename or drop the duplicate columns before validating.` |
-| `validate` | `validate takes a DataFrame, got <type>` |
+| `validate` | `Data has duplicate column labels <labels>. Rename or drop the duplicate columns before validating.` |
+| `validate` | `validate takes a DataFrame, got <type>.` |
 | `validate` | `repeat_key '<name>' is not in the data. Available columns: <columns>.` |
 | `validate` | `repeat_key '<name>' appears 2 times in the data. Rename or drop the duplicate columns.` |
 | `validate` | `repeat_key '<name>' is blank at position <n>: every row needs a value to say which rows are its copies.` |
@@ -598,7 +598,7 @@ the call named.
 | `build_report` | `outcomes cover 1 row(s) but the frame has 2: pass the same frame the outcomes were collected from.` |
 | `build_report` | `include must be one of root_causes, failures, blocked, all, got '<value>'.` |
 | `build_report` | `key_column '<name>' is not in the data. Available columns: <columns>.` |
-| `build_report` | `key_column '<name>' appears 2 times in the data: df[key_column] is then a table rather than a column, and every row would be labeled with the column name. Rename or drop the duplicate columns.` |
+| `build_report` | `key_column '<name>' appears 2 times in the data. Rename or drop the duplicate columns.` |
 | `build_report`'s `add_columns` | `add_columns ['<name>'] cannot be used for the report. Each name must be asked for once and be one of: <columns>.` |
 | `explain_row` | `position 3 is not a row: outcomes cover 3 row(s), numbered from 0.` |
 

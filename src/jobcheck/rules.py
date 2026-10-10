@@ -1,6 +1,6 @@
 """Rules: the YAML format that switches checks on and off per row.
 
-Nothing here knows how a check is registered or evaluated -- the loaders are
+Nothing here knows how a check is registered or evaluated. The loaders are
 handed the codes that exist, so this module never reaches into the registry.
 A rule file is a flat list, and for a given row the last matching rule wins.
 """
@@ -207,12 +207,9 @@ def _cell_text(row: "pd.Series[Any]", column: str) -> str | None:
     """Row value as text for regex matching, rendered as the report prints it.
     `None` when absent or null.
     """
-    if column not in row.index:
+    if column not in row.index or is_null(row[column]):
         return None
-    value = row[column]
-    if value is None or is_null(value):
-        return None
-    return _format_cell(value)
+    return _format_cell(row[column])
 
 
 def _rule_matches(rule: Rule, row: "pd.Series[Any]") -> bool:

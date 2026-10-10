@@ -15,7 +15,7 @@ import pandas as pd
 import pytest
 import yaml
 
-from jobcheck import engine
+from conftest import explain
 from jobcheck import registry as reg
 
 pytestmark = pytest.mark.fast
@@ -267,7 +267,7 @@ def test_a_file_that_raises_is_not_rolled_back_and_clear_registry_recovers(
     assert reg._LOADED_FILES == [str(Path(good).resolve())]
     # And what registered runs: the failure path must leave the evaluation order
     # recomputed, not a stale cache that would validate a row against nothing.
-    assert [o.code for o in engine._explain(pd.Series({"value": 1}))] == ["KEPT", "A"]
+    assert [o.code for o in explain(pd.Series({"value": 1}))] == ["KEPT", "A"]
 
     broken.write_text(
         "from jobcheck import OK, register_check\n"
@@ -389,14 +389,25 @@ def test_a_key_given_twice_in_a_setup_file_is_refused(
     fresh_registry: None, tmp_path: Path
 ) -> None:
     """PyYAML keeps the second `checks:`, so the files the first one named would
-    never load, and nothing would say so. The only test that a reader error names
-    the setup file rather than a rule file."""
+    never load, and nothing would say so."""
 
     path = _setup(tmp_path, "checks: [one.py]\nrules: [r.yaml]\nchecks: [two.py]\n")
     with pytest.raises(yaml.YAMLError) as raised:
         reg.load_setup(path)
     assert str(raised.value) == (
         f'a key appears twice in this mapping\n  in "{path}", line 1, column 1')
+
+
+def test_a_setup_file_that_is_not_utf8_names_itself(
+    fresh_registry: None, tmp_path: Path
+) -> None:
+    path = tmp_path / "setup.yaml"
+    path.write_bytes(b"checks: [caf\xe9.py]\n")
+    with pytest.raises(ValueError) as raised:
+        reg.load_setup(str(path))
+    assert str(raised.value) == (
+        f"{path}: not UTF-8 text: 'utf-8' codec can't decode byte 0xe9 in position 12: "
+        "invalid continuation byte. Save the file as UTF-8.")
 
 
 def test_a_setup_file_that_is_not_a_mapping_says_so(
@@ -408,8 +419,7 @@ def test_a_setup_file_that_is_not_a_mapping_says_so(
     path = _setup(tmp_path, "- checks/check_age.py\n")
     with pytest.raises(ValueError) as raised:
         reg.load_setup(path)
-    assert str(raised.value) == (
-        f"{path}: a setup file is a mapping of 'checks' and 'rules', got list.")
+    assert str(raised.value) == f"{path}: a setup file is a mapping, got list."
 
 
 def test_a_setup_key_yaml_reads_as_a_number_is_named_rather_than_crashing(

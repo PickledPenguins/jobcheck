@@ -145,7 +145,7 @@ def test_the_rule_file_shown_is_the_shipped_one() -> None:
 
 
 def test_testing_has_a_row_for_every_test_module() -> None:
-    """Regression: `test_repeat_unit.py` shipped with no row in the per-module
+    """Regression: `test_engine_repeat_unit.py` shipped with no row in the per-module
     table (F.81)."""
 
     testing = (ROOT / "docs" / "testing.md").read_text(encoding="utf-8")

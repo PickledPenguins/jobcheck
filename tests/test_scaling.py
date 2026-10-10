@@ -20,8 +20,8 @@ from typing import Any, Callable
 import pandas as pd
 import pytest
 
-from conftest import make_check
-from jobcheck import engine, validate, registry as reg
+from conftest import explain, make_check
+from jobcheck import validate, registry as reg
 from jobcheck import views
 
 pytestmark = pytest.mark.long
@@ -153,7 +153,7 @@ def test_row_by_row_memory_does_not_grow_with_the_frame(example_checks: None) ->
     def peak_for(df: pd.DataFrame) -> int:
         tracemalloc.start()
         for _, row in df.iterrows():
-            engine._explain(row)
+            explain(row)
         peak = tracemalloc.get_traced_memory()[1]
         tracemalloc.stop()
         return peak

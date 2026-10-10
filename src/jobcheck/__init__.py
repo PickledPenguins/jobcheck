@@ -9,7 +9,7 @@ from __future__ import annotations
 
 __version__ = "0.2.0"
 """Pre-1.0: the API may change between versions. Check codes, status values and
-the rule YAML schema are permanent -- data written against them outlives the
+the rule YAML schema are permanent: data written against them outlives the
 code."""
 
 from .context import RowContext

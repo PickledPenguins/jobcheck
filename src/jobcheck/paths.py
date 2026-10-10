@@ -69,7 +69,6 @@ class _StrictLoader(yaml.SafeLoader):
 def _read_yaml(file: Path, shown: str) -> Any:
     """The YAML document in *file*. Bytes that are not UTF-8 raise `ValueError`, starting
     with *shown*: the path as the caller should see it. A repeated key is invalid YAML."""
-
     with open(file, encoding="utf-8") as handle:
         try:
             # The loader reads the first bytes as it is built, so a decode error

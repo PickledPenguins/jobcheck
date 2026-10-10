@@ -134,7 +134,7 @@ decision somewhere. Kept, and not to be cut by the next pass:
   whole: only the fuzz runs the shipped checks on hostile values and pins the tie-break.
 - Two cuts restored because a mutant survived without them: the check returning `None` in
   `test_pathological.py` (the only test of that path through the engine), and the setup
-  file's repeated key (the only test that a reader error names the setup file).
+  file's repeated key (the only test that a setup file's repeated key is refused).
 
 Given up: a 10-20x constant slowdown passes `all` and is caught only by `perf`; the CSV
 header line with an added column is pinned only through the data lines; the shipped
@@ -572,8 +572,8 @@ twelve-line bodies that read straight through are cheaper. Revisit when a third 
 the rule appears, or the rule gains a third shape.
 
 **Refusing a duplicate-labeled frame in `format_table`** (F.31, decided 2026-09-25).
-`explain_row`, `_row_labels` and `build_report` refuse duplicate column labels, because
-they hand a cell to a check or use it as a row key and a Series there is wrong. The
+`validate` refuses duplicate column labels, and `build_report` a duplicated key column,
+because they hand a cell to a check or use it as a row key and a Series there is wrong. The
 renderer only has to draw what it is given, so it now reads cells by position and draws a
 duplicated label correctly instead of raising. What that gives up: one package-wide rule
 about duplicate labels, and a signal to a caller whose `concat` duplicated a column by
@@ -1045,9 +1045,9 @@ test code this branch does not have: `test_lint_unit` (76 tests), `test_parallel
 of F.1; `test_run_unit` (36) covers `ValidationRun`, `iter_traces` and the progress
 callback, rebuilt at `c2a3851` and cut again at `fab967a`; `test_groups_unit` (20)
 covers `check_group`, cut in the same pass. They come back only with the code. The other
-five are superseded by name: `test_engine_unit` by `test_validate_unit` and
+five are superseded by name: `test_engine_unit` by `test_engine_validate_unit` and
 `test_validate_row_unit`; `test_error_messages` by `test_error_messages_unit` and
-`test_report_unit` (its other fifteen tests are parallel, params and run messages);
+`test_views_unit` (its other fifteen tests are parallel, params and run messages);
 the first `test_rules_unit` by what was then `test_overrides_unit` and is now
 `test_rules_unit` again, with its nine glob-matching tests obsolete
 since `match` became regex; `test_benchmarks` by `test_perf` and `test_scaling`;

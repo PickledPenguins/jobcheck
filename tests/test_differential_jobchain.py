@@ -260,5 +260,5 @@ def test_the_check_era_rule_format_is_rejected_rather_than_ignored(
     rules = tmp_path / "r.yaml"
     rules.write_text(
         "- name: off_for_x\n  message: \"why the rule exists\"\n  action: disable\n  codes: [B_INT]\n  column: a\n  pattern: 'x'\n")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown key"):
         load_rules([str(rules)])

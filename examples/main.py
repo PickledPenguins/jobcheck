@@ -11,8 +11,8 @@ import os
 import sys
 from pathlib import Path
 
-#: The clone this script lives in. Its own files are named relative to it, so a
-#: run does not depend on the directory it was started from.
+# The clone this script lives in. Its own files are named relative to it, so a
+# run does not depend on the directory it was started from.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
@@ -37,8 +37,8 @@ from jobcheck import (
 )
 from jobcheck.views import INCLUDE_LEVELS
 
-#: The check files this entry point runs. Named one by one, rather than
-#: discovered, so a second entry point in the same tree can run a different set.
+# The check files this entry point runs. Named one by one, rather than
+# discovered, so a second entry point in the same tree can run a different set.
 CHECK_FILES = [
     "examples/checks/check_row_shape.py",
     "examples/checks/check_age.py",
@@ -46,20 +46,20 @@ CHECK_FILES = [
     "examples/checks/check_email.py",
 ]
 
-#: The rule files a run applies when --rules names none. Absolute, because it
-#: is this script's own file rather than something the user typed: a path on
-#: the command line still means what it means from where the user is standing.
+# The rule files a run applies when --rules names none. Absolute, because it
+# is this script's own file rather than something the user typed. A path on
+# the command line still means what it means from where the user is standing.
 DEFAULT_RULES = [os.path.join(PROJECT_ROOT, "examples/rules/error_rules.yaml")]
 
-#: The column that identifies a row in the report. Every demo data file has it;
-#: a --data file without it is refused before anything is validated.
+# The column that identifies a row in the report. Every demo data file has it.
+# A --data file without it is refused before anything is validated.
 KEY_COLUMN = "id"
 
 
 def build_parser() -> argparse.ArgumentParser:
     """The command line, built separately so the documentation check can read it.
 
-    Every option here has a section in ``docs/cli.md``, and a check compares the
+    Every option here has a section in `docs/cli.md`, and a check compares the
     two lists both ways: an undocumented flag and a documented flag that no
     longer exists are both failures.
     """
@@ -96,11 +96,10 @@ def load_frame(path: str | None) -> pd.DataFrame:
     """The frame to validate: a CSV if one was named, else the demo frame.
 
     Every column is read as text, because a check that judges whether a value is
-    a number has to see what the file actually said -- pandas inferring ``age``
-    to float would silently repair ``"41.5"`` and hide the rows this tool exists
-    to find. Empty cells stay empty rather than becoming ``NaN`` strings.
+    a number has to see what the file actually said. Pandas inferring `age`
+    to float would silently repair `"41.5"` and hide the rows this tool exists
+    to find. Empty cells stay empty rather than becoming `NaN` strings.
     """
-
     if path is None:
         return demo_frame()
     try:
@@ -118,10 +117,9 @@ def table_text(table: pd.DataFrame, fmt: str = "table") -> str:
 
     `to_string`, never `str(table)`: printing a frame directly shows only the first
     and last rows of a long one, which would hide most of a report's failures.
-    The report's index -- row, code -- is printed; the other tables' row numbers
+    The report's index (row, code) is printed. The other tables' row numbers
     are not.
     """
-
     index = not isinstance(table.index, pd.RangeIndex)
     if fmt == "csv":
         return table.to_csv(index=index)
@@ -139,7 +137,6 @@ def exit_if_a_check_raised(outcomes: list[list[CheckOutcome]]) -> None:
     otherwise take a broken check for a clean run. 3, because 2 is a usage error
     and 1 an uncaught exception: a pipeline can tell a broken check from both.
     """
-
     raised = sum(outcome.outcome is Outcome.ERRORED
                  for row_outcomes in outcomes for outcome in row_outcomes)
     if raised:
@@ -176,7 +173,7 @@ def main(argv: list[str] | None = None) -> None:
 
     # Before any work: validating a large frame and only then finding that the
     # directory does not exist wastes the run and loses the report. The write
-    # itself is still guarded below -- a directory can go away, or be read-only
+    # itself is still guarded below. A directory can go away, or be read-only
     # in a way this does not see.
     if args.write is not None:
         directory = os.path.dirname(os.path.abspath(args.write))

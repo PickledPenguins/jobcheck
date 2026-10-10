@@ -3,10 +3,10 @@ DataFrame carrying its own title in `attrs["title"]`, built from data already
 collected. Nothing here runs a check.
 
 `validate` keeps every check's outcome on every row; a view picks what it
-shows. The report is **long format** -- one line per outcome it includes,
-indexed by the row so its lines hang together -- which is the diagnostic unit,
+shows. The report is **long format** (one line per outcome it includes,
+indexed by the row so its lines hang together). That is the diagnostic unit,
 survives being written as CSV, and sorts and filters cleanly downstream. There
-is no command line; a pipeline decides where output goes.
+is no command line. A pipeline decides where output goes.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import pandas as pd
 from .registry import _CHECKS, _get_topo_order
 from .results import CheckOutcome, Outcome, _render_status
 from .rules import Rule
-from .tables import _format_cell, _reject_unknown_columns
+from .tables import _format_cell, _reject_unknown_columns, _require_one_column
 
 _REPORT_COLUMNS = ("row", "code", "status", "layer", "outcome", "message", "detail", "comments",
                   "rule", "is_root_cause")
@@ -40,8 +40,7 @@ INCLUDE_LEVELS: dict[str, set[Outcome]] = {
 
 
 def _included(include: str) -> set[Outcome]:
-    """The outcomes an ``include`` level covers, or a ValueError naming the levels."""
-
+    """The outcomes an `include` level covers, or a ValueError naming the levels."""
     if include not in INCLUDE_LEVELS:
         raise ValueError(
             f"include must be one of {', '.join(INCLUDE_LEVELS)}, got {include!r}.")
@@ -52,15 +51,14 @@ def _root_causes(row_outcomes: list[CheckOutcome]) -> list[str]:
     """Every failure at the shallowest failing layer, in evaluation order.
 
     Every one, not the first: two failures in the same layer are two causes.
-    Deeper failures are left out. They are never downstream of these -- a check
+    Deeper failures are left out. They are never downstream of these (a check
     runs only once its prerequisites passed, so each failure is the root of its
-    own chain -- they are the ones to read after.
+    own chain). They are the ones to read after.
 
     Data failures come first: an `errored` check counts only on a row with no
     `failed` one, so a broken check never takes the flag from a real failure,
     and a row whose only problem is a broken check is still flagged.
     """
-
     failures = [outcome for outcome in row_outcomes if outcome.outcome is Outcome.FAILED]
     if not failures:
         failures = [outcome for outcome in row_outcomes if outcome.failed]
@@ -74,45 +72,30 @@ def _render_comments(comments: Mapping[Any, Any]) -> str:
     """Render a check's comments as `key=value; key=value`, in the order the check
     wrote them. Not sorted: a key of any type renders, and a dict's order is
     already the same every run."""
-
     return "; ".join(f"{key}={value}" for key, value in comments.items())
 
 
 def _row_labels(df: pd.DataFrame, key_column: str | None) -> list[str]:
     """One label per row: the key column if given, else the frame's index.
 
-    One column, not several -- joined labels are ambiguous as soon as a value
+    One column, not several. Joined labels are ambiguous as soon as a value
     carries the separator, so a composite key is a column the caller builds.
     """
-
     if key_column is None:
         return [_format_cell(label, missing="<no key>") for label in df.index]
-    if key_column not in df.columns:
-        raise ValueError(
-            f"key_column {key_column!r} is not in the data. Available columns: "
-            f"{', '.join(str(c) for c in df.columns)}."
-        )
-    repeated = list(df.columns).count(key_column)
-    if repeated > 1:
-        raise ValueError(
-            f"key_column {key_column!r} appears {repeated} times in the data: "
-            "df[key_column] is then a table rather than a column, and every row would "
-            "be labeled with the column name. Rename or drop the duplicate columns."
-        )
+    _require_one_column(df, "key_column", key_column)
     return [_format_cell(value, missing="<no key>") for value in df[key_column]]
 
 
-def _added_values(df: pd.DataFrame, labels: list[Any], add_columns: list[str],
-                  rows: int) -> list[dict[str, str]]:
+def _added_values(df: pd.DataFrame, labels: list[Any], add_columns: list[str]) -> list[dict[str, str]]:
     """One dict per row, holding the added columns' values rendered as text,
     keyed by the names in *add_columns* and read from the frame's *labels*.
 
     Empty dicts when nothing was asked for, so the caller can merge the dict into
     every report line either way rather than branching per line.
     """
-
     if not add_columns:
-        return [{} for _ in range(rows)]
+        return [{} for _ in range(len(df))]
 
     values = []
     for row in df[labels].itertuples(index=False, name=None):
@@ -137,9 +120,9 @@ def build_report(
     `row` and added value show once, on the row's first line. Two data rows
     with the same label print as one; label them with a unique `key_column`.
 
-    `message`, `detail` and `comments` each say one thing -- what the check says
+    `message`, `detail` and `comments` each say one thing (what the check says
     on failure, why a check did not evaluate the row, and the evidence it
-    returned -- so a column heading can be trusted.
+    returned), so a column heading can be trusted.
 
     `is_root_cause` flags **every** failure at the shallowest failing layer, and
     is not always the first line: an independent chain registered earlier can be
@@ -162,8 +145,8 @@ def build_report(
             f"already has a column of that name ({', '.join(_REPORT_COLUMNS[1:])}). "
             "Copy the column under another name and pass that.")
 
-    # A column is on offer when its name appears exactly once -- a duplicated
-    # label would hand back a table rather than a column -- and would not collide
+    # A column is on offer when its name appears exactly once (a duplicated
+    # label would hand back a table rather than a column) and would not collide
     # with one the report writes itself, the key included. It is asked for by name
     # as text and read by the frame's own label, which may be a number.
     names = [str(column) for column in df.columns]
@@ -171,8 +154,7 @@ def build_report(
     available = {name: column for name, column in zip(names, df.columns)
                  if names.count(name) == 1 and name not in taken}
     _reject_unknown_columns(add_columns, list(available), "the report")
-    added = _added_values(df, [available[name] for name in add_columns], add_columns,
-                          len(frame_outcomes))
+    added = _added_values(df, [available[name] for name in add_columns], add_columns)
 
     rows: list[dict[str, Any]] = []
     for label, row_outcomes, context in zip(row_labels, frame_outcomes, added):
@@ -194,7 +176,6 @@ def build_report(
 def _line(outcome: CheckOutcome, causes: set[str]) -> dict[str, Any]:
     """One outcome as the report and the row explanation both show it, under
     `_REPORT_COLUMNS` after `row`; *causes* are the row's root-cause codes."""
-
     return {
         "code": outcome.code,
         "status": _render_status(outcome.status),
@@ -209,13 +190,12 @@ def _line(outcome: CheckOutcome, causes: set[str]) -> dict[str, Any]:
 
 
 def explain_row(frame_outcomes: list[list[CheckOutcome]], position: int) -> pd.DataFrame:
-    """What every check did to the row at *position* -- counted from 0, as in
-    `validate`'s result -- and why: one line per check, in evaluation order.
+    """What every check did to the row at *position* (counted from 0, as in
+    `validate`'s result) and why: one line per check, in evaluation order.
 
     The columns are the report's, without `row`, and each means what it means
     there: the explanation is the row's lines of `build_report(include="all")`.
     """
-
     if not 0 <= position < len(frame_outcomes):
         raise ValueError(
             f"position {position} is not a row: outcomes cover {len(frame_outcomes)} "
@@ -232,7 +212,7 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
     """Count what happened to each check across many rows, worst first: by
     `failed`, then `root_cause_rows`, then shallowest layer, then code.
 
-    `skipped` is the column that matters when tuning layered checks -- a high
+    `skipped` is the column that matters when tuning layered checks. A high
     count means a fundamental check is failing often and hiding what is below it.
     `errored` stays separate from `failed` so a broken check is never mistaken
     for bad data. `root_cause_rows` counts the rows whose root cause the check
@@ -284,13 +264,11 @@ def summarize_outcomes(frame_outcomes: Iterable[list[CheckOutcome]]) -> pd.DataF
 
 def _rules_for_code(code: str, rules: list[Rule]) -> list[Rule]:
     """Rules that reference *code*, in load order."""
-
     return [rule for rule in rules if code in rule.codes]
 
 
 def _render_match(rule: Rule) -> str:
     """Compact one-cell rendering of a rule's match criteria."""
-
     if rule.match_all:
         return "all"
     return "; ".join(f"{criterion.column}~=/{criterion.pattern}/"
@@ -316,12 +294,16 @@ def registry_table(rules: list[Rule] | None = None) -> pd.DataFrame:
     for check in _CHECKS:
         matching = _rules_for_code(check.code, rules)
         state = "ON" if check.default_enabled else "OFF"
+        repeat = "-"
+        if check.repeat:
+            repeat = "declared"
+        elif check.repeats:
+            repeat = "inherited"
         rows.append({
             "code": check.code,
             "layer": check.layer,
             "default": state,
-            "repeat": ("declared" if check.repeat
-                       else "inherited" if check.repeats else "-"),
+            "repeat": repeat,
             "message": check.message,
             "depends_on": "; ".join(check.depends_on) if check.depends_on else "-",
             "source_file": check.source_file,
@@ -342,7 +324,6 @@ def rules_table(rules: list[Rule]) -> pd.DataFrame:
     `code_count` is a count beside the code list, so a caller can drop
     `codes` and keep a rule touching many codes from blowing the table apart.
     """
-
     rows: list[dict[str, Any]] = []
     for rule in rules:
         rows.append({
