@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -263,6 +264,15 @@ def test_an_errored_outcome_carries_the_layer_and_a_pointer_to_detail(
 def test_an_errored_check_can_be_the_root_cause(fresh_registry: None) -> None:
     make_check("BROKEN", raises=RuntimeError("boom"))
     assert first_cause(explain(ROW)) == "BROKEN"
+
+
+def test_a_check_with_no_python_frame_is_described_without_a_location(
+    fresh_registry: None,
+) -> None:
+    """A builtin raises from C, leaving no frame outside the package to name."""
+    reg.register_check("ROOT", "root")(math.sqrt)
+    outcome = next(o for o in explain(ROW) if o.code == "ROOT")
+    assert outcome.detail == "TypeError: must be real number, not Series"
 
 
 # --- layers -----------------------------------------------------------------
