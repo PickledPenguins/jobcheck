@@ -171,6 +171,19 @@ def test_a_rule_naming_a_column_the_data_lacks_warns_on_stderr(fresh_registry: N
     assert "not_a_column" in captured.err
 
 
+def test_a_rule_file_that_is_not_yaml_is_one_line_and_exit_2(fresh_registry: None,
+                                                              capsys: Any,
+                                                              tmp_path: Path) -> None:
+    rules = tmp_path / "rules.yaml"
+    rules.write_text("- name: [unclosed\n")
+    with pytest.raises(SystemExit) as raised:
+        main.main(["--data", SMALL, "--rules", str(rules)])
+    assert raised.value.code == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("error: while parsing a flow sequence")
+
+
 def test_rules_with_no_paths_loads_none(fresh_registry: None, capsys: Any) -> None:
     out = run(capsys, "--rules")
     assert "Loaded 0 rule(s) from 0 file(s)" in out
