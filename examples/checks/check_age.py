@@ -1,4 +1,4 @@
-"""Checks on the ``age`` column."""
+"""Checks on the `age` column."""
 
 from __future__ import annotations
 
@@ -12,10 +12,9 @@ from jobcheck import OK, Status, Verdict, is_null, register_check
 def _number(value: Any) -> float | None:
     """Value as a float, or `None` when it is not a number.
 
-    No missing-value guard: every check that calls this depends on AGE_PRESENT,
-    so it only ever runs on a row that has an age.
+    No missing-value guard: its one caller depends on AGE_PRESENT, so it only
+    ever runs on a row that has an age.
     """
-
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -25,7 +24,6 @@ def _number(value: Any) -> float | None:
 @register_check(code="AGE_PRESENT", message="Age is missing")
 def age_present(row: "pd.Series[Any]") -> Verdict:
     """Pass when the row carries an age at all."""
-
     if "age" not in row.index:
         return Verdict(Status.MISSING, {"reason": "no age column"})
     value = row["age"]
@@ -39,7 +37,6 @@ def age_present(row: "pd.Series[Any]") -> Verdict:
 @register_check("AGE_NOT_A_NUMBER", "Age is not a number", depends_on=["AGE_PRESENT"])
 def age_is_a_number(row: "pd.Series[Any]") -> Verdict:
     """Pass when the age can be read as a number."""
-
     if _number(row["age"]) is None:
         return Verdict(Status.MALFORMED, {"value": row["age"]})
     return OK
@@ -48,9 +45,8 @@ def age_is_a_number(row: "pd.Series[Any]") -> Verdict:
 @register_check("AGE_NEGATIVE", "Age is negative", depends_on=["AGE_NOT_A_NUMBER"])
 def age_negative(row: "pd.Series[Any]") -> Verdict:
     """Pass unless the age is below zero."""
-
-    value = _number(row["age"])
-    if value is not None and value < 0:
+    value = float(row["age"])
+    if value < 0:
         return Verdict(Status.INVALID, {"value": value, "minimum": 0})
     return OK
 
@@ -62,9 +58,8 @@ def age_negative(row: "pd.Series[Any]") -> Verdict:
 )
 def age_too_high(row: "pd.Series[Any]") -> Verdict:
     """Pass unless the age exceeds 130."""
-
-    value = _number(row["age"])
-    if value is not None and value > 130:
+    value = float(row["age"])
+    if value > 130:
         return Verdict(Status.INVALID, {"value": value, "maximum": 130})
     return OK
 
@@ -77,8 +72,7 @@ def age_too_high(row: "pd.Series[Any]") -> Verdict:
 )
 def age_not_integer(row: "pd.Series[Any]") -> Verdict:
     """Pass unless the age has a fractional part."""
-
-    value = _number(row["age"])
-    if value is not None and not value.is_integer():
+    value = float(row["age"])
+    if not value.is_integer():
         return Verdict(Status.INVALID, {"value": value})
     return OK

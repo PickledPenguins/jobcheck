@@ -1,8 +1,8 @@
 """Third demonstration entry point: one YAML file is the whole run.
 
 `examples/main.py` spreads a run across its flags and its own constants; this one
-reads every part of it -- the setup file, the data, which tables to print and
-which columns each carries -- from one file, so the run is something to commit,
+reads every part of it (the setup file, the data, which tables to print and
+which columns each carries) from one file, so the run is something to commit,
 diff against last week's, or hand to somebody else. The file is the whole input:
 there are no flags, so there is no question of which one wins.
 
@@ -53,16 +53,16 @@ from jobcheck import (  # noqa: E402
 )
 from main import exit_if_a_check_raised, load_frame, table_text  # noqa: E402
 
-#: The run file loaded when the command line names none.
+# The run file loaded when the command line names none.
 DEFAULT_RUN = os.path.join(PROJECT_ROOT, "examples/run.yaml")
 
-#: The top-level keys of a run file. All three are required.
+# The top-level keys of a run file. All three are required.
 RUN_KEYS = ("setup", "data", "tables")
 
-#: Every table a run can print, and the options each takes beside `table`.
-#: The options are the table functions' own argument names, so the library's
-#: documentation of each one is the documentation of the key -- except
-#: `drop_columns`, which this script applies to the built table with pandas.
+# Every table a run can print, and the options each takes beside `table`.
+# The options are the table functions' own argument names, so the library's
+# documentation of each one is the documentation of the key. The exception is
+# `drop_columns`, which this script applies to the built table with pandas.
 TABLE_OPTIONS: dict[str, tuple[str, ...]] = {
     "registry": ("drop_columns",),
     "rules": ("drop_columns",),
@@ -70,7 +70,7 @@ TABLE_OPTIONS: dict[str, tuple[str, ...]] = {
     "summary": (),
 }
 
-#: The options that hold a list of column names; every other one is a string.
+# The options that hold a list of column names. Every other one is a string.
 LIST_OPTIONS = ("add_columns", "drop_columns")
 
 
@@ -94,7 +94,6 @@ class StrictLoader(yaml.SafeLoader):
 
 def build_parser() -> argparse.ArgumentParser:
     """One positional argument and nothing else."""
-
     parser = argparse.ArgumentParser(
         description="Run the whole of one validation from a run file: the setup, "
                     "the data, and the tables to print.")
@@ -107,13 +106,11 @@ def key_names(keys: Any) -> str:
     """Keys as a message lists them, `'extra', True`: each as Python writes it, so a
     key YAML read as a bool or a number shows as one. The library's own messages
     use the same form."""
-
     return ", ".join(repr(key) for key in sorted(keys, key=str))
 
 
 def fail(run_file: str, message: str) -> NoReturn:
     """Every problem with the run file, one line on stderr and exit 2."""
-
     print(f"error: {run_file}: {message}", file=sys.stderr)
     raise SystemExit(2)
 
@@ -123,7 +120,7 @@ def read_run_file(run_file: str) -> dict[str, Any]:
 
     Only the shape is checked here. Whether a column or an `include` level exists
     is the library's to say, and whether a format exists is `table_text`'s; both
-    say it when the tables are built -- see `print_tables`.
+    say it when the tables are built (see `print_tables`).
     """
 
     try:
@@ -220,9 +217,8 @@ def print_tables(tables: list[dict[str, Any]], rules: list[Rule], df: Any,
 def print_rules_and_warnings(rules: list[Rule], options: dict[str, Any],
                              drop: list[str]) -> None:
     """The rules table, then any rule a later one overrules on every row and any
-    disable rule that silences checks it does not name -- what
+    disable rule that silences checks it does not name: what
     `main.py --rules-table` prints."""
-
     print(table_text(rules_table(rules, **options).drop(columns=drop)))
     for warning in warn_shadowed_rules(rules) + warn_blocking_rules(rules):
         print(f"warning: {warning}")
@@ -231,7 +227,6 @@ def print_rules_and_warnings(rules: list[Rule], options: dict[str, Any],
 def print_one_report(df: Any, outcomes: list[list[CheckOutcome]],
                      options: dict[str, Any], drop: list[str]) -> None:
     """Build and print one report. `format` is the run file's name for `fmt`."""
-
     fmt = options.pop("format", "table")
     print(table_text(build_report(outcomes, df=df, **options).drop(columns=drop), fmt=fmt))
 
@@ -253,7 +248,7 @@ def main(argv: list[str] | None = None) -> None:
     outcomes = validate(df, rules=rules)
 
     # Printed into a buffer first, so a table whose options the library refuses
-    # -- a column that does not exist, an unknown format -- fails the run before
+    # (a column that does not exist, an unknown format) fails the run before
     # any of it reaches stdout, rather than after the tables above it.
     buffer = io.StringIO()
     try:

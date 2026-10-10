@@ -2,14 +2,14 @@
 
 mutmut 3 writes one `.meta` file per source file under `mutants/`, mapping each
 mutant to the exit code its test run ended with. This reads them all, prints the
-tally, and compares the score -- detected over total, where a mutant is detected
-when the tests killed it, the type check caught it, or it timed out -- against
-`--floor`.
+tally, and compares the score against `--floor`. The score is detected over
+total, where a mutant is detected when the tests killed it, the type check
+caught it, or it timed out.
 
 Usage: python3 scripts/mutation_score.py [--floor PERCENT] [--mutants DIR]
 
 Exit codes: 0 at or above the floor; 1 below it; 2 no results at all, or a mutant
-still unchecked -- an interrupted run has no score, and passing it would be a guess.
+still unchecked (an interrupted run has no score, and passing it would be a guess).
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Iterable
 
 # mutmut 3.5's status_by_exit_code, reduced to what the score needs. Anything not
-# listed -- no tests, skipped, suspicious, a segfault -- counts against the score.
+# listed (no tests, skipped, suspicious, a segfault) counts against the score.
 KILLED = {1, 3}
 TYPE_CHECK = {37}
 TIMEOUT = {24, -24, 36, 152, 255}
@@ -31,7 +31,6 @@ SURVIVED = {0}
 
 def status(exit_code: int | None) -> str:
     """One mutant's result, as the score counts it."""
-
     if exit_code is None:
         return "not checked"
     if exit_code in KILLED:
@@ -55,7 +54,6 @@ def detected(counts: Counter[str]) -> int:
 
 def score(counts: Counter[str]) -> float:
     """Detected mutants as a percentage of all of them."""
-
     total = sum(counts.values())
     return 100.0 * detected(counts) / total if total else 0.0
 
@@ -82,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
           f"caught by type check, {counts['timeout']} timed out, "
           f"{counts['survived']} survived, {counts['other']} other")
     if counts["not checked"]:
-        print(f"error: {counts['not checked']} mutant(s) not checked -- the run did not "
+        print(f"error: {counts['not checked']} mutant(s) not checked. The run did not "
               "finish, so there is no score", file=sys.stderr)
         return 2
     result = score(counts)

@@ -12,7 +12,6 @@ from jobcheck import OK, Status, Verdict, register_check
 @register_check(code="ROW_ALL_NULL", message="Row is entirely empty")
 def row_not_all_null(row: "pd.Series[Any]") -> Verdict:
     """Pass when at least one field in the row holds a value."""
-
     if row.notna().any():
         return OK
     return Verdict(Status.MISSING, {"columns": len(row.index)})

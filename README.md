@@ -1,5 +1,7 @@
 # jobcheck
 
+**Version 0.2.0**
+
 Validate rows of a pandas DataFrame with many small, independently named checks.
 
 ## What it does

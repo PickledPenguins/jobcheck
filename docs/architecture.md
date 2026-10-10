@@ -73,7 +73,7 @@ return values and what each does, one line apiece -- see
 | `src/jobcheck/views.py` | Every view, each a titled DataFrame built from data already collected: the long-format report and its root causes, one row's explanation, the per-check summary, and the registry and rules tables. |
 | `src/jobcheck/results.py` | What a check returns and what the engine records: statuses, `Verdict`, `CheckOutcome`. |
 | `src/jobcheck/rules.py` | The rule file format and its parser. Knows nothing about the registry. |
-| `src/jobcheck/tables.py` | How a cell reads as text, null handling, and the `add_columns` refusal, shared by every view. |
+| `src/jobcheck/tables.py` | How a cell reads as text, null handling, the `add_columns` refusal, and the one-column check on `key_column` and `repeat_key`, shared by `views.py`, `rules.py` and `engine.py`. |
 | `src/jobcheck/paths.py` | The path a caller named, turned into a file on disk, and the error when it is not one. Used by both loaders. |
 | `src/jobcheck/context.py` | The per-row metadata type — the one adopter-supplied hook. |
 | `src/jobcheck/__init__.py` | Re-exports the public surface. Registers no checks, and ships none. |
@@ -297,10 +297,9 @@ to load.
 ## Dependencies
 
 `pandas` for the row and table types; `PyYAML` for rule and setup files, read with a
-`SafeLoader` subclass that also refuses a key given twice. Nothing
-else at runtime — file loading uses `importlib`,
-`source_file` and signature adaptation use `inspect`. `mypy` and `types-PyYAML` are
-development-only.
+`SafeLoader` subclass that also refuses a key given twice. Nothing else at runtime —
+file loading uses `importlib`, `source_file` and signature adaptation use `inspect`.
+`mypy` and `types-PyYAML` are development-only.
 
 ## Limitations
 

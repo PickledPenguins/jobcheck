@@ -8,11 +8,11 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from conftest import failures, first_cause, make_check
-from jobcheck import RowContext, registry as reg
+from conftest import explain, failures, first_cause, make_check
+from jobcheck import RowContext, registry as reg, validate
 from jobcheck import results as res
 from jobcheck.results import OK, Status, Verdict, Outcome
-from jobcheck import engine
+
 from jobcheck.views import _root_causes
 from jobcheck import rules
 from jobcheck.rules import _MatchCriterion
@@ -96,8 +96,8 @@ def test_an_unnamed_context_is_an_empty_one_not_none(fresh_registry: None) -> No
         return OK
 
     failures(ROW)
-    engine._explain(ROW)
-    engine._explain(ROW, context=None)
+    explain(ROW)
+    explain(ROW, context=None)
     assert seen == [RowContext(), RowContext(), RowContext()]
     assert all(isinstance(ctx, RowContext) for ctx in seen)
 
@@ -153,13 +153,13 @@ def test_a_rule_applies_only_to_matching_rows(fresh_registry: None) -> None:
 def test_every_registered_check_has_an_outcome_registered_check(fresh_registry: None) -> None:
     make_check("ONE")
     make_check("TWO", passes=False)
-    assert statuses(engine._explain(ROW)) == {"ONE": Outcome.PASSED, "TWO": Outcome.FAILED}
+    assert statuses(explain(ROW)) == {"ONE": Outcome.PASSED, "TWO": Outcome.FAILED}
 
 
 def test_a_check_off_by_default_does_not_run_and_says_so(fresh_registry: None) -> None:
     calls: list[str] = []
     make_check("OFF", passes=False, default_enabled=False, calls=calls)
-    assert detail(engine._explain(ROW), "OFF") == "disabled by default"
+    assert detail(explain(ROW), "OFF") == "disabled by default"
     assert calls == []
 
 
@@ -168,7 +168,7 @@ def test_a_check_disabled_by_a_rule_does_not_run_and_names_the_rule(
 ) -> None:
     calls: list[str] = []
     make_check("ON", passes=False, calls=calls)
-    outcomes = engine._explain(ROW, rules=[disable("ON", name="suppress_for_test_accounts")])
+    outcomes = explain(ROW, rules=[disable("ON", name="suppress_for_test_accounts")])
     assert detail(outcomes, "ON") == "disabled by rule 'suppress_for_test_accounts'"
     assert calls == []
 
@@ -176,7 +176,7 @@ def test_a_check_disabled_by_a_rule_does_not_run_and_names_the_rule(
 def test_the_last_matching_rule_is_the_one_named(fresh_registry: None) -> None:
     make_check("CODE")
     rules = [disable("CODE", name="first"), disable("CODE", name="second")]
-    assert detail(engine._explain(ROW, rules=rules), "CODE") == "disabled by rule 'second'"
+    assert detail(explain(ROW, rules=rules), "CODE") == "disabled by rule 'second'"
 
 
 # --- dependencies -----------------------------------------------------------
@@ -186,7 +186,7 @@ def test_a_dependent_is_not_run_when_its_prerequisite_fails(fresh_registry: None
     calls: list[str] = []
     make_check("PREREQ", passes=False, calls=calls)
     make_check("DEPENDENT", passes=False, depends_on=["PREREQ"], calls=calls)
-    outcomes = engine._explain(ROW)
+    outcomes = explain(ROW)
     assert statuses(outcomes)["DEPENDENT"] == Outcome.SKIPPED
     assert detail(outcomes, "DEPENDENT") == "prerequisite did not pass: PREREQ"
     assert calls == ["PREREQ"]
@@ -196,7 +196,7 @@ def test_a_dependent_is_not_run_when_its_prerequisite_errored(fresh_registry: No
     calls: list[str] = []
     make_check("PREREQ", raises=RuntimeError("boom"), calls=calls)
     make_check("DEPENDENT", passes=False, depends_on=["PREREQ"], calls=calls)
-    outcomes = engine._explain(ROW)
+    outcomes = explain(ROW)
     assert statuses(outcomes) == {"PREREQ": Outcome.ERRORED, "DEPENDENT": Outcome.SKIPPED}
     assert calls == ["PREREQ"]
 
@@ -239,7 +239,7 @@ def test_registration_order_does_not_have_to_match_dependency_order(fresh_regist
 def test_root_cause_ignores_disabled_and_skipped_outcomes(fresh_registry: None) -> None:
     make_check("DISABLED_ONE", default_enabled=False)
     make_check("FAILS", passes=False)
-    assert first_cause(engine._explain(ROW)) == "FAILS"
+    assert first_cause(explain(ROW)) == "FAILS"
 
 
 def test_an_errored_outcome_carries_the_layer_and_a_pointer_to_detail(
@@ -254,7 +254,7 @@ def test_an_errored_outcome_carries_the_layer_and_a_pointer_to_detail(
 
     make_check("BASE")
     make_check("RAISES", depends_on=["BASE"], raises=RuntimeError("boom"))
-    outcome = next(o for o in engine._explain(ROW) if o.code == "RAISES")
+    outcome = next(o for o in explain(ROW) if o.code == "RAISES")
     assert outcome.outcome == Outcome.ERRORED
     assert outcome.layer == 1
     assert outcome.message == "check raised; see detail"
@@ -264,7 +264,7 @@ def test_an_errored_outcome_carries_the_layer_and_a_pointer_to_detail(
 
 def test_an_errored_check_can_be_the_root_cause(fresh_registry: None) -> None:
     make_check("BROKEN", raises=RuntimeError("boom"))
-    assert first_cause(engine._explain(ROW)) == "BROKEN"
+    assert first_cause(explain(ROW)) == "BROKEN"
 
 
 # --- layers -----------------------------------------------------------------
@@ -282,7 +282,7 @@ def test_layer_counts_the_deepest_chain(fresh_registry: None) -> None:
 def test_outcomes_carry_the_layer(fresh_registry: None) -> None:
     make_check("ROOT")
     make_check("LEAF", depends_on=["ROOT"])
-    layers = {o.code: o.layer for o in engine._explain(ROW)}
+    layers = {o.code: o.layer for o in explain(ROW)}
     assert layers == {"ROOT": 0, "LEAF": 1}
 
 
@@ -291,13 +291,18 @@ def test_outcomes_carry_the_layer(fresh_registry: None) -> None:
 
 def test_duplicate_labels_raise_before_any_check_runs(fresh_registry: None) -> None:
     """A duplicate label hands the check a Series, which every value helper turns
-    into None -- so the check would silently pass on data it never read."""
-
+    into None. The check would silently pass on data it never read."""
     calls: list[str] = []
     make_check("CODE", calls=calls)
-    with pytest.raises(ValueError, match=r"duplicate column labels \['age'\]"):
-        engine._explain(pd.Series([1, 2], index=["age", "age"]))
+    with pytest.raises(ValueError, match=r"^Data has duplicate column labels \['age'\]"):
+        validate(pd.DataFrame([[1, 2]], columns=["age", "age"]))
     assert calls == []
+
+
+def test_duplicate_labels_raise_on_a_frame_with_no_rows(fresh_registry: None) -> None:
+    make_check("CODE")
+    with pytest.raises(ValueError, match=r"^Data has duplicate column labels \['age'\]"):
+        validate(pd.DataFrame(columns=["age", "age"]))
 
 
 # --- the shipped example checks ---------------------------------------------
@@ -343,7 +348,7 @@ def test_a_missing_field_reports_once_not_from_every_check_that_reads_it(
 
     row = pd.Series({"age": None, "email": "a@b.com", "start_date": "2024-01-01",
                      "end_date": "2024-02-01"})
-    outcomes = engine._explain(row)
+    outcomes = explain(row)
     assert codes(failures(row)) == ["AGE_PRESENT"]
     assert statuses(outcomes)["AGE_NOT_A_NUMBER"] == Outcome.SKIPPED
     assert statuses(outcomes)["AGE_NEGATIVE"] == Outcome.SKIPPED
@@ -437,7 +442,7 @@ def test_a_child_blocked_by_a_disabled_parent_says_disabled(fresh_registry: None
     make_check("CHILD", passes=False, depends_on=["PARENT"], calls=calls)
     rule = reg.Rule(name="off", action="disable", codes=["PARENT"], criteria=[],
                             match_all=True, source_file="<test>", message="why the rule exists")
-    outcomes = engine._explain(pd.Series({"a": 1}), rules=[rule])
+    outcomes = explain(pd.Series({"a": 1}), rules=[rule])
     assert [(o.code, o.outcome, o.detail) for o in outcomes] == [
         ("PARENT", "disabled", "disabled by rule 'off'"),
         ("CHILD", "skipped", "prerequisite disabled: PARENT"),
@@ -457,7 +462,7 @@ def test_a_mix_of_disabled_and_failed_prerequisites_says_did_not_pass(
     make_check("CHILD", depends_on=["GOOD", "OFF", "BROKEN"])
     rule = reg.Rule(name="off", action="disable", codes=["OFF"], criteria=[],
                             match_all=True, source_file="<test>", message="why the rule exists")
-    outcomes = engine._explain(pd.Series({"a": 1}), rules=[rule])
+    outcomes = explain(pd.Series({"a": 1}), rules=[rule])
     assert outcomes[-1].outcome == Outcome.SKIPPED
     assert outcomes[-1].detail == "prerequisite did not pass: OFF, BROKEN"
 
@@ -471,8 +476,8 @@ def test_root_causes_are_every_failure_at_the_shallowest_layer(
     make_check("B", passes=False)
     make_check("OPEN")
     make_check("DEEPER", passes=False, depends_on=["OPEN"])
-    outcomes = engine._explain(pd.Series({"a": 1}))
+    outcomes = explain(pd.Series({"a": 1}))
     assert _root_causes(outcomes) == ["A", "B"]
     reg.clear_registry()
     make_check("PASSES")
-    assert _root_causes(engine._explain(pd.Series({"a": 1}))) == []
+    assert _root_causes(explain(pd.Series({"a": 1}))) == []

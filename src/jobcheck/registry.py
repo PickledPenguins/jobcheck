@@ -38,8 +38,8 @@ class _Check:
     source_file: str
     default_enabled: bool = True
     depends_on: list[str] = field(default_factory=list)
-    repeat: bool = False  # Run on every copy of a row, not only the first
-    repeats: bool = False  # Whether this check runs on every copy
+    repeat: bool = False  # Declared by register_check
+    repeats: bool = False  # repeat, or depends on a check that repeats (set by _validate_registry)
     layer: int = 0  # How deep in the dependency graph this check sits
 
 
@@ -71,8 +71,8 @@ def _source_file_of(fn: CheckFn) -> str:
 
 def _defaulted_second(positional: list[inspect.Parameter]) -> inspect.Parameter | None:
     """The second of two positional parameters, when it has a default other than None
-    E.g. `def f(row, limit=130)` reads as `(row, context)`, so `limit` would be
-    handed the context."""
+    (E.g., `def f(row, limit=130)` reads as `(row, context)`, so `limit` would be
+    handed the context)."""
     if len(positional) != 2:
         return None
     second = positional[1]
@@ -115,7 +115,7 @@ def _make_runner(fn: CheckFn, code: str) -> RunnerFn:
     def call_with_row_only(row: "pd.Series[Any]", context: RowContext | None) -> Any:
         return fn(row)
 
-    # *args counts as taking the context, the Check function will accept it
+    # *args counts as taking the context. The Check function will accept it
     if any(p.kind is p.VAR_POSITIONAL for p in parameters) or len(positional) == 2:
         return call_with_context
     if len(positional) == 1:
@@ -138,7 +138,7 @@ def _reject_bad_registration(
     if not isinstance(code, str) or not code:
         raise ValueError(f"Check code must be a non-empty string, got {code!r}.")
     if not isinstance(message, str) or not message:
-        raise ValueError(f"Check {code!r}: message must be the text a person sees on failure.")
+        raise ValueError(f"Check {code!r}: message must be a non-empty string, got {message!r}.")
     existing = next((check for check in _CHECKS if check.code == code), None)
     if existing is not None:
         # A file whose import failed part-way is not recorded as loaded, but the
@@ -282,21 +282,18 @@ def _topological_order() -> list[_Check]:
     order: list[_Check] = []
     done: set[str] = set()
     visiting: list[str] = []
-    visiting_set: set[str] = set()
 
     def visit(code: str) -> None:
         if code in done:  # Path below code has been fully explored, return early
             return
         # Raise when a code is found twice in one path (a cycle)
-        if code in visiting_set:
+        if code in visiting:
             cycle = visiting[visiting.index(code):] + [code]
             raise ValueError("Dependency cycle among checks: " + " -> ".join(cycle) + ".")
         visiting.append(code)
-        visiting_set.add(code)
         for prerequisite in by_code[code].depends_on:
             visit(prerequisite)
         visiting.pop()
-        visiting_set.discard(code)
         done.add(code)
         order.append(by_code[code])
 
@@ -433,14 +430,10 @@ def load_setup(path: str) -> list[Rule]:
     setup naming only rules configures nothing (rules switch checks on and off).
     It composes `load_checks` and `load_rules`.
     """
-
     setup_file = _resolve_input_file(path, "setup file", "load_setup()")
     document = _read_yaml(setup_file, str(setup_file))
     if not isinstance(document, dict):
-        key_str = ' and '.join(repr(key) for key in SETUP_KEYS)
-        raise ValueError(
-            f"{setup_file}: a setup file is a mapping of "
-            f"{key_str}, got {type(document).__name__}.")
+        raise ValueError(f"{setup_file}: a setup file is a mapping, got {type(document).__name__}.")
     unknown = set(document) - set(SETUP_KEYS)
     if unknown:
         raise ValueError(

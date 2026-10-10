@@ -26,11 +26,11 @@ hypothesis = pytest.importorskip("hypothesis")
 from hypothesis import HealthCheck, given, settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 
-from conftest import first_cause, make_check  # noqa: E402
+from conftest import explain, first_cause, make_check  # noqa: E402
 from jobcheck import registry as reg  # noqa: E402
 from jobcheck.results import Outcome, Status, Verdict  # noqa: E402
 from jobcheck.rules import Rule, _MatchCriterion  # noqa: E402
-from jobcheck import engine, validate  # noqa: E402
+from jobcheck import validate  # noqa: E402
 
 pytestmark = pytest.mark.long
 
@@ -69,7 +69,7 @@ def test_a_check_never_runs_unless_every_prerequisite_passed(
     for code, depends_on, passes in graph:
         make_check(code, passes=passes, depends_on=depends_on, calls=calls)
 
-    outcomes = engine._explain(pd.Series({"age": 1}))
+    outcomes = explain(pd.Series({"age": 1}))
     by_code = {outcome.code: outcome for outcome in outcomes}
 
     for code, depends_on, _passes in graph:
@@ -90,7 +90,7 @@ def test_root_cause_is_always_the_shallowest_failure(
     for code, depends_on, passes in graph:
         make_check(code, passes=passes, depends_on=depends_on)
 
-    outcomes = engine._explain(pd.Series({"age": 1}))
+    outcomes = explain(pd.Series({"age": 1}))
     failures = [outcome for outcome in outcomes if outcome.failed]
     cause = first_cause(outcomes)
 

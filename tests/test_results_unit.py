@@ -34,8 +34,11 @@ def test_a_check_cannot_return_status_error() -> None:
     """Regression: it recorded as a failure carrying ERROR (9), which broke the
     summary's split between broken checks and bad data."""
 
-    with pytest.raises(ValueError, match="Status.ERROR is the engine's, not a check's"):
+    with pytest.raises(ValueError) as raised:
         Verdict(Status.ERROR)
+    assert str(raised.value) == (
+        "Status.ERROR is the engine's, not a check's: it marks a check that raised. "
+        "Raise the exception, or return a failure kind that describes the data.")
     with pytest.raises(TypeError, match="Check 'CODE' returned"):
         res._normalize_verdict(Status.ERROR, "CODE")
 
@@ -82,6 +85,13 @@ def test_a_bool_is_never_read_as_an_integer_status() -> None:
 
     assert Verdict(True).status == Status.PASS
     assert Verdict(False).status == Status.INVALID
+
+
+def test_a_verdict_status_is_a_plain_int() -> None:
+    """Not a `Status`: a column of statuses stays `int64`, and `str()` gives the number
+    on Python 3.10 too."""
+    assert type(Verdict(Status.INVALID).status) is int
+    assert type(Verdict(True).status) is int
 
 
 def test_numpy_scalars_are_accepted() -> None:

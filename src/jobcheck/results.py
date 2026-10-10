@@ -26,8 +26,8 @@ import pandas as pd
 
 
 class Status(IntEnum):
-    """What is wrong with a value: the fixed status vocabulary. ``PASS`` is 0;
-    every other value is a failure."""
+    """What is wrong with a value: the fixed status vocabulary. `PASS` is 0.
+    Every other value is a failure."""
     PASS = 0
     MISSING = 1    # The field a check needs is absent or empty
     MALFORMED = 2  # Present, but the wrong shape: unparseable, wrong type, bad format
@@ -77,9 +77,7 @@ class Verdict:
         try:
             status = Status(self.status)
         except ValueError:
-            raise ValueError(
-                f"Unknown status {self.status!r}."
-            ) from None
+            raise ValueError(f"Unknown status {self.status!r}.") from None
         if status is Status.ERROR:
             raise ValueError(
                 "Status.ERROR is the engine's, not a check's: it marks a check that raised. "
@@ -115,8 +113,10 @@ class CheckOutcome:
     """What one check did on one row (including the ones that never ran)
 
     `detail` says why a check did not simply pass or fail: the rule that disabled it,
-    the prerequisites that blocked it, or what it raised. `rule` names the rule that switched the check on or
-    off for this row, whatever the outcome, and is "" where the default stood."""
+    the prerequisites that blocked it, what it raised, or, on a copy under
+    `repeat_key`, what it did on the first copy and where. `rule` names the rule that
+    switched the check on or off for this row, whatever the outcome, and is "" where
+    the default stood."""
 
     code: str
     outcome: Outcome

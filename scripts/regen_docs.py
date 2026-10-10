@@ -2,7 +2,7 @@
 what it prints.
 
 A tool, not a gate: run it after an intended change to what a documented example
-prints, then read the diff -- a blind regeneration turns a failing test into a
+prints, then read the diff. A blind regeneration turns a failing test into a
 recorded bug. Each block runs the way its gate runs it:
 
 - docs/ (`tests/test_docs_blocks_unit.py`): each block on its own, from an empty
@@ -42,13 +42,12 @@ from doc_files import (  # noqa: E402
 )
 from jobcheck import clear_registry  # noqa: E402
 
-#: A block, and what it printed or the exception it raised.
+# A block, and what it printed or the exception it raised.
 Printed = tuple[DocsBlock, "str | Exception"]
 
 
 def printed_by(block: DocsBlock) -> str:
     """What *block* prints, run as the docs test runs it."""
-
     home = Path.cwd()
     with tempfile.TemporaryDirectory() as scratch:
         os.chdir(scratch)
@@ -65,7 +64,6 @@ def printed_by(block: DocsBlock) -> str:
 
 def docs_printed(document: Path) -> Iterator[Printed]:
     """What each block of a document under docs/ prints, each block on its own."""
-
     for block in docs_blocks([document]):
         if block.output_span is None:
             continue

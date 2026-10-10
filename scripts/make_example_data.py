@@ -3,13 +3,13 @@
 
 Three files, the first two deliberately messy in the ways real exports are:
 
-- ``customers.csv`` — 49 rows, written by hand-shaped rules so every example
+- `customers.csv`: 49 rows, written by hand-shaped rules so every example
   check has something to say about it and most rows are fine. Small enough that
   a reader can open it beside a report and check the tool's answer themselves.
-- ``customers_clean.csv`` — 24 rows with nothing wrong, for showing what a
+- `customers_clean.csv`: 24 rows with nothing wrong, for showing what a
   passing run looks like: an empty report is a result, and a reader needs to
   have seen one.
-- ``customers_large.csv`` — 2,000 rows on the same shape, generated from a fixed
+- `customers_large.csv`: 2,000 rows on the same shape, generated from a fixed
   seed, for the cases and load checks that need volume rather than readability.
 
 Deterministic: the seed is fixed and the row order is stable, so regenerating
@@ -94,7 +94,7 @@ SMALL_ROWS: list[dict[str, str]] = [
      "source_system": "MODERN", "record_type": "STREAM", "region": "US"},
     # Two '@' signs: the row fails EMAIL_MISSING_AT, and its address still ends
     # @internal.test, so the shipped exemption rule covers it. That pairing is
-    # what makes the exemption visible in the catalog -- an internal account
+    # what makes the exemption visible in the catalog. An internal account
     # that passes every check demonstrates nothing about the rule.
     {"id": "1018", "name": "Load Test", "age": "34", "email": "load-test@@internal.test",
      "start_date": "2024-01-01", "end_date": "2024-02-01",
@@ -137,8 +137,7 @@ FILLER_NAMES = [
 
 
 def small_rows() -> list[dict[str, str]]:
-    """The 49 rows of ``customers.csv``: the shaped ones, then the ordinary ones."""
-
+    """The 49 rows of `customers.csv`: the shaped ones, then the ordinary ones."""
     rows = list(SMALL_ROWS)
     for offset, name in enumerate(FILLER_NAMES):
         number = 1030 + offset
@@ -158,7 +157,6 @@ def small_rows() -> list[dict[str, str]]:
 
 def clean_rows() -> list[dict[str, str]]:
     """24 rows every example check passes, so a clean run has something to show."""
-
     rows: list[dict[str, str]] = []
     for offset, name in enumerate(FILLER_NAMES[:24]):
         number = 2000 + offset
@@ -221,7 +219,6 @@ def large_rows(count: int, seed: int = 20260910) -> list[dict[str, str]]:
 
 def write(path: Path, rows: list[dict[str, str]]) -> None:
     """Write *rows* as CSV with a stable newline, so the bytes do not drift."""
-
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=COLUMNS, lineterminator="\n")
         writer.writeheader()

@@ -15,14 +15,14 @@ pip install -e ".[dev]"
 
 | Command | Runs | Time |
 |---|---|---|
-| `./tests/run-tests.sh fast` | 652 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then ruff and mypy | 18s |
+| `./tests/run-tests.sh fast` | 655 tests: unit, interface, contract, documentation, regression, cheap pathological, safety, every error message — then ruff and mypy | 18s |
 | `./tests/run-tests.sh long` | 191 tests: integration, load, concurrency, faults, scaling, packaging, fuzz, property, end-to-end catalogs — then the example profile | 100s |
-| `./tests/run-tests.sh all` | 843 tests, then ruff, mypy and the profile | 120s |
+| `./tests/run-tests.sh all` | 846 tests, then ruff, mypy and the profile | 120s |
 | `./tests/run-tests.sh cov` | fast suite under coverage, gated at 99% lines and branches (it runs at 99.5%) | 23s |
 | `./tests/run-tests.sh perf` | timing against this machine's baseline; its own gate | 21s |
 | `./tests/run-tests.sh memory` | peak-memory ceilings under tracemalloc; its own gate | 3s |
 | `./tests/run-tests.sh profile` | the example profile alone | 3s |
-| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 97% (it runs at 97.8%) | 200s |
+| `./tests/run-tests.sh mutation` | a clean `mutmut run`, scored by `scripts/mutation_score.py`, gated at 97% (it runs at 98.6%) | 200s |
 | `./tests/run-tests.sh types` | ruff and mypy alone | 8s |
 
 Extra arguments pass through to pytest: `./tests/run-tests.sh fast -k dependency`,
@@ -68,12 +68,12 @@ Fast:
 |---|---|
 | `tests/test_registry_unit.py` | Registration and its duplicate guard, `clear_registry`, dependency validation, cycle detection, topological order and its cache. |
 | `tests/test_load_files_unit.py` | `load_checks`: files named by path, repeats and reloads refused, module names unique per path and the same every load, prerequisites across files in one call and from an earlier call, that a broken file's error propagates and `clear_registry` recovers, and that no `__pycache__` appears beside the caller's file while a module it imports still gets one. |
-| `tests/test_validate_unit.py` | The whole-frame entry point: one list of outcomes per row **in its own position**, rules and the context builder passed through, and both `on_error` modes. |
-| `tests/test_repeat_unit.py` | Copies of a row under `validate(repeat_key=...)`: a check that does not repeat runs on the first copy only and is recorded `shared` on the rest, with status `PASS` and a `detail` saying where; `repeat=True` and its dependents run on every copy, each with its own context, reading a shared prerequisite's result from the first copy; rules match every copy, a copy disabling a check records `disabled`, and a check disabled on the first copy runs on the next copy that enables it; copies need not be adjacent; a shared failure is reported and counted once; every refused `repeat_key` and `repeat` value. |
+| `tests/test_engine_validate_unit.py` | The whole-frame entry point: one list of outcomes per row **in its own position**, rules and the context builder passed through, and both `on_error` modes. |
+| `tests/test_engine_repeat_unit.py` | Copies of a row under `validate(repeat_key=...)`: a check that does not repeat runs on the first copy only and is recorded `shared` on the rest, with status `PASS` and a `detail` saying where; `repeat=True` and its dependents run on every copy, each with its own context, reading a shared prerequisite's result from the first copy; rules match every copy, a copy disabling a check records `disabled`, and a check disabled on the first copy runs on the next copy that enables it; copies need not be adjacent; a shared failure is reported and counted once; every refused `repeat_key` and `repeat` value. |
 | `tests/test_rules_unit.py` | Every rule-file rejection (24 parametrized cases asserting the exact message), the loader and its ordering, duplicate names, matching semantics, last-rule-wins precedence. |
 | `tests/test_results_unit.py` | The fixed status vocabulary, `Verdict` truthiness and validation, and normalizing whatever a check returned. |
-| `tests/test_explain_unit.py` | The per-row algorithm, `_explain`: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `warn_missing_rule_columns`, root cause, layers, and the shipped checks at their boundaries. |
-| `tests/test_report_unit.py` | The failure table and its columns, row keys and added data columns, `include` levels, titles, explanations and summaries. |
+| `tests/test_engine_explain_unit.py` | The per-row algorithm, `_explain`: outcomes and their reasons, enabled state, dependency skipping (failed, disabled, errored, transitive), signature adaptation, purity, `warn_missing_rule_columns`, root cause, layers, and the shipped checks at their boundaries. |
+| `tests/test_views_unit.py` | The failure table and its columns, row keys and added data columns, `include` levels, titles, explanations and summaries. |
 | `tests/test_main_unit.py` | The entry point driven in this process: every flag, every early exit, the report and explain paths, and each error message with its exit code. |
 | `tests/test_run_from_config_unit.py` | The run-file entry point in this process: the shipped run's tables in order, paths resolved against the run file, repeated tables, every rejection of a malformed run file word for word, and that a table the library refuses prints none of the run. |
 | `tests/test_shipped_examples_unit.py` | `examples/` as a delivered artifact: the rule files load together, which refuses a duplicate rule name or an unknown code, every rule matches a column the data has, the three data files are the size and shape the documentation claims, and the generator still reproduces them byte for byte. |
@@ -182,7 +182,7 @@ mutmut show <name>  # the diff for one survivor
 2026-09-26, against 95.7%). The score is detected over total: killed, caught by the type
 check, or timed out. The 97.8% of `cc22f4b` is 0.8 points, about 11 of its 1,479
 mutants, above the floor -- room for a change that adds a few untested lines, not for a
-module losing its tests. 32 of the 33 survivors cannot be killed (below), so new code
+module losing its tests. None of today's 20 survivors can be killed (below), so new code
 keeps the score only with nearly all of its own mutants killed. Raise the floor when the
 score rises and stays there; lower it only with the survivors read and recorded below,
 never to make a run pass. The coverage floor follows the same rule: 99%, against 99.5%.
@@ -223,41 +223,33 @@ read `mutmut results` in between as the suite's score.
 Surviving mutants are a to-do list, not a failure: each one is a change to the code that
 no test noticed.
 
-Measured on 2026-10-03 at commit `cc22f4b`, on a clean tree: **1,479 mutants, 1,446
-killed, 33 survived, 0 timeouts — 97.8%**, in about three minutes. That is a record of one
-commit, not the current score: re-run before quoting a number, and update this paragraph
-with what comes back. Earlier scores, oldest first: 89.2% (2026-09-10), 89.5% (09-11),
-94.6% (09-25), 95.7% (09-26), 96.6% (09-28), 97.1% (10-02), 96.9% (10-03, before the
-reading below). Each run's reading of its survivors is in `git log -p docs/testing.md`.
+Measured on 2026-10-09, on the tree after the review fixes of that day: **1,478 mutants,
+1,458 killed, 20 survived, 0 timeouts — 98.6%**, in about four minutes. That is a record
+of one tree, not the current score: re-run before quoting a number, and update this
+paragraph with what comes back. Earlier scores, oldest first: 89.2% (2026-09-10), 89.5%
+(09-11), 94.6% (09-25), 95.7% (09-26), 96.6% (09-28), 97.1% (10-02), 96.9% and 97.8%
+(10-03), 97.9% (10-09, before the fixes), 98.5% (10-09, before the `Verdict.status`
+test). Each run's reading of its survivors is in `git log -p docs/testing.md`.
 
-Survivors by module at `cc22f4b`: `registry` 11, `engine` 10, `paths` 7, `views` 4,
-`tables` 1. All 33 were read on 2026-10-03; the 14 that were missing assertions got them
-in that commit. What is left falls into four classes:
+Survivors by module: `registry` 8, `engine` 6, `paths` 4, `views` 2. All 20 were read on
+2026-10-09. They fall into three classes:
 
-- **Default arguments (10) — unkillable here.** mutmut's trampoline keeps the
+- **Default arguments (2) — unkillable here.** mutmut's trampoline keeps the
   *original* function's defaults and forwards the caller's arguments, so a
-  mutated default in the mutant body is never evaluated. Verified by hand on
-  `validate(on_error="XXrecordXX")`, which behaves exactly like the original. The ten:
-  `on_error` of `validate` and `_explain` (4), `default_enabled` and `repeat` of
-  `register_check` (2), `include` of `build_report` (2), `deep` of `construct_mapping`
-  (1), `missing` of `_format_cell` (1).
-- **Equivalent (19).** A change Python, pandas or PyYAML reads the same way: `False`
+  mutated default in the mutant body is never evaluated. The two: `deep` of
+  `construct_mapping` (1), `_mode` of `_NoBytecodeLoader.set_data` (1).
+- **Equivalent (15).** A change Python, pandas or PyYAML reads the same way: `False`
   swapped for `None` where the value is only read for truth — `passed[code]` (3),
   `required=` (1), `itertuples(index=)` (1); the YAML loader passing `deep` as `None` or
-  not at all (4); `itertuples` yielding namedtuples instead of plain tuples, read by
-  position either way (1); the letter case of `"UTF-8"` (1); `getattr(fn, "__module__")`
+  not at all (2); `itertuples` yielding namedtuples instead of plain tuples, read by
+  position either way (1); the letter case of `"utf-8"` (1); `getattr(fn, "__module__")`
   without its fallback, on functions that always have one (1); `clear_registry` leaving
   `_TOPO_ORDER` as `""`, which orders the empty registry to nothing just as `None` does
-  and is reset by the next registration (1); `_LOAD_SEQUENCE` stepped by −1 or +2, still
-  distinct per load (2); `visiting_set.discard(None)`, harmless because a visited code is
-  in `done`, which is tested first (1); the `default` of the `max` that sizes `widest`,
-  reached only after a `RecursionError`, which an empty registry cannot raise (3).
+  and is reset by the next registration (1); `spec_from_file_location` without the
+  location or the loader (4), since the module is run by `loader.exec_module`, which
+  reads the path the loader holds.
 - **Python-version only (3).** The `add_note` stand-in for Python 3.10; the suite runs
   on 3.12, which has the method.
-- **Killable, left (1).** `continue` to `break` after an unhashable YAML key in
-  `_StrictLoader.construct_mapping`: a duplicate after that key goes unreported, but
-  SafeLoader refuses the unhashable key anyway, so the file fails either way and only
-  which of two messages comes first differs.
 
 Writing the message tests found a defect the suite had never noticed:
 `register_check(depends_on="AGE_PRESENT")` did `list(depends_on or [])` before the guard

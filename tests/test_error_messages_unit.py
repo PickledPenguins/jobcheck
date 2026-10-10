@@ -49,10 +49,10 @@ def test_an_empty_code_says_what_a_code_must_be(fresh_registry: None) -> None:
     assert message_of(raised) == "Check code must be a non-empty string, got ''."
 
 
-def test_a_missing_message_says_what_the_message_is_for(fresh_registry: None) -> None:
+def test_a_missing_message_names_what_it_got(fresh_registry: None) -> None:
     with pytest.raises(ValueError) as raised:
         reg.register_check(code="CODE", message="")(lambda row: True)
-    assert message_of(raised) == "Check 'CODE': message must be the text a person sees on failure."
+    assert message_of(raised) == "Check 'CODE': message must be a non-empty string, got ''."
 
 
 def test_a_duplicate_code_names_what_registered_it(fresh_registry: None) -> None:
@@ -265,7 +265,7 @@ def test_duplicate_column_labels_say_what_a_check_would_receive(fresh_registry: 
     with pytest.raises(ValueError) as raised:
         validate(row.to_frame().T)
     assert message_of(raised) == (
-        "Row has duplicate column labels ['age']. Rename or drop the duplicate columns "
+        "Data has duplicate column labels ['age']. Rename or drop the duplicate columns "
         "before validating.")
 
 
@@ -287,7 +287,7 @@ def test_a_frame_that_is_not_a_frame_names_its_type(fresh_registry: None) -> Non
     make_check("CODE")
     with pytest.raises(TypeError) as raised:
         validate(FRAME.iloc[0])  # type: ignore[arg-type]
-    assert message_of(raised) == "validate takes a DataFrame, got Series"
+    assert message_of(raised) == "validate takes a DataFrame, got Series."
 
 
 # --- reporting --------------------------------------------------------------
@@ -383,9 +383,7 @@ def test_a_duplicated_key_column_names_the_count_and_the_fix(fresh_registry: Non
     with pytest.raises(ValueError) as raised:
         build_report(outcomes, df=df, key_column="id")
     assert message_of(raised) == (
-        "key_column 'id' appears 2 times in the data: df[key_column] is then a table "
-        "rather than a column, and every row would be labeled with the column name. "
-        "Rename or drop the duplicate columns.")
+        "key_column 'id' appears 2 times in the data. Rename or drop the duplicate columns.")
 
 
 # --- messages the pins above left partly open ---------------------------------

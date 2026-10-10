@@ -134,11 +134,18 @@ def first_cause(row_outcomes: list[Any]) -> str | None:
     return causes[0] if causes else None
 
 
+def explain(row: pd.Series, context: Any = None, rules: Any = None,
+            on_error: str = "record") -> list[res.CheckOutcome]:
+    """One row's outcomes, as `validate` records them for a row with no copies."""
+
+    return engine._explain(row, context, rules, on_error, {})[0]
+
+
 def failures(row: pd.Series, **kwargs: Any) -> list[res.CheckOutcome]:
     """One row's failed and errored outcomes, the checks that did not run left
     out: what most tests of the per-row algorithm assert on."""
 
-    return [outcome for outcome in engine._explain(row, **kwargs) if outcome.failed]
+    return [outcome for outcome in explain(row, **kwargs) if outcome.failed]
 
 
 def enabled_only(state: dict[str, Any]) -> dict[str, bool]:

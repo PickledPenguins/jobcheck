@@ -26,13 +26,13 @@ first version of this catalog had three of them, made by a throwaway generator
 that had no such check.
 
 The command is only the narrow door. Two cases can spell the same run
-differently -- passing the rule file `--rules` already defaults to, say -- and
-print the same bytes; `tests/test_e2e_catalogs.py::test_no_two_cases_record_the_same_output`
+differently (passing the rule file `--rules` already defaults to, say) and
+print the same bytes. `tests/test_e2e_catalogs.py::test_no_two_cases_record_the_same_output`
 catches those whatever route they came in by, including a hand-made directory
 and a regeneration after a behavior change.
 
-A case that carries its own input files -- a rule file, a run file, check
-files -- is made by putting those files in the case directory first and
+A case that carries its own input files (a rule file, a run file, check
+files) is made by putting those files in the case directory first and
 then running this: a directory that exists is accepted as long as it holds none
 of the files a case is made of (`cmd`, `README.md`, the expected output and the
 exit code). One that already holds any of them is a case, and is refused.
@@ -58,7 +58,6 @@ LEVELS = ("simple", "moderate", "complex")
 
 def existing_commands(kind: str) -> dict[str, Path]:
     """Every command already in this catalog, mapped to the case that uses it."""
-
     commands: dict[str, Path] = {}
     for case in case_dirs(kind):
         commands[(case / "cmd").read_text(encoding="utf-8").strip()] = case
@@ -132,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
     exit_file.write_text(f"{result.returncode}\n", encoding="utf-8")
 
     print(f"{case.relative_to(ROOT)}: exit {result.returncode}")
-    print("Read the recorded output before committing -- a case that records the wrong "
+    print("Read the recorded output before committing: a case that records the wrong "
           "answer is a defect with a test.")
     return 0
 

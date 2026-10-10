@@ -327,7 +327,7 @@ characters), an entry that is not a path, and an empty `checks`:
 
 | Problem | Message |
 |---|---|
-| a flat list | `setup.yaml: a setup file is a mapping of 'checks' and 'rules', got list.` |
+| a flat list | `setup.yaml: a setup file is a mapping, got list.` |
 | an unknown key | `setup.yaml: unknown key(s) 'extra'. A setup file holds 'checks', 'rules'.` |
 | no `checks` | `setup.yaml: 'checks' is required: a setup file names the files to load.` |
 | `checks: one.py` | `setup.yaml: 'checks' must be a list of paths, got str. Write it as a list even for one file.` |

@@ -1,4 +1,4 @@
-"""Checks on the ``email`` column, including a dependent check."""
+"""Checks on the `email` column, including a dependent check."""
 
 from __future__ import annotations
 
@@ -13,8 +13,7 @@ _DOMAIN = re.compile(r"^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$")
 
 
 def _text(row: "pd.Series[Any]", column: str = "email") -> str | None:
-    """A column as text, or ``None`` when absent or missing."""
-
+    """A column as text, or `None` when absent or missing."""
     if column not in row.index:
         return None
     value = row[column]
@@ -26,7 +25,6 @@ def _text(row: "pd.Series[Any]", column: str = "email") -> str | None:
 @register_check(code="EMAIL_PRESENT", message="Email is missing")
 def email_present(row: "pd.Series[Any]") -> Verdict:
     """Pass when the row carries an email at all."""
-
     text = _text(row)
     if text is None or not text.strip():
         return Verdict(Status.MISSING)
@@ -36,8 +34,7 @@ def email_present(row: "pd.Series[Any]") -> Verdict:
 @register_check("EMAIL_MISSING_AT", "Email has no '@'", depends_on=["EMAIL_PRESENT"])
 def email_missing_at(row: "pd.Series[Any]") -> Verdict:
     """Pass when the email contains exactly one '@'."""
-
-    text = _text(row) or ""
+    text = str(row["email"])
     count = text.count("@")
     if count != 1:
         return Verdict(Status.MALFORMED, {"at_signs": count, "value": text})
@@ -51,10 +48,9 @@ def email_missing_at(row: "pd.Series[Any]") -> Verdict:
 )
 def email_domain(row: "pd.Series[Any]") -> Verdict:
     """Pass when the part after '@' looks like a dotted hostname."""
-
     # EMAIL_MISSING_AT is a prerequisite and passed, so there is exactly one
     # '@' here: a check runs only once every check it depends on has passed.
-    domain = (_text(row) or "").split("@", 1)[1]
+    domain = str(row["email"]).split("@", 1)[1]
     if not _DOMAIN.match(domain):
         return Verdict(Status.MALFORMED, {"domain": domain})
     return OK
