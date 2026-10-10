@@ -1096,6 +1096,11 @@ something close to their own case. It is judged on variety, not on coverage.
 [testing.md](testing.md#gates) are what run the suites; an absent workflow is not
 outstanding work.
 
+**The pre-push gate switched on by default.** Declined 2026-10-09: `install-hooks.sh`
+links the hook as `.git/hooks/pre-push.off`. Commits here are often work in progress,
+and a failing fast suite must not block pushing one. The gate exists for a push that
+should be checked; renaming the link to `pre-push` switches it on.
+
 **Narrowing the registry table by breaking long words.** Rejected: the demo registry table
 with `could_be_overridden_by` asked for is 150 columns, and the binding constraint is a
 single 48-character rule name, not the wrap width. Breaking words at the wrap width takes
