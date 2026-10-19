@@ -182,9 +182,10 @@ A workable three-layer shape, which the shipped checks follow:
 
 1. **Presence** (layer 0) — is the field there at all? `AGE_PRESENT`,
    `EMAIL_PRESENT`, `DATES_PRESENT`.
-2. **Shape** — `AGE_NOT_A_NUMBER` waits on `AGE_PRESENT`.
+2. **Shape** — `AGE_NOT_A_NUMBER` waits on `AGE_PRESENT`, `DATES_NOT_A_DATE` on
+   `DATES_PRESENT`.
 3. **Value and agreement** — `AGE_NEGATIVE` and `AGE_TOO_HIGH` wait on
-   `AGE_NOT_A_NUMBER`; `DATES_OUT_OF_ORDER` waits on both dates being present.
+   `AGE_NOT_A_NUMBER`; `DATES_OUT_OF_ORDER` waits on `DATES_NOT_A_DATE`.
 
 Rules of thumb:
 

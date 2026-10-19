@@ -162,6 +162,7 @@ def test_clear_registry_then_load_checks_re_registers(fresh_registry: None) -> N
         "AGE_NOT_INTEGER",
         "AGE_PRESENT",
         "AGE_TOO_HIGH",
+        "DATES_NOT_A_DATE",
         "DATES_OUT_OF_ORDER",
         "DATES_PRESENT",
         "EMAIL_DOMAIN_INVALID",

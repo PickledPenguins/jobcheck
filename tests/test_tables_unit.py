@@ -62,10 +62,11 @@ def test_registry_table_is_sorted_by_layer_then_code(example_checks: None) -> No
     table = views.registry_table()
     assert list(table["code"]) == [
         "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT", "ROW_ALL_NULL",
-        "AGE_NOT_A_NUMBER", "DATES_OUT_OF_ORDER", "EMAIL_MISSING_AT",
-        "AGE_NEGATIVE", "AGE_NOT_INTEGER", "AGE_TOO_HIGH", "EMAIL_DOMAIN_INVALID",
+        "AGE_NOT_A_NUMBER", "DATES_NOT_A_DATE", "EMAIL_MISSING_AT",
+        "AGE_NEGATIVE", "AGE_NOT_INTEGER", "AGE_TOO_HIGH", "DATES_OUT_OF_ORDER",
+        "EMAIL_DOMAIN_INVALID",
     ]
-    assert list(table["layer"]) == [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2]
+    assert list(table["layer"]) == [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2]
 
 
 def test_registry_table_computes_layers_for_checks_registered_directly(

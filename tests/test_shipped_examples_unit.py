@@ -70,7 +70,7 @@ def test_the_messy_file_exercises_every_shipped_check(example_checks: None) -> N
               for outcomes in validate(frame)
               for outcome in outcomes if outcome.failed}
     expected = {"ROW_ALL_NULL", "AGE_PRESENT", "AGE_NOT_A_NUMBER", "AGE_NEGATIVE",
-                "AGE_TOO_HIGH", "DATES_PRESENT", "DATES_OUT_OF_ORDER",
+                "AGE_TOO_HIGH", "DATES_PRESENT", "DATES_NOT_A_DATE", "DATES_OUT_OF_ORDER",
                 "EMAIL_PRESENT", "EMAIL_MISSING_AT", "EMAIL_DOMAIN_INVALID"}
     assert expected <= failed
 
@@ -84,6 +84,7 @@ def test_the_messy_file_still_holds_the_awkward_values_the_catalog_relies_on() -
     assert "qa@internal.test" in text, "the exempted internal account"
     assert "load-test@@internal.test" in text, "the internal account the exemption rescues"
     assert "LEGACY_A" in text, "the legacy source system the rules select on"
+    assert "2024-13-45" in text, "the date no calendar has"
     assert ",,,,,,,," in text, "the entirely blank row"
 
 

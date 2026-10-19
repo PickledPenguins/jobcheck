@@ -7,11 +7,12 @@ Loaded 3 rule(s) from 1 file(s)
        EMAIL_PRESENT      0      ON      -                        Email is missing                -                                                                                  -
         ROW_ALL_NULL      0      ON      -                   Row is entirely empty                -                                                                                  -
     AGE_NOT_A_NUMBER      1      ON      -                     Age is not a number      AGE_PRESENT                                                                                  -
-  DATES_OUT_OF_ORDER      1      ON      -            start_date is after end_date    DATES_PRESENT                                                                                  -
+    DATES_NOT_A_DATE      1      ON      -                   A date cannot be read    DATES_PRESENT                                                                                  -
     EMAIL_MISSING_AT      1      ON      -                        Email has no '@'    EMAIL_PRESENT                                  suppress_email_checks_for_test_accounts (disable)
         AGE_NEGATIVE      2      ON      -                         Age is negative AGE_NOT_A_NUMBER                                                                                  -
      AGE_NOT_INTEGER      2     OFF      -               Age is not a whole number AGE_NOT_A_NUMBER enable_legacy_integer_check (enable); disable_age_integer_check_globally (disable)
         AGE_TOO_HIGH      2      ON      -      Age is implausibly high (over 130) AGE_NOT_A_NUMBER                                                                                  -
+  DATES_OUT_OF_ORDER      2      ON      -            start_date is after end_date DATES_NOT_A_DATE                                                                                  -
 EMAIL_DOMAIN_INVALID      2      ON      -            Email domain looks malformed EMAIL_MISSING_AT                                  suppress_email_checks_for_test_accounts (disable)
 
 == Report ==
@@ -26,9 +27,10 @@ Index: []
        EMAIL_PRESENT      0       0                0        0        0         0       0      24
         ROW_ALL_NULL      0       0                0        0        0         0       0      24
     AGE_NOT_A_NUMBER      1       0                0        0        0         0       0      24
-  DATES_OUT_OF_ORDER      1       0                0        0        0         0       0      24
+    DATES_NOT_A_DATE      1       0                0        0        0         0       0      24
     EMAIL_MISSING_AT      1       0                0        0        0         0       0      24
         AGE_NEGATIVE      2       0                0        0        0         0       0      24
      AGE_NOT_INTEGER      2       0                0        0        0        24       0       0
         AGE_TOO_HIGH      2       0                0        0        0         0       0      24
+  DATES_OUT_OF_ORDER      2       0                0        0        0         0       0      24
 EMAIL_DOMAIN_INVALID      2       0                0        0        0         0       0      24

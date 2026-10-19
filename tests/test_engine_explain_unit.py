@@ -335,6 +335,10 @@ def test_duplicate_labels_raise_on_a_frame_with_no_rows(fresh_registry: None) ->
                       "end_date": "2024-02-01"}, ["EMAIL_DOMAIN_INVALID"], id="domain-without-a-dot"),
         pytest.param({"age": 30, "email": "a@b.com", "start_date": "2024-05-01",
                       "end_date": "2024-03-01"}, ["DATES_OUT_OF_ORDER"], id="dates-reversed"),
+        pytest.param({"age": 30, "email": "a@b.com", "start_date": "2024-13-45",
+                      "end_date": "yesterday"}, ["DATES_NOT_A_DATE"], id="dates-unreadable"),
+        pytest.param({"age": 30, "email": "a@b.com", "start_date": "2024-01-01",
+                      "end_date": None}, ["DATES_PRESENT"], id="end-date-missing"),
         pytest.param({"age": None, "email": "a@b.com", "start_date": "2024-01-01",
                       "end_date": "2024-02-01"}, ["AGE_PRESENT"], id="missing-age"),
         pytest.param({}, ["ROW_ALL_NULL", "AGE_PRESENT", "DATES_PRESENT", "EMAIL_PRESENT"],
@@ -366,6 +370,17 @@ def test_failure_comments_carry_the_numbers_a_reader_needs(example_checks: None)
                      "end_date": "2024-02-01"})
     outcome = failures(row)[0]
     assert dict(outcome.comments) == {"value": 200.0, "maximum": 130}
+
+
+def test_an_unreadable_date_is_malformed_and_named_not_missing(example_checks: None) -> None:
+    """Regression (F.98): a date pd.Timestamp cannot parse reported DATES_PRESENT
+    MISSING, asking for a field that was there."""
+    row = pd.Series({"age": 30, "email": "a@b.com", "start_date": "2024-13-45",
+                     "end_date": "2024-02-01"})
+    outcome = failures(row)[0]
+    assert (outcome.code, outcome.status) == ("DATES_NOT_A_DATE", Status.MALFORMED)
+    assert dict(outcome.comments) == {"start_date": "2024-13-45"}
+    assert statuses(explain(row))["DATES_OUT_OF_ORDER"] == Outcome.SKIPPED
 
 
 # --- rule columns -----------------------------------------------------------
@@ -409,7 +424,7 @@ def test_check_rule_columns_warns_about_a_column_the_data_lacks(fresh_registry: 
         pytest.param({"age": 41.0, "email": "a@b.com", "start_date": "2024-01-01",
                       "end_date": "2024-02-01"}, [], id="whole-float-age"),
         pytest.param({"age": 30, "email": "a@b.com", "start_date": "not-a-date",
-                      "end_date": "2024-02-01"}, ["DATES_PRESENT"], id="unparseable-date"),
+                      "end_date": "2024-02-01"}, ["DATES_NOT_A_DATE"], id="unparseable-date"),
         pytest.param({"age": 30, "email": "   ", "start_date": "2024-01-01",
                       "end_date": "2024-02-01"}, ["EMAIL_PRESENT"], id="blank-email"),
         pytest.param({"age": 30, "start_date": "2024-01-01",

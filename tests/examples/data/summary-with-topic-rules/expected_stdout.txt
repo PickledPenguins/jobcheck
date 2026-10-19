@@ -7,16 +7,18 @@ Loaded 2 rule(s) from 2 file(s)
        EMAIL_PRESENT      0      ON      -                        Email is missing                -                                                          -
         ROW_ALL_NULL      0      ON      -                   Row is entirely empty                -                                                          -
     AGE_NOT_A_NUMBER      1      ON      -                     Age is not a number      AGE_PRESENT                                                          -
-  DATES_OUT_OF_ORDER      1      ON      -            start_date is after end_date    DATES_PRESENT                                                          -
+    DATES_NOT_A_DATE      1      ON      -                   A date cannot be read    DATES_PRESENT                                                          -
     EMAIL_MISSING_AT      1      ON      -                        Email has no '@'    EMAIL_PRESENT suppress_email_checks_for_test_accounts_by_topic (disable)
         AGE_NEGATIVE      2      ON      -                         Age is negative AGE_NOT_A_NUMBER                                                          -
      AGE_NOT_INTEGER      2     OFF      -               Age is not a whole number AGE_NOT_A_NUMBER              enable_legacy_integer_check_by_topic (enable)
         AGE_TOO_HIGH      2      ON      -      Age is implausibly high (over 130) AGE_NOT_A_NUMBER                                                          -
+  DATES_OUT_OF_ORDER      2      ON      -            start_date is after end_date DATES_NOT_A_DATE                                                          -
 EMAIL_DOMAIN_INVALID      2      ON      -            Email domain looks malformed EMAIL_MISSING_AT suppress_email_checks_for_test_accounts_by_topic (disable)
 
 == Report ==
                                       status  layer outcome                                  message detail                                    comments                                  rule  is_root_cause
 id       code                                                                                                                                                                                               
+1002     DATES_NOT_A_DATE      MALFORMED (2)      1  failed                    A date cannot be read                                end_date=2024-13-45                                                 True
 1003     AGE_PRESENT             MISSING (1)      0  failed                           Age is missing                                                                                                    True
 1004     AGE_NEGATIVE            INVALID (3)      2  failed                          Age is negative                              value=-4.0; minimum=0                                                 True
 1005     AGE_TOO_HIGH            INVALID (3)      2  failed       Age is implausibly high (over 130)                           value=999.0; maximum=130                                                 True
@@ -24,7 +26,7 @@ id       code
 1007     EMAIL_MISSING_AT      MALFORMED (2)      1  failed                         Email has no '@'              at_signs=0; value=frances-example.com                                                 True
 1008     EMAIL_DOMAIN_INVALID  MALFORMED (2)      2  failed             Email domain looks malformed                                   domain=localhost                                                 True
 1009     EMAIL_PRESENT           MISSING (1)      0  failed                         Email is missing                                                                                                    True
-1010     DATES_OUT_OF_ORDER      INVALID (3)      1  failed             start_date is after end_date         start_date=2024-09-01; end_date=2024-03-01                                                 True
+1010     DATES_OUT_OF_ORDER      INVALID (3)      2  failed             start_date is after end_date         start_date=2024-09-01; end_date=2024-03-01                                                 True
 1011     DATES_PRESENT           MISSING (1)      0  failed  Both start_date and end_date are needed                                 columns=start_date                                                 True
 1012     DATES_PRESENT           MISSING (1)      0  failed  Both start_date and end_date are needed                                   columns=end_date                                                 True
 1014     AGE_NOT_INTEGER         INVALID (3)      2  failed                Age is not a whole number                                         value=58.5  enable_legacy_integer_check_by_topic           True
@@ -47,7 +49,8 @@ id       code
 EMAIL_DOMAIN_INVALID      2       2                2        0        5         2       0      40
         ROW_ALL_NULL      0       1                1        0        0         0       0      48
     AGE_NOT_A_NUMBER      1       1                1        0        3         0       0      45
-  DATES_OUT_OF_ORDER      1       1                1        0        4         0       0      44
+    DATES_NOT_A_DATE      1       1                1        0        4         0       0      44
         AGE_NEGATIVE      2       1                1        0        4         0       0      44
      AGE_NOT_INTEGER      2       1                1        0        0        43       0       5
         AGE_TOO_HIGH      2       1                1        0        4         0       0      44
+  DATES_OUT_OF_ORDER      2       1                1        0        5         0       0      43

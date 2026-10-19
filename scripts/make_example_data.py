@@ -38,14 +38,15 @@ REGIONS = ["EU", "US", "UK", "APAC"]
 # The small file, row by row, so each problem is visible in the source rather
 # than emerging from a generator. Every value here is one a real export has
 # produced: a blank field, an age typed as a decimal, a sentinel 999, an
-# address with no dot in the domain, a date range the wrong way round, a name
-# holding a comma, and a cell a spreadsheet would treat as a formula.
+# address with no dot in the domain, a date range the wrong way round, a date
+# no calendar has, a name holding a comma, and a cell a spreadsheet would
+# treat as a formula.
 SMALL_ROWS: list[dict[str, str]] = [
     {"id": "1001", "name": "Ada Lovelace", "age": "36", "email": "ada@example.com",
      "start_date": "2024-01-05", "end_date": "2024-06-30",
      "source_system": "MODERN", "record_type": "STREAM", "region": "EU"},
     {"id": "1002", "name": "Grace Hopper", "age": "45", "email": "grace@example.com",
-     "start_date": "2024-02-01", "end_date": "2024-08-01",
+     "start_date": "2024-02-01", "end_date": "2024-13-45",
      "source_system": "MODERN", "record_type": "STREAM", "region": "US"},
     {"id": "1003", "name": "Katherine Johnson", "age": "", "email": "kj@example.com",
      "start_date": "2024-01-15", "end_date": "2024-07-15",

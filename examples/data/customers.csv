@@ -1,6 +1,6 @@
 id,name,age,email,start_date,end_date,source_system,record_type,region
 1001,Ada Lovelace,36,ada@example.com,2024-01-05,2024-06-30,MODERN,STREAM,EU
-1002,Grace Hopper,45,grace@example.com,2024-02-01,2024-08-01,MODERN,STREAM,US
+1002,Grace Hopper,45,grace@example.com,2024-02-01,2024-13-45,MODERN,STREAM,US
 1003,Katherine Johnson,,kj@example.com,2024-01-15,2024-07-15,MODERN,STREAM,US
 1004,Alan Turing,-4,alan@example.com,2024-03-01,2024-04-01,MODERN,STREAM,EU
 1005,Jean Bartik,999,jean@example.com,2024-01-01,2024-12-31,MODERN,BATCH,US
