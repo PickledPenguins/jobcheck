@@ -15,6 +15,3 @@ dist/
 mutants/
 .mutmut-cache
 
-# Agent working files: saved review reports, written by creview and cleared by
-# caddressreview. The handoff record beside them is tracked.
-.agent/reviews/

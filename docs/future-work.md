@@ -7,8 +7,7 @@ what was **considered and deliberately not done**, with the reason. Without the 
 section every review re-proposes the same rejected idea and every session re-derives the
 same answer.
 
-Open findings live in `.agent/reviews/` when a review has run; what a session was in the
-middle of lives in `.agent/HANDOFF.md`. This file is for questions that are closed.
+
 
 ## Known gaps
 
@@ -18,10 +17,10 @@ was open), or decided against, in the section below.
 
 ## Considered and deliberately not done
 
-The friction log written while building the complex catalog cases
-(`.agent/example-pain-points.md`) was triaged on 2026-10-02 and deleted. Its entries
-already closed (root causes, F.47; a raising builder, F.46; `warn_blocking_rules`; the
-counts `doc-counts` now rewrites; F.55) were dropped; what was built is in the git log;
+The friction log written while building the complex catalog cases was triaged on
+2026-10-02 and deleted. Its entries already closed (root causes, F.47; a raising builder,
+F.46; `warn_blocking_rules`; the stated counts, now rewritten by a script; F.55) were
+dropped; what was built is in the git log;
 the rest was declined, below.
 
 **Bundles removed, and a repeated check or rule file raises** (owner's review, done
@@ -84,10 +83,7 @@ point: its callers are long-lived processes, jobchain between runs among them, a
 the item ruled out. Moving the case would be the one honest way to show a context in
 `examples/`, and was not done.
 
-**The built-in `/code-review` as part of `creview`** (F.61; declined by the owner
-2026-10-02). It ran once over the branch and returned ten findings: seven repeated
-decisions recorded here, two were fixed, and one was rejected -- the run-file example's
-one-line `key_names` copies `paths._key_names` so that it imports no private name.
+
 
 **Two traps that turned out not to be** (F.62, tried 2026-10-02). Sorting
 `registry._CHECKS` changes nothing: the cached order holds the check objects, not
@@ -107,8 +103,8 @@ decision somewhere. Kept, and not to be cut by the next pass:
 - The three README prose-claim tests (`Verdict(condition)`, one line per failure, rules
   cannot define codes), on the owner's word: their behavior is pinned elsewhere, but they
   are the only tie between the sentence and the code.
-- The document tests the shared `doc-errors`, `doc-examples`, `doc-refs` and `doc-counts`
-  tools overlap: the tools are outside the repository and outside the gate. For the same
+- The outside documentation checkers the document tests overlap: those checkers are
+  outside the repository and outside the gate. For the same
   reason `pyproject.toml` has no `[tool.doc-errors]` table, so `doc-errors --owners`
   refuses to run: the table would repeat the test's two owner maps, by file and by
   function, in a second place free to drift.
@@ -131,15 +127,15 @@ large inputs without a time ceiling, unicode in a pattern, and the `None` return
 the code and in `interfaces.md` together passes without a second edit to a test; and
 `jobcheck.OK` is no longer asserted to be `results.OK`.
 
-**Deleting `scripts/regen_docs.py` for skills `bin/doc-examples`** (F.54, from the
-2026-09-27 commit review; declined 2026-10-02). doc-examples was written to replace the
-script, and keeping both leaves two fence parsers that must agree. The script stays: the
-skills repository has no remote, so the published repository cannot send a contributor to
-doc-examples, and deleting the script would not remove the second parser anyway, because
+**Deleting `scripts/regen_docs.py` for an outside tool** (F.54, from the 2026-09-27
+commit review; declined 2026-10-02). A docs tool outside the repository was written to
+replace the script, and keeping both leaves two fence parsers that must agree. The script
+stays: that tool is not published, so the repository cannot send a contributor to it,
+and deleting the script would not remove the second parser anyway, because
 the gates (`test_docs_blocks_unit.py`, `test_readme.py`) read blocks through
 `tests/doc_files.py`. The script regenerates the README's session too, from the same
 parser the README test uses, so no regeneration step depends on a tool outside the
-repository. The disagreement is closed instead: `doc_files.FENCE` is doc-examples'
+repository. The disagreement is closed instead: `doc_files.FENCE` is that tool's
 pattern (a fence starts a line, and the opening one may carry an info string), and
 `test_a_fence_is_read_only_at_the_start_of_a_line` pins it.
 
@@ -296,7 +292,7 @@ terminal shows two rows with the same key as one block. jobchain's `checks.py` t
 its root causes from `build_report(include="root_causes")`.
 
 **Two lists of the summary columns left out `shared`, and nothing checked them**
-(F.86 and F.87, built together on 2026-09-30; from the `creadme` audit of that day).
+(F.86 and F.87, built together on 2026-09-30; from the documentation audit of that day).
 The `summarize_outcomes` row of `interfaces.md`'s At a glance table and `cli.md`'s
 `--summary` listed the counts without `shared`; both now name it. Two tests in
 `test_docs_structure_unit.py` keep such drift out: every `tests/test_*.py` has a row in
@@ -307,7 +303,7 @@ nothing a reader sees; one more place to update when a test file or summary colu
 added.
 
 **A `shared` line showed a failure status** (F.78, built on 2026-09-30; from the
-`creview` of that day). A `shared` outcome copied the first copy's status, so a copy
+code review of that day). A `shared` outcome copied the first copy's status, so a copy
 read `shared | INVALID (3)` although `.failed` was False and nothing counted it. It now
 records `Status.PASS`, as `skipped` and `disabled` do (`concepts.md`: the status says
 something only beside a failure); `detail` still says what the first copy did and

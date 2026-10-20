@@ -59,7 +59,7 @@ def test_the_documents_show_output_for_their_blocks() -> None:
 
 
 def test_a_fence_is_read_only_at_the_start_of_a_line(tmp_path: Path) -> None:
-    """The fence rule `bin/doc-examples` uses: an info string after the language is
+    """The fence rule: an info string after the language is
     allowed, and three backticks inside a line of prose open nothing."""
     path = tmp_path / "doc.md"
     path.write_text("Prose quoting ```python\nis not a block.\n\n"

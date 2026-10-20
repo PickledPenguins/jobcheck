@@ -37,8 +37,7 @@ ILLUSTRATIVE_CHECK_FILES = {
 
 
 #: A fenced block: the fences start a line, the opening one may carry an info string
-#: after the language, and the closing one is alone on its line. The same pattern as
-#: skills `bin/doc-examples`, so the two read the same blocks.
+#: after the language, and the closing one is alone on its line.
 FENCE = re.compile(r"^```([\w+-]*)[^\n]*\n(.*?)^```[ \t]*$", re.M | re.S)
 
 

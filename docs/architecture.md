@@ -45,7 +45,6 @@ scripts/                     the hook installer, and tools that regenerate
                              committed fixtures or measure: one row each below
 pyproject.toml               packaging, plus pytest, coverage, ruff and mypy config
 .build/                      every generated artifact, all gitignored
-.agent/, .claude/            the handoff record, saved reviews, agent guidance
 ```
 
 Nothing generated is written to the project root. `.build/` holds the coverage
